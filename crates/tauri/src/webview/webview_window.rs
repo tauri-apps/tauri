@@ -772,15 +772,12 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// Sets the window to be created transient for parent.
   ///
   /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
+  ///
+  /// Requires the `gtk3` or `gtk4` feature, which is enabled by the runtime crate in use.
+  #[cfg(gtk)]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   #[must_use]
-  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  pub fn transient_for_raw(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for_raw(parent);
     self
   }
@@ -1925,13 +1922,10 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   ///
   /// Note that this type can only be used on the main thread.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
+  ///
+  /// Requires the `gtk3` or `gtk4` feature, which is enabled by the runtime crate in use.
+  #[cfg(gtk)]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
     self.window.gtk_window()
   }
@@ -1939,13 +1933,10 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
   ///
   /// Note that this type can only be used on the main thread.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
+  ///
+  /// Requires the `gtk3` or `gtk4` feature, which is enabled by the runtime crate in use.
+  #[cfg(gtk)]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   pub fn default_vbox(&self) -> crate::Result<gtk::Box> {
     self.window.default_vbox()
   }

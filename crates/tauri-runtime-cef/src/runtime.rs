@@ -33,9 +33,10 @@ use tauri_runtime::{
 use tauri_utils::Theme;
 use winit::{
   application::ApplicationHandler,
+  data_transfer::{DataTransferId, TypeHint},
   event::{StartCause, WindowEvent as WinitWindowEvent},
   event_loop::{
-    ActiveEventLoop, EventLoop, EventLoopBuilder, EventLoopProxy as WinitEventLoopProxy,
+    ActiveEventLoop, DndAction, EventLoop, EventLoopBuilder, EventLoopProxy as WinitEventLoopProxy,
   },
   window::WindowId as WinitWindowId,
 };
@@ -56,10 +57,6 @@ use crate::{
   },
   window_handle::SendRawDisplayHandle,
 };
-#[cfg(target_os = "macos")]
-use winit::platform::macos::EventLoopBuilderExtMacOS;
-#[cfg(windows)]
-use winit::platform::windows::EventLoopBuilderExtWindows;
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -67,7 +64,11 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-use winit::platform::x11::EventLoopBuilderExtX11;
+use winit::platform::gtk4::EventLoopBuilderExtGtk4;
+#[cfg(target_os = "macos")]
+use winit::platform::macos::EventLoopBuilderExtMacOS;
+#[cfg(windows)]
+use winit::platform::windows::EventLoopBuilderExtWindows;
 
 /// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
 type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
@@ -1221,11 +1222,38 @@ impl<T: UserEvent> Drop for MainThreadDispatchGuard<T> {
   }
 }
 
+/// Whether handling `message` ends in the application's `RunEvent` callback.
+///
+/// Those messages must never be handled inline by [`handle_main_thread_message`]: see
+/// the deadlock it documents.
+fn dispatches_run_event<T: UserEvent>(message: &Message<T>) -> bool {
+  match message {
+    Message::UserEvent(_) | Message::Opened(_) => true,
+    #[cfg(target_os = "macos")]
+    Message::Reopen { .. } => true,
+    _ => false,
+  }
+}
+
 #[allow(clippy::result_large_err)]
 fn handle_main_thread_message<T: UserEvent>(
   context: &RuntimeContext<T>,
   message: Message<T>,
 ) -> std::result::Result<(), Message<T>> {
+  // A message that reaches the application's run callback goes through the event loop
+  // even on the main thread, because the main thread may be several frames deep inside
+  // a callback already — anything that spins a nested loop, such as muda's GTK4 context
+  // menu, gets here from the closure it is blocking on. Running the callback from there
+  // re-enters the application while it holds locks meant for one pass of the loop:
+  // `Window::popup_menu` reaches the runtime through a plugin command, which holds
+  // Tauri's plugin store lock across the popup and blocks a worker on the main thread,
+  // while `on_event_loop_event` takes that same lock to deliver the menu event —
+  // deadlocking both threads. Queueing keeps the callback where the loop can only be in
+  // one pass at a time, and matches what the wry runtime's proxy does.
+  if dispatches_run_event(&message) {
+    return Err(message);
+  }
+
   let Some(dispatch) = context.current_dispatch.current() else {
     return Err(message);
   };
@@ -1393,6 +1421,80 @@ pub(crate) enum EventLoopMessage {
   ShowApplication,
   #[cfg(target_os = "macos")]
   HideApplication,
+}
+
+#[derive(Debug)]
+pub(crate) struct WinitDragDropState {
+  id: DataTransferId,
+  paths: Option<Vec<PathBuf>>,
+  paths_requested: bool,
+  enter_position: Option<PhysicalPosition<f64>>,
+  latest_position: Option<PhysicalPosition<f64>>,
+  enter_emitted: bool,
+  drop_pending: bool,
+}
+
+impl WinitDragDropState {
+  fn position(&self) -> PhysicalPosition<f64> {
+    self
+      .latest_position
+      .or(self.enter_position)
+      .unwrap_or_default()
+  }
+}
+
+fn pending_native_drag_enter(
+  native_drag_drop: &mut Option<WinitDragDropState>,
+) -> Option<DragDropEvent> {
+  native_drag_drop.as_mut().and_then(|state| {
+    if state.enter_emitted {
+      return None;
+    }
+
+    let paths = state.paths.clone()?;
+    let position = state.position();
+
+    state.enter_emitted = true;
+    Some(DragDropEvent::Enter { paths, position })
+  })
+}
+
+fn pending_native_drag_drop(
+  native_drag_drop: &mut Option<WinitDragDropState>,
+) -> Option<DragDropEvent> {
+  native_drag_drop.as_mut().and_then(|state| {
+    if !state.drop_pending || !state.enter_emitted {
+      return None;
+    }
+
+    let paths = state.paths.clone()?;
+    let position = state.position();
+
+    Some(DragDropEvent::Drop { paths, position })
+  })
+}
+
+fn request_native_drag_paths(
+  event_loop: &dyn ActiveEventLoop,
+  native_drag_drop: &mut Option<WinitDragDropState>,
+) {
+  let Some(state) = native_drag_drop else {
+    return;
+  };
+  let id = state.id;
+  if state.paths.is_some() || state.paths_requested {
+    return;
+  }
+
+  if event_loop
+    .fetch_data_transfer(id, &TypeHint::UriList)
+    .is_err()
+  {
+    *native_drag_drop = None;
+    let _ = event_loop.set_valid_dnd_actions(id, &[]);
+  } else if let Some(state) = native_drag_drop {
+    state.paths_requested = true;
+  }
 }
 
 macro_rules! event_loop_getter {
@@ -1993,27 +2095,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       event_loop.exit();
     }
   }
-
-  /// Service the default GLib main context so the external message pump's GLib
-  /// source (and any GTK work CEF schedules) gets dispatched, then arm winit to
-  /// wake when the next GLib pump deadline is due. Windows/macOS need no
-  /// equivalent: their pump timers live on the native loop winit already runs.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  fn service_glib(&self, event_loop: &dyn ActiveEventLoop) {
-    let context = gtk::glib::MainContext::default();
-    while context.pending() {
-      context.iteration(false);
-    }
-    if let Some(deadline) = self.context.cef_pump.next_deadline() {
-      event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(deadline));
-    }
-  }
 }
 
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
@@ -2043,7 +2124,6 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
     self.apply_pending_activations();
-    // TODO: remove once migrated to winit-gtk4
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -2051,7 +2131,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    self.service_glib(event_loop);
+    self.apply_pending_host_layouts();
     self.run_callback(RunEvent::MainEventsCleared);
   }
 
@@ -2117,24 +2197,132 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         }
         self.emit_window_event(window_id, WindowEvent::ThemeChanged(system_theme));
       }
-      WinitWindowEvent::DragEntered { paths, position } => {
-        let event = DragDropEvent::Enter { paths, position };
-        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
-      }
-      WinitWindowEvent::DragMoved { position } => {
-        let event = DragDropEvent::Over { position };
-        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
-      }
-      WinitWindowEvent::DragDropped { paths, position } => {
-        let event = DragDropEvent::Drop { paths, position };
-        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
-      }
-      WinitWindowEvent::DragLeft { .. } => {
-        self.emit_window_event(window_id, WindowEvent::DragDrop(DragDropEvent::Leave));
-      }
       #[cfg(windows)]
       WinitWindowEvent::RedrawRequested => {
         appwindow.draw_background_surface();
+      }
+      WinitWindowEvent::DragEntered { id, position } => {
+        let has_file_paths = event_loop
+          .data_transfer(id)
+          .map(|data_transfer| data_transfer.has_type(&TypeHint::UriList))
+          .unwrap_or(false);
+
+        if has_file_paths {
+          appwindow.native_drag_drop = Some(WinitDragDropState {
+            id,
+            paths: None,
+            paths_requested: false,
+            enter_position: position,
+            latest_position: position,
+            enter_emitted: false,
+            drop_pending: false,
+          });
+          let _ = event_loop.set_valid_dnd_actions(id, &[DndAction::Copy]);
+          request_native_drag_paths(event_loop, &mut appwindow.native_drag_drop);
+        } else {
+          appwindow.native_drag_drop = None;
+          let _ = event_loop.set_valid_dnd_actions(id, &[]);
+        }
+      }
+      WinitWindowEvent::DragPosition { id, position, .. } => {
+        if let Some(state) = appwindow
+          .native_drag_drop
+          .as_mut()
+          .filter(|state| state.id == id)
+        {
+          state.latest_position = Some(position);
+          state.enter_position.get_or_insert(position);
+        }
+
+        let enter_event = pending_native_drag_enter(&mut appwindow.native_drag_drop);
+
+        let over_event = appwindow
+          .native_drag_drop
+          .as_ref()
+          .filter(|state| state.id == id && state.enter_emitted)
+          .map(|_| DragDropEvent::Over { position });
+
+        if let Some(event) = enter_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+        if let Some(event) = over_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+      }
+      WinitWindowEvent::DragDropped { id, .. } => {
+        if let Some(state) = appwindow
+          .native_drag_drop
+          .as_mut()
+          .filter(|state| state.id == id)
+        {
+          state.drop_pending = true;
+        }
+
+        request_native_drag_paths(event_loop, &mut appwindow.native_drag_drop);
+
+        let enter_event = pending_native_drag_enter(&mut appwindow.native_drag_drop);
+        let drop_event = pending_native_drag_drop(&mut appwindow.native_drag_drop);
+
+        let drop_emitted = drop_event.is_some();
+        if drop_emitted {
+          appwindow.native_drag_drop = None;
+        }
+
+        if let Some(event) = enter_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+        if let Some(event) = drop_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+      }
+      WinitWindowEvent::DragLeft { id } => {
+        let entered = appwindow
+          .native_drag_drop
+          .as_ref()
+          .is_some_and(|state| state.id == id && state.enter_emitted);
+
+        appwindow.native_drag_drop = None;
+
+        if entered {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(DragDropEvent::Leave));
+        }
+      }
+      WinitWindowEvent::DataTransferReceived { id, value, .. } => {
+        let mut reject_drag = false;
+
+        if let Some(state) = appwindow
+          .native_drag_drop
+          .as_mut()
+          .filter(|state| state.id == id)
+        {
+          match value.try_as_file_paths() {
+            Ok(paths) if !paths.is_empty() => state.paths = Some(paths),
+            Ok(_) => reject_drag = state.drop_pending,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+            Err(_) => reject_drag = state.drop_pending,
+          }
+        }
+
+        if reject_drag {
+          appwindow.native_drag_drop = None;
+          let _ = event_loop.set_valid_dnd_actions(id, &[]);
+          return;
+        }
+
+        let enter_event = pending_native_drag_enter(&mut appwindow.native_drag_drop);
+        let drop_event = pending_native_drag_drop(&mut appwindow.native_drag_drop);
+
+        let drop_emitted = drop_event.is_some();
+        if drop_emitted {
+          appwindow.native_drag_drop = None;
+        }
+
+        if let Some(event) = enter_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+        if let Some(event) = drop_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
       }
       _ => {}
     }
@@ -2840,7 +3028,22 @@ impl<T: UserEvent> CefRuntime<T> {
     ))]
     {
       internal_command_line_args.push(("--ozone-platform".to_string(), Some("x11".to_string())));
-      event_loop_builder.with_x11();
+      // CEF integration below uses XIDs for child windows/reparenting, so GDK must not honor an
+      // inherited `GDK_BACKEND=wayland`. `set_allowed_backends` alone is not enough: GDK reads
+      // `GDK_BACKEND` first and only intersects it with the allowed list, so an inherited
+      // `wayland` would leave no backend to open a display with.
+      //
+      // SAFETY: `std::env::set_var` is only unsafe because another thread may be reading the
+      // environment concurrently. This runs during runtime initialization, before any GTK, CEF or
+      // Tauri thread that could read it has been spawned. Note the value is inherited by child
+      // processes the app spawns later, which is intended for CEF's own subprocesses.
+      unsafe { std::env::set_var("GDK_BACKEND", "x11") };
+      gtk::gdk::set_allowed_backends("x11");
+      event_loop_builder.with_gtk4();
+
+      // the GTK pointers this runtime hands out are GTK 4 objects, whichever bindings the `tauri`
+      // crate was compiled against.
+      tauri_runtime::gtk::declare_version(tauri_runtime::gtk::Version::V4);
     }
 
     #[cfg(windows)]

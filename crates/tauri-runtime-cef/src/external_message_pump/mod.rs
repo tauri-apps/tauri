@@ -95,19 +95,6 @@ impl CefExternalPump {
   pub(crate) fn do_work(&self) {
     self.state.do_work();
   }
-
-  /// When the platform timer is next due. This is only needed by event loops
-  /// that do not block in the GLib main context themselves.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  pub(crate) fn next_deadline(&self) -> Option<std::time::Instant> {
-    self.state.platform.lock().ok().and_then(|p| p.deadline())
-  }
 }
 
 /// Platform-independent pump state, shared with the [`PlatformPump`] backend.

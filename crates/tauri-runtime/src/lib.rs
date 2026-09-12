@@ -24,6 +24,14 @@ use webview::{DetachedWebview, PendingWebview};
 /// UI scaling utilities.
 pub mod dpi;
 pub mod dynamic;
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub mod gtk;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
@@ -892,7 +900,20 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
-  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
+  /// Returns the GTK application window pointer (`GtkApplicationWindow*`) that is used by this window.
+  ///
+  /// # Ownership
+  ///
+  /// The pointer is *transfer full*: implementations must hand out a strong reference
+  /// (`g_object_ref`, i.e. glib's `to_glib_full`) and the caller is responsible for releasing it
+  /// (`g_object_unref`, i.e. glib's `from_glib_full`). It is never null on success.
+  ///
+  /// The GTK major version of the object is the one the runtime was built against, so callers must
+  /// wrap it with matching bindings - the `tauri` crate selects them through its `gtk3`/`gtk4`
+  /// features, which the runtime crate enables. Runtimes must report that version with
+  /// [`gtk::declare_version`] so a mismatch can be detected instead of reinterpreting the object.
+  ///
+  /// The object may only be used on the main thread.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -900,9 +921,14 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void>;
 
-  /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
+  /// Returns the vertical GTK box pointer (`GtkBox*`) that is added by default as the sole child of this window.
+  ///
+  /// # Ownership
+  ///
+  /// Same contract as [`WindowDispatch::gtk_window`]: *transfer full*, never null on success, main
+  /// thread only.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -910,7 +936,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<gtk::Box>;
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void>;
 
   /// Returns the name of the Android activity associated with this window.
   #[cfg(target_os = "android")]

@@ -16,6 +16,7 @@ fn main() {
   #[cfg(feature = "cef")]
   let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
   builder
+    .menu(tauri::menu::Menu::default)
     .invoke_handler(tauri::generate_handler![greet])
     .run(tauri::generate_context!(
       "../../examples/helloworld/tauri.conf.json"

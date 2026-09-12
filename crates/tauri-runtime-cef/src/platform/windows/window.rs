@@ -26,7 +26,7 @@ use crate::{window::AppWindow, window_handle::SoftbufferWindowHandle};
 use super::icon::icon_to_hicon;
 
 impl AppWindow {
-  pub(crate) fn raw_cef_handle(&self) -> cef::sys::cef_window_handle_t {
+  pub(crate) fn cef_host_handle(&self) -> cef::sys::cef_window_handle_t {
     cef::sys::HWND(self.hwnd().0 as *mut _)
   }
 

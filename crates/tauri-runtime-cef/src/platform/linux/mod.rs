@@ -8,3 +8,5 @@ mod taskbar;
 mod utils;
 mod webview;
 mod window;
+
+pub(crate) use window::CefX11Host;

@@ -66,6 +66,8 @@ impl<R: Runtime> MenuManager<R> {
     return None;
 
     #[cfg_attr(target_os = "macos", allow(unused_variables, unreachable_code))]
+    // Linux without a `gtk3`/`gtk4` feature has no menu integration to run.
+    #[cfg_attr(all(not(windows), not(gtk)), allow(unused_variables))]
     {
       let menu = window_menu.menu.clone();
       Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
@@ -76,16 +78,22 @@ impl<R: Runtime> MenuManager<R> {
             .unwrap_or(muda::MenuTheme::Auto);
           let _ = unsafe { menu.inner().init_for_hwnd_with_theme(raw.hwnd as _, theme) };
         }
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ))]
-        let _ = menu
-          .inner()
-          .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
+        #[cfg(gtk)]
+        if crate::gtk_version::check().is_ok() {
+          use gtk::glib::translate::FromGlibPtrNone;
+
+          let gtk_window = unsafe {
+            gtk::ApplicationWindow::from_glib_none(
+              raw.gtk_window as *mut gtk::ffi::GtkApplicationWindow,
+            )
+          };
+          let default_vbox = raw
+            .default_vbox
+            .map(|vbox| unsafe { gtk::Box::from_glib_none(vbox as *mut gtk::ffi::GtkBox) });
+          let _ = menu
+            .inner()
+            .init_for_gtk_window(&gtk_window, default_vbox.as_ref());
+        }
       })
     }
   }

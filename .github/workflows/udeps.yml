@@ -151,7 +151,7 @@ jobs:
       - name: Install required packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libgtk-4-dev libayatana-appindicator3-dev
 
       - name: Run udeps
         run: cargo udeps --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features

@@ -11,7 +11,9 @@ use crate::menu::NativeIcon;
 use crate::menu::SubmenuInner;
 use crate::run_main_thread;
 use crate::{AppHandle, Manager, Position, Runtime, Window};
-use muda::{ContextMenu, Icon as MudaIcon, MenuId};
+#[cfg(menu_backend)]
+use muda::ContextMenu;
+use muda::{Icon as MudaIcon, MenuId};
 
 impl<R: Runtime> super::ContextMenu for Submenu<R> {
   #[cfg(target_os = "windows")]
@@ -33,6 +35,8 @@ impl<R: Runtime> super::ContextMenu for Submenu<R> {
 }
 
 impl<R: Runtime> ContextMenuBase for Submenu<R> {
+  // no platform backend to pop up on: the arguments are unused
+  #[cfg_attr(not(menu_backend), allow(unused_variables))]
   fn popup_inner<T: Runtime, P: Into<crate::Position>>(
     &self,
     window: crate::Window<T>,
@@ -49,13 +53,7 @@ impl<R: Runtime> ContextMenuBase for Submenu<R> {
         }
       }
 
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
+      #[cfg(gtk)]
       if let Ok(w) = window.gtk_window() {
         self_
           .inner()
@@ -235,6 +233,7 @@ impl<R: Runtime> Submenu<R> {
     Ok(menu)
   }
 
+  #[cfg_attr(not(menu_backend), allow(dead_code))]
   pub(crate) fn inner(&self) -> &muda::Submenu {
     (*self.0).as_ref()
   }

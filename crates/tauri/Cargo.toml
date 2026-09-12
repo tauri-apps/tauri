@@ -26,6 +26,8 @@ features = [
   "specta",
   "dynamic-acl",
   "isolation",
+  # the default target is Linux, where the GTK APIs are only available with a GTK version selected
+  "gtk3",
 ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
@@ -94,18 +96,15 @@ rustls = { version = "0.23", default-features = false, features = [
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.19", default-features = false, features = [
+muda = { version = "0.20", default-features = false, features = ["serde"] }
+tray-icon = { version = "0.25", default-features = false, features = [
   "serde",
-  "gtk",
-] }
-tray-icon = { version = "0.24", default-features = false, features = [
-  "serde",
-  "gtk",
 ], optional = true }
 
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
-gtk = { version = "0.18", features = ["v3_24"] }
+gtk = { version = "0.18", features = ["v3_24"], optional = true }
+gtk4 = { package = "gtk4", version = "0.11.4", optional = true }
 
 # darwin
 [target.'cfg(target_vendor = "apple")'.dependencies]
@@ -181,16 +180,21 @@ http-range = "0.1.5"
 default = ["compression", "common-controls-v6", "dynamic-acl"]
 unstable = []
 common-controls-v6 = [
-  "tray-icon?/common-controls-v6",
+  "tray-icon?/muda-common-controls-v6",
   "muda/common-controls-v6",
 ]
-tray-icon = ["dep:tray-icon"]
+# the Linux tray backend defaults to ksni (pure D-Bus StatusNotifierItem), which does not
+# require a GTK version to be selected - see the `linux-libappindicator` feature to opt out.
+tray-icon = ["dep:tray-icon", "tray-icon?/ksni"]
 tracing = ["dep:tracing", "tauri-macros/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
+gtk3 = ["dep:gtk", "muda/gtk3"]
+gtk4 = ["dep:gtk4", "muda/gtk4"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
-linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
+linux-libxdo = ["tray-icon?/muda-libxdo", "muda/libxdo"]
+linux-libappindicator = ["tray-icon?/libappindicator"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 # TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384

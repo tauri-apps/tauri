@@ -34,7 +34,8 @@ impl AppWebview {
       if !children.is_null() {
         (xlib.XFree)(children.cast());
       }
-      (status != 0).then_some(native_parent == parent.xid() as xlib::Window)
+      // Browsers are created under (and reparented into) the X11 host, not the GTK toplevel.
+      (status != 0).then_some(native_parent == parent.cef_host_handle() as xlib::Window)
     })
   }
 
@@ -101,7 +102,9 @@ impl AppWebview {
 
   pub(crate) fn reparent(&self, parent: &AppWindow) {
     let xid = self.xid();
-    let parent_xid = parent.xid();
+    // Linux reparents into the GTK content-area X11 host, unlike Windows/macOS
+    // where the CEF host handle is the native window/view.
+    let parent_xid = parent.cef_host_handle();
 
     with_cef_display((), |xlib, display| unsafe {
       (xlib.XReparentWindow)(display, xid, parent_xid as xlib::Window, 0, 0);

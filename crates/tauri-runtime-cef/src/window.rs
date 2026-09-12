@@ -32,7 +32,15 @@ use winit::{
 };
 
 use crate::platform::{EventLoopExt, MonitorExt};
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(
+  windows,
+  target_os = "macos",
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 use std::marker::PhantomData;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowExtMacOS;
@@ -43,7 +51,10 @@ use winit::platform::windows::WindowExtWindows;
 use crate::window_handle::SoftbufferWindowHandle;
 use crate::{
   cef_impl::{client as browser_client, request_context},
-  runtime::{AfterWindowCreationCallback, CefRuntime, Message, RuntimeContext, WinitCefApp},
+  runtime::{
+    AfterWindowCreationCallback, CefRuntime, Message, RuntimeContext, WinitCefApp,
+    WinitDragDropState,
+  },
   webview::{AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
   window_handle::SendRawWindowHandle,
@@ -51,6 +62,42 @@ use crate::{
 
 type WindowEventListener = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventListener>>>;
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub(crate) struct SendGtkWindow(*mut std::ffi::c_void);
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+unsafe impl Send for SendGtkWindow {}
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub(crate) struct SendGtkBox(*mut std::ffi::c_void);
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+unsafe impl Send for SendGtkBox {}
 
 pub(crate) fn tauri_theme_to_winit_theme(theme: Option<Theme>) -> Option<winit::window::Theme> {
   theme.map(|theme| match theme {
@@ -287,6 +334,22 @@ pub(crate) enum WindowMessage {
   PrimaryMonitor(Sender<Result<Option<Monitor>>>),
   MonitorFromPoint(Sender<Result<Option<Monitor>>>, f64, f64),
   AvailableMonitors(Sender<Result<Vec<Monitor>>>),
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  GtkWindow(Sender<Result<SendGtkWindow>>),
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  DefaultVBox(Sender<Result<SendGtkBox>>),
   RawWindowHandle(Sender<Result<SendRawWindowHandle>>),
   Theme(Sender<Result<Theme>>),
   Center,
@@ -401,6 +464,17 @@ pub(crate) struct AppWindow {
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: WindowEventListeners,
+  pub(crate) native_drag_drop: Option<WinitDragDropState>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  /// X11 parent for CEF browser children, sized to the GTK content area so
+  /// GTK UI like menus stays outside the native CEF child-window stack.
+  pub(crate) cef_host: crate::platform::linux::CefX11Host,
   /// Deadline for the initial raise of a window created focused, see
   /// [`WinitCefApp::apply_pending_activations`]. `None` once it has been
   /// raised or given up on.
@@ -432,6 +506,16 @@ pub(crate) struct AppWindowAttrs {
     target_os = "openbsd"
   ))]
   pub(crate) skip_taskbar: bool,
+  /// Parent this window is transient for, owning the reference transferred by
+  /// [`WindowBuilder::transient_for`](tauri_runtime::window::WindowBuilder::transient_for).
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub(crate) transient_for: Option<gtk::Window>,
 }
 
 impl AppWindow {
@@ -495,6 +579,31 @@ impl AppWindow {
     self.preferred_theme().or(app_wide_theme)
   }
 
+  /// Size available for CEF child layout. On Linux this is the GTK content-area
+  /// X11 host size, excluding GTK UI such as menus; elsewhere it is the window
+  /// surface size.
+  pub(crate) fn safe_surface_size(&self) -> PhysicalSize<u32> {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      self.cef_host.size()
+    }
+
+    #[cfg(not(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )))]
+    self.window.surface_size()
+  }
+
   pub(crate) fn set_theme(&mut self, theme: Option<Theme>) {
     self.attrs.inner.preferred_theme = tauri_theme_to_winit_theme(theme);
     self.window.set_theme(tauri_theme_to_winit_theme(theme));
@@ -531,6 +640,16 @@ impl<T: UserEvent> WinitCefApp<T> {
       .create_window(attrs.inner.clone())
       .map_err(|_| Error::CreateWindow)?;
 
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    let cef_host =
+      crate::platform::linux::CefX11Host::new(window.as_ref()).ok_or(Error::CreateWindow)?;
+
     let winit_id = window.id();
     let pending_activation = (attrs.inner.active && attrs.inner.visible)
       .then(|| Instant::now() + PENDING_ACTIVATION_TIMEOUT);
@@ -544,6 +663,15 @@ impl<T: UserEvent> WinitCefApp<T> {
       attrs,
       children: Vec::new(),
       listeners: Default::default(),
+      native_drag_drop: None,
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      cef_host,
       pending_activation,
     };
 
@@ -565,6 +693,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     {
       appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
       appwindow.set_skip_taskbar(appwindow.attrs.skip_taskbar);
+      appwindow.apply_transient_for();
     }
 
     #[cfg(windows)]
@@ -573,6 +702,32 @@ impl<T: UserEvent> WinitCefApp<T> {
     #[cfg(not(windows))]
     if appwindow.attrs.background_color.is_some() {
       appwindow.set_background_color(appwindow.attrs.background_color);
+    }
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    if let Some(after_window_creation) = _after_window_creation {
+      use gtk::glib::translate::ToGlibPtr;
+      use winit::platform::gtk4::WindowExtGtk4;
+
+      let gtk_window = appwindow.window.gtk_window().unwrap();
+      let default_vbox = appwindow.cef_host.default_vbox();
+      after_window_creation(RawWindow {
+        gtk_window: {
+          let ptr: *mut gtk::ffi::GtkApplicationWindow = gtk_window.to_glib_none().0;
+          ptr as *mut std::ffi::c_void
+        },
+        default_vbox: Some({
+          let ptr: *mut gtk::ffi::GtkBox = default_vbox.to_glib_none().0;
+          ptr as *mut std::ffi::c_void
+        }),
+        _marker: &PhantomData,
+      });
     }
 
     #[cfg(any(windows, target_os = "macos"))]
@@ -640,6 +795,28 @@ impl<T: UserEvent> WinitCefApp<T> {
 
       appwindow.activate();
       appwindow.pending_activation = None;
+    }
+  }
+
+  /// Re-lays out the CEF children of every window whose X11 host was resized by GTK without the
+  /// toplevel changing size.
+  ///
+  /// GTK owns the content area, so attaching, hiding or showing a menu bar moves and resizes the
+  /// host while winit reports no `SurfaceResized` for the toplevel. Without this the children
+  /// would keep the bounds computed against the previous host size until the user resizes the
+  /// window.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub(crate) fn apply_pending_host_layouts(&mut self) {
+    for appwindow in self.state.windows.values() {
+      if appwindow.cef_host.take_needs_relayout() {
+        crate::webview::layout_app_window(appwindow);
+      }
     }
   }
 
@@ -744,6 +921,35 @@ impl<T: UserEvent> WinitCefApp<T> {
           .map(|m| winit_monitor_to_tauri_monitor(&m))
           .collect();
         let _ = tx.send(Ok(monitors));
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      WindowMessage::GtkWindow(tx) => {
+        use gtk::glib::translate::ToGlibPtr;
+        use winit::platform::gtk4::WindowExtGtk4;
+
+        let gtk_window = appwindow.window.gtk_window().unwrap();
+        let ptr: *mut gtk::ffi::GtkApplicationWindow = gtk_window.to_glib_full();
+        let _ = tx.send(Ok(SendGtkWindow(ptr as *mut std::ffi::c_void)));
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      WindowMessage::DefaultVBox(tx) => {
+        use gtk::glib::translate::ToGlibPtr;
+
+        let default_vbox = appwindow.cef_host.default_vbox();
+        let ptr: *mut gtk::ffi::GtkBox = default_vbox.to_glib_full();
+        let _ = tx.send(Ok(SendGtkBox(ptr as *mut std::ffi::c_void)));
       }
       WindowMessage::RawWindowHandle(tx) => {
         let handle = window.window_handle();
@@ -1077,8 +1283,8 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
-    Err(Error::FailedToSendMessage)
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void> {
+    window_getter!(self, GtkWindow).map(|gtk_window| gtk_window.0)
   }
 
   #[cfg(any(
@@ -1088,8 +1294,8 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<gtk::Box> {
-    Err(Error::FailedToSendMessage)
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void> {
+    window_getter!(self, DefaultVBox).map(|gtk_box| gtk_box.0)
   }
 
   fn window_handle(

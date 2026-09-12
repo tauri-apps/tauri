@@ -52,11 +52,11 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
   setup: F,
 ) {
   let builder = builder
-    .plugin(
+    /*.plugin(
       tauri_plugin_log::Builder::default()
         .level(log::LevelFilter::Info)
         .build(),
-    )
+    )*/
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
       #[cfg(all(desktop, not(test)))]

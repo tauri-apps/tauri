@@ -17,11 +17,21 @@ pub trait RuntimeCapability {
   fn build(self) -> CapabilityFile;
 }
 
+/// we should remove this implementation, use `<CapabilityFile as FromStr>::from_str` instead
 impl<T: AsRef<str>> RuntimeCapability for T {
   fn build(self) -> CapabilityFile {
     self.as_ref().parse().expect("invalid capability")
   }
 }
+
+// // TODO: Because we have already `impl<T: AsRef<str>> RuntimeCapability for T`,
+// // we cant implement `RuntimeCapability` for `CapabilityFile` anymore.
+//
+// impl RuntimeCapability for CapabilityFile {
+//   fn build(self) -> CapabilityFile {
+//     self
+//   }
+// }
 
 /// A builder for a [`Capability`].
 pub struct CapabilityBuilder(Capability);

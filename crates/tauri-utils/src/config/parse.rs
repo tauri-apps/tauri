@@ -4,7 +4,7 @@
 
 use crate::config::Config;
 use crate::platform::Target;
-use json_patch::merge;
+pub use json_patch::merge;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::ffi::OsStr;

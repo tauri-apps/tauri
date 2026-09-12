@@ -271,3 +271,8 @@ path = "../../examples/streaming/main.rs"
 name = "isolation"
 path = "../../examples/isolation/main.rs"
 required-features = ["isolation"]
+
+[[example]]
+name = "precompiled"
+path = "../../examples/precompiled/main.rs"
+required-features = ["config-toml"]

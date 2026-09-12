@@ -248,7 +248,7 @@ fn random_boundary() -> String {
 mod tests {
   use super::get_response;
   use crate::scope::fs::Scope;
-  use http::{header::CONTENT_TYPE, status::StatusCode, Request};
+  use http::{Request, header::CONTENT_TYPE, status::StatusCode};
   use tauri_utils::config::FsScope;
 
   #[test]
@@ -292,8 +292,10 @@ mod tests {
     let boundary = content_types[0]
       .strip_prefix("multipart/byteranges; boundary=")
       .unwrap();
-    assert!(response
-      .body()
-      .ends_with(format!("\r\n--{boundary}--\r\n").as_bytes()));
+    assert!(
+      response
+        .body()
+        .ends_with(format!("\r\n--{boundary}--\r\n").as_bytes())
+    );
   }
 }

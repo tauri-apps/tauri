@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ffi::c_void;
-
 use tauri_runtime::{
   Icon, Result,
   dpi::{PhysicalSize, Size},

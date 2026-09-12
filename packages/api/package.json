@@ -39,7 +39,7 @@
     "build": "rollup -c --configPlugin typescript",
     "build:debug": "rollup -c --configPlugin typescript",
     "npm-pack": "pnpm build && cd ./dist && npm pack",
-    "npm-publish": "pnpm build && cd ./dist && pnpm publish --access public --loglevel silly --no-git-checks --tag next",
+    "npm-publish": "pnpm build && cd ./dist && pnpm publish --access public --loglevel debug --no-git-checks --tag next",
     "ts:check": "tsc --noEmit",
     "eslint:check": "eslint src/**/*.ts",
     "eslint:fix": "eslint src/**/*.ts --fix"

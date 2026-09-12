@@ -101,7 +101,7 @@
           "pipe": true
         },
         {
-          "command": "pnpm publish --access public --loglevel silly --no-git-checks --tag next",
+          "command": "pnpm publish --access public --loglevel debug --no-git-checks --tag next",
           "dryRunCommand": "npm publish --dry-run --access public --no-git-checks",
           "pipe": true
         },

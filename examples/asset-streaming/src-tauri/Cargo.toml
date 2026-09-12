@@ -1,0 +1,13 @@
+[package]
+name = "asset-streaming"
+version = "0.1.0"
+description = "Plays a video over the asset:// protocol"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+
+[build-dependencies]
+tauri-build = { workspace = true, default-features = true }
+
+[dependencies]
+tauri = { workspace = true, default-features = true, features = ["protocol-asset"] }

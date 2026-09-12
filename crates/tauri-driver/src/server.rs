@@ -203,34 +203,38 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
     .build_http();
 
   // set up a http1 server that uses the service we just created
-  let srv = async move {
-    if let Ok(listener) = TcpListener::bind(address).await {
-      loop {
-        let client = client.clone();
-        let args = args.clone();
-        if let Ok((stream, _)) = listener.accept().await {
-          let io = TokioIo::new(stream);
+  let listener = match TcpListener::bind(address).await {
+    Ok(l) => l,
+    Err(e) => {
+      eprintln!("can not listen to address: {address:?}: {e}");
+      std::process::exit(1);
+    }
+  };
 
-          tokio::task::spawn(async move {
-            if let Err(err) = auto::Builder::new(TokioExecutor::new())
-              .http1()
-              .title_case_headers(true)
-              .preserve_header_case(true)
-              .serve_connection(
-                io,
-                service_fn(|request| handle(client.clone(), request, args.clone())),
-              )
-              .await
-            {
-              println!("Error serving connection: {err:?}");
-            }
-          });
-        } else {
-          println!("accept new stream fail, ignore here");
-        }
+  let srv = async move {
+    loop {
+      let client = client.clone();
+      let args = args.clone();
+      if let Ok((stream, _)) = listener.accept().await {
+        let io = TokioIo::new(stream);
+
+        tokio::task::spawn(async move {
+          if let Err(err) = auto::Builder::new(TokioExecutor::new())
+            .http1()
+            .title_case_headers(true)
+            .preserve_header_case(true)
+            .serve_connection(
+              io,
+              service_fn(|request| handle(client.clone(), request, args.clone())),
+            )
+            .await
+          {
+            println!("Error serving connection: {err:?}");
+          }
+        });
+      } else {
+        println!("accept new stream fail, ignore here");
       }
-    } else {
-      println!("can not listen to address: {address:?}");
     }
   };
   srv.await;

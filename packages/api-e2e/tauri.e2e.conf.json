@@ -1,0 +1,16 @@
+{
+  "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "build": {
+    "removeUnusedCommands": false,
+    "features": ["automation"]
+  },
+  "bundle": {
+    "icon": [
+      "../../.icons/32x32.png",
+      "../../.icons/128x128.png",
+      "../../.icons/128x128@2x.png",
+      "../../.icons/icon.icns",
+      "../../.icons/icon.ico"
+    ]
+  }
+}

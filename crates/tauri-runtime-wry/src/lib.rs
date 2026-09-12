@@ -4033,6 +4033,17 @@ fn handle_user_message<T: UserEvent>(
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
         event_loop.set_theme(to_tao_theme(theme));
+        // On macOS tao caches each window's theme and only refreshes it from the
+        // system-wide appearance change notification, which the app-level
+        // `NSApp.setAppearance` call above never posts, so `Window::theme()`
+        // would keep reporting the previous value. tao's window-level setter
+        // does update the cache, so push the theme through it as well.
+        #[cfg(target_os = "macos")]
+        for window in windows.0.borrow().values() {
+          if let Some(inner) = &window.inner {
+            inner.set_theme(to_tao_theme(theme));
+          }
+        }
       }
       EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
         event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);

@@ -1,0 +1,143 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test `@tauri-apps/api` e2e
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '.github/workflows/test-api-e2e.yml'
+      - 'packages/api/**'
+      - 'packages/api-e2e/**'
+      - 'examples/api/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # keeps the target folder small for better cache efficiency
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.platform.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { name: Linux, os: ubuntu-latest }
+          - { name: Windows, os: windows-latest }
+          - { name: macOS, os: macos-latest }
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      - name: install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            xvfb \
+            fluxbox
+
+      # install a matching Microsoft Edge Driver version using msedgedriver-tool
+      - name: install msedgedriver (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$HOME/.cargo/bin/msedgedriver-tool.exe"
+          $PWD.Path >> $env:GITHUB_PATH
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.os }}
+
+      - name: install dependencies
+        run: pnpm i --frozen-lockfile
+
+      - name: build @tauri-apps/api
+        run: pnpm build:api
+
+      - name: build @tauri-apps/cli
+        run: pnpm build:cli
+
+      - name: run e2e tests (Linux)
+        if: runner.os == 'Linux'
+        timeout-minutes: 45
+        # A real window manager (fluxbox) is started so that window-state tests
+        # (minimize/maximize/fullscreen/position) behave. The tray host is absent
+        # in this environment, so the tray module is skipped.
+        run: |
+          xvfb-run --auto-servernum -- bash -c '
+            fluxbox >/dev/null 2>&1 &
+            sleep 1
+            E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
+          '
+
+      - name: run e2e tests (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 45
+        shell: pwsh
+        # msedgedriver hands the app the `--remote-debugging-port` it attaches to through
+        # `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, and WebView2 ignores that variable in an
+        # elevated process, which is what the runner gives us. gsudo runs the suite at medium
+        # integrity instead, and the workspace is opened up so the de-elevated process can use it.
+        # See https://github.com/tauri-apps/wry/issues/1782 and
+        # https://github.com/MicrosoftEdge/WebView2Feedback/issues/5645.
+        # The runner has an interactive desktop session, so window-state tests run as-is;
+        # the tray module is skipped to match the Linux job.
+        env:
+          E2E_SKIP: tray
+          E2E_SPEC_RETRIES: '1'
+        run: |
+          winget install gerardog.gsudo --accept-source-agreements --accept-package-agreements
+          icacls "$env:GITHUB_WORKSPACE" /grant "Everyone:(OI)(CI)F"
+          sudo --integrity Medium pnpm test:api-e2e
+
+      - name: run e2e tests (macOS)
+        if: runner.os == 'macOS' && env.CN_API_KEY != ''
+        timeout-minutes: 45
+        # macOS has no native WebDriver for WKWebView, so the app is driven through the
+        # CrabNebula Webdriver (tauri-plugin-automation + test-runner-backend), which
+        # authenticates with CN_API_KEY. wdio.conf enables it automatically on darwin and
+        # builds the `.app` bundle it needs. The tray module is skipped to match the other jobs.
+        run: E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
+        env:
+          CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY }}
+
+      - name: collect app crash reports (macOS)
+        if: runner.os == 'macOS' && failure()
+        run: .scripts/ci/collect-macos-crash-reports.sh "$RUNNER_TEMP/crash-reports"
+
+      - name: upload app crash reports (macOS)
+        if: runner.os == 'macOS' && failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-crash-reports
+          path: ${{ runner.temp }}/crash-reports
+          if-no-files-found: ignore

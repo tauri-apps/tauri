@@ -553,7 +553,7 @@ pub fn synchronize_project_config(
   let identifier = tauri_config.identifier.clone();
   let product_name = tauri_config.product_name.clone();
 
-  let manual_signing = project_config.code_sign_identity.is_some()
+  let project_manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();
 
   if let Some(xc_configuration_list) = pbxproj
@@ -563,7 +563,7 @@ pub fn synchronize_project_config(
     .find(|l| l.comment.contains("_iOS"))
   {
     for build_configuration_ref in xc_configuration_list.build_configurations {
-      if manual_signing {
+      if project_manual_signing {
         pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_STYLE", "Manual");
       }
 
@@ -647,52 +647,137 @@ pub fn synchronize_project_config(
   };
 
   if let Some(build_configuration) = build_configuration {
-    if let Some(style) = build_configuration.get_build_setting("CODE_SIGN_STYLE") {
-      export_options_plist.insert(
-        "signingStyle".to_string(),
-        style.value.to_lowercase().into(),
-      );
-    } else {
-      export_options_plist.insert("signingStyle".to_string(), "automatic".into());
-    }
-
-    if manual_signing {
-      if let Some(identity) = build_configuration
-        .get_build_setting("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"")
-        .or_else(|| build_configuration.get_build_setting("CODE_SIGN_IDENTITY"))
-      {
-        export_options_plist.insert(
-          "signingCertificate".to_string(),
-          identity.value.trim_matches('"').into(),
-        );
-      }
-
-      let profile_uuid = project_config
-        .provisioning_profile_uuid
-        .clone()
-        .or_else(|| {
-          build_configuration
-            .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
-            .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
-            .map(|setting| setting.value.trim_matches('"').to_string())
-        });
-      if let Some(profile_uuid) = profile_uuid {
-        let mut provisioning_profiles = plist::Dictionary::new();
-        provisioning_profiles.insert(config.app().identifier().to_string(), profile_uuid.into());
-        export_options_plist.insert(
-          "provisioningProfiles".to_string(),
-          provisioning_profiles.into(),
-        );
-      }
-    }
-
-    if let Some(id) = build_configuration
-      .get_build_setting("\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"")
-      .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
-    {
-      export_options_plist.insert("teamID".to_string(), id.value.trim_matches('"').into());
-    }
+    synchronize_export_options(
+      config.app().identifier(),
+      build_configuration,
+      export_options_plist,
+      project_config,
+    );
   }
 
   Ok(())
+}
+
+fn synchronize_export_options(
+  identifier: &str,
+  build_configuration: &pbxproj::XCBuildConfiguration,
+  export_options_plist: &mut plist::Dictionary,
+  project_config: &ProjectConfig,
+) {
+  let signing_style = build_configuration
+    .get_build_setting("CODE_SIGN_STYLE")
+    .map(|style| style.value.trim_matches('"').to_lowercase());
+  let manual_signing = project_config.code_sign_identity.is_some()
+    || project_config.provisioning_profile_uuid.is_some()
+    || signing_style.as_deref() == Some("manual");
+
+  export_options_plist.insert(
+    "signingStyle".to_string(),
+    signing_style
+      .unwrap_or_else(|| "automatic".to_string())
+      .into(),
+  );
+
+  if manual_signing {
+    if let Some(identity) = build_configuration
+      .get_build_setting("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"")
+      .or_else(|| build_configuration.get_build_setting("CODE_SIGN_IDENTITY"))
+    {
+      export_options_plist.insert(
+        "signingCertificate".to_string(),
+        identity.value.trim_matches('"').into(),
+      );
+    }
+
+    let profile_uuid = project_config
+      .provisioning_profile_uuid
+      .clone()
+      .or_else(|| {
+        build_configuration
+          .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
+          .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
+          .map(|setting| setting.value.trim_matches('"').to_string())
+      });
+    if let Some(profile_uuid) = profile_uuid {
+      let mut provisioning_profiles = plist::Dictionary::new();
+      provisioning_profiles.insert(identifier.to_string(), profile_uuid.into());
+      export_options_plist.insert(
+        "provisioningProfiles".to_string(),
+        provisioning_profiles.into(),
+      );
+    }
+  }
+
+  if let Some(id) = build_configuration
+    .get_build_setting("\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"")
+    .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
+  {
+    export_options_plist.insert("teamID".to_string(), id.value.trim_matches('"').into());
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{synchronize_export_options, ProjectConfig};
+
+  #[test]
+  fn uses_manual_signing_settings_from_pbxproj_for_export_options() {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let fixture = manifest_dir
+      .join("tests")
+      .join("fixtures")
+      .join("pbxproj")
+      .join("project.pbxproj");
+    let mut pbxproj = crate::helpers::pbxproj::parse(fixture).unwrap();
+    let configuration_id = "DB_0E254D0FD84970B57F6410";
+
+    pbxproj.set_build_settings(configuration_id, "CODE_SIGN_STYLE", "\"Manual\"");
+    pbxproj.set_build_settings(
+      configuration_id,
+      "PROVISIONING_PROFILE_SPECIFIER",
+      "\"Profile Name With Spaces\"",
+    );
+
+    let build_configuration = pbxproj
+      .xc_build_configuration
+      .get(configuration_id)
+      .unwrap();
+    let mut export_options = plist::Dictionary::new();
+
+    synchronize_export_options(
+      "com.tauri.test",
+      build_configuration,
+      &mut export_options,
+      &ProjectConfig {
+        code_sign_identity: None,
+        team_id: None,
+        provisioning_profile_uuid: None,
+      },
+    );
+
+    assert_eq!(
+      export_options
+        .get("signingStyle")
+        .and_then(|v| v.as_string()),
+      Some("manual")
+    );
+    assert_eq!(
+      export_options
+        .get("signingCertificate")
+        .and_then(|v| v.as_string()),
+      Some("iPhone Developer")
+    );
+    assert_eq!(
+      export_options.get("teamID").and_then(|v| v.as_string()),
+      Some("Q93MBH6S2F")
+    );
+    assert_eq!(
+      export_options
+        .get("provisioningProfiles")
+        .and_then(|v| v.as_dictionary())
+        .and_then(|profiles| profiles.get("com.tauri.test"))
+        .and_then(|v| v.as_string()),
+      Some("Profile Name With Spaces")
+    );
+  }
 }

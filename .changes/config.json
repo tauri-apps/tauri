@@ -101,7 +101,7 @@
           "pipe": true
         },
         {
-          "command": "pnpm publish --access public --loglevel silly --no-git-checks",
+          "command": "pnpm publish --access public --loglevel silly --no-git-checks --tag next",
           "dryRunCommand": "npm publish --dry-run --access public --no-git-checks",
           "pipe": true
         },
@@ -169,7 +169,11 @@
     "tauri-runtime-cef": {
       "path": "./crates/tauri-runtime-cef",
       "manager": "rust",
-      "dependencies": ["tauri-utils", "tauri-runtime", "tauri", "tauri-macros"]
+      "dependencies": ["tauri-utils", "tauri-runtime", "tauri", "tauri-macros"],
+      "getPublishedVersion": "echo ${ pkgFile.version }",
+      "prepublish": [],
+      "publish": [],
+      "postpublish": []
     },
     "tauri-codegen": {
       "path": "./crates/tauri-codegen",

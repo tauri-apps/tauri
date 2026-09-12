@@ -75,8 +75,6 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v7
-      - name: Prepare CEF package metadata and versions
-        run: node ../../.scripts/ci/prepare-cli-cef-publish.js
       - run: npm i -g --force corepack
       - name: Setup node
         uses: actions/setup-node@v7
@@ -283,15 +281,12 @@ jobs:
       - name: Move artifacts
         run: pnpm artifacts
 
-      - name: Rewrite package names for CEF publish
-        run: node ../../.scripts/ci/prepare-cli-cef-publish.js
-
       - name: List packages
         run: ls -R ./npm
         shell: bash
       - name: Publish
         run: |
-          npm publish --tag latest
+          npm publish --tag next
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ''

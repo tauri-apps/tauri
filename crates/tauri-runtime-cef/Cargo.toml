@@ -1,6 +1,9 @@
 [package]
 name = "tauri-runtime-cef"
 version = "0.1.0"
+# `winit` is pulled from the `winit-gtk4` git fork below; `cargo publish` would resolve it from
+# crates.io instead, which has no `gtk4` feature, so the crate is git-only until the fork is published.
+publish = false
 # lets `tauri-build` detect the CEF runtime through the `DEP_TAURI_RUNTIME_CEF_RUNTIME` env var
 links = "tauri_runtime_cef"
 authors.workspace = true
@@ -32,10 +35,8 @@ raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-tauri-runtime = { version = "2.11.2", path = "../tauri-runtime" }
-tauri-utils = { version = "2.9.2", path = "../tauri-utils", features = [
-  "html-manipulation",
-] }
+tauri-runtime = { workspace = true }
+tauri-utils = { workspace = true, features = ["html-manipulation"] }
 url = "2"
 winit = { version = "0.31.0-beta.2", git = "https://github.com/tauri-apps/winit-gtk4", branch = "master", default-features = false, features = [
   "gtk4",

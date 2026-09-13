@@ -98,6 +98,22 @@ impl<'a> Image<'a> {
     Self::from_bytes(&bytes)
   }
 
+  /// Encodes this image as PNG bytes.
+  #[cfg(feature = "image-png")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "image-png")))]
+  fn to_png(&self) -> crate::Result<Vec<u8>> {
+    use image::ImageEncoder;
+
+    let mut bytes = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut bytes).write_image(
+      self.rgba(),
+      self.width,
+      self.height,
+      image::ExtendedColorType::Rgba8,
+    )?;
+    Ok(bytes)
+  }
+
   /// Returns the RGBA data for this image, in row-major order from top to bottom.
   pub fn rgba(&'a self) -> &'a [u8] {
     &self.rgba
@@ -152,6 +168,22 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
 
   fn try_from(img: Image<'_>) -> Result<Self, Self::Error> {
     tray_icon::Icon::from_rgba(img.rgba.to_vec(), img.width, img.height).map_err(Into::into)
+  }
+}
+
+#[cfg(all(test, feature = "image-png"))]
+mod tests {
+  use super::Image;
+
+  #[test]
+  fn encodes_png() {
+    let rgba = [255, 0, 0, 255, 0, 255, 0, 128];
+    let png = Image::new(&rgba, 2, 1).to_png().unwrap();
+    let decoded = Image::from_bytes(&png).unwrap();
+
+    assert_eq!(decoded.rgba(), rgba);
+    assert_eq!(decoded.width(), 2);
+    assert_eq!(decoded.height(), 1);
   }
 }
 

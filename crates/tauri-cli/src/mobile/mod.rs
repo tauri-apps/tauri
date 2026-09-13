@@ -492,7 +492,6 @@ fn ensure_init(
         .join("app/src/main/java")
         .join(tauri_config.identifier.replace('.', "/").replace('-', "_"));
       if java_folder.exists() {
-        #[cfg(unix)]
         ensure_gradlew(&project_dir)?;
       } else {
         project_outdated_reasons
@@ -585,19 +584,28 @@ fn ensure_init(
   Ok(())
 }
 
-#[cfg(unix)]
 fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
-  use std::os::unix::fs::PermissionsExt;
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
 
-  let gradlew_path = project_dir.join("gradlew");
-  if let Ok(metadata) = gradlew_path.metadata() {
-    let mut permissions = metadata.permissions();
-    let is_executable = permissions.mode() & 0o111 != 0;
-    if !is_executable {
-      permissions.set_mode(permissions.mode() | 0o111);
-      std::fs::set_permissions(&gradlew_path, permissions)
-        .fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
+    let gradlew_path = project_dir.join("gradlew");
+    if let Ok(metadata) = gradlew_path.metadata() {
+      let mut permissions = metadata.permissions();
+      let is_executable = permissions.mode() & 0o111 != 0;
+      if !is_executable {
+        permissions.set_mode(permissions.mode() | 0o111);
+        std::fs::set_permissions(&gradlew_path, permissions)
+          .fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
+      }
     }
+  }
+
+  // The CRLF→LF rewrite is platform-neutral: a CRLF gradlew breaks `sh
+  // ./gradlew` on every host (including Git-Bash on Windows), and bash
+  // scripts must always use LF.
+  let gradlew_path = project_dir.join("gradlew");
+  if gradlew_path.exists() {
     std::fs::write(
       &gradlew_path,
       std::fs::read_to_string(&gradlew_path)

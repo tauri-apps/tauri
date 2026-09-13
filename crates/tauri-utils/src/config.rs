@@ -563,6 +563,11 @@ pub struct DmgConfig {
     alias = "application-folder-position"
   )]
   pub application_folder_position: Position,
+  /// Maximum number of attempts to detach (unmount) the disk image during DMG creation.
+  /// Increase this value if you see `hdiutil: detach: timeout` errors in CI with large apps.
+  /// Defaults to 3.
+  #[serde(default = "dmg_default_detach_retries", alias = "detach-retries")]
+  pub detach_retries: u32,
 }
 
 impl Default for DmgConfig {
@@ -573,6 +578,7 @@ impl Default for DmgConfig {
       window_size: dmg_window_size(),
       app_position: dmg_app_position(),
       application_folder_position: dmg_application_folder_position(),
+      detach_retries: dmg_default_detach_retries(),
     }
   }
 }
@@ -590,6 +596,9 @@ fn dmg_app_position() -> Position {
 
 fn dmg_application_folder_position() -> Position {
   Position { x: 480, y: 170 }
+}
+nfn dmg_default_detach_retries() -> u32 {
+  3
 }
 
 fn de_macos_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

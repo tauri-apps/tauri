@@ -5,8 +5,7 @@
 use crate::{
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
-    InvokeHandler, InvokeResponseBody,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler, InvokeResponseBody,
   },
   manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
@@ -16,7 +15,7 @@ use crate::{
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::{config::Config, Env},
+  utils::config::Config,
   webview::PageLoadPayload,
   Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
   Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
@@ -2444,9 +2443,6 @@ tauri::Builder::default()
       app.manager.menu.menu_lock().replace(menu);
     }
 
-    let env = Env::default();
-    app.manage(env);
-
     app.manage(Scopes {
       #[cfg(feature = "protocol-asset")]
       asset_protocol: crate::scope::fs::Scope::new(
@@ -2455,7 +2451,6 @@ tauri::Builder::default()
       )?,
     });
 
-    app.manage(ChannelDataIpcQueue::default());
     app.handle.plugin(crate::ipc::channel::plugin())?;
 
     let handle = app.handle();

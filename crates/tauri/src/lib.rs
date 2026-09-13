@@ -753,8 +753,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {
-    use std::ops::Deref;
-    self.state::<Env>().deref().clone()
+    self.manager().env().clone()
   }
 
   /// Gets the scope for the asset protocol.

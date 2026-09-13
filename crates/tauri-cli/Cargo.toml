@@ -74,7 +74,7 @@ dirs = "6"
 # Careful with updating minisign, often broke our updater signatures.
 # See https://github.com/tauri-apps/tauri/pull/15022 for example.
 minisign = "0.9"
-base64 = "0.22"
+base64 = "0.23"
 ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"
 semver = "1"

@@ -65,4 +65,5 @@ Resolved {
             deny: [],
         },
     },
+    uri_scheme_access: [],
 }

@@ -229,7 +229,25 @@ impl<R: Runtime> WebviewManager<R> {
 
     let mut registered_scheme_protocols = Vec::new();
 
+    // Per-webview custom URI scheme allow-list (see #13224). `None` means no capability
+    // constrained schemes, so every app-registered custom scheme is registered (back-compat).
+    let allowed_uri_schemes = app_manager
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .allowed_uri_schemes(window_label, label);
+
     for (uri_scheme, protocol) in &*self.uri_scheme_protocols.lock().unwrap() {
+      if let Some(allowed) = &allowed_uri_schemes {
+        // `ipc` and `tauri` are the capability machinery itself and are never gated. Everything
+        // else — custom app/plugin schemes and the built-in `asset` protocol below — is gated by
+        // the allow-list. (The isolation scheme uses a per-app dynamic name registered outside
+        // this loop, so it cannot be allow-listed by name and stays always available.)
+        let always_allowed = matches!(uri_scheme.as_str(), "ipc" | "tauri");
+        if !always_allowed && !allowed.contains(uri_scheme.as_str()) {
+          continue;
+        }
+      }
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
       let app_handle = manager.app_handle().clone();
@@ -359,8 +377,15 @@ impl<R: Runtime> WebviewManager<R> {
       }
     }
 
+    // The built-in `asset` protocol is gated by the per-webview allow-list too (see #13224):
+    // when a capability constrains schemes for this webview and omits `asset`, it is not
+    // registered. `None` (no scheme-gating capability) preserves the previous behavior.
     #[cfg(feature = "protocol-asset")]
-    if !registered_scheme_protocols.contains(&"asset".into()) {
+    if allowed_uri_schemes
+      .as_ref()
+      .map_or(true, |allowed| allowed.contains("asset"))
+      && !registered_scheme_protocols.contains(&"asset".into())
+    {
       let asset_scope = app_manager
         .state()
         .get::<crate::Scopes>()

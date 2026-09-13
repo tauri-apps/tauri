@@ -1,0 +1,5 @@
+identifier = "run-app"
+description = "app capability with a per-webview custom URI scheme allow-list"
+webviews = ["child1"]
+uri_schemes = ["my-scheme", "my-other-scheme"]
+permissions = ["ping:allow-ping"]

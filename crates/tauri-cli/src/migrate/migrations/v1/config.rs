@@ -55,6 +55,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
         remote: None,
         windows: vec!["main".into()],
         webviews: vec![],
+        uri_schemes: None,
         permissions,
         platforms: None,
       })

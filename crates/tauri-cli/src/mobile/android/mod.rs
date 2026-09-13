@@ -227,32 +227,56 @@ fn sync_debug_application_id_suffix(
 }
 
 fn set_debug_application_id_suffix(build_gradle: &str, suffix: Option<&str>) -> Option<String> {
+  static BUILD_TYPES_RE: OnceLock<regex::Regex> = OnceLock::new();
   static DEBUG_BUILD_TYPE_RE: OnceLock<regex::Regex> = OnceLock::new();
 
+  let build_types_re = BUILD_TYPES_RE.get_or_init(|| {
+    regex::Regex::new(r#"(?m)\bbuildTypes\b\s*\{"#).expect("valid buildTypes regex")
+  });
   let debug_build_type_re = DEBUG_BUILD_TYPE_RE.get_or_init(|| {
     regex::Regex::new(r#"(?m)(?:\bgetByName\(\s*"debug"\s*\)|\bdebug\b)\s*\{"#)
       .expect("valid debug build type regex")
   });
 
-  for build_type_match in debug_build_type_re.find_iter(build_gradle) {
-    let Some(opening_brace) = build_gradle[build_type_match.start()..]
+  for build_types_match in build_types_re.find_iter(build_gradle) {
+    let Some(build_types_opening_brace) = build_gradle[build_types_match.start()..]
       .find('{')
-      .map(|index| build_type_match.start() + index)
+      .map(|index| build_types_match.start() + index)
     else {
       continue;
     };
-    let Some(closing_brace) = find_matching_brace(build_gradle, opening_brace) else {
+    let Some(build_types_closing_brace) =
+      find_matching_brace(build_gradle, build_types_opening_brace)
+    else {
       continue;
     };
 
-    let debug_block = &build_gradle[opening_brace..closing_brace];
-    let updated_debug_block = set_application_id_suffix_in_block(debug_block, suffix);
-    let mut updated_build_gradle =
-      String::with_capacity(build_gradle.len() + updated_debug_block.len());
-    updated_build_gradle.push_str(&build_gradle[..opening_brace]);
-    updated_build_gradle.push_str(&updated_debug_block);
-    updated_build_gradle.push_str(&build_gradle[closing_brace..]);
-    return Some(updated_build_gradle);
+    let build_types_block = &build_gradle[build_types_opening_brace..build_types_closing_brace];
+    for build_type_match in debug_build_type_re.find_iter(build_types_block) {
+      let build_type_start = build_types_opening_brace + build_type_match.start();
+      let Some(opening_brace) = build_gradle[build_type_start..]
+        .find('{')
+        .map(|index| build_type_start + index)
+      else {
+        continue;
+      };
+      let Some(closing_brace) = find_matching_brace(build_gradle, opening_brace) else {
+        continue;
+      };
+
+      if closing_brace > build_types_closing_brace {
+        continue;
+      }
+
+      let debug_block = &build_gradle[opening_brace..closing_brace];
+      let updated_debug_block = set_application_id_suffix_in_block(debug_block, suffix);
+      let mut updated_build_gradle =
+        String::with_capacity(build_gradle.len() + updated_debug_block.len());
+      updated_build_gradle.push_str(&build_gradle[..opening_brace]);
+      updated_build_gradle.push_str(&updated_debug_block);
+      updated_build_gradle.push_str(&build_gradle[closing_brace..]);
+      return Some(updated_build_gradle);
+    }
   }
 
   None
@@ -1146,6 +1170,50 @@ android {
 
     assert!(!updated.contains(r#"applicationIdSuffix = ".debug""#));
     assert!(updated.contains(r#"applicationIdSuffix = ".release""#));
+  }
+
+  #[test]
+  fn writes_debug_suffix_only_in_build_types_debug_block() {
+    let build_gradle = r#"
+android {
+    signingConfigs {
+        debug {
+            storeFile = file("debug.keystore")
+        }
+    }
+    buildTypes {
+        debug {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
+    }
+}
+"#;
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
+    let (signing_configs_block, build_types_block) =
+      updated.split_once("    buildTypes {").unwrap();
+
+    assert!(!signing_configs_block.contains("applicationIdSuffix"));
+    assert!(build_types_block.contains(
+      r#"        debug {
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["usesCleartextTraffic"] = "true""#
+    ));
+  }
+
+  #[test]
+  fn ignores_debug_blocks_outside_build_types() {
+    let build_gradle = r#"
+android {
+    signingConfigs {
+        debug {
+            storeFile = file("debug.keystore")
+        }
+    }
+}
+"#;
+
+    assert!(set_debug_application_id_suffix(build_gradle, Some(".debug")).is_none());
   }
 
   #[test]

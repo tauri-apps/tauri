@@ -2090,6 +2090,12 @@ pub struct WindowConfig {
   /// Requires titleBarStyle: Overlay and decorations: true.
   #[serde(default, alias = "traffic-light-position")]
   pub traffic_light_position: Option<LogicalPosition>,
+  /// Whether the window prefers compact control size metrics on macOS.
+  ///
+  /// On macOS 26 with SDK 26 or newer this can restore the older compact
+  /// traffic light metrics for windows using overlay title bars.
+  #[serde(default, alias = "prefers-compact-control-size-metrics")]
+  pub prefers_compact_control_size_metrics: bool,
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
@@ -2416,6 +2422,7 @@ impl Default for WindowConfig {
       theme: None,
       title_bar_style: Default::default(),
       traffic_light_position: None,
+      prefers_compact_control_size_metrics: false,
       hidden_title: false,
       accept_first_mouse: false,
       tabbing_identifier: None,
@@ -4063,6 +4070,7 @@ mod build {
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let traffic_light_position = opt_lit(self.traffic_light_position.as_ref());
+      let prefers_compact_control_size_metrics = self.prefers_compact_control_size_metrics;
       let hidden_title = self.hidden_title;
       let accept_first_mouse = self.accept_first_mouse;
       let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
@@ -4130,6 +4138,7 @@ mod build {
         theme,
         title_bar_style,
         traffic_light_position,
+        prefers_compact_control_size_metrics,
         hidden_title,
         accept_first_mouse,
         tabbing_identifier,

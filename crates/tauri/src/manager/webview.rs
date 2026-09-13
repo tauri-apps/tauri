@@ -561,11 +561,7 @@ impl<R: Runtime> WebviewManager<R> {
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = manager.path().resolve(
-        &app_manager.config.identifier,
-        crate::path::BaseDirectory::LocalData,
-      );
-      if let Ok(user_data_dir) = local_app_data {
+      if let Ok(user_data_dir) = manager.path().app_local_data_dir() {
         pending.webview_attributes.data_directory = Some(user_data_dir);
       }
     }

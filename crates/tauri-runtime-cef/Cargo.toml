@@ -1,6 +1,7 @@
 [package]
 name = "tauri-runtime-cef"
 version = "3.0.0-alpha.0"
+description = "Tauri runtime interface for Chromium Embedded Framework"
 # lets `tauri-build` detect the CEF runtime through the `DEP_TAURI_RUNTIME_CEF_RUNTIME` env var
 links = "tauri_runtime_cef"
 authors.workspace = true

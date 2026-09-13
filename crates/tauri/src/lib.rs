@@ -186,11 +186,13 @@ pub use tauri_runtime_wry::{tao, wry};
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
+use anyhow::Context as _;
 use serde::Serialize;
 use std::{
   borrow::Cow,
   collections::HashMap,
-  fmt::{self, Debug},
+  fmt::{self, Debug, Display},
+  path::PathBuf,
   sync::MutexGuard,
 };
 use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
@@ -320,10 +322,19 @@ pub trait Assets<R: Runtime>: Send + Sync + 'static {
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
 
   /// Iterator for the assets.
-  fn iter(&self) -> Box<tauri_utils::assets::AssetsIter<'_>>;
+  ///
+  /// This is for optimization purposes only;
+  /// Implementers may return an empty iterator even if [Assets::get] returns [Some].
+  fn iter(&self) -> Box<tauri_utils::assets::AssetsIter<'_>> {
+    Box::new(std::iter::empty())
+  }
 
   /// Gets the hashes for the CSP tag of the HTML on the given path.
-  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
+  ///
+  /// Implementers may return an empty iterator.
+  fn csp_hashes(&self, _html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
+    Box::new(std::iter::empty())
+  }
 }
 
 impl<R: Runtime> Assets<R> for EmbeddedAssets {
@@ -337,6 +348,42 @@ impl<R: Runtime> Assets<R> for EmbeddedAssets {
 
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
     EmbeddedAssets::csp_hashes(self, html_path)
+  }
+}
+
+/// A simple `Assets` implementation that reads files from disk directory.
+struct DirectoryAssets(PathBuf);
+
+impl DirectoryAssets {
+  fn new(dir: PathBuf) -> Self {
+    Self(dir)
+  }
+}
+
+// TODO: [tauri_codegen::embedded_assets::AssetOptions]
+impl<R: Runtime> Assets<R> for DirectoryAssets {
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
+    fn unwrap_and_log<T, E: Display>(
+      result: std::result::Result<T, E>,
+      key: &AssetKey,
+    ) -> Option<T> {
+      match result {
+        Ok(value) => Some(value),
+        Err(e) => {
+          log::info!("Failed to get asset from path '{}': {}", key.as_ref(), e);
+          None
+        }
+      }
+    }
+
+    // We need to skip the first character (i.e., `/`) of the key.
+    let path = self.0.join(&key.as_ref()[1..]);
+    // prevents path traversal.
+    let safe_path = unwrap_and_log(path::SafePathBuf::new(path), key)?;
+    // TODO: LRU cache
+    let asset = unwrap_and_log(std::fs::read(&safe_path), key)?;
+
+    Some(Cow::Owned(asset))
   }
 }
 
@@ -508,6 +555,105 @@ impl<R: Runtime> Context<R> {
       runtime_authority,
       plugin_global_api_scripts,
     }
+  }
+
+  // ref: <https://github.com/tauri-apps/tauri/blob/6a39f49991e613e8f3befe0e8dff288482ccdd89/crates/tauri-codegen/src/context.rs#L134-L477>
+  #[cfg(all(desktop, feature = "dynamic-acl"))]
+  pub fn load_runtime_context(
+    // NOTE: if error, this `Context` has already been modified (tainted), so we do not allow it to be reused
+    mut self,
+    src_tauri_dir: &std::path::Path,
+    tauri_config: Option<Config>,
+  ) -> Result<Self> {
+    if !src_tauri_dir.is_absolute() {
+      return Err(
+        anyhow::anyhow!(
+          "The `src_tauri_dir` path must be absolute, got: {}",
+          src_tauri_dir.display()
+        )
+        .into(),
+      );
+    }
+
+    let dev = is_dev();
+    let target = utils::platform::Target::current();
+
+    // Load config from file dynamically.
+    // ref: <https://github.com/tauri-apps/tauri/blob/6a39f49991e613e8f3befe0e8dff288482ccdd89/crates/tauri-codegen/src/lib.rs#L57-L99>
+    let mut src_config = utils::config::parse::read_from(target, src_tauri_dir)
+      .with_context(|| "Failed to read tauri config")?
+      .0;
+    if let Some(tauri_config) = tauri_config {
+      utils::config::parse::merge(&mut src_config, &serde_json::to_value(tauri_config)?);
+    }
+    let mut new_config = serde_json::to_value(self.config)?;
+    utils::config::parse::merge(&mut new_config, &src_config);
+    // NOTE: unlike [tauri_codegen::get_config], we don't change CWD here,
+    // because it will change the runtime-behavior of user's application.
+    self.config = serde_json::from_value(new_config)?;
+
+    // Patch `package_info` from `config`.
+    // ref: <https://github.com/tauri-apps/tauri/blob/6a39f49991e613e8f3befe0e8dff288482ccdd89/crates/tauri-codegen/src/context.rs#L268-L287>
+    if let Some(product_name) = &self.config.product_name {
+      self.package_info.name = product_name.clone();
+    }
+    if let Some(version) = &self.config.version {
+      self.package_info.version = version.parse().with_context(|| "Failed to parse version")?;
+    }
+    // TODO: PackageInfo::{authors, description, crate_name}
+
+    // Supply custom Assets from disk dynamically.
+    // ref: <https://github.com/tauri-apps/tauri/blob/6a39f49991e613e8f3befe0e8dff288482ccdd89/crates/tauri-codegen/src/context.rs#L176-L207>
+    let mut new_asset: Option<Box<dyn Assets<R>>> = None;
+    if let Some(frontend_dist) = &self.config.build.frontend_dist {
+      match frontend_dist {
+        utils::config::FrontendDist::Url(_) => {
+          // do nothing, we don't need supply custom Assets for URL frontend_dist,
+          // because tauri will fetch the frontend from the URL.
+        }
+        utils::config::FrontendDist::Directory(dir) => {
+          new_asset = Some(Box::new(DirectoryAssets::new(src_tauri_dir.join(dir))));
+        }
+        other => {
+          return Err(anyhow::anyhow!("Unsupported frontend_dist: {:?}", other).into());
+        }
+      }
+    }
+    if let Some(assets) = new_asset {
+      self.assets = assets;
+    }
+
+    // Load capabilities from disk dynamically.
+    // ref: <https://github.com/tauri-apps/tauri/blob/6a39f49991e613e8f3befe0e8dff288482ccdd89/crates/tauri-build/src/acl.rs#L424-L429>
+    let capabilities_pattern_path = src_tauri_dir.join("./capabilities/**/*");
+    let capabilities_pattern = capabilities_pattern_path.to_str().with_context(|| {
+      format!(
+        "Failed to convert capabilities pattern path to str: {}",
+        capabilities_pattern_path.display()
+      )
+    })?;
+    let capabilities_from_files = utils::acl::build::parse_capabilities(capabilities_pattern)
+      .with_context(|| {
+        format!(
+          "Failed to parse capabilities from pattern: {}",
+          capabilities_pattern
+        )
+      })?;
+
+    // Patch `capabilities` from `config`.
+    // ref: <https://github.com/tauri-apps/tauri/blob/6a39f49991e613e8f3befe0e8dff288482ccdd89/crates/tauri-codegen/src/context.rs#L403-L408>
+    //      <https://tauri.app/security/capabilities/>
+    let capabilities = utils::acl::get_capabilities(&self.config, capabilities_from_files, None)?;
+
+    // Add capabilities to `ctx`.
+    // TODO: maybe we should clear the existing capabilities first?
+    self
+      .runtime_authority
+      .add_capability_inner(utils::acl::capability::CapabilityFile::List(
+        capabilities.into_values().collect(),
+      ))?;
+
+    Ok(self)
   }
 
   #[cfg(dev)]

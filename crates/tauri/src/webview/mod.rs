@@ -876,6 +876,7 @@ tauri::Builder::default()
 }
 
 /// Webview attributes.
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
   /// Sets whether clicking an inactive window also clicks through to the webview.
   ///

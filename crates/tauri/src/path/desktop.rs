@@ -4,6 +4,7 @@
 
 use super::{Error, Result};
 use crate::{AppHandle, Manager, Runtime};
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::path::{Path, PathBuf};
 
 /// The path resolver is a helper class for general and application-specific path APIs.
@@ -292,5 +293,53 @@ impl<R: Runtime> PathResolver<R> {
   /// A temporary directory. Resolves to [`std::env::temp_dir`].
   pub fn temp_dir(&self) -> Result<PathBuf> {
     Ok(std::env::temp_dir())
+  }
+
+  /// Converts a file path to a URL that can be loaded by the webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  /// Note: The file must be allowed by the app's asset scope for the webview to load it.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert
+  /// * `protocol` - The protocol to use, defaults to `"asset"` if `None`
+  /// * `use_https` - Whether to use HTTPS scheme instead of HTTP (Windows only).
+  ///   Set to `true` if your webview has `use_https_scheme` enabled. Defaults to `false` if `None`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = app.path().convert_file_src(&video_path, None, None);
+  ///     // On Windows: http://asset.localhost/C%3A%5CUsers%5C...
+  ///     // On macOS/Linux: asset://localhost/%2FUsers%2F...
+  ///     println!("URL: {}", url);
+  ///
+  ///     // With HTTPS enabled (Windows):
+  ///     let https_url = app.path().convert_file_src(&video_path, None, Some(true));
+  ///     // On Windows: https://asset.localhost/C%3A%5CUsers%5C...
+  ///     println!("HTTPS URL: {}", https_url);
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(&self, path: P, protocol: Option<&str>, use_https: Option<bool>) -> String {
+    let protocol = protocol.unwrap_or("asset");
+    let path = dunce::simplified(path.as_ref());
+    let encoded = utf8_percent_encode(&path.to_string_lossy(), NON_ALPHANUMERIC).to_string();
+
+    #[cfg(windows)]
+    {
+      let scheme = if use_https.unwrap_or(false) { "https" } else { "http" };
+      format!("{scheme}://{protocol}.localhost/{encoded}")
+    }
+    #[cfg(not(windows))]
+    {
+      let _ = use_https; // unused on non-Windows platforms
+      format!("{protocol}://localhost/{encoded}")
+    }
   }
 }

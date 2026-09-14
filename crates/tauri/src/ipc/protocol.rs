@@ -311,6 +311,8 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       #[cfg(feature = "tracing")]
       let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
 
+      let request_url = request.url.clone();
+
       webview.on_message(
         request,
         Box::new(move |webview, cmd, response, callback, error| {
@@ -373,8 +375,8 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
                 && (v.starts_with('{') || v.starts_with('['))
                 && can_use_channel_for_response
               {
-                let _ =
-                  Channel::from_callback_fn(webview, callback).send(InvokeResponseBody::Json(v));
+                let _ = Channel::from_callback_fn(webview, callback, &request_url)
+                  .send(InvokeResponseBody::Json(v));
               } else {
                 responder_eval(
                   &webview,
@@ -402,8 +404,8 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
                   error,
                 );
               } else {
-                let _ =
-                  Channel::from_callback_fn(webview, callback).send(InvokeResponseBody::Raw(v));
+                let _ = Channel::from_callback_fn(webview, callback, &request_url)
+                  .send(InvokeResponseBody::Raw(v));
               }
             }
             InvokeResponse::Err(e) => responder_eval(

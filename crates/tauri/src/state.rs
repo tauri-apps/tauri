@@ -102,6 +102,7 @@ impl std::hash::Hasher for IdentHash {
 type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
+// TODO: make private for v3
 #[derive(Debug)]
 pub struct StateManager {
   map: Mutex<TypeIdMap>,

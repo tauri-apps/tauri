@@ -35,9 +35,9 @@ pub enum Error {
     path: PathBuf,
     error: plist::Error,
   },
-  #[error("failed to upload app to Apple's notarization servers: {error}")]
-  FailedToUploadApp { error: std::io::Error },
-  #[error("failed to notarize app: {0}")]
+  #[error("failed to upload artifact to Apple's notarization servers: {error}")]
+  FailedToUploadArtifact { error: std::io::Error },
+  #[error("failed to notarize artifact: {0}")]
   Notarize(String),
   #[error("failed to parse notarytool output as JSON: {output}")]
   ParseNotarytoolOutput { output: String },
@@ -120,42 +120,38 @@ struct NotarytoolSubmitOutput {
 
 pub fn notarize(
   keychain: &Keychain,
-  app_bundle_path: &Path,
+  path: &Path,
   auth: &AppleNotarizationCredentials,
 ) -> Result<()> {
-  notarize_inner(keychain, app_bundle_path, auth, true)
+  notarize_inner(keychain, path, auth, true)
 }
 
 pub fn notarize_without_stapling(
   keychain: &Keychain,
-  app_bundle_path: &Path,
+  path: &Path,
   auth: &AppleNotarizationCredentials,
 ) -> Result<()> {
-  notarize_inner(keychain, app_bundle_path, auth, false)
+  notarize_inner(keychain, path, auth, false)
 }
 
 fn notarize_inner(
   keychain: &Keychain,
-  app_bundle_path: &Path,
+  path: &Path,
   auth: &AppleNotarizationCredentials,
   wait: bool,
 ) -> Result<()> {
-  let bundle_stem = app_bundle_path
-    .file_stem()
-    .expect("failed to get bundle filename");
+  let path_stem = path.file_stem().expect("failed to get artifact filename");
 
   let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
   let zip_path = tmp_dir
     .path()
-    .join(format!("{}.zip", bundle_stem.to_string_lossy()));
+    .join(format!("{}.zip", path_stem.to_string_lossy()));
   let zip_args = vec![
     "-c",
     "-k",
     "--keepParent",
     "--sequesterRsrc",
-    app_bundle_path
-      .to_str()
-      .expect("failed to convert bundle_path to string"),
+    path.to_str().expect("failed to convert path to string"),
     zip_path
       .to_str()
       .expect("failed to convert zip_path to string"),
@@ -165,7 +161,7 @@ fn notarize_inner(
   // this remove almost 99% of false alarm in notarization
   assert_command(
     Command::new("ditto").args(zip_args).piped(),
-    "failed to zip app with ditto",
+    "failed to zip notarized artifact with ditto",
   )
   .map_err(|error| Error::CommandFailed {
     command: "ditto".to_string(),
@@ -189,13 +185,13 @@ fn notarize_inner(
   }
   let notarize_args = notarize_args;
 
-  println!("Notarizing {}", app_bundle_path.display());
+  println!("Notarizing {}", path.display());
 
   let output = Command::new("xcrun")
     .args(notarize_args)
     .notarytool_args(auth, tmp_dir.path())?
     .output()
-    .map_err(|error| Error::FailedToUploadApp { error })?;
+    .map_err(|error| Error::FailedToUploadArtifact { error })?;
 
   if !output.status.success() {
     return Err(Error::Notarize(
@@ -217,14 +213,14 @@ fn notarize_inner(
       println!("Notarizing {log_message}");
 
       if wait {
-        println!("Stapling app...");
-        staple_app(app_bundle_path.to_path_buf())?;
+        println!("Stapling notarized artifact...");
+        staple(path.to_path_buf())?;
       } else {
         println!("Not waiting for notarization to finish.");
         println!("You can use `xcrun notarytool log` to check the notarization progress.");
         println!(
-          "When it's done you can optionally staple your app via `xcrun stapler staple {}`",
-          app_bundle_path.display()
+          "When it's done you can optionally staple your artifact via `xcrun stapler staple {}`",
+          path.display()
         );
       }
 
@@ -249,19 +245,19 @@ fn notarize_inner(
   }
 }
 
-fn staple_app(mut app_bundle_path: PathBuf) -> Result<()> {
-  let app_bundle_path_clone = app_bundle_path.clone();
-  let filename = app_bundle_path_clone
+fn staple(mut path: PathBuf) -> Result<()> {
+  let path_clone = path.clone();
+  let filename = path_clone
     .file_name()
-    .expect("failed to get bundle filename")
+    .expect("failed to get artifact filename")
     .to_str()
-    .expect("failed to convert bundle filename to string");
+    .expect("failed to convert artifact filename to string");
 
-  app_bundle_path.pop();
+  path.pop();
 
   Command::new("xcrun")
     .args(vec!["stapler", "staple", "-v", filename])
-    .current_dir(app_bundle_path)
+    .current_dir(path)
     .output()
     .map_err(|error| Error::CommandFailed {
       command: "xcrun stapler staple".to_string(),

@@ -160,13 +160,13 @@ pub enum Error {
   #[cfg(target_os = "linux")]
   #[error("{0}")]
   RpmError(#[from] rpm::Error),
-  /// Failed to notarize application.
+  /// Failed to notarize bundle.
   #[cfg(target_os = "macos")]
-  #[error("failed to notarize app: {0}")]
+  #[error("failed to notarize bundle: {0}")]
   AppleNotarization(#[from] NotarizeAuthError),
-  /// Failed to codesign application.
+  /// Failed macOS signing or notarization operation.
   #[cfg(target_os = "macos")]
-  #[error("failed codesign application: {0}")]
+  #[error("failed macOS signing operation: {0}")]
   AppleCodesign(#[from] Box<tauri_macos_sign::Error>),
   /// Handlebars template error.
   #[error(transparent)]

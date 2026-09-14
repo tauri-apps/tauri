@@ -3,10 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{app, icon::create_icns_file};
+use super::{
+  app,
+  icon::create_icns_file,
+  sign::{notarize, notarize_auth, notarize_without_stapling},
+};
 use crate::{
   bundle::{settings::Arch, Bundle},
-  error::{Context, ErrorExt},
+  error::{Context, ErrorExt, NotarizeAuthError},
   utils::CommandExt,
   PackageType, Settings,
 };
@@ -203,6 +207,23 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
         }],
         settings,
       )?;
+
+      match notarize_auth() {
+        Ok(auth) => {
+          if settings.macos().skip_stapling {
+            notarize_without_stapling(&keychain, dmg_path.clone(), &auth)?;
+          } else {
+            notarize(&keychain, dmg_path.clone(), &auth)?;
+          }
+        }
+        Err(e) => {
+          if matches!(e, NotarizeAuthError::MissingTeamId) {
+            return Err(e.into());
+          } else {
+            log::warn!("skipping dmg notarization, {e}");
+          }
+        }
+      }
     }
   }
 

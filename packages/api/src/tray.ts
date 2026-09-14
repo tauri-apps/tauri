@@ -120,16 +120,6 @@ export interface TrayIconOptions {
    *
    * - **Linux**: Unsupported.
    *
-   * @deprecated use {@linkcode TrayIconOptions.showMenuOnLeftClick} instead.
-   */
-  menuOnLeftClick?: boolean
-  /**
-   * Whether to show the tray menu on left click or not, default is `true`.
-   *
-   * #### Platform-specific:
-   *
-   * - **Linux**: Unsupported.
-   *
    * @since 2.2.0
    */
   showMenuOnLeftClick?: boolean
@@ -318,22 +308,6 @@ export class TrayIcon extends Resource {
       rid: this.rid,
       icon: trayIcon,
       asTemplate
-    })
-  }
-
-  /**
-   *  Disable or enable showing the tray menu on left click.
-   *
-   * #### Platform-specific:
-   *
-   * - **Linux**: Unsupported.
-   *
-   * @deprecated use {@linkcode TrayIcon.setShowMenuOnLeftClick} instead.
-   */
-  async setMenuOnLeftClick(onLeft: boolean): Promise<void> {
-    return invoke('plugin:tray|set_show_menu_on_left_click', {
-      rid: this.rid,
-      onLeft
     })
   }
 

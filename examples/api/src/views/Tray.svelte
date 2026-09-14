@@ -16,7 +16,7 @@
   let tooltip = $state<string>()
   let title = $state<string>()
   let iconAsTemplate = $state(false)
-  let menuOnLeftClick = $state(true)
+  let showMenuOnLeftClick = $state(true)
   let menuItems = $state<Item[]>([])
 
   let menu: Menu | undefined
@@ -36,7 +36,7 @@
         tooltip,
         title,
         iconAsTemplate,
-        menuOnLeftClick,
+        showMenuOnLeftClick,
         menu,
         action: (event) => onMessage(event)
       })
@@ -96,7 +96,7 @@
         <input
           type="checkbox"
           class="checkbox"
-          bind:checked={menuOnLeftClick}
+          bind:checked={showMenuOnLeftClick}
         />
         Menu on left click
       </label>

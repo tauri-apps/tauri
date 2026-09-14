@@ -1787,12 +1787,6 @@
           "type": "boolean",
           "default": false
         },
-        "menuOnLeftClick": {
-          "description": "**No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**\n\nA Boolean value that determines whether the menu should appear when the tray icon receives a left click.\n\n## Platform-specific:\n\n- **Linux**: Unsupported.",
-          "type": "boolean",
-          "deprecated": true,
-          "default": true
-        },
         "showMenuOnLeftClick": {
           "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click.\n\n## Platform-specific:\n\n- **Linux**: Unsupported.",
           "type": "boolean",

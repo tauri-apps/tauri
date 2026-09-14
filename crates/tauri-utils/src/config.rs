@@ -3232,19 +3232,6 @@ pub struct TrayIconConfig {
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
   #[serde(default, alias = "icon-as-template")]
   pub icon_as_template: bool,
-  /// **No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**
-  ///
-  /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux**: Unsupported.
-  #[serde(default = "default_true", alias = "menu-on-left-click")]
-  #[deprecated(
-    since = "2.2.0",
-    note = "No longer works, use `show_menu_on_left_click` instead."
-  )]
-  pub menu_on_left_click: bool,
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
   ///
   /// ## Platform-specific:
@@ -4520,13 +4507,8 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      // For [`Self::menu_on_left_click`]
-      tokens.append_all(quote!(#[allow(deprecated)]));
-
       let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
-      #[allow(deprecated)]
-      let menu_on_left_click = self.menu_on_left_click;
       let show_menu_on_left_click = self.show_menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
@@ -4537,7 +4519,6 @@ mod build {
         id,
         icon_path,
         icon_as_template,
-        menu_on_left_click,
         show_menu_on_left_click,
         title,
         tooltip

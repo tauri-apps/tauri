@@ -99,6 +99,7 @@ impl<'a> ResourcePaths<'a> {
         allow_walk,
         base_dir: None,
         current_dest: None,
+        current_dest_is_dir: false,
         current_iter: None,
         rerun_if_changed: Vec::new(),
       },
@@ -113,6 +114,7 @@ impl<'a> ResourcePaths<'a> {
         allow_walk,
         base_dir: None,
         current_dest: None,
+        current_dest_is_dir: false,
         current_iter: None,
         rerun_if_changed: Vec::new(),
       },
@@ -151,6 +153,9 @@ pub struct ResourcePathsIter<'a> {
   /// The value of map when [`Self::pattern_iter`] is a [`PatternIter::Map`],
   /// used for determining [`Resource::target`]
   current_dest: Option<PathBuf>,
+  /// Whether [`Self::current_dest`] was written with a trailing separator,
+  /// which marks it as a directory the file pattern must be copied into.
+  current_dest_is_dir: bool,
   /// The iter for the current pattern. The cycle goes like this:
   /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
@@ -256,16 +261,13 @@ impl ResourcePathsIter<'_> {
           ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
         },
         None => {
-          if dest.components().count() == 0 {
-            // if current_dest is empty while processing a file pattern
-            // we preserve the file name as it is
+          if dest.components().count() == 0 || self.current_dest_is_dir {
+            // an empty or directory (trailing separator) destination for a file pattern
+            // preserves the file name inside it
             //
             // e.g. `{ "README.md": "" }` is `README.md` -> `$RESOURCE/README.md`
-            //
-            // TODO: This behavior is a confusing special case,
-            // remove this in v3 or make other cases like this work
-            // > `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md` (this gives `$RESOURCE/folder` today)
-            PathBuf::from(path.file_name().unwrap())
+            // e.g. `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md`
+            dest.join(path.file_name().unwrap())
           } else {
             dest.clone()
           }
@@ -281,6 +283,7 @@ impl ResourcePathsIter<'_> {
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
     self.current_dest = None;
+    self.current_dest_is_dir = false;
     self.current_iter = None;
 
     let pattern = match &mut self.pattern_iter {
@@ -288,6 +291,7 @@ impl ResourcePathsIter<'_> {
       PatternIter::Map(iter) => {
         let (pattern, dest) = iter.next()?;
         self.current_dest = Some(resource_relpath(Path::new(dest)));
+        self.current_dest_is_dir = dest.ends_with('/') || dest.ends_with('\\');
         pattern
       }
     };
@@ -608,6 +612,7 @@ mod tests {
     let resources = ResourcePaths::from_map(
       &resources_map(&[
         ("../src/script.js", "main.js"),
+        ("build.rs", "scripts/"),
         ("../src/assets", ""),
         ("../src/index.html", "frontend/index.html"),
         ("../src/sounds", "voices"),
@@ -627,6 +632,7 @@ mod tests {
 
     let expected = expected_resources(&[
       ("../src/script.js", "main.js"),
+      ("build.rs", "scripts/build.rs"),
       ("../src/assets/javascript.svg", "javascript.svg"),
       ("../src/assets/tauri.svg", "tauri.svg"),
       ("../src/assets/rust.svg", "rust.svg"),
@@ -669,6 +675,7 @@ mod tests {
     let resources = ResourcePaths::from_map(
       &resources_map(&[
         ("../src/script.js", "main.js"),
+        ("build.rs", "scripts/"),
         ("../src/assets", ""),
         ("../src/index.html", "frontend/index.html"),
         ("../src/sounds", "voices"),
@@ -683,6 +690,7 @@ mod tests {
 
     let expected = expected_resources(&[
       ("../src/script.js", "main.js"),
+      ("build.rs", "scripts/build.rs"),
       ("../src/index.html", "frontend/index.html"),
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
@@ -772,6 +780,7 @@ mod tests {
     let resources = ResourcePaths::from_map(
       &resources_map(&[
         ("../src/script.js", "main.js"),
+        ("build.rs", "scripts/"),
         ("../src/assets", ""),
         ("../src/sounds", "voices"),
         ("../src/textures/*", "textures"),
@@ -788,6 +797,7 @@ mod tests {
 
     let expected: Vec<Resource> = [
       ("../src/script.js", "main.js"),
+      ("build.rs", "scripts/build.rs"),
       ("../src/assets/javascript.svg", "javascript.svg"),
       ("../src/assets/tauri.svg", "tauri.svg"),
       ("../src/assets/rust.svg", "rust.svg"),

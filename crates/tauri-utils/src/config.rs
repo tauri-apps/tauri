@@ -1580,6 +1580,9 @@ pub struct BundleConfig {
   /// Note that when using glob pattern in this case, the original directory structure is not preserved,
   /// everything gets copied to the target directory directly
   ///
+  /// A target ending with a path separator (or an empty target) is treated as a directory,
+  /// so a single file keeps its name inside it: `"README.md": "docs/"` -> `$RESOURCE/docs/README.md`.
+  ///
   /// See more: <https://v2.tauri.app/develop/resources/>
   pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
@@ -4358,12 +4361,7 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
-          let map = map_lit(
-            quote! { ::std::collections::BTreeMap },
-            m,
-            str_lit,
-            str_lit,
-          );
+          let map = map_lit(quote! { ::std::collections::BTreeMap }, m, str_lit, str_lit);
           quote!(#prefix::Map(#map))
         }
       })

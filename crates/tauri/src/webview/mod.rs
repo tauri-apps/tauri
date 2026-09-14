@@ -878,7 +878,6 @@ tauri::Builder::default()
 }
 
 /// Webview attributes.
-#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
   /// Sets whether clicking an inactive window also clicks through to the webview.
   ///
@@ -1106,6 +1105,8 @@ fn main() {
   }
 
   /// Whether the webview should be focused or not.
+  // without `unstable` the only caller is `WebviewWindowBuilder::focused`, which is desktop only
+  #[cfg_attr(all(mobile, not(feature = "unstable")), allow(dead_code))]
   #[must_use]
   pub fn focused(mut self, focus: bool) -> Self {
     self.webview_attributes.focus = focus;

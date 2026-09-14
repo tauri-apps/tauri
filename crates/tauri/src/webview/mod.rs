@@ -18,12 +18,11 @@ pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
 
+use cookie::Cookie;
 pub use tauri_runtime::webview::{
   InitializationScript, NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse,
   ScrollBarStyle, WebContentProcessTermination, WebContentProcessTerminationReason,
 };
-// Remove this re-export in v3
-pub use tauri_runtime::Cookie;
 use tauri_runtime::{
   WebviewDispatch,
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
@@ -2268,7 +2267,7 @@ tauri::Builder::default()
   ///
   /// # Stability
   ///
-  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// The return value of this function leverages [`cookie::Cookie`] from the re-exported cookie crate.
   /// This dependency might receive updates in minor Tauri releases.
   ///
   /// # Known issues

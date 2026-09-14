@@ -331,11 +331,6 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  /// State managed by the application.
-  pub(crate) fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
-  }
-
   /// The `tauri` custom protocol URL we use to serve the embedded assets.
   /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {

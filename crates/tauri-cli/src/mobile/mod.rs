@@ -608,11 +608,8 @@ fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
   let gradlew_path = project_dir.join("gradlew");
   if let Ok(contents) = std::fs::read_to_string(&gradlew_path) {
     if contents.contains("\r\n") {
-      std::fs::write(
-        &gradlew_path,
-        contents.replace("\r\n", "\n"),
-      )
-      .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
+      std::fs::write(&gradlew_path, contents.replace("\r\n", "\n"))
+        .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
     }
   }
 

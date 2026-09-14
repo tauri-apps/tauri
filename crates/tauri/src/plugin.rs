@@ -90,10 +90,11 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
 
-  // TODO: Change this to `run_invoke_handler` in v3
-  /// Extend commands to [`crate::Builder::invoke_handler`].
+  /// Runs the given invoke against the plugin's commands, extending [`crate::Builder::invoke_handler`].
+  ///
+  /// Returns whether the invoke message was handled or not.
   #[allow(unused_variables)]
-  fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
+  fn run_invoke_handler(&mut self, invoke: Invoke<R>) -> bool {
     false
   }
 }
@@ -827,7 +828,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     (self.on_event)(app, event)
   }
 
-  fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
+  fn run_invoke_handler(&mut self, invoke: Invoke<R>) -> bool {
     (self.invoke_handler)(invoke)
   }
 }
@@ -958,7 +959,7 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
-  /// Runs the plugin [`Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`Plugin::run_invoke_handler`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
   pub(crate) fn run_invoke_handler(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
@@ -966,7 +967,7 @@ impl<R: Runtime> PluginStore<R> {
       if p.name() == plugin {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("plugin::hooks::ipc", name = plugin).entered();
-        return p.extend_api(invoke);
+        return p.run_invoke_handler(invoke);
       }
     }
     invoke.resolver.reject(format!("plugin {plugin} not found"));

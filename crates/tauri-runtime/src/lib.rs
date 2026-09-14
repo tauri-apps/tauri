@@ -630,10 +630,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// [`tao`]: https://crates.io/crates/tao
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
 
-  /// Runs an iteration of the runtime event loop and returns control flow to the caller.
-  #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
-
   /// Equivalent to [`Runtime::run`] but returns the exit code instead of exiting the process.
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32;
 

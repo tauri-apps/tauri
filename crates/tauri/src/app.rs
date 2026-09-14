@@ -1405,52 +1405,6 @@ impl<R: Runtime> App<R> {
       }
     }
   }
-
-  /// Runs an iteration of the runtime event loop and immediately return.
-  ///
-  /// Note that when using this API, app cleanup is not automatically done.
-  /// The cleanup calls [`App::cleanup_before_exit`] so you may want to call that function before exiting the application.
-  ///
-  /// # Examples
-  /// ```no_run
-  /// use tauri::Manager;
-  ///
-  /// let mut app = tauri::Builder::default()
-  ///   // on an actual app, remove the string argument
-  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///   .expect("error while building tauri application");
-  ///
-  /// loop {
-  ///   app.run_iteration(|_app, _event| {});
-  ///   if app.webview_windows().is_empty() {
-  ///     app.cleanup_before_exit();
-  ///     break;
-  ///   }
-  /// }
-  /// ```
-  #[cfg(desktop)]
-  #[deprecated(
-    note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
-  )]
-  pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
-    let _manager = self.manager.clone();
-    let _app_handle = self.handle().clone();
-
-    if !self.ran_setup
-      && let Err(e) = setup(self)
-    {
-      panic!("Failed to setup app: {e}");
-    }
-
-    let app_handle = self.handle().clone();
-
-    app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
-
-    self.runtime.as_mut().unwrap().run_iteration(move |event| {
-      let event = on_event_loop_event(&app_handle, event, app_handle.manager());
-      callback(&app_handle, event);
-    })
-  }
 }
 
 /// Builds a Tauri application.

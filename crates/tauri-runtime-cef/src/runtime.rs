@@ -3460,16 +3460,6 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       .listen_device_events(device_event_filter_to_winit(filter));
   }
 
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
-    while let Ok(message) = self.receiver.try_recv() {
-      if let Message::UserEvent(event) = message {
-        callback(RunEvent::UserEvent(event));
-      }
-    }
-    self.context.cef_pump.do_work();
-    callback(RunEvent::MainEventsCleared);
-  }
-
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
     self.run(callback);
     // TODO: return the exit code from the runtime, if possible. For now, always return 0

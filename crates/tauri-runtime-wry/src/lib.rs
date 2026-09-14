@@ -3294,62 +3294,6 @@ impl<T: UserEvent> Runtime<T> for WryRuntime<T> {
       .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
   }
 
-  #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
-    use tao::platform::run_return::EventLoopExtRunReturn;
-    let windows = &self.context.main_thread.windows;
-    let window_id_map = &self.context.window_id_map;
-    let web_context = &self.context.main_thread.web_context;
-    let plugins = &self.context.plugins;
-
-    #[cfg(feature = "tracing")]
-    let active_tracing_spans = &self.context.main_thread.active_tracing_spans;
-
-    let proxy = self.event_loop.create_proxy();
-
-    self
-      .event_loop
-      .run_return(|event, event_loop, control_flow| {
-        *control_flow = ControlFlow::Wait;
-        if let Event::MainEventsCleared = &event {
-          *control_flow = ControlFlow::Exit;
-        }
-
-        for p in plugins.lock().unwrap().iter_mut() {
-          let prevent_default = p.on_event(
-            &event,
-            event_loop,
-            &proxy,
-            control_flow,
-            EventLoopIterationContext {
-              callback: &mut callback,
-              window_id_map,
-              windows,
-              #[cfg(feature = "tracing")]
-              active_tracing_spans,
-            },
-            web_context,
-          );
-          if prevent_default {
-            return;
-          }
-        }
-
-        handle_event_loop(
-          event,
-          event_loop,
-          control_flow,
-          EventLoopIterationContext {
-            callback: &mut callback,
-            windows,
-            window_id_map,
-            #[cfg(feature = "tracing")]
-            active_tracing_spans,
-          },
-        );
-      });
-  }
-
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     let event_handler = make_event_handler(self.context, callback);
     self.event_loop.run(event_handler)

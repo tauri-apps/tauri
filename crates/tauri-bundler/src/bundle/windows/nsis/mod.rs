@@ -404,19 +404,14 @@ fn build_nsis_app_installer(
     if let Some(start_menu_folder) = &nsis.start_menu_folder {
       data.insert("start_menu_folder", to_json(start_menu_folder));
     }
-    // only enforced for runtimes that use WebView2, see `Settings::minimum_webview2_version`
-    #[allow(deprecated)]
-    if let Some(minimum_webview2_version) = nsis
-      .minimum_webview2_version
-      .as_deref()
-      .filter(|_| settings.webview_runtime().uses_webview2())
-      .or(settings.minimum_webview2_version())
-    {
-      data.insert(
-        "minimum_webview2_version",
-        to_json(minimum_webview2_version),
-      );
-    }
+  }
+
+  // only enforced for runtimes that use WebView2, see `Settings::minimum_webview2_version`
+  if let Some(minimum_webview2_version) = settings.minimum_webview2_version() {
+    data.insert(
+      "minimum_webview2_version",
+      to_json(minimum_webview2_version),
+    );
   }
 
   let compression = settings

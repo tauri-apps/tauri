@@ -195,7 +195,7 @@ linux-libxdo = ["tray-icon?/muda-libxdo", "muda/libxdo"]
 linux-libappindicator = ["tray-icon?/libappindicator"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
-# TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384
+# TLS backends for the dev server proxy (`reqwest`); pick one when the dev server uses HTTPS
 native-tls = ["reqwest/native-tls"]
 native-tls-vendored = ["reqwest/native-tls-vendored"]
 rustls-tls = ["reqwest/rustls-no-provider", "dep:rustls"]

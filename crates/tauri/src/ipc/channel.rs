@@ -25,10 +25,8 @@ use super::{
 };
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
-// TODO: Change this to `channel` in v3
-pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
-// TODO: Change this to `plugin:channel|fetch` in v3
-pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
+pub const CHANNEL_PLUGIN_NAME: &str = "channel";
+pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:channel|fetch";
 const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
 
 /// Maximum size a JSON we should send directly without going through the fetch process
@@ -338,8 +336,101 @@ fn fetch(
 pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
   PluginBuilder::new(CHANNEL_PLUGIN_NAME)
     .invoke_handler(crate::generate_handler![
-      #![plugin(__TAURI_CHANNEL__)]
+      #![plugin(channel)]
       fetch
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{CHANNEL_ID_HEADER_NAME, ChannelDataIpcQueue, FETCH_CHANNEL_DATA_COMMAND};
+  use crate::{
+    Manager,
+    ipc::{CallbackFn, InvokeBody, InvokeResponseBody},
+    test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder, mock_context, noop_assets},
+    webview::InvokeRequest,
+  };
+  use tauri_utils::acl::resolved::{Resolved, ResolvedCommand};
+
+  fn fetch_request(data_id: u32) -> InvokeRequest {
+    let mut headers = http::HeaderMap::new();
+    headers.insert(CHANNEL_ID_HEADER_NAME, data_id.to_string().parse().unwrap());
+    InvokeRequest {
+      cmd: FETCH_CHANNEL_DATA_COMMAND.into(),
+      callback: CallbackFn(0),
+      error: CallbackFn(1),
+      url: "tauri://localhost".parse().unwrap(),
+      body: InvokeBody::default(),
+      headers,
+      invoke_key: INVOKE_KEY.to_string(),
+    }
+  }
+
+  fn queue_data(app: &crate::App<MockRuntime>, data_id: u32, payload: &[u8]) {
+    app
+      .state::<ChannelDataIpcQueue>()
+      .0
+      .lock()
+      .unwrap()
+      .insert(data_id, InvokeResponseBody::Raw(payload.to_vec()));
+  }
+
+  #[test]
+  fn fetch_is_gated_by_the_acl() {
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    queue_data(&app, 1, b"payload");
+
+    let err = get_ipc_response(&webview, fetch_request(1)).unwrap_err();
+    assert!(
+      err.to_string().contains("not allowed"),
+      "fetch must be rejected when core:channel is not in the ACL, got: {err}"
+    );
+    // the queued data must be left untouched for an unauthorized request
+    assert!(
+      app
+        .state::<ChannelDataIpcQueue>()
+        .0
+        .lock()
+        .unwrap()
+        .contains_key(&1)
+    );
+  }
+
+  #[test]
+  fn fetch_serves_the_queued_data_when_allowed() {
+    let mut context = mock_context(noop_assets());
+    *context.runtime_authority_mut() = crate::ipc::RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands: [(
+          FETCH_CHANNEL_DATA_COMMAND.to_string(),
+          vec![ResolvedCommand {
+            windows: vec![glob::Pattern::new("*").unwrap()],
+            webviews: vec![glob::Pattern::new("*").unwrap()],
+            ..Default::default()
+          }],
+        )]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+      },
+    );
+    let app = mock_builder().build(context).unwrap();
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    queue_data(&app, 2, b"payload");
+
+    let response = get_ipc_response(&webview, fetch_request(2)).unwrap();
+    assert_eq!(response, InvokeResponseBody::Raw(b"payload".to_vec()));
+    // the data is only served once
+    let err = get_ipc_response(&webview, fetch_request(2)).unwrap_err();
+    assert_eq!(err, serde_json::Value::String("data not found".into()));
+  }
 }

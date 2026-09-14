@@ -596,23 +596,24 @@ fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
       if !is_executable {
         permissions.set_mode(permissions.mode() | 0o111);
         std::fs::set_permissions(&gradlew_path, permissions)
-          .fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
+          .fs_context("failed to mark gradlew as executable", gradlew_path)?;
       }
     }
   }
 
   // The CRLF→LF rewrite is platform-neutral: a CRLF gradlew breaks `sh
   // ./gradlew` on every host (including Git-Bash on Windows), and bash
-  // scripts must always use LF.
+  // scripts must always use LF. Only rewrite when a CRLF is actually
+  // present, so a clean LF file's mtime is not churned on every build.
   let gradlew_path = project_dir.join("gradlew");
-  if gradlew_path.exists() {
-    std::fs::write(
-      &gradlew_path,
-      std::fs::read_to_string(&gradlew_path)
-        .fs_context("failed to read gradlew", gradlew_path.clone())?
-        .replace("\r\n", "\n"),
-    )
-    .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
+  if let Ok(contents) = std::fs::read_to_string(&gradlew_path) {
+    if contents.contains("\r\n") {
+      std::fs::write(
+        &gradlew_path,
+        contents.replace("\r\n", "\n"),
+      )
+      .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
+    }
   }
 
   Ok(())

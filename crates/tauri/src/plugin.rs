@@ -53,8 +53,7 @@ pub trait Plugin<R: Runtime>: Send {
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
   /// so global variables must be assigned to `window` instead of implicitly declared.
   ///
-  /// This is executed only on the main frame.
-  /// If you only want to run it in all frames, use [`Plugin::initialization_script_2`] to set that to false.
+  /// Set [`InitializationScript::for_main_frame_only`] to `false` to also run the script on sub frames.
   ///
   /// ## Platform-specific
   ///
@@ -65,20 +64,8 @@ pub trait Plugin<R: Runtime>: Send {
   ///
   /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
   /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
-  fn initialization_script(&self) -> Option<String> {
+  fn initialization_script(&self) -> Option<InitializationScript> {
     None
-  }
-
-  // TODO: Change `initialization_script` to this in v3
-  /// Same as [`Plugin::initialization_script`] but returns an [`InitializationScript`] instead
-  /// We plan to replace [`Plugin::initialization_script`] with this signature in v3
-  fn initialization_script_2(&self) -> Option<InitializationScript> {
-    self
-      .initialization_script()
-      .map(|script| InitializationScript {
-        script,
-        for_main_frame_only: true,
-      })
   }
 
   /// Callback invoked when the window is created.
@@ -816,14 +803,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     Ok(())
   }
 
-  fn initialization_script(&self) -> Option<String> {
-    self
-      .js_init_script
-      .clone()
-      .map(|initialization_script| initialization_script.script)
-  }
-
-  fn initialization_script_2(&self) -> Option<InitializationScript> {
+  fn initialization_script(&self) -> Option<InitializationScript> {
     self.js_init_script.clone()
   }
 
@@ -918,7 +898,7 @@ impl<R: Runtime> PluginStore<R> {
     self
       .store
       .iter()
-      .filter_map(|p| p.initialization_script_2())
+      .filter_map(|p| p.initialization_script())
       .map(
         |InitializationScript {
            script,

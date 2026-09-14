@@ -200,6 +200,7 @@ pub use self::utils::TitleBarStyle;
 use self::event::EventName;
 pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
+pub(crate) use self::state::StateManager;
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
@@ -214,7 +215,7 @@ pub use {
     },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
   },
-  self::state::{State, StateManager},
+  self::state::State,
   self::utils::{
     Env, PackageInfo, Theme,
     config::{Config, WebviewUrl},

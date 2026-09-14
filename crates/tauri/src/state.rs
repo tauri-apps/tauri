@@ -102,9 +102,8 @@ impl std::hash::Hasher for IdentHash {
 type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
-// TODO: make private for v3
 #[derive(Debug)]
-pub struct StateManager {
+pub(crate) struct StateManager {
   map: Mutex<TypeIdMap>,
 }
 
@@ -139,14 +138,15 @@ impl StateManager {
   }
 
   /// Gets the state associated with the specified type.
-  pub fn get<T: 'static>(&self) -> State<'_, T> {
+  #[cfg_attr(not(any(test, feature = "protocol-asset")), allow(dead_code))]
+  pub(crate) fn get<T: 'static>(&self) -> State<'_, T> {
     self
       .try_get()
       .unwrap_or_else(|| panic!("state not found for type {}", std::any::type_name::<T>()))
   }
 
   /// Gets the state associated with the specified type.
-  pub fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
+  pub(crate) fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
     let state = map.get(&type_id)?;

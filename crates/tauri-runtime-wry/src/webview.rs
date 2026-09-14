@@ -32,22 +32,22 @@ mod imp {
   use std::ffi::c_void;
 
   // These pointers are borrowed from ObjC `Retained` handles owned elsewhere and must
-  // not be mutated through. TODO: change these to `*const c_void` in v3 (breaking change).
+  // not be mutated through.
   pub struct Webview {
-    webview: *mut c_void,
-    manager: *mut c_void,
+    webview: *const c_void,
+    manager: *const c_void,
     #[cfg(target_os = "macos")]
-    ns_window: *mut c_void,
+    ns_window: *const c_void,
     #[cfg(target_os = "ios")]
-    view_controller: *mut c_void,
+    view_controller: *const c_void,
   }
 
   impl Webview {
     pub(crate) fn new(
-      webview: *mut c_void,
-      manager: *mut c_void,
-      #[cfg(target_os = "macos")] ns_window: *mut c_void,
-      #[cfg(target_os = "ios")] view_controller: *mut c_void,
+      webview: *const c_void,
+      manager: *const c_void,
+      #[cfg(target_os = "macos")] ns_window: *const c_void,
+      #[cfg(target_os = "ios")] view_controller: *const c_void,
     ) -> Self {
       Self {
         webview,
@@ -62,14 +62,14 @@ mod imp {
     /// Returns the [WKWebView] handle.
     ///
     /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
-    pub fn inner(&self) -> *mut c_void {
+    pub fn inner(&self) -> *const c_void {
       self.webview
     }
 
     /// Returns WKWebView [controller] handle.
     ///
     /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
-    pub fn controller(&self) -> *mut c_void {
+    pub fn controller(&self) -> *const c_void {
       self.manager
     }
 
@@ -77,7 +77,7 @@ mod imp {
     ///
     /// [NSWindow]: https://developer.apple.com/documentation/appkit/nswindow
     #[cfg(target_os = "macos")]
-    pub fn ns_window(&self) -> *mut c_void {
+    pub fn ns_window(&self) -> *const c_void {
       self.ns_window
     }
 
@@ -85,7 +85,7 @@ mod imp {
     ///
     /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
     #[cfg(target_os = "ios")]
-    pub fn view_controller(&self) -> *mut c_void {
+    pub fn view_controller(&self) -> *const c_void {
       self.view_controller
     }
   }

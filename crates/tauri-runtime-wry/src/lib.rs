@@ -4147,9 +4147,9 @@ fn handle_user_message<T: UserEvent>(
               let manager = webview.manager();
               let ns_window = webview.ns_window();
               f(Webview::new(
-                Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&ns_window).cast_mut() as *mut std::ffi::c_void,
+                Retained::as_ptr(&platform_webview).cast(),
+                Retained::as_ptr(&manager).cast(),
+                Retained::as_ptr(&ns_window).cast(),
               ));
             }
             #[cfg(target_os = "ios")]
@@ -4159,9 +4159,9 @@ fn handle_user_message<T: UserEvent>(
               let manager = webview.inner.manager();
 
               f(Webview::new(
-                Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
-                window.ui_view_controller(),
+                Retained::as_ptr(&platform_webview).cast(),
+                Retained::as_ptr(&manager).cast(),
+                window.ui_view_controller().cast_const(),
               ));
             }
             #[cfg(windows)]

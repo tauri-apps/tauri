@@ -602,20 +602,29 @@ fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
     }
   }
 
-  // The CRLF→LF rewrite is platform-neutral: a CRLF gradlew breaks `sh
-  // ./gradlew` on every host (including Git-Bash on Windows), and bash
-  // scripts must always use LF. Best effort: only rewrite when a CRLF is
-  // actually present, and warn instead of failing so a locked or read-only
-  // file cannot abort builds that would otherwise succeed.
-  match std::fs::read_to_string(&gradlew_path) {
-    Ok(contents) => {
-      if contents.contains("\r\n") {
-        if let Err(error) = std::fs::write(&gradlew_path, contents.replace("\r\n", "\n")) {
-          log::warn!("failed to normalize gradlew CRLF line endings: {error}");
+  // A gradlew with CRLF line endings cannot run: sh fails with
+  // "/usr/bin/env: 'sh\r': No such file or directory" or similar, which
+  // also happens under Git Bash on Windows, so the rewrite runs on all
+  // platforms (https://github.com/tauri-apps/tauri/pull/16017). Windows
+  // builds invoke gradlew.bat, so there a gradlew that cannot be
+  // rewritten only draws a warning; on unix the error is returned.
+  if gradlew_path.exists() {
+    let result = std::fs::read_to_string(&gradlew_path)
+      .fs_context("failed to read gradlew", &gradlew_path)
+      .and_then(|contents| {
+        if contents.contains("\r\n") {
+          std::fs::write(&gradlew_path, contents.replace("\r\n", "\n"))
+            .fs_context("failed to replace gradlew CRLF with LF", &gradlew_path)
+        } else {
+          Ok(())
         }
-      }
+      });
+    #[cfg(unix)]
+    result?;
+    #[cfg(not(unix))]
+    if let Err(error) = result {
+      log::warn!("failed to normalize gradlew line endings: {error}");
     }
-    Err(error) => log::debug!("failed to read gradlew for CRLF normalization: {error}"),
   }
 
   Ok(())

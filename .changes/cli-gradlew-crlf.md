@@ -3,4 +3,4 @@
 "@tauri-apps/cli": patch:bug
 ---
 
-Normalize `gen/android/gradlew` CRLF line endings to LF on all host platforms, not only Unix. A `gradlew` checked out with CRLF broke `sh ./gradlew` on Windows hosts using Git Bash. The rewrite only runs when a CRLF is actually present, and read or write failures are logged instead of aborting the build, since the Windows CLI invokes `gradlew.bat` anyway.
+Normalize `gen/android/gradlew` CRLF line endings to LF on all host platforms, not only Unix. A `gradlew` checked out with CRLF broke `sh ./gradlew` on Windows hosts using Git Bash. The rewrite only runs when a CRLF is actually present. A failure to rewrite aborts on Unix, where the script is executed directly; on Windows the CLI invokes `gradlew.bat`, so failures there only warn.

@@ -494,8 +494,6 @@ impl<R: Runtime> InvokeResolver<R> {
 pub struct InvokeMessage<R: Runtime = crate::DynRuntime> {
   /// The webview that received the invoke message.
   pub(crate) webview: Webview<R>,
-  /// Application managed state.
-  pub(crate) state: Arc<StateManager>,
   /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
@@ -508,7 +506,6 @@ impl<R: Runtime> Clone for InvokeMessage<R> {
   fn clone(&self) -> Self {
     Self {
       webview: self.webview.clone(),
-      state: self.state.clone(),
       command: self.command.clone(),
       payload: self.payload.clone(),
       headers: self.headers.clone(),
@@ -520,14 +517,12 @@ impl<R: Runtime> InvokeMessage<R> {
   /// Create an new [`InvokeMessage`] from a payload send by a webview.
   pub(crate) fn new(
     webview: Webview<R>,
-    state: Arc<StateManager>,
     command: String,
     payload: InvokeBody,
     headers: HeaderMap,
   ) -> Self {
     Self {
       webview,
-      state,
       command,
       payload,
       headers,
@@ -558,16 +553,20 @@ impl<R: Runtime> InvokeMessage<R> {
     &self.payload
   }
 
+  // TODO: make private or remove in v3
   /// The state manager associated with the application
+  #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
   #[inline(always)]
   pub fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
+    self.webview.manager.state.clone()
   }
 
+  // TODO: make private or remove in v3
   /// A reference to the state manager associated with application.
+  #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
   #[inline(always)]
   pub fn state_ref(&self) -> &StateManager {
-    &self.state
+    &self.webview.manager.state
   }
 
   /// The request headers.

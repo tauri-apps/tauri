@@ -335,11 +335,6 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  /// State managed by the application.
-  pub(crate) fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
-  }
-
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
   ///
   /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exists.

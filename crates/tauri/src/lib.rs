@@ -680,7 +680,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().set(state)
+    self.manager().state.set(state)
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
@@ -708,7 +708,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     T: Send + Sync + 'static,
   {
     // The caller decides to break the safety here, then OK, just let it go.
-    unsafe { self.manager().state().unmanage() }
+    unsafe { self.manager().state.unmanage() }
   }
 
   /// Retrieves the managed state for the type `T`.

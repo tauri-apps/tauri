@@ -539,8 +539,19 @@ impl<T: UserEvent> Context<T> {
 }
 
 #[cfg(feature = "tracing")]
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
+
+// Deliberately does not borrow the inner `RefCell`: formatting can happen re-entrantly
+// while the store is already borrowed (e.g. from an event loop callback),
+// which would panic with "already borrowed".
+#[cfg(feature = "tracing")]
+impl fmt::Debug for ActiveTraceSpanStore {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("ActiveTraceSpanStore")
+      .finish_non_exhaustive()
+  }
+}
 
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
@@ -561,8 +572,16 @@ pub enum ActiveTracingSpan {
   },
 }
 
-#[derive(Debug)]
 pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
+
+// Deliberately does not borrow the inner `RefCell`: formatting can happen re-entrantly
+// while the store is already borrowed (e.g. from an event loop callback),
+// which would panic with "already borrowed".
+impl fmt::Debug for WindowsStore {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("WindowsStore").finish_non_exhaustive()
+  }
+}
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {

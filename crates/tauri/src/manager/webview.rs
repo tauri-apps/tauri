@@ -358,7 +358,7 @@ impl<R: Runtime> WebviewManager<R> {
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = app_manager
-        .state()
+        .state
         .get::<crate::Scopes>()
         .asset_protocol
         .clone();

@@ -683,34 +683,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state.set(state)
   }
 
-  /// Removes the state managed by the application for T. Returns the state if it was actually removed.
-  ///
-  /// <div class="warning">
-  ///
-  /// This method is *UNSAFE* and calling it will cause previously obtained references through
-  /// [Manager::state] and [State::inner] to become dangling references.
-  ///
-  /// It is currently deprecated and may be removed in the future.
-  ///
-  /// If you really want to unmanage a state, use [std::sync::Mutex] and [Option::take] to wrap the state instead.
-  ///
-  /// See [tauri-apps/tauri#12721] for more information.
-  ///
-  /// [tauri-apps/tauri#12721]: https://github.com/tauri-apps/tauri/issues/12721
-  ///
-  /// </div>
-  #[deprecated(
-    since = "2.3.0",
-    note = "This method is unsafe, since it can cause dangling references."
-  )]
-  fn unmanage<T>(&self) -> Option<T>
-  where
-    T: Send + Sync + 'static,
-  {
-    // The caller decides to break the safety here, then OK, just let it go.
-    unsafe { self.manager().state.unmanage() }
-  }
-
   /// Retrieves the managed state for the type `T`.
   ///
   /// # Panics

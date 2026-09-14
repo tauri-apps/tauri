@@ -125,18 +125,6 @@ impl StateManager {
     !already_set
   }
 
-  /// SAFETY: Calling this method will move the `value`,
-  /// which will cause references obtained through [Self::try_get] to dangle.
-  pub(crate) unsafe fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
-    let mut map = self.map.lock().unwrap();
-    let type_id = TypeId::of::<T>();
-    let state = map.remove(&type_id)?;
-    let value = state
-      .downcast::<T>()
-      .expect("the type of the key should be same as the type of the value");
-    Some(*value)
-  }
-
   /// Gets the state associated with the specified type.
   #[cfg_attr(not(any(test, feature = "protocol-asset")), allow(dead_code))]
   pub(crate) fn get<T: 'static>(&self) -> State<'_, T> {
@@ -189,19 +177,6 @@ mod tests {
     let state = StateManager::new();
     assert!(state.set(1u32));
     assert_eq!(*state.get::<u32>(), 1);
-  }
-
-  #[test]
-  fn simple_set_get_unmanage() {
-    let state = StateManager::new();
-    assert!(state.set(1u32));
-    assert_eq!(*state.get::<u32>(), 1);
-    // safety: the reference returned by `try_get` is already dropped.
-    assert!(unsafe { state.unmanage::<u32>() }.is_some());
-    assert!(unsafe { state.unmanage::<u32>() }.is_none());
-    assert_eq!(state.try_get::<u32>(), None);
-    assert!(state.set(2u32));
-    assert_eq!(*state.get::<u32>(), 2);
   }
 
   #[test]

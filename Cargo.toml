@@ -49,10 +49,10 @@ edition = "2024"
 rust-version = "1.95"
 
 [workspace.dependencies]
-tauri = { version = "3.0.0-alpha.0", path = "./crates/tauri", default-features = false }
+tauri = { version = "3.0.0-alpha.1", path = "./crates/tauri", default-features = false }
 tauri-runtime = { version = "~3.0.0-alpha.0", path = "./crates/tauri-runtime" }
-tauri-runtime-wry = { version = "~3.0.0-alpha.0", path = "./crates/tauri-runtime-wry", default-features = false }
-tauri-runtime-cef = { version = "~3.0.0-alpha.0", path = "./crates/tauri-runtime-cef", default-features = false }
+tauri-runtime-wry = { version = "~3.0.0-alpha.1", path = "./crates/tauri-runtime-wry", default-features = false }
+tauri-runtime-cef = { version = "~3.0.0-alpha.1", path = "./crates/tauri-runtime-cef", default-features = false }
 tauri-build = { version = "3.0.0-alpha.0", path = "./crates/tauri-build", default-features = false }
 tauri-macros = { version = "~3.0.0-alpha.0", path = "./crates/tauri-macros" }
 tauri-codegen = { version = "~3.0.0-alpha.0", path = "./crates/tauri-codegen" }

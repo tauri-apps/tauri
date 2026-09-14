@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
   ipc::{CommandArg, CommandItem, InvokeError},
-  Runtime,
+  Manager, Runtime,
 };
 
 /// A guard for a state value.
@@ -56,10 +56,10 @@ impl<T: std::fmt::Debug> std::fmt::Debug for State<'_, T> {
   }
 }
 
-impl<'r, 'de: 'r, T: 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
+impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    command.message.state_ref().try_get().ok_or_else(|| {
+    command.message.webview_ref().try_state().ok_or_else(|| {
       InvokeError::from_anyhow(anyhow::anyhow!(
         "state not managed for field `{}` on command `{}`. You must call `.manage()` before using this command",
         command.key, command.name
@@ -102,6 +102,7 @@ impl std::hash::Hasher for IdentHash {
 type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
+// TODO: make private for v3
 #[derive(Debug)]
 pub struct StateManager {
   map: Mutex<TypeIdMap>,

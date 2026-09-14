@@ -676,7 +676,6 @@ impl<T: UserEvent> WinitCefApp<T> {
         popup_family: Arc::downgrade(&popup_family),
         opener: None,
         handlers,
-        proxy: context.proxy.clone(),
         sender: context.sender.clone(),
       });
 

@@ -10,7 +10,6 @@ use tauri_runtime::{
   dpi::{LogicalPosition, LogicalSize},
   window::WindowId,
 };
-use winit::event_loop::EventLoopProxy as WinitEventLoopProxy;
 
 use crate::{
   macros::wrap_with_args,
@@ -83,7 +82,6 @@ wrap_with_args! {
 
   pub struct TauriCefChildLifeSpanHandler<T: UserEvent> {
     sender: Sender<Message<T>>,
-    proxy: WinitEventLoopProxy,
     window_id: WindowId,
     webview_id: u32,
     context: RuntimeContext<T>,
@@ -100,7 +98,7 @@ wrap_with_args! {
       if let (Some(browser), Some(opener)) = (browser.as_deref(), self.opener.as_ref()) {
         if let Some(family) = self.popup_family.upgrade() {
           let _ = self.sender.send(Message::PopupCreated(opener.clone(), browser.identifier(), family.clone()));
-          self.proxy.wake_up();
+          self.context.wake_event_loop();
           family.created(browser, opener, &self.frame_navigation_state);
         } else if let Some(host) = browser.host() {
           host.close_browser(1);
@@ -157,7 +155,7 @@ wrap_with_args! {
             family.abort(&self.frame_navigation_state, popup_id);
             return 1;
           }
-          self.proxy.wake_up();
+          self.context.wake_event_loop();
           // Keep CEF's popup creation and JavaScript opener relationship. Only
           // its client changes: root IPC, load/title callbacks and close handling
           // cannot be inherited by a different native browser lifetime.
@@ -186,7 +184,7 @@ wrap_with_args! {
       if let Some(family) = self.popup_family.upgrade()
         && let Some(request) = family.abort(&self.frame_navigation_state, popup_id) {
         let _ = self.sender.send(Message::PopupAborted(request));
-        self.proxy.wake_up();
+        self.context.wake_event_loop();
       }
     }
 
@@ -216,7 +214,7 @@ wrap_with_args! {
         let _ = self
           .sender
           .send(Message::DestroyWebviewHostWindow(self.webview_id));
-        self.proxy.wake_up();
+        self.context.wake_event_loop();
         return 1;
       }
 
@@ -232,14 +230,14 @@ wrap_with_args! {
       if browser.is_popup() != 0 {
         if self.opener.is_some() {
           let _ = self.sender.send(Message::PopupClosed(browser.identifier()));
-          self.proxy.wake_up();
+          self.context.wake_event_loop();
         }
         return;
       }
       let _ = self
         .sender
         .send(Message::BrowserClosed(self.window_id, self.webview_id));
-      self.proxy.wake_up();
+      self.context.wake_event_loop();
     }
   }
 }

@@ -1127,7 +1127,14 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 #[derive(Clone)]
 pub(crate) struct RuntimeContext<T: UserEvent> {
   pub(crate) sender: Sender<Message<T>>,
-  pub(crate) proxy: WinitEventLoopProxy,
+  /// Only ever woken through [`Self::wake_event_loop`].
+  #[cfg(not(target_os = "macos"))]
+  proxy: WinitEventLoopProxy,
+  /// Pokes the main run loop, which then delivers pending wake-ups at the start of its next
+  /// pass through [`MainThreadDispatchSlot::deliver_wake`], the only place the proxy is
+  /// woken on macOS. See [`Self::wake_event_loop`].
+  #[cfg(target_os = "macos")]
+  wake: crate::platform::macos::MainThreadWake,
   main_thread_id: std::thread::ThreadId,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
@@ -1172,11 +1179,35 @@ struct MainThreadDispatch<T: UserEvent> {
 
 struct MainThreadDispatchSlot<T: UserEvent> {
   current: AtomicPtr<MainThreadDispatch<T>>,
+  /// Whether winit's proxy still has to be signalled, see [`Self::deliver_wake`].
+  #[cfg(target_os = "macos")]
+  wake_pending: AtomicBool,
 }
 
 impl<T: UserEvent> MainThreadDispatchSlot<T> {
   fn install(&self, dispatch: &mut MainThreadDispatch<T>) -> *mut MainThreadDispatch<T> {
     self.current.swap(dispatch, Ordering::AcqRel)
+  }
+
+  /// Whether a winit callback is running on the main thread right now.
+  #[cfg(target_os = "macos")]
+  fn is_active(&self) -> bool {
+    !self.current.load(Ordering::Acquire).is_null()
+  }
+
+  /// Signals winit's `proxy` if a wake-up is pending and no callback is running; the wake-up
+  /// stays pending otherwise. Runs on the main thread at the start of every run-loop pass,
+  /// see [`RuntimeContext::wake_event_loop`] for why it must happen there.
+  #[cfg(target_os = "macos")]
+  fn deliver_wake(&self, proxy: &WinitEventLoopProxy) {
+    if self.is_active() || !self.wake_pending.load(Ordering::Acquire) {
+      return;
+    }
+    // A read-modify-write rather than a store: a request racing with this pass is either
+    // consumed here, and its message is then visible to the drain that follows, or stays
+    // pending for the next pass.
+    self.wake_pending.swap(false, Ordering::AcqRel);
+    proxy.wake_up();
   }
 
   fn restore(&self, current: *mut MainThreadDispatch<T>, previous: *mut MainThreadDispatch<T>) {
@@ -1203,6 +1234,8 @@ impl<T: UserEvent> Default for MainThreadDispatchSlot<T> {
   fn default() -> Self {
     Self {
       current: AtomicPtr::new(std::ptr::null_mut()),
+      #[cfg(target_os = "macos")]
+      wake_pending: AtomicBool::new(false),
     }
   }
 }
@@ -1290,8 +1323,39 @@ impl<T: UserEvent> RuntimeContext<T> {
       .sender
       .send(message)
       .map_err(|_| Error::FailedToSendMessage)?;
-    self.proxy.wake_up();
+    self.wake_event_loop();
     Ok(())
+  }
+
+  /// Has winit call [`WinitCefApp::proxy_wake_up`], which drains the message queue.
+  ///
+  /// Every wake-up of the event loop goes through here; on macOS the context does not even
+  /// hold the proxy, only [`MainThreadDispatchSlot::deliver_wake`] signals it (see below).
+  pub(crate) fn wake_event_loop(&self) {
+    #[cfg(not(target_os = "macos"))]
+    self.proxy.wake_up();
+
+    // winit's proxy is a run-loop source in the common modes, so it also fires while AppKit
+    // tracks a menu or runs a modal panel. If that nested loop was started from a winit
+    // callback — a `run_on_main_thread` closure showing a context menu, say — winit finds its
+    // handler still borrowed and panics ("tried to handle event while another event is
+    // currently being handled"). So the proxy is not signalled here. The request is recorded
+    // and the main run loop poked; at the start of its next pass, `deliver_wake` signals the
+    // proxy if no callback is running, or keeps the request pending until the callback
+    // returns. A proxy signalled at that point of a pass is performed in the same pass, before
+    // any AppKit event can reach a callback (see `platform::macos::MainThreadWake`).
+    //
+    // Consequently, messages from other threads wait while a nested loop started from a
+    // callback runs: a blocking getter called from a worker returns once the menu or panel
+    // closes, and a task meant to close it from a worker cannot run before it does.
+    #[cfg(target_os = "macos")]
+    {
+      self
+        .current_dispatch
+        .wake_pending
+        .store(true, Ordering::Release);
+      self.wake.wake_up();
+    }
   }
 
   pub(crate) fn is_main_thread(&self) -> bool {
@@ -2097,6 +2161,9 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 }
 
+// Every overridden method installs the dispatch guard before anything else: besides enabling
+// inline dispatch, the guard is how `MainThreadDispatchSlot::is_active` knows that winit's
+// handler is borrowed, which the macOS wake-up deferral relies on.
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
@@ -3062,15 +3129,24 @@ impl<T: UserEvent> CefRuntime<T> {
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
     let cef_pump = CefExternalPump::new();
+    let current_dispatch: Arc<MainThreadDispatchSlot<T>> = Default::default();
+    #[cfg(target_os = "macos")]
+    let wake = {
+      let slot = current_dispatch.clone();
+      crate::platform::macos::MainThreadWake::new(move || slot.deliver_wake(&proxy))
+    };
     let context = RuntimeContext {
       sender: sender.clone(),
-      proxy: proxy.clone(),
+      #[cfg(not(target_os = "macos"))]
+      proxy,
+      #[cfg(target_os = "macos")]
+      wake,
       main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
-      current_dispatch: Default::default(),
+      current_dispatch,
       app_wide_theme: Default::default(),
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),

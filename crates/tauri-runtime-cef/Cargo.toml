@@ -83,6 +83,12 @@ objc2-quartz-core = { version = "0.3", default-features = false, features = [
   "CALayer",
   "objc2-core-graphics",
 ] }
+# CFRunLoop gives the run-loop observer that delivers event-loop wake-ups, see
+# `platform::macos::MainThreadWake`.
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "CFRunLoop",
+  "std",
+] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSArray",
   # NSDate gates the performSelector:withObject:afterDelay: binding used to

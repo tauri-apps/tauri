@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex, Weak, mpsc::Sender};
 
 use cef::*;
 use tauri_runtime::{UserEvent, window::WindowId};
-use winit::event_loop::EventLoopProxy as WinitEventLoopProxy;
 
 use crate::{
   cef_impl::{ipc, request_handler},
@@ -94,7 +93,6 @@ wrap_with_args! {
     popup_family: Weak<crate::popup::PopupFamily>,
     opener: Option<crate::popup::PopupRequest>,
     pub(crate) handlers: TauriCefBrowserClientHandlers<T>,
-    proxy: WinitEventLoopProxy,
     sender: Sender<Message<T>>,
   }
 
@@ -200,13 +198,11 @@ wrap_with_args! {
             document_title_changed_handler: None,
             web_content_process_terminate_handler: None,
           },
-          proxy: context.proxy.clone(),
           sender: context.sender.clone(),
         })
       });
       Some(TauriCefChildLifeSpanHandler::build(TauriCefChildLifeSpanHandlerArgs {
         sender: self.sender.clone(),
-        proxy: self.proxy.clone(),
         window_id: self.window_id,
         webview_id: self.webview_id,
         context: self.context.clone(),

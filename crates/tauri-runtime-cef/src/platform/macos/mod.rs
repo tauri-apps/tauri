@@ -8,6 +8,7 @@ mod event_loop;
 mod monitor;
 mod progress;
 mod utils;
+mod wake;
 mod webview;
 mod window;
 
@@ -15,3 +16,4 @@ pub use application::setup_application;
 pub(crate) use application::{
   AppDelegate, AppDelegateEvent, activate_application, set_application_event_handler,
 };
+pub(crate) use wake::MainThreadWake;

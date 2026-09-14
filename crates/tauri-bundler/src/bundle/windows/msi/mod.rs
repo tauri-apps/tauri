@@ -667,17 +667,12 @@ pub fn build_wix_app_installer(
   let main_binary_path = settings.binary_path(main_binary);
   data.insert("main_binary_path", to_json(main_binary_path));
 
-  // copy icon from `settings.windows().icon_path` folder to resource folder near msi
-  #[allow(deprecated)]
-  let icon_path = if !settings.windows().icon_path.as_os_str().is_empty() {
-    settings.windows().icon_path.clone()
-  } else {
-    settings
-      .icon_files()
-      .flatten()
-      .find(|i| i.extension() == Some(OsStr::new("ico")))
-      .context("Couldn't find a .ico icon")?
-  };
+  // copy the .ico icon to the resource folder near the msi
+  let icon_path = settings
+    .icon_files()
+    .flatten()
+    .find(|i| i.extension() == Some(OsStr::new("ico")))
+    .context("Couldn't find a .ico icon")?;
   let icon_path = copy_icon(settings, "icon.ico", &icon_path)?;
 
   data.insert("icon_path", to_json(icon_path));

@@ -1568,7 +1568,6 @@ pub(crate) fn tauri_config_to_bundle_settings(
     appimage: AppImageSettings {
       files: appimage_files,
       bundle_media_framework: config.linux.appimage.bundle_media_framework,
-      bundle_xdg_open: false,
     },
     rpm: RpmSettings {
       depends: if depends_rpm.is_empty() {
@@ -1654,7 +1653,6 @@ pub(crate) fn tauri_config_to_bundle_settings(
       certificate_thumbprint: config.windows.certificate_thumbprint,
       wix: config.windows.wix.map(wix_settings),
       nsis: config.windows.nsis.map(nsis_settings),
-      icon_path: PathBuf::new(),
       webview_install_mode,
       allow_downgrades: config.windows.allow_downgrades,
       sign_command: config.windows.sign_command.map(custom_sign_settings),

@@ -878,9 +878,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   #[cfg(feature = "codegen")]
   if let Some(mut codegen) = attributes.codegen {
-    if codegen.config_path.is_none() {
-      codegen.config_path = attributes.config_path;
-    }
+    codegen.config_path = attributes.config_path;
     codegen.try_build()?;
   }
 

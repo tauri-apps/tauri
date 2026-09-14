@@ -419,7 +419,7 @@ class Window {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return () => {
+      return async () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
@@ -454,7 +454,7 @@ class Window {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return () => {
+      return async () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
@@ -2015,11 +2015,13 @@ class Window {
       }
     )
 
-    return () => {
-      unlistenDrag()
-      unlistenDrop()
-      unlistenDragOver()
-      unlistenCancel()
+    return async () => {
+      await Promise.all([
+        unlistenDrag(),
+        unlistenDrop(),
+        unlistenDragOver(),
+        unlistenCancel()
+      ])
     }
   }
 
@@ -2053,9 +2055,8 @@ class Window {
         handler({ ...event, payload: false })
       }
     )
-    return () => {
-      unlistenFocus()
-      unlistenBlur()
+    return async () => {
+      await Promise.all([unlistenFocus(), unlistenBlur()])
     }
   }
 

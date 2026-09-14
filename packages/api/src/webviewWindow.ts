@@ -157,7 +157,7 @@ class WebviewWindow {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return () => {
+      return async () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
@@ -192,7 +192,7 @@ class WebviewWindow {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return () => {
+      return async () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)

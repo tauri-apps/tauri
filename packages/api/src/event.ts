@@ -38,8 +38,7 @@ interface Event<T> {
 
 type EventCallback<T> = (event: Event<T>) => void
 
-// TODO(v3): mark this as Promise<void>
-type UnlistenFn = () => void
+type UnlistenFn = () => Promise<void>
 
 type EventName = `${TauriEvent}` | (string & Record<never, never>)
 

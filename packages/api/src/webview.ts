@@ -251,7 +251,7 @@ class Webview {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -286,7 +286,7 @@ class Webview {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -629,7 +629,7 @@ class Webview {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * When the debugger panel is open, the drop position of this event may be inaccurate due to a known limitation.

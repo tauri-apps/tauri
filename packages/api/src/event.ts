@@ -100,7 +100,7 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
- * unlisten();
+ * await unlisten();
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -144,7 +144,7 @@ async function listen<T>(
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
- * unlisten();
+ * await unlisten();
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.

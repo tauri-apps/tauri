@@ -144,7 +144,7 @@ class WebviewWindow {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -179,7 +179,7 @@ class WebviewWindow {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.

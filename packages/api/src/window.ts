@@ -296,7 +296,7 @@ export type WindowLabel = string
  * await appWindow.emit("some-event", "data");
  * // listen to an event from the backend
  * const unlisten = await appWindow.listen("event-name", e => {});
- * unlisten();
+ * await unlisten();
  * ```
  *
  * @since 2.0.0
@@ -406,7 +406,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -441,7 +441,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -1865,7 +1865,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
@@ -1889,7 +1889,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
@@ -1918,7 +1918,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
@@ -1956,7 +1956,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
@@ -2036,7 +2036,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
@@ -2075,7 +2075,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
@@ -2101,7 +2101,7 @@ class Window {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.

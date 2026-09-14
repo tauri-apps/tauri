@@ -659,6 +659,7 @@ impl<R: Runtime> AppManager<R> {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
         self.listeners().remove_webview_listeners(webview.label());
+        self.discard_queued_channel_data(webview.label());
       }
     }
     self.listeners().remove_window_listeners(label);
@@ -668,6 +669,17 @@ impl<R: Runtime> AppManager<R> {
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_listeners(label);
+    self.discard_queued_channel_data(label);
+  }
+
+  /// Drops the channel payloads still waiting to be fetched by a webview that no longer exists.
+  fn discard_queued_channel_data(&self, webview_label: &str) {
+    if let Some(queue) = self
+      .state
+      .try_get::<crate::ipc::channel::ChannelDataIpcQueue>()
+    {
+      queue.purge_webview(webview_label);
+    }
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

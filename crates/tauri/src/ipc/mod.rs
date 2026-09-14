@@ -19,6 +19,7 @@ use serde::{
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_utils::acl::resolved::ResolvedCommand;
+use url::Url;
 
 use crate::{Runtime, webview::Webview};
 
@@ -500,6 +501,8 @@ pub struct InvokeMessage<R: Runtime = crate::DynRuntime> {
   pub(crate) payload: InvokeBody,
   /// The request headers.
   pub(crate) headers: HeaderMap,
+  /// The URL of the page that sent the invoke message.
+  pub(crate) url: Url,
 }
 
 impl<R: Runtime> Clone for InvokeMessage<R> {
@@ -509,6 +512,7 @@ impl<R: Runtime> Clone for InvokeMessage<R> {
       command: self.command.clone(),
       payload: self.payload.clone(),
       headers: self.headers.clone(),
+      url: self.url.clone(),
     }
   }
 }
@@ -520,12 +524,14 @@ impl<R: Runtime> InvokeMessage<R> {
     command: String,
     payload: InvokeBody,
     headers: HeaderMap,
+    url: Url,
   ) -> Self {
     Self {
       webview,
       command,
       payload,
       headers,
+      url,
     }
   }
 

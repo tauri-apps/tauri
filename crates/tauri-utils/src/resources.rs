@@ -11,6 +11,16 @@ use walkdir::WalkDir;
 
 use crate::platform::Target as TargetPlatform;
 
+/// Whether a resource map target names a directory the resource is copied into, keeping its
+/// file name: the empty target, or one whose last segment is empty (a trailing `/`, or `\` where
+/// the platform splits paths on it) or `.`.
+fn is_directory_target(dest: &str) -> bool {
+  matches!(
+    dest.rsplit(['/', std::path::MAIN_SEPARATOR]).next(),
+    Some("" | ".")
+  )
+}
+
 /// Given a path (absolute or relative) to a resource file, returns the
 /// relative path from the bundle resources directory where that resource
 /// should be stored.
@@ -261,7 +271,7 @@ impl ResourcePathsIter<'_> {
           ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
         },
         None => {
-          if dest.components().count() == 0 || self.current_dest_is_dir {
+          if self.current_dest_is_dir {
             // an empty or directory (trailing separator) destination for a file pattern
             // preserves the file name inside it
             //
@@ -291,7 +301,7 @@ impl ResourcePathsIter<'_> {
       PatternIter::Map(iter) => {
         let (pattern, dest) = iter.next()?;
         self.current_dest = Some(resource_relpath(Path::new(dest)));
-        self.current_dest_is_dir = dest.ends_with('/') || dest.ends_with('\\');
+        self.current_dest_is_dir = is_directory_target(dest);
         pattern
       }
     };
@@ -454,6 +464,21 @@ mod tests {
     fs::create_dir_all("empty-directory").unwrap();
   }
 
+  #[test]
+  fn directory_targets() {
+    for dest in ["", ".", "./", "docs/", "./docs/", "docs/.", "a/b/"] {
+      assert!(
+        is_directory_target(dest),
+        "{dest:?} must be a directory target"
+      );
+    }
+    for dest in ["docs", "./docs", "docs/README.md", "a.b", "..", "docs/.."] {
+      assert!(!is_directory_target(dest), "{dest:?} must be a file target");
+    }
+    // a trailing backslash only splits where the platform treats it as a separator
+    assert_eq!(is_directory_target("docs\\"), cfg!(windows));
+  }
+
   fn resources_map(literal: &[(&str, &str)]) -> HashMap<String, String> {
     literal
       .iter()
@@ -613,6 +638,8 @@ mod tests {
       &resources_map(&[
         ("../src/script.js", "main.js"),
         ("build.rs", "scripts/"),
+        #[cfg(windows)]
+        ("some-other-json.json", "scripts\\"),
         ("../src/assets", ""),
         ("../src/index.html", "frontend/index.html"),
         ("../src/sounds", "voices"),
@@ -633,6 +660,8 @@ mod tests {
     let expected = expected_resources(&[
       ("../src/script.js", "main.js"),
       ("build.rs", "scripts/build.rs"),
+      #[cfg(windows)]
+      ("some-other-json.json", "scripts/some-other-json.json"),
       ("../src/assets/javascript.svg", "javascript.svg"),
       ("../src/assets/tauri.svg", "tauri.svg"),
       ("../src/assets/rust.svg", "rust.svg"),
@@ -676,6 +705,8 @@ mod tests {
       &resources_map(&[
         ("../src/script.js", "main.js"),
         ("build.rs", "scripts/"),
+        #[cfg(windows)]
+        ("some-other-json.json", "scripts\\"),
         ("../src/assets", ""),
         ("../src/index.html", "frontend/index.html"),
         ("../src/sounds", "voices"),
@@ -691,6 +722,8 @@ mod tests {
     let expected = expected_resources(&[
       ("../src/script.js", "main.js"),
       ("build.rs", "scripts/build.rs"),
+      #[cfg(windows)]
+      ("some-other-json.json", "scripts/some-other-json.json"),
       ("../src/index.html", "frontend/index.html"),
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
@@ -781,6 +814,8 @@ mod tests {
       &resources_map(&[
         ("../src/script.js", "main.js"),
         ("build.rs", "scripts/"),
+        #[cfg(windows)]
+        ("some-other-json.json", "scripts\\"),
         ("../src/assets", ""),
         ("../src/sounds", "voices"),
         ("../src/textures/*", "textures"),
@@ -798,6 +833,8 @@ mod tests {
     let expected: Vec<Resource> = [
       ("../src/script.js", "main.js"),
       ("build.rs", "scripts/build.rs"),
+      #[cfg(windows)]
+      ("some-other-json.json", "scripts/some-other-json.json"),
       ("../src/assets/javascript.svg", "javascript.svg"),
       ("../src/assets/tauri.svg", "tauri.svg"),
       ("../src/assets/rust.svg", "rust.svg"),

@@ -115,7 +115,7 @@ rand = "0.10"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 which = "8"
 rayon = "1.10"
-download-cef = "2.2"
+download-cef = "3"
 
 [dev-dependencies]
 insta = "1"

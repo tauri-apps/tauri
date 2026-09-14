@@ -4,7 +4,7 @@
 
 use std::{
   borrow::Cow,
-  collections::HashMap,
+  collections::{BTreeMap, HashMap},
   fmt,
   sync::{Arc, Mutex, MutexGuard, OnceLock, atomic::AtomicBool},
 };
@@ -55,7 +55,7 @@ pub(crate) fn set_csp<R: Runtime>(
   asset_path: &AssetKey,
   manager: &AppManager<R>,
   csp: Csp,
-) -> HashMap<String, CspDirectiveSources> {
+) -> BTreeMap<String, CspDirectiveSources> {
   let mut csp = csp.into();
   let hash_strings =
     assets
@@ -125,7 +125,7 @@ fn replace_with_callback<F: FnMut() -> String>(
 fn replace_csp_nonce(
   asset: &mut String,
   token: &str,
-  csp: &mut HashMap<String, CspDirectiveSources>,
+  csp: &mut BTreeMap<String, CspDirectiveSources>,
   directive: &str,
   hashes: Vec<String>,
 ) {

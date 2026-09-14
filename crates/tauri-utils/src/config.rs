@@ -2486,45 +2486,27 @@ impl CspDirectiveSources {
 
 /// A Content-Security-Policy definition.
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum Csp {
   /// The entire CSP policy in a single text string.
   Policy(String),
   /// An object mapping a directive with its sources values as a list of strings.
-  DirectiveMap(HashMap<String, CspDirectiveSources>),
+  DirectiveMap(BTreeMap<String, CspDirectiveSources>),
 }
 
-impl Serialize for Csp {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    match self {
-      Self::Policy(policy) => serializer.serialize_str(policy),
-      Self::DirectiveMap(map) => {
-        // Serialize through `BTreeMap` so the output is deterministic
-        // see: https://github.com/tauri-apps/tauri/issues/14978
-        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-        let btree_map: BTreeMap<_, _> = map.iter().collect();
-        btree_map.serialize(serializer)
-      }
-    }
-  }
-}
-
-impl From<HashMap<String, CspDirectiveSources>> for Csp {
-  fn from(map: HashMap<String, CspDirectiveSources>) -> Self {
+impl From<BTreeMap<String, CspDirectiveSources>> for Csp {
+  fn from(map: BTreeMap<String, CspDirectiveSources>) -> Self {
     Self::DirectiveMap(map)
   }
 }
 
-impl From<Csp> for HashMap<String, CspDirectiveSources> {
+impl From<Csp> for BTreeMap<String, CspDirectiveSources> {
   fn from(csp: Csp) -> Self {
     match csp {
       Csp::Policy(policy) => {
-        let mut map = HashMap::new();
+        let mut map = BTreeMap::new();
         for directive in policy.split(';') {
           let mut tokens = directive.trim().split(' ');
           if let Some(directive) = tokens.next() {
@@ -2667,7 +2649,7 @@ pub struct AssetProtocolConfig {
 /// definition of a header source
 ///
 /// The header value to a header name
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum HeaderSource {
@@ -2676,26 +2658,7 @@ pub enum HeaderSource {
   /// list version of the header value. Item are joined by "," for the real header value
   List(Vec<String>),
   /// (Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Item are then joined by ";" for the real header value
-  Map(HashMap<String, String>),
-}
-
-impl Serialize for HeaderSource {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    match self {
-      Self::Inline(s) => serializer.serialize_str(s),
-      Self::List(l) => l.serialize(serializer),
-      Self::Map(m) => {
-        // Serialize through `BTreeMap` so the output is deterministic
-        // see: https://github.com/tauri-apps/tauri/issues/14978
-        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-        let btree_map: BTreeMap<_, _> = m.iter().collect();
-        btree_map.serialize(serializer)
-      }
-    }
-  }
+  Map(BTreeMap<String, String>),
 }
 
 impl Display for HeaderSource {
@@ -3769,25 +3732,12 @@ pub struct Config {
   pub plugins: PluginConfig,
 }
 
-/// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
+/// The plugin configs holds a map from a plugin name to its configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#pluginconfig>
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct PluginConfig(pub HashMap<String, JsonValue>);
-
-impl Serialize for PluginConfig {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    // Serialize through `BTreeMap` so the output is deterministic
-    // see: https://github.com/tauri-apps/tauri/issues/14978
-    // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-    let btree_map: BTreeMap<_, _> = self.0.iter().collect();
-    btree_map.serialize(serializer)
-  }
-}
+pub struct PluginConfig(pub BTreeMap<String, JsonValue>);
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///
@@ -4350,14 +4300,9 @@ mod build {
           quote!(#prefix::Policy(#policy.into()))
         }
         Self::DirectiveMap(list) => {
-          // Pass a sorted vec so the HashMap constructor is deterministic
-          // see: https://github.com/tauri-apps/tauri/issues/14978
-          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-          let mut sorted: Vec<_> = list.iter().collect();
-          sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
-            quote! { ::std::collections::HashMap },
-            sorted,
+            quote! { ::std::collections::BTreeMap },
+            list,
             str_lit,
             identity,
           );
@@ -4413,14 +4358,9 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
-          // Pass a sorted vec so the HashMap constructor is deterministic
-          // see: https://github.com/tauri-apps/tauri/issues/14978
-          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-          let mut sorted: Vec<_> = m.iter().collect();
-          sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
-            quote! { ::std::collections::HashMap },
-            sorted,
+            quote! { ::std::collections::BTreeMap },
+            m,
             str_lit,
             str_lit,
           );
@@ -4564,14 +4504,9 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      // Pass a sorted vec so the HashMap constructor is deterministic
-      // see: https://github.com/tauri-apps/tauri/issues/14978
-      // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-      let mut sorted: Vec<_> = self.0.iter().collect();
-      sorted.sort_by_key(|(k, _)| *k);
       let config = map_lit(
-        quote! { ::std::collections::HashMap },
-        sorted,
+        quote! { ::std::collections::BTreeMap },
+        &self.0,
         str_lit,
         json_value_lit,
       );

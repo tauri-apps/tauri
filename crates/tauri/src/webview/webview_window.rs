@@ -217,7 +217,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///   webview::WebviewWindowBuilder,
   /// };
   /// use http::header::HeaderValue;
-  /// use std::collections::HashMap;
+  /// use std::collections::BTreeMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
@@ -227,7 +227,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///           //  for this example, let's dynamically change the CSP
   ///           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
   ///             // use the tauri helper to parse the CSP policy to a map
-  ///             let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
+  ///             let mut csp_map: BTreeMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
   ///             csp_map.entry("script-src".to_string()).or_insert_with(Default::default).push("'unsafe-inline'");
   ///             // use the tauri helper to get a CSP string from the map
   ///             let csp_string = Csp::from(csp_map).to_string();

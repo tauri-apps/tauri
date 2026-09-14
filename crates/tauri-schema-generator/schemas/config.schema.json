@@ -3832,7 +3832,7 @@
       "additionalProperties": false
     },
     "PluginConfig": {
-      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: <https://v2.tauri.app/reference/config/#pluginconfig>",
+      "description": "The plugin configs holds a map from a plugin name to its configuration object.\n\nSee more: <https://v2.tauri.app/reference/config/#pluginconfig>",
       "type": "object",
       "additionalProperties": true
     }

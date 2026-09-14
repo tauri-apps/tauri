@@ -17,7 +17,6 @@ use tauri_utils::config::FrontendDist;
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {
-  pub(crate) config_path: Option<PathBuf>,
   out_file: PathBuf,
   capabilities: Option<Vec<PathBuf>>,
 }
@@ -25,7 +24,6 @@ pub struct CodegenContext {
 impl Default for CodegenContext {
   fn default() -> Self {
     Self {
-      config_path: None,
       out_file: PathBuf::from("tauri-build-context.rs"),
       capabilities: None,
     }
@@ -65,16 +63,14 @@ impl CodegenContext {
     self
   }
 
-  /// Generate the code and write it to the output file - returning the path it was saved to.
+  /// Generate the code from the configuration at `config_path` (`tauri.conf.json` in the crate
+  /// directory by default) and write it to the output file - returning the path it was saved to.
   ///
   /// Unless you are doing something special with this builder, you don't need to do anything with
   /// the returned output path.
-  pub(crate) fn try_build(self) -> Result<PathBuf> {
-    let (config, config_parent) = tauri_codegen::get_config(
-      &self
-        .config_path
-        .unwrap_or_else(|| PathBuf::from("tauri.conf.json")),
-    )?;
+  pub(crate) fn try_build(self, config_path: Option<PathBuf>) -> Result<PathBuf> {
+    let (config, config_parent) =
+      tauri_codegen::get_config(&config_path.unwrap_or_else(|| PathBuf::from("tauri.conf.json")))?;
 
     // rerun if changed
     match &config.build.frontend_dist {

@@ -585,32 +585,37 @@ fn ensure_init(
 }
 
 fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
+  let gradlew_path = project_dir.join("gradlew");
+
   #[cfg(unix)]
   {
     use std::os::unix::fs::PermissionsExt;
 
-    let gradlew_path = project_dir.join("gradlew");
     if let Ok(metadata) = gradlew_path.metadata() {
       let mut permissions = metadata.permissions();
       let is_executable = permissions.mode() & 0o111 != 0;
       if !is_executable {
         permissions.set_mode(permissions.mode() | 0o111);
         std::fs::set_permissions(&gradlew_path, permissions)
-          .fs_context("failed to mark gradlew as executable", gradlew_path)?;
+          .fs_context("failed to mark gradlew as executable", &gradlew_path)?;
       }
     }
   }
 
   // The CRLF→LF rewrite is platform-neutral: a CRLF gradlew breaks `sh
   // ./gradlew` on every host (including Git-Bash on Windows), and bash
-  // scripts must always use LF. Only rewrite when a CRLF is actually
-  // present, so a clean LF file's mtime is not churned on every build.
-  let gradlew_path = project_dir.join("gradlew");
-  if let Ok(contents) = std::fs::read_to_string(&gradlew_path) {
-    if contents.contains("\r\n") {
-      std::fs::write(&gradlew_path, contents.replace("\r\n", "\n"))
-        .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
+  // scripts must always use LF. Best effort: only rewrite when a CRLF is
+  // actually present, and warn instead of failing so a locked or read-only
+  // file cannot abort builds that would otherwise succeed.
+  match std::fs::read_to_string(&gradlew_path) {
+    Ok(contents) => {
+      if contents.contains("\r\n") {
+        if let Err(error) = std::fs::write(&gradlew_path, contents.replace("\r\n", "\n")) {
+          log::warn!("failed to normalize gradlew CRLF line endings: {error}");
+        }
+      }
     }
+    Err(error) => log::debug!("failed to read gradlew for CRLF normalization: {error}"),
   }
 
   Ok(())

@@ -138,11 +138,17 @@ impl StateManager {
   }
 
   /// Gets the state associated with the specified type.
-  #[cfg_attr(not(any(test, feature = "protocol-asset")), allow(dead_code))]
+  ///
+  /// # Panics
+  ///
+  /// Panics if the state for the type `T` has not been previously [set](Self::set).
   pub(crate) fn get<T: 'static>(&self) -> State<'_, T> {
-    self
-      .try_get()
-      .unwrap_or_else(|| panic!("state not found for type {}", std::any::type_name::<T>()))
+    self.try_get().unwrap_or_else(|| {
+      panic!(
+        "state() called before manage() for {}",
+        std::any::type_name::<T>()
+      )
+    })
   }
 
   /// Gets the state associated with the specified type.
@@ -178,7 +184,9 @@ mod tests {
   }
 
   #[test]
-  #[should_panic(expected = "state not found for type core::option::Option<alloc::string::String>")]
+  #[should_panic(
+    expected = "state() called before manage() for core::option::Option<alloc::string::String>"
+  )]
   fn get_panics() {
     let state = StateManager::new();
     state.get::<Option<String>>();

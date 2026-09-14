@@ -72,7 +72,7 @@ pub(crate) fn init<R: Runtime, M: Manager<R>>(manager: &M) -> TauriPlugin<R> {
       #![plugin(event)]
       listen, unlisten, emit, emit_to
     ])
-    .js_init_script(
+    .initialization_script(
       init_script
         .render_default(&Default::default())
         .unwrap()

@@ -810,9 +810,8 @@ pub struct NsisConfig {
   /// The recommended dimensions are 164px x 314px.
   #[serde(alias = "sidebar-image")]
   pub sidebar_image: Option<PathBuf>,
-  // TODO: Change the alias to installer-icon in v3
   /// The path to an icon file used as the installer icon.
-  #[serde(alias = "install-icon")]
+  #[serde(alias = "installer-icon")]
   pub installer_icon: Option<PathBuf>,
   /// The path to an icon file used as the uninstaller icon.
   #[serde(alias = "uninstaller-icon")]

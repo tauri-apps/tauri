@@ -693,12 +693,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state.try_get().unwrap_or_else(|| {
-      panic!(
-        "state() called before manage() for {}",
-        std::any::type_name::<T>()
-      )
-    })
+    self.manager().state.get()
   }
 
   /// Attempts to retrieve the managed state for the type `T`.

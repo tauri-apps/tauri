@@ -1931,11 +1931,7 @@ impl<R: Runtime> Webview<R> {
     // or when the request comes from a non-local (remote) origin.  This
     // ensures remote content can never reach custom commands unless an
     // explicit `remote` capability has been configured for them.
-    if (plugin_command.is_some() || has_app_acl_manifest || !is_local)
-      // TODO: Remove this special check in v3
-      && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-      && invoke.acl.is_none()
-    {
+    if (plugin_command.is_some() || has_app_acl_manifest || !is_local) && invoke.acl.is_none() {
       #[cfg(debug_assertions)]
       {
         let (key, command_name) = plugin_command

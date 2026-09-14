@@ -13,8 +13,7 @@ use std::{
 
 const PLUGINS: &[(&str, &[(&str, bool)])] = &[
   // (plugin_name, &[(command, enabled-by_default)])
-  // TODO: Enable this in v3
-  // ("core:channel", &[("fetch", true)]),
+  ("core:channel", &[("fetch", true)]),
   (
     "core:path",
     &[

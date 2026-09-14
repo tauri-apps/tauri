@@ -57,6 +57,8 @@ pub struct Options {
   pub no_watch: bool,
   pub skip_stapling: bool,
   pub additional_watch_folders: Vec<PathBuf>,
+  /// Launch the app with Windows package identity via Microsoft's `winapp` CLI. Dev only.
+  pub packaged: bool,
 }
 
 impl From<crate::build::Options> for Options {
@@ -71,6 +73,7 @@ impl From<crate::build::Options> for Options {
       no_watch: true,
       skip_stapling: options.skip_stapling,
       additional_watch_folders: Vec::new(),
+      packaged: false,
     }
   }
 }
@@ -101,6 +104,7 @@ impl From<crate::dev::Options> for Options {
       no_watch: options.no_watch,
       skip_stapling: false,
       additional_watch_folders: options.additional_watch_folders,
+      packaged: options.packaged,
     }
   }
 }
@@ -199,6 +203,7 @@ impl Rust {
     dirs: &Dirs,
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
+    let tauri_dir = dirs.tauri;
 
     let mut run_args = Vec::new();
     dev_options(
@@ -211,7 +216,7 @@ impl Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, &run_args, move |status, reason| {
+      self.run_dev(options, &run_args, dirs.tauri, move |status, reason| {
         on_exit(status, reason);
         tx.send(()).unwrap();
       })?;
@@ -227,9 +232,12 @@ impl Rust {
         |rust: &mut Rust, _config| {
           let on_exit = on_exit.clone();
           rust
-            .run_dev(options.clone(), &run_args, move |status, reason| {
-              on_exit(status, reason)
-            })
+            .run_dev(
+              options.clone(),
+              &run_args,
+              tauri_dir,
+              move |status, reason| on_exit(status, reason),
+            )
             .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
         },
         dirs,
@@ -496,13 +504,17 @@ impl Rust {
     &mut self,
     options: Options,
     run_args: &[String],
+    tauri_dir: &Path,
     on_exit: F,
   ) -> crate::Result<desktop::DevChild> {
+    let app_settings = self.app_settings.clone();
     desktop::run_dev(
       options,
       run_args,
       &mut self.available_targets,
       self.config_features.clone(),
+      &app_settings,
+      tauri_dir,
       on_exit,
     )
   }

@@ -253,7 +253,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
-  js_init_script: Option<InitializationScript>,
+  initialization_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
@@ -269,7 +269,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     Self {
       name,
       setup: None,
-      js_init_script: None,
+      initialization_script: None,
       invoke_handler: Box::new(|_| false),
       on_navigation: Box::new(|_, _| true),
       on_page_load: Box::new(|_, _| ()),
@@ -322,7 +322,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// Note that calling this function multiple times overrides previous values.
   ///
   /// This is executed only on the main frame.
-  /// If you only want to run it in all frames, use [`Self::js_init_script_on_all_frames`] instead.
+  /// If you only want to run it in all frames, use [`Self::initialization_script_on_all_frames`] instead.
   ///
   /// ## Platform-specific
   ///
@@ -349,15 +349,14 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
-  ///     .js_init_script(INIT_SCRIPT)
+  ///     .initialization_script(INIT_SCRIPT)
   ///     .build()
   /// }
   /// ```
   #[must_use]
-  // TODO: Rename to `initialization_script` in v3
-  pub fn js_init_script(mut self, js_init_script: impl Into<String>) -> Self {
-    self.js_init_script = Some(InitializationScript {
-      script: js_init_script.into(),
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
+    self.initialization_script = Some(InitializationScript {
+      script: script.into(),
       for_main_frame_only: true,
     });
     self
@@ -372,7 +371,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// Note that calling this function multiple times overrides previous values.
   ///
   /// This is executed on all frames, main frame and also sub frames.
-  /// If you only want to run it in the main frame, use [`Self::js_init_script`] instead.
+  /// If you only want to run it in the main frame, use [`Self::initialization_script`] instead.
   ///
   /// ## Platform-specific
   ///
@@ -384,9 +383,9 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
   /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
-  pub fn js_init_script_on_all_frames(mut self, js_init_script: impl Into<String>) -> Self {
-    self.js_init_script = Some(InitializationScript {
-      script: js_init_script.into(),
+  pub fn initialization_script_on_all_frames(mut self, script: impl Into<String>) -> Self {
+    self.initialization_script = Some(InitializationScript {
+      script: script.into(),
       for_main_frame_only: false,
     });
     self
@@ -722,7 +721,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       app: None,
       invoke_handler: self.invoke_handler,
       setup: self.setup,
-      js_init_script: self.js_init_script,
+      initialization_script: self.initialization_script,
       on_navigation: self.on_navigation,
       on_page_load: self.on_page_load,
       on_window_ready: self.on_window_ready,
@@ -749,7 +748,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   app: Option<AppHandle<R>>,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
-  js_init_script: Option<InitializationScript>,
+  initialization_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
@@ -805,7 +804,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
   }
 
   fn initialization_script(&self) -> Option<InitializationScript> {
-    self.js_init_script.clone()
+    self.initialization_script.clone()
   }
 
   fn window_created(&mut self, window: Window<R>) {

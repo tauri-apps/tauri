@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0-alpha.1]
+
+### What's Changed
+
+- [`1fbadc877`](https://www.github.com/tauri-apps/tauri/commit/1fbadc8776b71c94ed858ba18721409e45696ff3) ([#15952](https://www.github.com/tauri-apps/tauri/pull/15952)) Internal refactors removing an `Arc` and a `Mutex`.
+    Deprecate `InvokeMessage::state` and `InvokeMessage::state_ref` that should accidentally were made public.
+
 ## [3.0.0-alpha.0]
 
 ### New Features

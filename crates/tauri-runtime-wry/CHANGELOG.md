@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.0.0-alpha.1]
+
+### Bug Fixes
+
+- [`e2c54be10`](https://www.github.com/tauri-apps/tauri/commit/e2c54be1055851686b1b57b69cfa7d6b5a0f552f) `WindowsStore` and `ActiveTraceSpanStore` now implement `Debug` manually without borrowing the inner `RefCell`, so formatting them re-entrantly while the store is already borrowed no longer panics with "already borrowed".
+
+### Dependencies
+
+- Upgraded to `tauri@3.0.0-alpha.1`
+
 ## [3.0.0-alpha.0]
 
 ### New Features

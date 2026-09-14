@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0-alpha.1]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@3.0.0-alpha.1`
+- [`fc5941fb9`](https://www.github.com/tauri-apps/tauri/commit/fc5941fb92dee89b7ed5c58b334d4c08ca955881) Update `download-cef` from 2.3 to 3.0, matching the `cef` crate used by `tauri-runtime-cef`.
+
 ## [3.0.0-alpha.0]
 
 ### Enhancements

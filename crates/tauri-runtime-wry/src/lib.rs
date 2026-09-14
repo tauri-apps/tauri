@@ -4178,52 +4178,53 @@ fn handle_user_message<T: UserEvent>(
       #[cfg(windows)]
       let is_window_transparent = builder.window.transparent;
 
-      match builder.build(event_loop) {
-        Ok(window) => {
-          window_id_map.insert(window.id(), window_id);
-
-          let window = Arc::new(window);
-
-          #[cfg(windows)]
-          let surface = if is_window_transparent {
-            if let Ok(context) = softbuffer::Context::new(window.clone()) {
-              if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
-                window.draw_surface(&mut surface, background_color);
-                Some(surface)
-              } else {
-                None
-              }
-            } else {
-              None
-            }
-          } else {
-            None
-          };
-
-          windows.0.borrow_mut().insert(
-            window_id,
-            WindowWrapper {
-              label,
-              has_children: AtomicBool::new(false),
-              inner: Some(window.clone()),
-              window_event_listeners: Default::default(),
-              webviews: Vec::new(),
-              #[cfg(windows)]
-              background_color,
-              #[cfg(windows)]
-              is_window_transparent,
-              #[cfg(windows)]
-              surface,
-              #[cfg(windows)]
-              focused_webview: Default::default(),
-            },
-          );
-          sender.send(Ok(Arc::downgrade(&window))).unwrap();
-        }
+      let window = match builder.build(event_loop) {
+        Ok(window) => window,
         Err(e) => {
           sender.send(Err(Error::CreateWindow(Box::new(e)))).unwrap();
+          return;
         }
-      }
+      };
+
+      window_id_map.insert(window.id(), window_id);
+
+      let window = Arc::new(window);
+
+      #[cfg(windows)]
+      let surface = if is_window_transparent {
+        if let Ok(context) = softbuffer::Context::new(window.clone()) {
+          if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
+            window.draw_surface(&mut surface, background_color);
+            Some(surface)
+          } else {
+            None
+          }
+        } else {
+          None
+        }
+      } else {
+        None
+      };
+
+      windows.0.borrow_mut().insert(
+        window_id,
+        WindowWrapper {
+          label,
+          has_children: AtomicBool::new(false),
+          inner: Some(window.clone()),
+          window_event_listeners: Default::default(),
+          webviews: Vec::new(),
+          #[cfg(windows)]
+          background_color,
+          #[cfg(windows)]
+          is_window_transparent,
+          #[cfg(windows)]
+          surface,
+          #[cfg(windows)]
+          focused_webview: Default::default(),
+        },
+      );
+      sender.send(Ok(Arc::downgrade(&window))).unwrap();
     }
 
     Message::UserEvent(_) => (),

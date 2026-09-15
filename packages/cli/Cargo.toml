@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "tauri-cli-node"
 version = "0.0.0"
 

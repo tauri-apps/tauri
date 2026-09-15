@@ -298,19 +298,19 @@ fn validate_target(
   target: &str,
 ) -> crate::Result<()> {
   if let Some(available_targets) = available_targets {
-    if let Some(target) = available_targets.iter().find(|t| t.name == target) {
-      if !target.installed {
-        crate::error::bail!(
-          "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
-          target = target.name,
-          installed = available_targets
-            .iter()
-            .filter(|t| t.installed)
-            .map(|t| t.name.as_str())
-            .collect::<Vec<&str>>()
-            .join(", ")
-        );
-      }
+    if let Some(target) = available_targets.iter().find(|t| t.name == target)
+      && !target.installed
+    {
+      crate::error::bail!(
+        "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
+        target = target.name,
+        installed = available_targets
+          .iter()
+          .filter(|t| t.installed)
+          .map(|t| t.name.as_str())
+          .collect::<Vec<&str>>()
+          .join(", ")
+      );
     }
     if !available_targets.iter().any(|t| t.name == target) {
       crate::error::bail!(

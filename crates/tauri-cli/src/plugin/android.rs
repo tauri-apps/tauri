@@ -85,15 +85,15 @@ pub fn command(cli: Cli) -> Result<()> {
         &mut |path| {
           let mut components = path.components();
           let root = components.next().unwrap();
-          if let Component::Normal(component) = root {
-            if component == OsStr::new("android") {
-              return super::init::generate_android_out_file(
-                &path,
-                &out_dir,
-                &plugin_id.replace('.', "/"),
-                &mut created_dirs,
-              );
-            }
+          if let Component::Normal(component) = root
+            && component == OsStr::new("android")
+          {
+            return super::init::generate_android_out_file(
+              &path,
+              &out_dir,
+              &plugin_id.replace('.', "/"),
+              &mut created_dirs,
+            );
           }
 
           Ok(None)

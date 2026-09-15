@@ -171,18 +171,18 @@ fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Resu
       source_path
         .components()
         .fold((PathBuf::new(), String::new()), |(mut p, mut b), c| {
-          if let std::path::Component::Normal(name) = c {
-            if let Some(name) = name.to_str() {
-              // installers bundled for updater should be put in a directory named `${bundle_name}-updater`
-              if name == WIX_UPDATER_OUTPUT_FOLDER_NAME || name == NSIS_UPDATER_OUTPUT_FOLDER_NAME {
-                b = name.strip_suffix("-updater").unwrap().to_string();
-                p.push(&b);
-                return (p, b);
-              }
+          if let std::path::Component::Normal(name) = c
+            && let Some(name) = name.to_str()
+          {
+            // installers bundled for updater should be put in a directory named `${bundle_name}-updater`
+            if name == WIX_UPDATER_OUTPUT_FOLDER_NAME || name == NSIS_UPDATER_OUTPUT_FOLDER_NAME {
+              b = name.strip_suffix("-updater").unwrap().to_string();
+              p.push(&b);
+              return (p, b);
+            }
 
-              if name == WIX_OUTPUT_FOLDER_NAME || name == NSIS_OUTPUT_FOLDER_NAME {
-                b = name.to_string();
-              }
+            if name == WIX_OUTPUT_FOLDER_NAME || name == NSIS_OUTPUT_FOLDER_NAME {
+              b = name.to_string();
             }
           }
           p.push(c);

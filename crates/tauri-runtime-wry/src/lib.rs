@@ -4098,14 +4098,14 @@ fn handle_event_loop<T: UserEvent>(
     Event::RedrawRequested(id) => {
       if let Some(window_id) = window_id_map.get(&id) {
         let mut windows_ref = windows.0.borrow_mut();
-        if let Some(window) = windows_ref.get_mut(&window_id) {
-          if window.is_window_transparent {
-            let background_color = window.background_color;
-            if let Some(surface) = &mut window.surface {
-              if let Some(window) = &window.inner {
-                window.draw_surface(surface, background_color);
-              }
-            }
+        if let Some(window) = windows_ref.get_mut(&window_id)
+          && window.is_window_transparent
+        {
+          let background_color = window.background_color;
+          if let Some(surface) = &mut window.surface
+            && let Some(window) = &window.inner
+          {
+            window.draw_surface(surface, background_color);
           }
         }
       }
@@ -4122,22 +4122,22 @@ fn handle_event_loop<T: UserEvent>(
       WebviewMessage::WebviewEvent(event),
     )) => {
       let windows_ref = windows.0.borrow();
-      if let Some(window) = windows_ref.get(&window_id) {
-        if let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id) {
-          let label = webview.label.clone();
-          let webview_event_listeners = webview.webview_event_listeners.clone();
+      if let Some(window) = windows_ref.get(&window_id)
+        && let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id)
+      {
+        let label = webview.label.clone();
+        let webview_event_listeners = webview.webview_event_listeners.clone();
 
-          drop(windows_ref);
+        drop(windows_ref);
 
-          callback(RunEvent::WebviewEvent {
-            label,
-            event: event.clone(),
-          });
-          let listeners = webview_event_listeners.lock().unwrap();
-          let handlers = listeners.values();
-          for handler in handlers {
-            handler(&event);
-          }
+        callback(RunEvent::WebviewEvent {
+          label,
+          event: event.clone(),
+        });
+        let listeners = webview_event_listeners.lock().unwrap();
+        let handlers = listeners.values();
+        for handler in handlers {
+          handler(&event);
         }
       }
     }
@@ -4176,22 +4176,22 @@ fn handle_event_loop<T: UserEvent>(
       if let Some(window_id) = window_id_map.get(&window_id) {
         {
           let windows_ref = windows.0.borrow();
-          if let Some(window) = windows_ref.get(&window_id) {
-            if let Some(event) = WindowEventWrapper::parse(window, &event).0 {
-              let label = window.label.clone();
-              let window_event_listeners = window.window_event_listeners.clone();
+          if let Some(window) = windows_ref.get(&window_id)
+            && let Some(event) = WindowEventWrapper::parse(window, &event).0
+          {
+            let label = window.label.clone();
+            let window_event_listeners = window.window_event_listeners.clone();
 
-              drop(windows_ref);
+            drop(windows_ref);
 
-              callback(RunEvent::WindowEvent {
-                label,
-                event: event.clone(),
-              });
-              let listeners = window_event_listeners.lock().unwrap();
-              let handlers = listeners.values();
-              for handler in handlers {
-                handler(&event);
-              }
+            callback(RunEvent::WindowEvent {
+              label,
+              event: event.clone(),
+            });
+            let listeners = window_event_listeners.lock().unwrap();
+            let handlers = listeners.values();
+            for handler in handlers {
+              handler(&event);
             }
           }
         }
@@ -4241,15 +4241,15 @@ fn handle_event_loop<T: UserEvent>(
             {
               let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
-                if let Some(b) = &*webview.bounds.lock().unwrap() {
-                  if let Err(e) = webview.set_bounds(wry::Rect {
+                if let Some(b) = &*webview.bounds.lock().unwrap()
+                  && let Err(e) = webview.set_bounds(wry::Rect {
                     position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
                       .into(),
                     size: LogicalSize::new(size.width * b.width_rate, size.height * b.height_rate)
                       .into(),
-                  }) {
-                    log::error!("failed to autoresize webview: {e}");
-                  }
+                  })
+                {
+                  log::error!("failed to autoresize webview: {e}");
                 }
               }
             }

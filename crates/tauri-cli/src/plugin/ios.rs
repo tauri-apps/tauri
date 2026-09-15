@@ -83,28 +83,28 @@ pub fn command(cli: Cli) -> Result<()> {
         &mut |path| {
           let mut components = path.components();
           let root = components.next().unwrap();
-          if let Component::Normal(component) = root {
-            if component == ios_folder_name {
-              let folder_name = components.next().unwrap().as_os_str().to_string_lossy();
-              let new_folder_name = folder_name.replace("{{ plugin_name }}", &plugin_name);
-              let new_folder_name = OsString::from(&new_folder_name);
+          if let Component::Normal(component) = root
+            && component == ios_folder_name
+          {
+            let folder_name = components.next().unwrap().as_os_str().to_string_lossy();
+            let new_folder_name = folder_name.replace("{{ plugin_name }}", &plugin_name);
+            let new_folder_name = OsString::from(&new_folder_name);
 
-              let path = [
-                Component::Normal(OsStr::new("ios")),
-                Component::Normal(&new_folder_name),
-              ]
-              .into_iter()
-              .chain(components)
-              .collect::<PathBuf>();
+            let path = [
+              Component::Normal(OsStr::new("ios")),
+              Component::Normal(&new_folder_name),
+            ]
+            .into_iter()
+            .chain(components)
+            .collect::<PathBuf>();
 
-              let path = out_dir.join(path);
-              let parent = path.parent().unwrap().to_path_buf();
-              if !created_dirs.contains(&parent) {
-                create_dir_all(&parent)?;
-                created_dirs.push(parent);
-              }
-              return File::create(path).map(Some);
+            let path = out_dir.join(path);
+            let parent = path.parent().unwrap().to_path_buf();
+            if !created_dirs.contains(&parent) {
+              create_dir_all(&parent)?;
+              created_dirs.push(parent);
             }
+            return File::create(path).map(Some);
           }
 
           Ok(None)

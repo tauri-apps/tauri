@@ -56,10 +56,9 @@ impl ConfigMetadata {
       if let Some(identifier) = config
         .as_object()
         .and_then(|bundle_config| bundle_config.get("identifier")?.as_str())
+        && identifier == self.inner.identifier
       {
-        if identifier == self.inner.identifier {
-          return Some(ext.clone());
-        }
+        return Some(ext.clone());
       }
     }
     None

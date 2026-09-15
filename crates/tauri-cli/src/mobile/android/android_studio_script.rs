@@ -95,19 +95,17 @@ pub fn command(options: Options) -> Result<()> {
 
   let env = env(std::env::var("CI").is_ok())?;
 
-  if cli_options.dev {
-    if let Some(url) = &tauri_config.build.dev_url {
-      let localhost = match url.host() {
-        Some(url::Host::Domain(d)) => d == "localhost",
-        Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,
-        _ => false,
-      };
+  if cli_options.dev
+    && let Some(url) = &tauri_config.build.dev_url
+  {
+    let localhost = match url.host() {
+      Some(url::Host::Domain(d)) => d == "localhost",
+      Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,
+      _ => false,
+    };
 
-      if localhost {
-        if let Some(port) = url.port_or_known_default() {
-          adb_forward_port(port, &env, &cli_options)?;
-        }
-      }
+    if localhost && let Some(port) = url.port_or_known_default() {
+      adb_forward_port(port, &env, &cli_options)?;
     }
   }
 

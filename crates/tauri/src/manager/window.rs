@@ -71,10 +71,10 @@ impl<R: Runtime> WindowManager<R> {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
 
-    if !pending.window_builder.has_icon() {
-      if let Some(default_window_icon) = self.default_icon.clone() {
-        pending.window_builder = pending.window_builder.icon(default_window_icon.into())?;
-      }
+    if !pending.window_builder.has_icon()
+      && let Some(default_window_icon) = self.default_icon.clone()
+    {
+      pending.window_builder = pending.window_builder.icon(default_window_icon.into())?;
     }
 
     Ok(pending)

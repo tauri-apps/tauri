@@ -1466,10 +1466,10 @@ impl<R: Runtime> App<R> {
     note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
   )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
-    if !self.ran_setup {
-      if let Err(e) = setup(self) {
-        panic!("Failed to setup app: {e}");
-      }
+    if !self.ran_setup
+      && let Err(e) = setup(self)
+    {
+      panic!("Failed to setup app: {e}");
     }
 
     let app_handle = self.handle().clone();
@@ -2660,10 +2660,10 @@ fn on_event_loop_event<R: Runtime>(
           }
 
           for (id, listener) in &*app_handle.manager.tray.event_listeners.lock().unwrap() {
-            if e.id() == id {
-              if let Some(tray) = app_handle.tray_by_id(id) {
-                listener(&tray, e.clone());
-              }
+            if e.id() == id
+              && let Some(tray) = app_handle.tray_by_id(id)
+            {
+              listener(&tray, e.clone());
             }
           }
         }

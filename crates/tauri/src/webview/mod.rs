@@ -822,10 +822,10 @@ tauri::Builder::default()
     pending
       .on_page_load_handler
       .replace(Box::new(move |url, event| {
-        if let Some(w) = manager_.get_webview(&label_) {
-          if let Some(handler) = self.on_page_load_handler.as_ref() {
-            handler(w, PageLoadPayload { url: &url, event });
-          }
+        if let Some(w) = manager_.get_webview(&label_)
+          && let Some(handler) = self.on_page_load_handler.as_ref()
+        {
+          handler(w, PageLoadPayload { url: &url, event });
         }
       }));
 

@@ -259,7 +259,7 @@ pub enum NewWindowResponse<R: Runtime> {
 }
 
 macro_rules! unstable_struct {
-    (#[doc = $doc:expr_2021] $($tokens:tt)*) => {
+    (#[doc = $doc:expr] $($tokens:tt)*) => {
       #[cfg(any(test, feature = "unstable"))]
       #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
       #[doc = $doc]
@@ -798,10 +798,9 @@ tauri::Builder::default()
     if let Some(download_handler) = self.download_handler.take() {
       let label = pending.label.clone();
       let manager = manager.manager_owned();
-      pending
-        .download_handler
-        .replace(Arc::new(move |event| match manager.get_webview(&label) {
-          Some(w) => download_handler(
+      pending.download_handler.replace(Arc::new(move |event| {
+        if let Some(w) = manager.get_webview(&label) {
+          download_handler(
             w,
             match event {
               tauri_runtime::webview::DownloadEvent::Requested { url, destination } => {
@@ -811,9 +810,11 @@ tauri::Builder::default()
                 DownloadEvent::Finished { url, path, success }
               }
             },
-          ),
-          _ => false,
-        }));
+          )
+        } else {
+          false
+        }
+      }));
     }
 
     let label_ = pending.label.clone();
@@ -831,11 +832,13 @@ tauri::Builder::default()
     let label_ = pending.label.clone();
     let manager_ = manager.manager_owned();
     if let Some(handler) = self.permission_request_handler {
-      pending.permission_request_handler =
-        Some(Box::new(move |kind| match manager_.get_webview(&label_) {
-          Some(w) => handler(w, kind),
-          _ => PermissionResponse::Default,
-        }));
+      pending.permission_request_handler = Some(Box::new(move |kind| {
+        if let Some(w) = manager_.get_webview(&label_) {
+          handler(w, kind)
+        } else {
+          PermissionResponse::Default
+        }
+      }));
     }
 
     manager

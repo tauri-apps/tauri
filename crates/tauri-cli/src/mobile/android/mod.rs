@@ -822,27 +822,94 @@ enum EmulatorStatus {
 }
 
 fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  match adb_device_prompt(env, target) {
-    Ok(device) => Ok(device),
-    _ => {
-      let emulator = emulator_prompt(env, target)?;
-      let emulator_status = match adb::device_list(env) {
-        Ok(devices) => {
-          // emulator might be running but disconnected from adb
-          devices
-            .iter()
-            .find(|d| d.name() == emulator.name())
-            .and_then(|d| match d.status() {
-              ConnectionStatus::Offline | ConnectionStatus::Unauthorized => {
-                Some(EmulatorStatus::Offline {
-                  serial_no: d.serial_no().to_string(),
-                })
-              }
-              ConnectionStatus::Connected => Some(EmulatorStatus::Connected),
-              _ => None,
-            })
+  if let Ok(device) = adb_device_prompt(env, target) {
+    Ok(device)
+  } else {
+    let emulator = emulator_prompt(env, target)?;
+    let emulator_status = match adb::device_list(env) {
+      Ok(devices) => {
+        // emulator might be running but disconnected from adb
+        devices
+          .iter()
+          .find(|d| d.name() == emulator.name())
+          .and_then(|d| match d.status() {
+            ConnectionStatus::Offline | ConnectionStatus::Unauthorized => {
+              Some(EmulatorStatus::Offline {
+                serial_no: d.serial_no().to_string(),
+              })
+            }
+            ConnectionStatus::Connected => Some(EmulatorStatus::Connected),
+            _ => None,
+          })
+      }
+      // failed to get device information, check if the device name matches the emulator name
+      Err(
+        adb::device_list::Error::ModelFailed {
+          serial_no,
+          error: adb::get_prop::Error::CommandFailed { command: _, error },
         }
-        // failed to get device information, check if the device name matches the emulator name
+        | adb::device_list::Error::AbiFailed {
+          serial_no,
+          error: adb::get_prop::Error::CommandFailed { command: _, error },
+        },
+      ) => {
+        if error.kind() == std::io::ErrorKind::TimedOut {
+          // if the device name matches the emulator name, the emulator is already running and marked as connected
+          // but we cannot connect to it
+          adb::device_name(env, &serial_no).map_or(None, |device_name| {
+            if device_name == emulator.name() {
+              Some(EmulatorStatus::Offline { serial_no })
+            } else {
+              None
+            }
+          })
+        } else {
+          None
+        }
+      }
+      Err(_) => None,
+    };
+
+    let emulator_already_running = emulator_status.is_some();
+    match emulator_status {
+      Some(EmulatorStatus::Offline { serial_no }) => {
+        // emulator is available but not connected to adb, we must restart it
+        log::info!("Emulator is not connected, we need to restart it");
+        restart_emulator(env, &serial_no, &emulator)?;
+      }
+      Some(EmulatorStatus::Connected) => {
+        // emulator is already connected to adb
+        // this is technically unreachable because we queried the device list with adb_device_prompt
+      }
+      None => {
+        log::info!("Starting emulator {}", emulator.name());
+        emulator
+          .start_detached(env)
+          .context("failed to start emulator")?;
+      }
+    }
+
+    let mut tries = 0;
+    loop {
+      sleep(Duration::from_secs(2));
+      // we do not filter for connected devices to detect emulators that are not connected to our adb anymore
+      match adb::device_list(env) {
+        Ok(devices) => {
+          if let Some(device) = devices.into_iter().find(|d| d.name() == emulator.name()) {
+            if device.status() == ConnectionStatus::Connected {
+              return Ok(device);
+            }
+          }
+
+          if tries >= 3 {
+            log::info!(
+              "Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)"
+            );
+          } else {
+            log::info!("Waiting for emulator to start...");
+          }
+          tries += 1;
+        }
         Err(
           adb::device_list::Error::ModelFailed {
             serial_no,
@@ -853,85 +920,17 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
             error: adb::get_prop::Error::CommandFailed { command: _, error },
           },
         ) => {
-          if error.kind() == std::io::ErrorKind::TimedOut {
-            // if the device name matches the emulator name, the emulator is already running and marked as connected
-            // but we cannot connect to it
-            adb::device_name(env, &serial_no).map_or(None, |device_name| {
-              if device_name == emulator.name() {
-                Some(EmulatorStatus::Offline { serial_no })
-              } else {
-                None
-              }
-            })
+          if emulator_already_running && error.kind() == std::io::ErrorKind::TimedOut {
+            log::info!("Emulator is not responding, we need to restart it");
+            restart_emulator(env, &serial_no, &emulator)?;
+            tries = 0;
           } else {
-            None
+            log::error!("failed to get properties for device {serial_no}: {error}");
           }
         }
-        Err(_) => None,
-      };
-
-      let emulator_already_running = emulator_status.is_some();
-      match emulator_status {
-        Some(EmulatorStatus::Offline { serial_no }) => {
-          // emulator is available but not connected to adb, we must restart it
-          log::info!("Emulator is not connected, we need to restart it");
-          restart_emulator(env, &serial_no, &emulator)?;
-        }
-        Some(EmulatorStatus::Connected) => {
-          // emulator is already connected to adb
-          // this is technically unreachable because we queried the device list with adb_device_prompt
-        }
-        None => {
-          log::info!("Starting emulator {}", emulator.name());
-          emulator
-            .start_detached(env)
-            .context("failed to start emulator")?;
-        }
-      }
-
-      let mut tries = 0;
-      loop {
-        sleep(Duration::from_secs(2));
-        // we do not filter for connected devices to detect emulators that are not connected to our adb anymore
-        match adb::device_list(env) {
-          Ok(devices) => {
-            if let Some(device) = devices.into_iter().find(|d| d.name() == emulator.name()) {
-              if device.status() == ConnectionStatus::Connected {
-                return Ok(device);
-              }
-            }
-
-            if tries >= 3 {
-              log::info!(
-                "Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)"
-              );
-            } else {
-              log::info!("Waiting for emulator to start...");
-            }
-            tries += 1;
-          }
-          Err(
-            adb::device_list::Error::ModelFailed {
-              serial_no,
-              error: adb::get_prop::Error::CommandFailed { command: _, error },
-            }
-            | adb::device_list::Error::AbiFailed {
-              serial_no,
-              error: adb::get_prop::Error::CommandFailed { command: _, error },
-            },
-          ) => {
-            if emulator_already_running && error.kind() == std::io::ErrorKind::TimedOut {
-              log::info!("Emulator is not responding, we need to restart it");
-              restart_emulator(env, &serial_no, &emulator)?;
-              tries = 0;
-            } else {
-              log::error!("failed to get properties for device {serial_no}: {error}");
-            }
-          }
-          Err(e) => {
-            log::error!("failed to list devices with adb: {e}");
-            tries += 1;
-          }
+        Err(e) => {
+          log::error!("failed to list devices with adb: {e}");
+          tries += 1;
         }
       }
     }
@@ -1078,30 +1077,25 @@ fn generate_tauri_properties(
       app_tauri_properties.push(format!("tauri.android.versionCode={new_version_code}"));
     } else if let Some(version_code) = tauri_config.bundle.android.version_code.as_ref() {
       app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
-    } else {
-      match Version::parse(version) {
-        Ok(version) => {
-          let mut version_code = version.major * 1000000 + version.minor * 1000 + version.patch;
+    } else if let Ok(version) = Version::parse(version) {
+      let mut version_code = version.major * 1000000 + version.minor * 1000 + version.patch;
 
-          if dev {
-            version_code = version_code.clamp(1, 2100000000);
-          }
-
-          if version_code == 0 {
-            crate::error::bail!(
-              "You must change the `version` in `tauri.conf.json`. The default value `0.0.0` is not allowed for Android package and must be at least `0.0.1`."
-            );
-          } else if version_code > 2100000000 {
-            crate::error::bail!(
-              "Invalid version code {}. Version code must be between 1 and 2100000000. You must change the `version` in `tauri.conf.json`.",
-              version_code
-            );
-          }
-
-          app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
-        }
-        _ => {}
+      if dev {
+        version_code = version_code.clamp(1, 2100000000);
       }
+
+      if version_code == 0 {
+        crate::error::bail!(
+          "You must change the `version` in `tauri.conf.json`. The default value `0.0.0` is not allowed for Android package and must be at least `0.0.1`."
+        );
+      } else if version_code > 2100000000 {
+        crate::error::bail!(
+          "Invalid version code {}. Version code must be between 1 and 2100000000. You must change the `version` in `tauri.conf.json`.",
+          version_code
+        );
+      }
+
+      app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
     }
   }
 

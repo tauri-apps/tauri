@@ -229,19 +229,18 @@ fn notarize_inner(
       }
 
       Ok(())
+    } else if let Ok(output) = Command::new("xcrun")
+      .args(["notarytool", "log"])
+      .arg(&submit_output.id)
+      .notarytool_args(auth, tmp_dir.path())?
+      .output()
+    {
+      Err(Error::Notarize(format!(
+        "{log_message}\nLog:\n{}",
+        String::from_utf8_lossy(&output.stdout)
+      )))
     } else {
-      match Command::new("xcrun")
-        .args(["notarytool", "log"])
-        .arg(&submit_output.id)
-        .notarytool_args(auth, tmp_dir.path())?
-        .output()
-      {
-        Ok(output) => Err(Error::Notarize(format!(
-          "{log_message}\nLog:\n{}",
-          String::from_utf8_lossy(&output.stdout)
-        ))),
-        _ => Err(Error::Notarize(log_message)),
-      }
+      Err(Error::Notarize(log_message))
     }
   } else {
     Err(Error::ParseNotarytoolOutput {

@@ -342,13 +342,10 @@ impl PackageManager {
     };
     for (package, dependency) in json.dependencies.into_iter().chain(json.dev_dependencies) {
       let version = dependency.version;
-      match semver::Version::parse(&version) {
-        Ok(version) => {
-          versions.insert(package, version);
-        }
-        _ => {
-          log::debug!("Failed to parse version `{version}` for NPM package `{package}`");
-        }
+      if let Ok(version) = semver::Version::parse(&version) {
+        versions.insert(package, version);
+      } else {
+        log::debug!("Failed to parse version `{version}` for NPM package `{package}`");
       }
     }
     Ok(versions)
@@ -397,13 +394,10 @@ fn yarn_package_versions(
         let Some((name, version)) = tree.name.rsplit_once('@') else {
           continue;
         };
-        match semver::Version::parse(version) {
-          Ok(version) => {
-            versions.insert(name.to_owned(), version);
-          }
-          _ => {
-            log::debug!("Failed to parse version `{version}` for NPM package `{name}`");
-          }
+        if let Ok(version) = semver::Version::parse(version) {
+          versions.insert(name.to_owned(), version);
+        } else {
+          log::debug!("Failed to parse version `{version}` for NPM package `{name}`");
         }
       }
       return Ok(versions);
@@ -453,13 +447,10 @@ fn yarn_berry_package_versions(
         continue;
       }
       let version = info.children.version;
-      match semver::Version::parse(&version) {
-        Ok(version) => {
-          versions.insert(name.to_owned(), version);
-        }
-        _ => {
-          log::debug!("Failed to parse version `{version}` for NPM package `{name}`");
-        }
+      if let Ok(version) = semver::Version::parse(&version) {
+        versions.insert(name.to_owned(), version);
+      } else {
+        log::debug!("Failed to parse version `{version}` for NPM package `{name}`");
       }
     }
   }

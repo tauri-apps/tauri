@@ -274,23 +274,22 @@ fn cargo_command(
 }
 
 fn fetch_available_targets() -> Option<Vec<RustupTarget>> {
-  match Command::new("rustup").args(["target", "list"]).output() {
-    Ok(output) => {
-      let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-      Some(
-        stdout
-          .split('\n')
-          .map(|t| {
-            let mut s = t.split(' ');
-            let name = s.next().unwrap().to_string();
-            let installed = s.next().map(|v| v == "(installed)").unwrap_or_default();
-            RustupTarget { name, installed }
-          })
-          .filter(|t| !t.name.is_empty())
-          .collect(),
-      )
-    }
-    _ => None,
+  if let Ok(output) = Command::new("rustup").args(["target", "list"]).output() {
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    Some(
+      stdout
+        .split('\n')
+        .map(|t| {
+          let mut s = t.split(' ');
+          let name = s.next().unwrap().to_string();
+          let installed = s.next().map(|v| v == "(installed)").unwrap_or_default();
+          RustupTarget { name, installed }
+        })
+        .filter(|t| !t.name.is_empty())
+        .collect(),
+    )
+  } else {
+    None
   }
 }
 

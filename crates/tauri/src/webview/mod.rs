@@ -1815,8 +1815,77 @@ tauri::Builder::default()
       .map(|url| url.parse().map_err(crate::Error::InvalidUrl))?
   }
 
+  /// Converts a [`WebviewUrl`] to a [`Url`] using the same logic as webview initialization.
+  fn webview_url_to_url(&self, webview_url: WebviewUrl) -> crate::Result<Url> {
+    use crate::manager::webview::PROXY_DEV_SERVER;
+    use std::borrow::Cow;
+
+    fn is_local_network_url(url: &Url) -> bool {
+      match url.host() {
+        Some(url::Host::Domain(s)) => s == "localhost",
+        Some(url::Host::Ipv4(_)) | Some(url::Host::Ipv6(_)) => true,
+        None => false,
+      }
+    }
+
+    let url = match webview_url {
+      WebviewUrl::App(path) => {
+        let app_url = self.manager.get_url(self.use_https_scheme);
+        let url = if PROXY_DEV_SERVER && is_local_network_url(&app_url) {
+          Cow::Owned(Url::parse("tauri://localhost").unwrap())
+        } else {
+          app_url
+        };
+        // ignore "index.html" just to simplify the url
+        if path.to_str() != Some("index.html") {
+          url
+            .join(&path.to_string_lossy())
+            .map_err(crate::Error::InvalidUrl)?
+        } else {
+          url.into_owned()
+        }
+      }
+      WebviewUrl::External(url) => {
+        let config_url = self.manager.get_url(self.use_https_scheme);
+        let is_app_url = config_url.make_relative(&url).is_some();
+        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
+          Url::parse("tauri://localhost").unwrap()
+        } else {
+          url
+        }
+      }
+      WebviewUrl::CustomProtocol(url) => url,
+      _ => unimplemented!(),
+    };
+
+    Ok(url)
+  }
+
   /// Navigates the webview to the defined url.
-  pub fn navigate(&self, url: Url) -> crate::Result<()> {
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{Manager, WebviewUrl};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     // Navigate to an app URL
+  ///     app.get_webview("main").unwrap().navigate(WebviewUrl::App("users/settings".into()))?;
+  ///     
+  ///     // Navigate to an external URL
+  ///     app.get_webview("main").unwrap().navigate(
+  ///       WebviewUrl::External("https://github.com/tauri-apps/tauri".parse().unwrap())
+  ///     )?;
+  ///     
+  ///     // Navigate to a custom protocol URL
+  ///     app.get_webview("main").unwrap().navigate(
+  ///       WebviewUrl::CustomProtocol("custom://path/to/page".parse().unwrap())
+  ///     )?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn navigate(&self, webview_url: WebviewUrl) -> crate::Result<()> {
+    let url = self.webview_url_to_url(webview_url)?;
     self.webview.dispatcher.navigate(url).map_err(Into::into)
   }
 

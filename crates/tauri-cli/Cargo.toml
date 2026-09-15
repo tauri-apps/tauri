@@ -70,7 +70,7 @@ toml = "1"
 jsonschema = { version = "0.49", default-features = false }
 handlebars = "6"
 include_dir = "0.7"
-dirs = "6"
+dirs = "7"
 # Careful with updating minisign, often broke our updater signatures.
 # See https://github.com/tauri-apps/tauri/pull/15022 for example.
 minisign = "0.9"

@@ -21,7 +21,7 @@ regex = "1"
 os_pipe = "1"
 plist = "1"
 rand = "0.10"
-dirs = "6"
+dirs = "7"
 log = { version = "0.4.21", features = ["kv"] }
 apple-codesign = { version = "0.29", default-features = false }
 chrono = "0.4"

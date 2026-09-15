@@ -36,11 +36,11 @@ dpi = { version = "0.1", features = ["serde"] }
 cookie = "0.18"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.61"
+version = "0.62"
 features = ["Win32_Foundation", "Win32_System_WinRT"]
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.38"
+webview2-com = "0.39"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }

@@ -43,7 +43,7 @@ mod imp {
   }
 
   macro_rules! get_function {
-    ($lib:expr_2021, $func:ident) => {
+    ($lib:expr, $func:ident) => {
       $crate::util::get_function_impl($lib, concat!(stringify!($func), '\0'))
         .map(|f| unsafe { std::mem::transmute::<_, $func>(f) })
     };

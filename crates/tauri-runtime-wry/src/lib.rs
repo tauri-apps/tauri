@@ -194,7 +194,7 @@ impl WindowIdStore {
 
 #[macro_export]
 macro_rules! getter {
-  ($self: ident, $rx: expr_2021, $message: expr_2021) => {{
+  ($self: ident, $rx: expr, $message: expr) => {{
     $self.context.send_user_message($message)?;
     $rx
       .recv()
@@ -203,21 +203,21 @@ macro_rules! getter {
 }
 
 macro_rules! window_getter {
-  ($self: ident, $message: expr_2021) => {{
+  ($self: ident, $message: expr) => {{
     let (tx, rx) = channel();
     getter!($self, rx, Message::Window($self.window_id, $message(tx)))
   }};
 }
 
 macro_rules! event_loop_window_getter {
-  ($self: ident, $message: expr_2021) => {{
+  ($self: ident, $message: expr) => {{
     let (tx, rx) = channel();
     getter!($self, rx, Message::EventLoopWindowTarget($message(tx)))
   }};
 }
 
 macro_rules! webview_getter {
-  ($self: ident, $message: expr_2021) => {{
+  ($self: ident, $message: expr) => {{
     let (tx, rx) = channel();
     getter!(
       $self,

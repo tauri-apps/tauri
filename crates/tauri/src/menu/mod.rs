@@ -24,7 +24,7 @@ use crate::{image::Image, AppHandle, Runtime};
 pub use muda::MenuId;
 
 macro_rules! run_item_main_thread {
-  ($self:ident, $ex:expr_2021) => {{
+  ($self:ident, $ex:expr) => {{
     use std::sync::mpsc::channel;
     let (tx, rx) = channel();
     let self_ = $self.clone();

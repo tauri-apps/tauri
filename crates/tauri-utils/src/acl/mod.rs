@@ -40,7 +40,7 @@ use crate::{
   platform::Target,
 };
 
-pub use self::{identifier::*, value::*};
+pub use self::identifier::*;
 
 /// Known foldername of the permission schema files
 pub const PERMISSION_SCHEMAS_FOLDER_NAME: &str = "schemas";
@@ -66,7 +66,6 @@ pub mod manifest;
 pub mod resolved;
 #[cfg(feature = "schema")]
 pub mod schema;
-pub mod value;
 
 /// Possible errors while processing ACL files.
 #[derive(Debug, Error)]
@@ -202,10 +201,10 @@ pub struct Commands {
 pub struct Scopes {
   /// Data that defines what is allowed by the scope.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub allow: Option<Vec<Value>>,
+  pub allow: Option<Vec<serde_json::Value>>,
   /// Data that defines what is denied by the scope. This should be prioritized by validation logic.
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub deny: Option<Vec<Value>>,
+  pub deny: Option<Vec<serde_json::Value>>,
 }
 
 impl Scopes {
@@ -496,8 +495,8 @@ mod build_ {
 
   impl ToTokens for Scopes {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let allow = opt_vec_lit(self.allow.as_ref(), identity);
-      let deny = opt_vec_lit(self.deny.as_ref(), identity);
+      let allow = opt_vec_lit(self.allow.as_ref(), json_value_lit);
+      let deny = opt_vec_lit(self.deny.as_ref(), json_value_lit);
       literal_struct!(tokens, ::tauri::utils::acl::Scopes, allow, deny)
     }
   }

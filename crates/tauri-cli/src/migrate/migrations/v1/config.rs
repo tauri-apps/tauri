@@ -7,14 +7,10 @@ use crate::{error::Context, ErrorExt, Result};
 use serde_json::{Map, Value};
 use tauri_utils::acl::{
   capability::{Capability, PermissionEntry},
-  Scopes, Value as AclValue,
+  Scopes,
 };
 
-use std::{
-  collections::{BTreeMap, HashSet},
-  fs,
-  path::Path,
-};
+use std::{collections::HashSet, fs, path::Path};
 
 pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
   if let Ok((mut config, config_path)) =
@@ -500,11 +496,11 @@ fn allowlist_to_permissions(
   if !(fs_allowed.is_empty() && fs_denied.is_empty()) {
     let fs_allowed = fs_allowed
       .into_iter()
-      .map(|p| AclValue::String(p.to_string_lossy().into()))
+      .map(|p| serde_json::Value::String(p.to_string_lossy().into()))
       .collect::<Vec<_>>();
     let fs_denied = fs_denied
       .into_iter()
-      .map(|p| AclValue::String(p.to_string_lossy().into()))
+      .map(|p| serde_json::Value::String(p.to_string_lossy().into()))
       .collect::<Vec<_>>();
     permissions.push(PermissionEntry::ExtendedPermission {
       identifier: "fs:scope".to_string().try_into().unwrap(),
@@ -571,7 +567,7 @@ fn allowlist_to_permissions(
       .scope
       .0
       .into_iter()
-      .map(|p| serde_json::to_value(p).unwrap().into())
+      .map(|p| serde_json::to_value(p).unwrap())
       .collect::<Vec<_>>();
 
     permissions.push(PermissionEntry::ExtendedPermission {
@@ -611,9 +607,9 @@ fn allowlist_to_permissions(
       .0
       .into_iter()
       .map(|p| {
-        let mut map = BTreeMap::new();
-        map.insert("url".to_string(), AclValue::String(p.to_string()));
-        AclValue::Map(map)
+        let mut map = serde_json::Map::new();
+        map.insert("url".to_string(), serde_json::Value::String(p.to_string()));
+        serde_json::Value::Object(map)
       })
       .collect::<Vec<_>>();
 

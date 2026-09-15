@@ -174,9 +174,7 @@ fn migrate_dependency(dependencies: &mut Table, name: &str, version: &str) {
     .and_then(|v| v.as_bool())
     .unwrap_or_default()
   {
-    log::info!(
-      "`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten."
-    );
+    log::info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten.");
     return;
   }
 

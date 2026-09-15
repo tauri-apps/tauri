@@ -302,10 +302,7 @@ pub fn setup(
         }
         i += 1;
         if i == max_attempts {
-          log::error!(
-            "Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.",
-            i * sleep_interval.as_secs()
-          );
+          log::error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
           exit(1);
         }
         std::thread::sleep(sleep_interval);

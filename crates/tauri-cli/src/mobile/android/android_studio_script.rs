@@ -232,14 +232,8 @@ fn adb_forward_port(
     let device = devices.first().unwrap();
     Some((device.serial_no().to_string(), device.name().to_string()))
   } else if devices.len() > 1 {
-    crate::error::bail!(
-      "Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
-      devices
-        .iter()
-        .map(|d| d.name())
-        .collect::<Vec<_>>()
-        .join(", ")
-    );
+    crate::error::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
+      devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
   } else {
     // when building the app without running to a device, we might have an empty devices list
     None

@@ -224,15 +224,15 @@ mod tests {
   #[test]
   fn test_generate_mirror_url_correctly() {
     let test_cases = vec![
-      TestCase {
-        template: "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
-        expected_url: "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip",
-      },
-      TestCase {
-        template: "https://mirror.example.com/<asset>",
-        expected_url: "https://mirror.example.com/wix311-binaries.zip",
-      },
-    ];
+            TestCase {
+                template: "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+                expected_url: "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip",
+            },
+            TestCase {
+                template: "https://mirror.example.com/<asset>",
+                expected_url: "https://mirror.example.com/wix311-binaries.zip",
+            },
+        ];
 
     for case in test_cases {
       // FIXME: Audit that the environment access only happens in single-threaded code.

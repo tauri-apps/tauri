@@ -156,9 +156,7 @@ pub fn create_assets_car_file(
 
     if let Some(major) = major_version {
       if major < 26 {
-        log::error!(
-          "actool version is less than 26, skipping Assets.car file creation. Please update Xcode to 26 or above and try again."
-        );
+        log::error!("actool version is less than 26, skipping Assets.car file creation. Please update Xcode to 26 or above and try again.");
         return Ok(None);
       }
     } else {

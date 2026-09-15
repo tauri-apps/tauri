@@ -30,10 +30,7 @@ impl StartingBinary {
     if let Some(symlink) = Self::has_symlink(&dangerous_path) {
       return Self(Err(Error::new(
         ErrorKind::InvalidData,
-        format!(
-          "StartingBinary found current_exe() that contains a symlink on a non-allowed platform: {}",
-          symlink.display()
-        ),
+        format!("StartingBinary found current_exe() that contains a symlink on a non-allowed platform: {}", symlink.display()),
       )));
     }
 

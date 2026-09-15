@@ -74,15 +74,11 @@ pub enum Error {
   /// Could not find an environmental variable that is set inside of build scripts.
   ///
   /// Whatever generated this should be called inside of a build script.
-  #[error(
-    "expected build script env var {0}, but it was not found - ensure this is called in a build script"
-  )]
+  #[error("expected build script env var {0}, but it was not found - ensure this is called in a build script")]
   BuildVar(&'static str),
 
   /// The links field in the manifest **MUST** be set and match the name of the crate.
-  #[error(
-    "package.links field in the Cargo manifest is not set, it should be set to the same as package.name"
-  )]
+  #[error("package.links field in the Cargo manifest is not set, it should be set to the same as package.name")]
   LinksMissing,
 
   /// The links field in the manifest **MUST** match the name of the crate.

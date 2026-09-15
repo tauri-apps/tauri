@@ -219,8 +219,7 @@ pub fn setup(
         .unwrap_or_else(|| std::env::current_dir().unwrap().join(web_asset_path));
       crate::error::bail!(
         "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
-        web_asset_path.display(),
-        absolute_path.display(),
+        web_asset_path.display(), absolute_path.display(),
       );
     }
     if web_asset_path
@@ -230,8 +229,8 @@ pub fn setup(
       == Some(std::ffi::OsStr::new("src-tauri"))
     {
       crate::error::bail!(
-        "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
-      );
+          "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+        );
     }
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
@@ -258,11 +257,7 @@ pub fn setup(
       crate::error::bail!(
         "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
         out_folders,
-        if out_folders.len() == 1 {
-          "folder"
-        } else {
-          "folders"
-        }
+        if out_folders.len() == 1 { "folder" } else { "folders" }
       );
     }
   }

@@ -301,22 +301,14 @@ fn validate_target(
     if let Some(target) = available_targets.iter().find(|t| t.name == target) {
       if !target.installed {
         crate::error::bail!(
-          "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
-          target = target.name,
-          installed = available_targets
-            .iter()
-            .filter(|t| t.installed)
-            .map(|t| t.name.as_str())
-            .collect::<Vec<&str>>()
-            .join(", ")
-        );
+            "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
+            target = target.name,
+            installed = available_targets.iter().filter(|t| t.installed).map(|t| t.name.as_str()).collect::<Vec<&str>>().join(", ")
+          );
       }
     }
     if !available_targets.iter().any(|t| t.name == target) {
-      crate::error::bail!(
-        "Target {target} does not exist. Please run `rustup target list` to see the available targets.",
-        target = target
-      );
+      crate::error::bail!("Target {target} does not exist. Please run `rustup target list` to see the available targets.", target = target);
     }
   }
   Ok(())

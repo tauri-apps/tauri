@@ -37,9 +37,7 @@ pub enum CodegenConfigError {
   CurrentDir(std::io::Error),
 
   // this error should be "impossible" because we use std::env::current_dir() - cover it anyways
-  #[error(
-    "Tauri config file has no parent, this shouldn't be possible. file an issue on https://github.com/tauri-apps/tauri - target {0}"
-  )]
+  #[error("Tauri config file has no parent, this shouldn't be possible. file an issue on https://github.com/tauri-apps/tauri - target {0}")]
   Parent(PathBuf),
 
   #[error("unable to parse inline JSON TAURI_CONFIG env var: {0}")]

@@ -278,10 +278,7 @@ pub fn command(options: Options) -> Result<()> {
 
     let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
     if !lib_path.exists() {
-      crate::error::bail!(
-        "Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`",
-        lib_path.display()
-      );
+      crate::error::bail!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display());
     }
 
     validate_lib(&lib_path)?;

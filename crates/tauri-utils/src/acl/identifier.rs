@@ -130,9 +130,7 @@ pub enum ParseIdentifierError {
   Humongous(usize),
 
   /// Identifier is not in a valid format.
-  #[error(
-    "identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix"
-  )]
+  #[error("identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix")]
   InvalidFormat,
 
   /// Identifier has multiple separators.

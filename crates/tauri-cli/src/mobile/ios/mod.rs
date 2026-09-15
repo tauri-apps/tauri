@@ -198,9 +198,7 @@ pub fn get_config(
     );
 
     if short_version != full_version {
-      log::warn!(
-        "{full_version:?} is not a valid CFBundleShortVersionString since it must contain exactly three dot separated integers; setting it to {short_version} instead"
-      );
+      log::warn!("{full_version:?} is not a valid CFBundleShortVersionString since it must contain exactly three dot separated integers; setting it to {short_version} instead");
     }
 
     Some(short_version)
@@ -498,9 +496,7 @@ pub fn signing_from_env() -> Result<(
         .map_err(Box::new)?
     }
     (Some(_), None) => {
-      log::warn!(
-        "The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate..."
-      );
+      log::warn!("The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate...");
       None
     }
     _ => None,
@@ -512,9 +508,7 @@ pub fn signing_from_env() -> Result<(
       .map_err(Box::new)?
   } else {
     if keychain.is_some() {
-      log::warn!(
-        "You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project."
-      );
+      log::warn!("You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project.");
     }
     None
   };

@@ -496,9 +496,7 @@ pub fn build() {
     let error = format!("{error:#}");
     println!("{error}");
     if error.starts_with("unknown field") {
-      print!(
-        "found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. "
-      );
+      print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
       println!(
         "Please try updating the Rust crates by running `cargo update` in the Tauri app folder."
       );

@@ -131,9 +131,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {{
       log::info!("Android project added");
       println!("You must add the following to the Cargo.toml file:\n{cargo_toml_addition}",);
       println!("You must add the following code to the build.rs file:\n\n{build_file}",);
-      println!(
-        "Your plugin's init function under src/lib.rs must initialize the Android plugin:\n{init_fn}"
-      );
+      println!("Your plugin's init function under src/lib.rs must initialize the Android plugin:\n{init_fn}");
     }
   }
 

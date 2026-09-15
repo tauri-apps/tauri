@@ -376,9 +376,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       })?;
 
       if !sets_isolation_hook {
-        panic!(
-          "The isolation application does not contain a file setting the `window.__TAURI_ISOLATION_HOOK__` value."
-        );
+        panic!("The isolation application does not contain a file setting the `window.__TAURI_ISOLATION_HOOK__` value.");
       }
 
       let schema = options.isolation_schema;

@@ -1063,7 +1063,7 @@ impl RustAppSettings {
       None => {
         return Err(crate::Error::GenericError(
           "No package info in the config file".to_owned(),
-        ));
+        ))
       }
     };
 

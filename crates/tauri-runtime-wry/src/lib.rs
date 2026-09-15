@@ -5330,9 +5330,7 @@ fn add_focus_change_listeners<T: UserEvent>(
       token,
     )
   } {
-    log::error!(
-      "Failed to attach WebView2 `add_GotFocus` handler, `WindowEvent::Focused` will not be sent: {error}"
-    );
+    log::error!("Failed to attach WebView2 `add_GotFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
     return;
   }
 
@@ -5367,8 +5365,6 @@ fn add_focus_change_listeners<T: UserEvent>(
       token,
     )
   } {
-    log::error!(
-      "Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}"
-    );
+    log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
   }
 }

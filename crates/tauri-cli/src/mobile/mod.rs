@@ -578,11 +578,11 @@ fn ensure_init(
   if !project_outdated_reasons.is_empty() {
     let reason = project_outdated_reasons.join(" and ");
     crate::error::bail!(
-      "{} project directory is outdated because {reason}. Please delete {}, run `tauri {} init` and try again.",
-      target.ide_name(),
-      project_dir.display(),
-      target.command_name(),
-    )
+        "{} project directory is outdated because {reason}. Please delete {}, run `tauri {} init` and try again.",
+        target.ide_name(),
+        project_dir.display(),
+        target.command_name(),
+      )
   }
 
   Ok(())

@@ -277,7 +277,7 @@ fn fit_to_square(source: Source, fit: Fit) -> Source {
       return Source::Svg {
         tree,
         fit: Some(fit),
-      };
+      }
     }
   };
 

@@ -55,9 +55,7 @@ fn get_response(
       #[cfg(target_os = "android")]
       {
         if path.starts_with("/storage/emulated/0/Android/data/") {
-          log::error!(
-            "Failed to open Android external storage file '{path}': {e}. This may be due to missing storage permissions."
-          );
+          log::error!("Failed to open Android external storage file '{path}': {e}. This may be due to missing storage permissions.");
         }
       }
       return if e.kind() == std::io::ErrorKind::NotFound {

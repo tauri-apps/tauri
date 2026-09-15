@@ -353,11 +353,10 @@ impl RuntimeAuthority {
         {
           "allowed".to_string()
         } else {
-          format!(
-            "{command_pretty_name} not allowed on window \"{window}\", webview \"{webview}\", URL: {}\n\n{}\n\nreferenced by: {}",
+          format!("{command_pretty_name} not allowed on window \"{window}\", webview \"{webview}\", URL: {}\n\n{}\n\nreferenced by: {}",
             match origin {
               Origin::Local => "local",
-              Origin::Remote { url } => url.as_str(),
+              Origin::Remote { url } => url.as_str()
             },
             print_allowed_on(resolved),
             print_references(resolved)
@@ -422,7 +421,8 @@ impl RuntimeAuthority {
                 };
                 format!(
                   "- context: {context}, referenced by: capability: {}, permission: {}",
-                  resolved.referenced_by.capability, resolved.referenced_by.permission
+                  resolved.referenced_by.capability,
+                  resolved.referenced_by.permission
                 )
               })
               .collect::<Vec<_>>()

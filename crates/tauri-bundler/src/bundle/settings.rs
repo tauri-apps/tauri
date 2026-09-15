@@ -1126,7 +1126,7 @@ impl Settings {
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."
-        )));
+        )))
       }
     };
 

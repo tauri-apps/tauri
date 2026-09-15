@@ -80,10 +80,7 @@ fn migrate_manifest(manifest: &mut DocumentMut) -> Result<()> {
         .and_then(|v| v.as_bool())
         .unwrap_or_default()
       {
-        log::warn!(
-          "`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.",
-          rename_message
-        );
+        log::warn!("`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.", rename_message);
       } else {
         migrate_dependency(item, &version, &remove_features, &rename_features);
       }

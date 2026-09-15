@@ -810,9 +810,8 @@ pub struct NsisConfig {
   /// The recommended dimensions are 164px x 314px.
   #[serde(alias = "sidebar-image")]
   pub sidebar_image: Option<PathBuf>,
-  // TODO: Change the alias to installer-icon in v3
   /// The path to an icon file used as the installer icon.
-  #[serde(alias = "install-icon")]
+  #[serde(alias = "installer-icon")]
   pub installer_icon: Option<PathBuf>,
   /// The path to an icon file used as the uninstaller icon.
   #[serde(alias = "uninstaller-icon")]
@@ -890,17 +889,6 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
-  /// Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.
-  ///
-  /// Try to ensure that the WebView2 version is equal to or newer than this version,
-  /// if the user's WebView2 is older than this version,
-  /// the installer will try to trigger a WebView2 update.
-  #[deprecated(
-    since = "2.10.0",
-    note = "Use `WindowsConfig::minimum_webview2_version` instead."
-  )]
-  #[serde(alias = "minimum-webview2-version")]
-  pub minimum_webview2_version: Option<String>,
 }
 
 /// Install modes for the Webview2 runtime.
@@ -1591,6 +1579,9 @@ pub struct BundleConfig {
   ///
   /// Note that when using glob pattern in this case, the original directory structure is not preserved,
   /// everything gets copied to the target directory directly
+  ///
+  /// A target ending with a path separator (or an empty target) is treated as a directory,
+  /// so a single file keeps its name inside it: `"README.md": "docs/"` -> `$RESOURCE/docs/README.md`.
   ///
   /// See more: <https://v2.tauri.app/develop/resources/>
   pub resources: Option<BundleResources>,
@@ -2498,45 +2489,27 @@ impl CspDirectiveSources {
 
 /// A Content-Security-Policy definition.
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum Csp {
   /// The entire CSP policy in a single text string.
   Policy(String),
   /// An object mapping a directive with its sources values as a list of strings.
-  DirectiveMap(HashMap<String, CspDirectiveSources>),
+  DirectiveMap(BTreeMap<String, CspDirectiveSources>),
 }
 
-impl Serialize for Csp {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    match self {
-      Self::Policy(policy) => serializer.serialize_str(policy),
-      Self::DirectiveMap(map) => {
-        // Serialize through `BTreeMap` so the output is deterministic
-        // see: https://github.com/tauri-apps/tauri/issues/14978
-        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-        let btree_map: BTreeMap<_, _> = map.iter().collect();
-        btree_map.serialize(serializer)
-      }
-    }
-  }
-}
-
-impl From<HashMap<String, CspDirectiveSources>> for Csp {
-  fn from(map: HashMap<String, CspDirectiveSources>) -> Self {
+impl From<BTreeMap<String, CspDirectiveSources>> for Csp {
+  fn from(map: BTreeMap<String, CspDirectiveSources>) -> Self {
     Self::DirectiveMap(map)
   }
 }
 
-impl From<Csp> for HashMap<String, CspDirectiveSources> {
+impl From<Csp> for BTreeMap<String, CspDirectiveSources> {
   fn from(csp: Csp) -> Self {
     match csp {
       Csp::Policy(policy) => {
-        let mut map = HashMap::new();
+        let mut map = BTreeMap::new();
         for directive in policy.split(';') {
           let mut tokens = directive.trim().split(' ');
           if let Some(directive) = tokens.next() {
@@ -2679,7 +2652,7 @@ pub struct AssetProtocolConfig {
 /// definition of a header source
 ///
 /// The header value to a header name
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum HeaderSource {
@@ -2688,26 +2661,7 @@ pub enum HeaderSource {
   /// list version of the header value. Item are joined by "," for the real header value
   List(Vec<String>),
   /// (Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Item are then joined by ";" for the real header value
-  Map(HashMap<String, String>),
-}
-
-impl Serialize for HeaderSource {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    match self {
-      Self::Inline(s) => serializer.serialize_str(s),
-      Self::List(l) => l.serialize(serializer),
-      Self::Map(m) => {
-        // Serialize through `BTreeMap` so the output is deterministic
-        // see: https://github.com/tauri-apps/tauri/issues/14978
-        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-        let btree_map: BTreeMap<_, _> = m.iter().collect();
-        btree_map.serialize(serializer)
-      }
-    }
-  }
+  Map(BTreeMap<String, String>),
 }
 
 impl Display for HeaderSource {
@@ -3232,19 +3186,6 @@ pub struct TrayIconConfig {
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
   #[serde(default, alias = "icon-as-template")]
   pub icon_as_template: bool,
-  /// **No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**
-  ///
-  /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux**: Unsupported.
-  #[serde(default = "default_true", alias = "menu-on-left-click")]
-  #[deprecated(
-    since = "2.2.0",
-    note = "No longer works, use `show_menu_on_left_click` instead."
-  )]
-  pub menu_on_left_click: bool,
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
   ///
   /// ## Platform-specific:
@@ -3794,25 +3735,12 @@ pub struct Config {
   pub plugins: PluginConfig,
 }
 
-/// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
+/// The plugin configs holds a map from a plugin name to its configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#pluginconfig>
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct PluginConfig(pub HashMap<String, JsonValue>);
-
-impl Serialize for PluginConfig {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    // Serialize through `BTreeMap` so the output is deterministic
-    // see: https://github.com/tauri-apps/tauri/issues/14978
-    // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-    let btree_map: BTreeMap<_, _> = self.0.iter().collect();
-    btree_map.serialize(serializer)
-  }
-}
+pub struct PluginConfig(pub BTreeMap<String, JsonValue>);
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///
@@ -4375,14 +4303,9 @@ mod build {
           quote!(#prefix::Policy(#policy.into()))
         }
         Self::DirectiveMap(list) => {
-          // Pass a sorted vec so the HashMap constructor is deterministic
-          // see: https://github.com/tauri-apps/tauri/issues/14978
-          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-          let mut sorted: Vec<_> = list.iter().collect();
-          sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
-            quote! { ::std::collections::HashMap },
-            sorted,
+            quote! { ::std::collections::BTreeMap },
+            list,
             str_lit,
             identity,
           );
@@ -4438,17 +4361,7 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
-          // Pass a sorted vec so the HashMap constructor is deterministic
-          // see: https://github.com/tauri-apps/tauri/issues/14978
-          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-          let mut sorted: Vec<_> = m.iter().collect();
-          sorted.sort_by_key(|(k, _)| *k);
-          let map = map_lit(
-            quote! { ::std::collections::HashMap },
-            sorted,
-            str_lit,
-            str_lit,
-          );
+          let map = map_lit(quote! { ::std::collections::BTreeMap }, m, str_lit, str_lit);
           quote!(#prefix::Map(#map))
         }
       })
@@ -4520,13 +4433,8 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      // For [`Self::menu_on_left_click`]
-      tokens.append_all(quote!(#[allow(deprecated)]));
-
       let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
-      #[allow(deprecated)]
-      let menu_on_left_click = self.menu_on_left_click;
       let show_menu_on_left_click = self.show_menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
@@ -4537,7 +4445,6 @@ mod build {
         id,
         icon_path,
         icon_as_template,
-        menu_on_left_click,
         show_menu_on_left_click,
         title,
         tooltip
@@ -4595,14 +4502,9 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      // Pass a sorted vec so the HashMap constructor is deterministic
-      // see: https://github.com/tauri-apps/tauri/issues/14978
-      // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-      let mut sorted: Vec<_> = self.0.iter().collect();
-      sorted.sort_by_key(|(k, _)| *k);
       let config = map_lit(
-        quote! { ::std::collections::HashMap },
-        sorted,
+        quote! { ::std::collections::BTreeMap },
+        &self.0,
         str_lit,
         json_value_lit,
       );

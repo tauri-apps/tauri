@@ -480,6 +480,9 @@ impl Attributes {
   /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
   /// the crate compiling; does not need to be set manually if that config file is in the same
   /// directory as your `Cargo.toml`.
+  ///
+  /// **Note:** this only affects the [`codegen`](Self::codegen) context. The build helpers
+  /// themselves always read the configuration from the crate directory.
   pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
     self.config_path = Some(config_path.into());
     self
@@ -877,11 +880,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   #[cfg(feature = "codegen")]
-  if let Some(mut codegen) = attributes.codegen {
-    if codegen.config_path.is_none() {
-      codegen.config_path = attributes.config_path;
-    }
-    codegen.try_build()?;
+  if let Some(codegen) = attributes.codegen {
+    codegen.try_build(attributes.config_path)?;
   }
 
   Ok(())
@@ -957,7 +957,7 @@ pub fn try_build_context(attributes: ContextAttributes) -> Result<()> {
 
   #[cfg(feature = "codegen")]
   if let Some(codegen) = attributes.codegen {
-    codegen.try_build()?;
+    codegen.try_build(None)?;
   }
 
   Ok(())

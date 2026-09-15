@@ -251,7 +251,7 @@ class Webview {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -264,7 +264,7 @@ class Webview {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return () => {
+      return async () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
@@ -286,7 +286,7 @@ class Webview {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -299,7 +299,7 @@ class Webview {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return () => {
+      return async () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
@@ -629,7 +629,7 @@ class Webview {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * When the debugger panel is open, the drop position of this event may be inaccurate due to a known limitation.
@@ -691,11 +691,13 @@ class Webview {
       }
     )
 
-    return () => {
-      unlistenDragEnter()
-      unlistenDragDrop()
-      unlistenDragOver()
-      unlistenDragLeave()
+    return async () => {
+      await Promise.all([
+        unlistenDragEnter(),
+        unlistenDragDrop(),
+        unlistenDragOver(),
+        unlistenDragLeave()
+      ])
     }
   }
 }

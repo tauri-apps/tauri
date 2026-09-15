@@ -3294,62 +3294,6 @@ impl<T: UserEvent> Runtime<T> for WryRuntime<T> {
       .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
   }
 
-  #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
-    use tao::platform::run_return::EventLoopExtRunReturn;
-    let windows = &self.context.main_thread.windows;
-    let window_id_map = &self.context.window_id_map;
-    let web_context = &self.context.main_thread.web_context;
-    let plugins = &self.context.plugins;
-
-    #[cfg(feature = "tracing")]
-    let active_tracing_spans = &self.context.main_thread.active_tracing_spans;
-
-    let proxy = self.event_loop.create_proxy();
-
-    self
-      .event_loop
-      .run_return(|event, event_loop, control_flow| {
-        *control_flow = ControlFlow::Wait;
-        if let Event::MainEventsCleared = &event {
-          *control_flow = ControlFlow::Exit;
-        }
-
-        for p in plugins.lock().unwrap().iter_mut() {
-          let prevent_default = p.on_event(
-            &event,
-            event_loop,
-            &proxy,
-            control_flow,
-            EventLoopIterationContext {
-              callback: &mut callback,
-              window_id_map,
-              windows,
-              #[cfg(feature = "tracing")]
-              active_tracing_spans,
-            },
-            web_context,
-          );
-          if prevent_default {
-            return;
-          }
-        }
-
-        handle_event_loop(
-          event,
-          event_loop,
-          control_flow,
-          EventLoopIterationContext {
-            callback: &mut callback,
-            windows,
-            window_id_map,
-            #[cfg(feature = "tracing")]
-            active_tracing_spans,
-          },
-        );
-      });
-  }
-
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     let event_handler = make_event_handler(self.context, callback);
     self.event_loop.run(event_handler)
@@ -4147,9 +4091,9 @@ fn handle_user_message<T: UserEvent>(
               let manager = webview.manager();
               let ns_window = webview.ns_window();
               f(Webview::new(
-                Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&ns_window).cast_mut() as *mut std::ffi::c_void,
+                Retained::as_ptr(&platform_webview).cast(),
+                Retained::as_ptr(&manager).cast(),
+                Retained::as_ptr(&ns_window).cast(),
               ));
             }
             #[cfg(target_os = "ios")]
@@ -4159,9 +4103,9 @@ fn handle_user_message<T: UserEvent>(
               let manager = webview.inner.manager();
 
               f(Webview::new(
-                Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
-                window.ui_view_controller(),
+                Retained::as_ptr(&platform_webview).cast(),
+                Retained::as_ptr(&manager).cast(),
+                window.ui_view_controller().cast_const(),
               ));
             }
             #[cfg(windows)]
@@ -4234,49 +4178,53 @@ fn handle_user_message<T: UserEvent>(
       #[cfg(windows)]
       let is_window_transparent = builder.window.transparent;
 
-      if let Ok(window) = builder.build(event_loop) {
-        window_id_map.insert(window.id(), window_id);
+      let window = match builder.build(event_loop) {
+        Ok(window) => window,
+        Err(e) => {
+          sender.send(Err(Error::CreateWindow(Box::new(e)))).unwrap();
+          return;
+        }
+      };
 
-        let window = Arc::new(window);
+      window_id_map.insert(window.id(), window_id);
 
-        #[cfg(windows)]
-        let surface = if is_window_transparent {
-          if let Ok(context) = softbuffer::Context::new(window.clone()) {
-            if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
-              window.draw_surface(&mut surface, background_color);
-              Some(surface)
-            } else {
-              None
-            }
+      let window = Arc::new(window);
+
+      #[cfg(windows)]
+      let surface = if is_window_transparent {
+        if let Ok(context) = softbuffer::Context::new(window.clone()) {
+          if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
+            window.draw_surface(&mut surface, background_color);
+            Some(surface)
           } else {
             None
           }
         } else {
           None
-        };
-
-        windows.0.borrow_mut().insert(
-          window_id,
-          WindowWrapper {
-            label,
-            has_children: AtomicBool::new(false),
-            inner: Some(window.clone()),
-            window_event_listeners: Default::default(),
-            webviews: Vec::new(),
-            #[cfg(windows)]
-            background_color,
-            #[cfg(windows)]
-            is_window_transparent,
-            #[cfg(windows)]
-            surface,
-            #[cfg(windows)]
-            focused_webview: Default::default(),
-          },
-        );
-        sender.send(Ok(Arc::downgrade(&window))).unwrap();
+        }
       } else {
-        sender.send(Err(Error::CreateWindow)).unwrap();
-      }
+        None
+      };
+
+      windows.0.borrow_mut().insert(
+        window_id,
+        WindowWrapper {
+          label,
+          has_children: AtomicBool::new(false),
+          inner: Some(window.clone()),
+          window_event_listeners: Default::default(),
+          webviews: Vec::new(),
+          #[cfg(windows)]
+          background_color,
+          #[cfg(windows)]
+          is_window_transparent,
+          #[cfg(windows)]
+          surface,
+          #[cfg(windows)]
+          focused_webview: Default::default(),
+        },
+      );
+      sender.send(Ok(Arc::downgrade(&window))).unwrap();
     }
 
     Message::UserEvent(_) => (),
@@ -4744,7 +4692,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     .inner
     .build(event_loop)
     .inspect_err(|e| log::error!("Error creating window: {e:?}"))
-    .map_err(|_| Error::CreateWindow)?;
+    .map_err(|e| Error::CreateWindow(Box::new(e)))?;
 
   // On macOS, `with_position` uses the content origin; the title bar is added
   // above it. `set_outer_position` is needed for precise window placement.

@@ -217,7 +217,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///   webview::WebviewWindowBuilder,
   /// };
   /// use http::header::HeaderValue;
-  /// use std::collections::HashMap;
+  /// use std::collections::BTreeMap;
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
@@ -227,7 +227,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///           //  for this example, let's dynamically change the CSP
   ///           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
   ///             // use the tauri helper to parse the CSP policy to a map
-  ///             let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
+  ///             let mut csp_map: BTreeMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
   ///             csp_map.entry("script-src".to_string()).or_insert_with(Default::default).push("'unsafe-inline'");
   ///             // use the tauri helper to get a CSP string from the map
   ///             let csp_string = Csp::from(csp_map).to_string();
@@ -920,18 +920,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   #[must_use]
   pub fn title<S: Into<String>>(mut self, title: S) -> Self {
     self.window_builder = self.window_builder.title(title);
-    self
-  }
-
-  /// Sets the window to be initially focused.
-  #[must_use]
-  #[deprecated(
-    since = "1.2.0",
-    note = "The window is automatically focused by default. This function Will be removed in 3.0.0. Use `focused` instead."
-  )]
-  pub fn focus(mut self) -> Self {
-    self.window_builder = self.window_builder.focused(true);
-    self.webview_builder = self.webview_builder.focused(true);
     self
   }
 

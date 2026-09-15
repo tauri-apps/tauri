@@ -1787,12 +1787,6 @@
           "type": "boolean",
           "default": false
         },
-        "menuOnLeftClick": {
-          "description": "**No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**\n\nA Boolean value that determines whether the menu should appear when the tray icon receives a left click.\n\n## Platform-specific:\n\n- **Linux**: Unsupported.",
-          "type": "boolean",
-          "deprecated": true,
-          "default": true
-        },
         "showMenuOnLeftClick": {
           "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click.\n\n## Platform-specific:\n\n- **Linux**: Unsupported.",
           "type": "boolean",
@@ -2107,7 +2101,7 @@
           "default": []
         },
         "resources": {
-          "description": "App resources to bundle.\nEach resource is a path to a file or directory.\nGlob patterns are supported.\n\n## Examples\n\nTo include a list of files:\n\n```json\n{\n  \"bundle\": {\n    \"resources\": [\n      \"./path/to/some-file.txt\",\n      \"/absolute/path/to/textfile.txt\",\n      \"../relative/path/to/jsonfile.json\",\n      \"some-folder/\",\n      \"resources/**/*.md\"\n    ]\n  }\n}\n```\n\nThe bundled files will be in `$RESOURCES/` with the original directory structure preserved,\nfor example: `./path/to/some-file.txt` -> `$RESOURCE/path/to/some-file.txt`\n\nTo fine control where the files will get copied to, use a map instead\n\n```json\n{\n  \"bundle\": {\n    \"resources\": {\n      \"/absolute/path/to/textfile.txt\": \"resources/textfile.txt\",\n      \"relative/path/to/jsonfile.json\": \"resources/jsonfile.json\",\n      \"resources/\": \"\",\n      \"docs/**/*md\": \"website-docs/\"\n    }\n  }\n}\n```\n\nNote that when using glob pattern in this case, the original directory structure is not preserved,\neverything gets copied to the target directory directly\n\nSee more: <https://v2.tauri.app/develop/resources/>",
+          "description": "App resources to bundle.\nEach resource is a path to a file or directory.\nGlob patterns are supported.\n\n## Examples\n\nTo include a list of files:\n\n```json\n{\n  \"bundle\": {\n    \"resources\": [\n      \"./path/to/some-file.txt\",\n      \"/absolute/path/to/textfile.txt\",\n      \"../relative/path/to/jsonfile.json\",\n      \"some-folder/\",\n      \"resources/**/*.md\"\n    ]\n  }\n}\n```\n\nThe bundled files will be in `$RESOURCES/` with the original directory structure preserved,\nfor example: `./path/to/some-file.txt` -> `$RESOURCE/path/to/some-file.txt`\n\nTo fine control where the files will get copied to, use a map instead\n\n```json\n{\n  \"bundle\": {\n    \"resources\": {\n      \"/absolute/path/to/textfile.txt\": \"resources/textfile.txt\",\n      \"relative/path/to/jsonfile.json\": \"resources/jsonfile.json\",\n      \"resources/\": \"\",\n      \"docs/**/*md\": \"website-docs/\"\n    }\n  }\n}\n```\n\nNote that when using glob pattern in this case, the original directory structure is not preserved,\neverything gets copied to the target directory directly\n\nA target ending with a path separator (or an empty target) is treated as a directory,\nso a single file keeps its name inside it: `\"README.md\": \"docs/\"` -> `$RESOURCE/docs/README.md`.\n\nSee more: <https://v2.tauri.app/develop/resources/>",
           "anyOf": [
             {
               "$ref": "#/definitions/BundleResources"
@@ -3034,14 +3028,6 @@
             "string",
             "null"
           ]
-        },
-        "minimumWebview2Version": {
-          "description": "Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.\n\nTry to ensure that the WebView2 version is equal to or newer than this version,\nif the user's WebView2 is older than this version,\nthe installer will try to trigger a WebView2 update.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "deprecated": true
         }
       },
       "additionalProperties": false
@@ -3846,7 +3832,7 @@
       "additionalProperties": false
     },
     "PluginConfig": {
-      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\nSee more: <https://v2.tauri.app/reference/config/#pluginconfig>",
+      "description": "The plugin configs holds a map from a plugin name to its configuration object.\n\nSee more: <https://v2.tauri.app/reference/config/#pluginconfig>",
       "type": "object",
       "additionalProperties": true
     }

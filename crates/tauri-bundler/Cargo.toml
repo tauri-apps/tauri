@@ -19,7 +19,6 @@ tauri-utils = { workspace = true, features = ["resources"] }
 image = "0.25"
 flate2 = "1"
 thiserror = "2"
-anyhow = "1"
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 strsim = "0.11"

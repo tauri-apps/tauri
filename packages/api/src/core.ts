@@ -67,8 +67,7 @@ export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
  * @since 1.0.0
  */
 function transformCallback<T = unknown>(
-  // TODO: Make this not optional in v3
-  callback?: (response: T) => void,
+  callback: (response: T) => void,
   once = false
 ): number {
   return window.__TAURI_INTERNALS__.transformCallback(callback, once)
@@ -185,18 +184,11 @@ async function addPluginListener<T>(
   cb: (payload: T) => void
 ): Promise<PluginListener> {
   const handler = new Channel<T>(cb)
-  try {
-    await invoke(`plugin:${plugin}|register_listener`, {
-      event,
-      handler
-    })
-    return new PluginListener(plugin, event, handler.id)
-  } catch {
-    // TODO(v3): remove this fallback
-    // note: we must try with camelCase here for backwards compatibility
-    await invoke(`plugin:${plugin}|registerListener`, { event, handler })
-    return new PluginListener(plugin, event, handler.id)
-  }
+  await invoke(`plugin:${plugin}|register_listener`, {
+    event,
+    handler
+  })
+  return new PluginListener(plugin, event, handler.id)
 }
 
 type PermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'

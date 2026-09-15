@@ -70,7 +70,7 @@ fn csp_inject_initialization_scripts_hashes(
     return existing_csp;
   }
 
-  let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
+  let mut csp_map: std::collections::BTreeMap<String, CspDirectiveSources> =
     Csp::Policy(existing_csp.to_string()).into();
 
   let script_src = csp_map

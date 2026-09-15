@@ -239,8 +239,7 @@ pub fn parse_capabilities(pattern: &str) -> Result<BTreeMap<String, Capability>,
         .map(|e| CAPABILITY_FILE_EXTENSIONS.contains(&e))
         .unwrap_or_default()
     })
-    // filter schema files
-    // TODO: remove this before stable
+    // skip JSON schemas that live next to the capability files
     .filter(|p| p.parent().unwrap().file_name().unwrap() != CAPABILITIES_SCHEMA_FOLDER_NAME)
   {
     match CapabilityFile::load(&path)? {

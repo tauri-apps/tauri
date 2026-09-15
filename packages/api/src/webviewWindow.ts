@@ -144,7 +144,7 @@ class WebviewWindow {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -157,7 +157,7 @@ class WebviewWindow {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return () => {
+      return async () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
@@ -179,7 +179,7 @@ class WebviewWindow {
    * });
    *
    * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
+   * await unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -192,7 +192,7 @@ class WebviewWindow {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return () => {
+      return async () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)

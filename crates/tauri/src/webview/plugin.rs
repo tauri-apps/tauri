@@ -213,7 +213,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
   let mut builder = Builder::new("webview");
   if !init_script.is_empty() {
-    builder = builder.js_init_script(init_script);
+    builder = builder.initialization_script(init_script);
   }
 
   builder

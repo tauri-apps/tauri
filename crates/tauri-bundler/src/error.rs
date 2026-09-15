@@ -14,10 +14,9 @@ use thiserror::Error as DeriveError;
 #[derive(Debug, DeriveError)]
 #[non_exhaustive]
 pub enum Error {
-  // TODO: Change this and the `Context` trait to `Box<dyn std::error::Error + Send + Sync + 'static>` in v3
   /// Error with context. Created by the [`Context`] trait.
   #[error("{0}: {1}")]
-  Context(String, Box<Self>),
+  Context(String, Box<dyn std::error::Error + Send + Sync + 'static>),
   /// File system error.
   #[error("{context} {path}: {error}")]
   Fs {
@@ -39,12 +38,6 @@ pub enum Error {
   /// Error running tauri_utils API.
   #[error("{0}")]
   Resource(#[from] tauri_utils::Error),
-  /// Bundler error.
-  ///
-  /// This variant is no longer used as this crate no longer uses anyhow.
-  // TODO(v3): remove this variant
-  #[error("{0:#}")]
-  BundlerError(#[from] anyhow::Error),
   /// I/O error.
   #[error("`{0}`")]
   IoError(#[from] io::Error),
@@ -102,10 +95,6 @@ pub enum Error {
   /// Failed to write binary file changed
   #[error("Failed to write binary file changes: `{0}`")]
   BinaryWriteError(String),
-  /// Invalid offset while patching binary file
-  #[deprecated]
-  #[error("Invalid offset while patching binary file")]
-  BinaryOffsetOutOfRange,
   /// Unsupported architecture.
   #[error("Architecture Error: `{0}`")]
   ArchError(String),
@@ -210,7 +199,10 @@ pub trait Context<T> {
     F: FnOnce() -> C;
 }
 
-impl<T> Context<T> for Result<T> {
+impl<T, E> Context<T> for std::result::Result<T, E>
+where
+  E: std::error::Error + Send + Sync + 'static,
+{
   fn context<C>(self, context: C) -> Result<T>
   where
     C: Display + Send + Sync + 'static,

@@ -36,7 +36,6 @@
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
-//! - **objc-exception**: This feature flag is no-op since 2.3.0.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **linux-libappindicator**: Uses libappindicator instead of the default ksni (StatusNotifierItem) backend for the tray icon on Linux, adding a runtime dependency on libayatana-appindicator.
 //! - **gtk3**: Selects GTK 3 for the Linux GTK APIs (`Window::gtk_window`, `Window::default_vbox` and the menu integration). Enabled by GTK3 runtime crates such as `tauri-runtime-wry`.
@@ -200,6 +199,7 @@ pub use self::utils::TitleBarStyle;
 use self::event::EventName;
 pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
+pub(crate) use self::state::StateManager;
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
@@ -214,7 +214,7 @@ pub use {
     },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
   },
-  self::state::{State, StateManager},
+  self::state::State,
   self::utils::{
     Env, PackageInfo, Theme,
     config::{Config, WebviewUrl},
@@ -683,34 +683,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state.set(state)
   }
 
-  /// Removes the state managed by the application for T. Returns the state if it was actually removed.
-  ///
-  /// <div class="warning">
-  ///
-  /// This method is *UNSAFE* and calling it will cause previously obtained references through
-  /// [Manager::state] and [State::inner] to become dangling references.
-  ///
-  /// It is currently deprecated and may be removed in the future.
-  ///
-  /// If you really want to unmanage a state, use [std::sync::Mutex] and [Option::take] to wrap the state instead.
-  ///
-  /// See [tauri-apps/tauri#12721] for more information.
-  ///
-  /// [tauri-apps/tauri#12721]: https://github.com/tauri-apps/tauri/issues/12721
-  ///
-  /// </div>
-  #[deprecated(
-    since = "2.3.0",
-    note = "This method is unsafe, since it can cause dangling references."
-  )]
-  fn unmanage<T>(&self) -> Option<T>
-  where
-    T: Send + Sync + 'static,
-  {
-    // The caller decides to break the safety here, then OK, just let it go.
-    unsafe { self.manager().state.unmanage() }
-  }
-
   /// Retrieves the managed state for the type `T`.
   ///
   /// # Panics
@@ -721,12 +693,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state.try_get().unwrap_or_else(|| {
-      panic!(
-        "state() called before manage() for {}",
-        std::any::type_name::<T>()
-      )
-    })
+    self.manager().state.get()
   }
 
   /// Attempts to retrieve the managed state for the type `T`.

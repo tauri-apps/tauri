@@ -4,7 +4,7 @@
 
 use std::{
   borrow::Cow,
-  collections::HashMap,
+  collections::{BTreeMap, HashMap},
   fmt,
   sync::{Arc, Mutex, MutexGuard, OnceLock, atomic::AtomicBool},
 };
@@ -55,7 +55,7 @@ pub(crate) fn set_csp<R: Runtime>(
   asset_path: &AssetKey,
   manager: &AppManager<R>,
   csp: Csp,
-) -> HashMap<String, CspDirectiveSources> {
+) -> BTreeMap<String, CspDirectiveSources> {
   let mut csp = csp.into();
   let hash_strings =
     assets
@@ -125,7 +125,7 @@ fn replace_with_callback<F: FnMut() -> String>(
 fn replace_csp_nonce(
   asset: &mut String,
   token: &str,
-  csp: &mut HashMap<String, CspDirectiveSources>,
+  csp: &mut BTreeMap<String, CspDirectiveSources>,
   directive: &str,
   hashes: Vec<String>,
 ) {
@@ -192,7 +192,7 @@ pub struct AppManager<R: Runtime = crate::DynRuntime> {
 
   pub(crate) plugins: Mutex<PluginStore<R>>,
   pub listeners: Listeners,
-  pub state: Arc<StateManager>,
+  pub(crate) state: Arc<StateManager>,
   pub config: Config,
   #[cfg(dev)]
   pub config_parent: Option<std::path::PathBuf>,
@@ -388,12 +388,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  // TODO: Change to return `crate::Result` here in v3
-  pub fn get_asset(
-    &self,
-    mut path: String,
-    _use_https_schema: bool,
-  ) -> Result<Asset, Box<dyn std::error::Error>> {
+  pub fn get_asset(&self, mut path: String, _use_https_schema: bool) -> crate::Result<Asset> {
     let assets = &self.assets;
     if path.ends_with('/') {
       path.pop();
@@ -437,7 +432,7 @@ impl<R: Runtime> AppManager<R> {
       .ok_or_else(|| {
         let error = crate::Error::AssetNotFound(path.clone());
         log::error!("{error}");
-        Box::new(error)
+        error
       })?;
 
     let mut csp_header = None;
@@ -477,7 +472,7 @@ impl<R: Runtime> AppManager<R> {
     (self.webview.invoke_handler)(invoke)
   }
 
-  /// Runs the plugin [`crate::plugin::Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`crate::plugin::Plugin::run_invoke_handler`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
   pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
@@ -664,6 +659,7 @@ impl<R: Runtime> AppManager<R> {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
         self.listeners().remove_webview_listeners(webview.label());
+        self.discard_queued_channel_data(webview.label());
       }
     }
     self.listeners().remove_window_listeners(label);
@@ -673,6 +669,17 @@ impl<R: Runtime> AppManager<R> {
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_listeners(label);
+    self.discard_queued_channel_data(label);
+  }
+
+  /// Drops the channel payloads still waiting to be fetched by a webview that no longer exists.
+  fn discard_queued_channel_data(&self, webview_label: &str) {
+    if let Some(queue) = self
+      .state
+      .try_get::<crate::ipc::channel::ChannelDataIpcQueue>()
+    {
+      queue.purge_webview(webview_label);
+    }
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

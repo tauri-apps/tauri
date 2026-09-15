@@ -131,10 +131,9 @@ pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
   CreateWebview(Box<dyn std::error::Error + Send + Sync>),
-  // TODO: Make it take an error like `CreateWebview` in v3
   /// Failed to create window.
-  #[error("failed to create window")]
-  CreateWindow,
+  #[error("failed to create window: {0}")]
+  CreateWindow(Box<dyn std::error::Error + Send + Sync>),
   /// The given window label is invalid.
   #[error("Window labels must only include alphanumeric characters, `-`, `/`, `:` and `_`.")]
   InvalidWindowLabel,
@@ -629,10 +628,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   ///
   /// [`tao`]: https://crates.io/crates/tao
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
-
-  /// Runs an iteration of the runtime event loop and returns control flow to the caller.
-  #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
 
   /// Equivalent to [`Runtime::run`] but returns the exit code instead of exiting the process.
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32;

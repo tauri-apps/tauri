@@ -9,11 +9,11 @@ use std::{
   process::Command,
 };
 
-use anyhow::Context;
 use walkdir::WalkDir;
 
 use crate::{
   Settings,
+  error::Context,
   bundle::{linux::freedesktop, settings::Arch},
   utils::{CommandExt, fs_utils, http_utils::download},
 };

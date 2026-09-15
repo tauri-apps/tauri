@@ -14,8 +14,7 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
-use crate::error::ErrorExt;
-use anyhow::Context;
+use crate::error::{Context, ErrorExt};
 use bytesize::ByteSize;
 use std::{
   fmt::Write,

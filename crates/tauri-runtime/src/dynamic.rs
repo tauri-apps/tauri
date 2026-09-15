@@ -2595,8 +2595,6 @@ trait ErasedRuntime<T: UserEvent>: fmt::Debug + Any {
   #[cfg(target_os = "macos")]
   fn hide(&self);
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
-  #[cfg(desktop)]
-  fn run_iteration(&mut self, callback: RunCallback<T>);
   fn run_return(self: Box<Self>, callback: RunCallback<T>) -> i32;
   fn run(self: Box<Self>, callback: RunCallback<T>);
   fn as_any(&self) -> &dyn Any;
@@ -2672,11 +2670,6 @@ impl<T: UserEvent, R: Runtime<T>> ErasedRuntime<T> for R {
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
     Runtime::set_device_event_filter(self, filter)
-  }
-
-  #[cfg(desktop)]
-  fn run_iteration(&mut self, callback: RunCallback<T>) {
-    Runtime::run_iteration(self, callback)
   }
 
   fn run_return(self: Box<Self>, callback: RunCallback<T>) -> i32 {
@@ -2835,11 +2828,6 @@ impl<T: UserEvent> Runtime<T> for DynRuntime<T> {
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
     self.inner.set_device_event_filter(filter)
-  }
-
-  #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F) {
-    self.inner.run_iteration(Box::new(callback))
   }
 
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {

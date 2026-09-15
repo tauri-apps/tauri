@@ -143,11 +143,24 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       }
 
       // system tray
-      if let Some((tray, key)) = tauri_config
+      if let Some((mut tray, key)) = tauri_config
         .remove("systemTray")
         .map(|v| (v, "trayIcon"))
         .or_else(|| tauri_config.remove("system-tray").map(|v| (v, "tray-icon")))
       {
+        if let Some(tray) = tray.as_object_mut() {
+          // v1 `menuOnLeftClick` is v3 `showMenuOnLeftClick` (same meaning)
+          for (old_key, new_key) in [
+            ("menuOnLeftClick", "showMenuOnLeftClick"),
+            ("menu-on-left-click", "show-menu-on-left-click"),
+          ] {
+            if let Some(value) = tray.remove(old_key)
+              && !tray.contains_key(new_key)
+            {
+              tray.insert(new_key.into(), value);
+            }
+          }
+        }
         tauri_config.insert(key.into(), tray);
       }
 
@@ -1021,7 +1034,44 @@ mod test {
   fn can_migrate_api_example_config() {
     let original =
       serde_json::from_str(include_str!("./fixtures/api-example.tauri.conf.json")).unwrap();
-    migrate(&original);
+    let migrated = migrate(&original);
+
+    let tray = &migrated["app"]["trayIcon"];
+    assert_eq!(tray["showMenuOnLeftClick"], false);
+    assert_eq!(tray["menuOnLeftClick"], serde_json::Value::Null);
+  }
+
+  #[test]
+  fn migrate_tray_menu_on_left_click() {
+    let original = serde_json::json!({
+      "tauri": {
+        "system-tray": {
+          "icon-path": "icon.png",
+          "menu-on-left-click": true
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    let tray = &migrated["app"]["tray-icon"];
+    assert_eq!(tray["show-menu-on-left-click"], true);
+    assert_eq!(tray["menu-on-left-click"], serde_json::Value::Null);
+
+    // an explicit new key wins over the deprecated one
+    let original = serde_json::json!({
+      "tauri": {
+        "systemTray": {
+          "iconPath": "icon.png",
+          "menuOnLeftClick": true,
+          "showMenuOnLeftClick": false
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    let tray = &migrated["app"]["trayIcon"];
+    assert_eq!(tray["showMenuOnLeftClick"], false);
+    assert_eq!(tray["menuOnLeftClick"], serde_json::Value::Null);
   }
 
   #[test]

@@ -38,8 +38,7 @@ interface Event<T> {
 
 type EventCallback<T> = (event: Event<T>) => void
 
-// TODO(v3): mark this as Promise<void>
-type UnlistenFn = () => void
+type UnlistenFn = () => Promise<void>
 
 type EventName = `${TauriEvent}` | (string & Record<never, never>)
 
@@ -101,7 +100,7 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
- * unlisten();
+ * await unlisten();
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -145,7 +144,7 @@ async function listen<T>(
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
- * unlisten();
+ * await unlisten();
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.

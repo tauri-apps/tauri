@@ -3124,7 +3124,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let event_loop = event_loop_builder
       .build()
-      .map_err(|_| Error::CreateWindow)?;
+      .map_err(|e| Error::CreateWindow(Box::new(e)))?;
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
@@ -3458,16 +3458,6 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     self
       .event_loop
       .listen_device_events(device_event_filter_to_winit(filter));
-  }
-
-  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
-    while let Ok(message) = self.receiver.try_recv() {
-      if let Message::UserEvent(event) = message {
-        callback(RunEvent::UserEvent(event));
-      }
-    }
-    self.context.cef_pump.do_work();
-    callback(RunEvent::MainEventsCleared);
   }
 
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {

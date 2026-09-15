@@ -102,9 +102,8 @@ impl std::hash::Hasher for IdentHash {
 type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
-// TODO: make private for v3
 #[derive(Debug)]
-pub struct StateManager {
+pub(crate) struct StateManager {
   map: Mutex<TypeIdMap>,
 }
 
@@ -126,27 +125,22 @@ impl StateManager {
     !already_set
   }
 
-  /// SAFETY: Calling this method will move the `value`,
-  /// which will cause references obtained through [Self::try_get] to dangle.
-  pub(crate) unsafe fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
-    let mut map = self.map.lock().unwrap();
-    let type_id = TypeId::of::<T>();
-    let state = map.remove(&type_id)?;
-    let value = state
-      .downcast::<T>()
-      .expect("the type of the key should be same as the type of the value");
-    Some(*value)
+  /// Gets the state associated with the specified type.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the state for the type `T` has not been previously [set](Self::set).
+  pub(crate) fn get<T: 'static>(&self) -> State<'_, T> {
+    self.try_get().unwrap_or_else(|| {
+      panic!(
+        "state() called before manage() for {}",
+        std::any::type_name::<T>()
+      )
+    })
   }
 
   /// Gets the state associated with the specified type.
-  pub fn get<T: 'static>(&self) -> State<'_, T> {
-    self
-      .try_get()
-      .unwrap_or_else(|| panic!("state not found for type {}", std::any::type_name::<T>()))
-  }
-
-  /// Gets the state associated with the specified type.
-  pub fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
+  pub(crate) fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
     let state = map.get(&type_id)?;
@@ -178,7 +172,9 @@ mod tests {
   }
 
   #[test]
-  #[should_panic(expected = "state not found for type core::option::Option<alloc::string::String>")]
+  #[should_panic(
+    expected = "state() called before manage() for core::option::Option<alloc::string::String>"
+  )]
   fn get_panics() {
     let state = StateManager::new();
     state.get::<Option<String>>();
@@ -189,19 +185,6 @@ mod tests {
     let state = StateManager::new();
     assert!(state.set(1u32));
     assert_eq!(*state.get::<u32>(), 1);
-  }
-
-  #[test]
-  fn simple_set_get_unmanage() {
-    let state = StateManager::new();
-    assert!(state.set(1u32));
-    assert_eq!(*state.get::<u32>(), 1);
-    // safety: the reference returned by `try_get` is already dropped.
-    assert!(unsafe { state.unmanage::<u32>() }.is_some());
-    assert!(unsafe { state.unmanage::<u32>() }.is_none());
-    assert_eq!(state.try_get::<u32>(), None);
-    assert!(state.set(2u32));
-    assert_eq!(*state.get::<u32>(), 2);
   }
 
   #[test]

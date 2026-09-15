@@ -222,12 +222,6 @@ pub struct AppImageSettings {
   pub files: HashMap<PathBuf, PathBuf>,
   /// Whether to include gstreamer plugins for audio/media support.
   pub bundle_media_framework: bool,
-  /// Whether to include the `xdg-open` binary.
-  #[deprecated(
-    since = "2.12.0",
-    note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
-  )]
-  pub bundle_xdg_open: bool,
 }
 
 /// The RPM bundle settings.
@@ -541,14 +535,6 @@ pub struct NsisSettings {
   /// !macroend
   /// ```
   pub installer_hooks: Option<PathBuf>,
-  /// Try to ensure that the WebView2 version is equal to or newer than this version,
-  /// if the user's WebView2 is older than this version,
-  /// the installer will try to trigger a WebView2 update.
-  #[deprecated(
-    since = "2.8.0",
-    note = "Use `WindowsSettings::minimum_webview2_version` instead."
-  )]
-  pub minimum_webview2_version: Option<String>,
 }
 
 /// The Custom Signing Command Settings for Windows exe
@@ -578,9 +564,6 @@ pub struct WindowsSettings {
   pub wix: Option<WixSettings>,
   /// Nsis configuration.
   pub nsis: Option<NsisSettings>,
-  /// The path to the application icon. Defaults to `./icons/icon.ico`.
-  #[deprecated = "This is used for the MSI installer and will be removed in 3.0.0, use `BundleSettings::icon` field and make sure a `.ico` icon exists instead."]
-  pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,
   /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
@@ -635,7 +618,6 @@ mod _default {
         tsp: false,
         wix: None,
         nsis: None,
-        icon_path: PathBuf::from("icons/icon.ico"),
         webview_install_mode: Default::default(),
         allow_downgrades: true,
         sign_command: None,

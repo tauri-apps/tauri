@@ -11,6 +11,16 @@ use walkdir::WalkDir;
 
 use crate::platform::Target as TargetPlatform;
 
+/// Whether a resource map target names a directory the resource is copied into, keeping its
+/// file name: the empty target, or one whose last segment is empty (a trailing `/`, or `\` where
+/// the platform splits paths on it) or `.`.
+fn is_directory_target(dest: &str) -> bool {
+  matches!(
+    dest.rsplit(['/', std::path::MAIN_SEPARATOR]).next(),
+    Some("" | ".")
+  )
+}
+
 /// Given a path (absolute or relative) to a resource file, returns the
 /// relative path from the bundle resources directory where that resource
 /// should be stored.
@@ -99,6 +109,7 @@ impl<'a> ResourcePaths<'a> {
         allow_walk,
         base_dir: None,
         current_dest: None,
+        current_dest_is_dir: false,
         current_iter: None,
         rerun_if_changed: Vec::new(),
       },
@@ -113,6 +124,7 @@ impl<'a> ResourcePaths<'a> {
         allow_walk,
         base_dir: None,
         current_dest: None,
+        current_dest_is_dir: false,
         current_iter: None,
         rerun_if_changed: Vec::new(),
       },
@@ -151,6 +163,9 @@ pub struct ResourcePathsIter<'a> {
   /// The value of map when [`Self::pattern_iter`] is a [`PatternIter::Map`],
   /// used for determining [`Resource::target`]
   current_dest: Option<PathBuf>,
+  /// Whether [`Self::current_dest`] was written with a trailing separator,
+  /// which marks it as a directory the file pattern must be copied into.
+  current_dest_is_dir: bool,
   /// The iter for the current pattern. The cycle goes like this:
   /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
@@ -256,16 +271,13 @@ impl ResourcePathsIter<'_> {
           ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
         },
         None => {
-          if dest.components().count() == 0 {
-            // if current_dest is empty while processing a file pattern
-            // we preserve the file name as it is
+          if self.current_dest_is_dir {
+            // an empty or directory (trailing separator) destination for a file pattern
+            // preserves the file name inside it
             //
             // e.g. `{ "README.md": "" }` is `README.md` -> `$RESOURCE/README.md`
-            //
-            // TODO: This behavior is a confusing special case,
-            // remove this in v3 or make other cases like this work
-            // > `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md` (this gives `$RESOURCE/folder` today)
-            PathBuf::from(path.file_name().unwrap())
+            // e.g. `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md`
+            dest.join(path.file_name().unwrap())
           } else {
             dest.clone()
           }
@@ -281,6 +293,7 @@ impl ResourcePathsIter<'_> {
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
     self.current_dest = None;
+    self.current_dest_is_dir = false;
     self.current_iter = None;
 
     let pattern = match &mut self.pattern_iter {
@@ -288,6 +301,7 @@ impl ResourcePathsIter<'_> {
       PatternIter::Map(iter) => {
         let (pattern, dest) = iter.next()?;
         self.current_dest = Some(resource_relpath(Path::new(dest)));
+        self.current_dest_is_dir = is_directory_target(dest);
         pattern
       }
     };
@@ -450,6 +464,21 @@ mod tests {
     fs::create_dir_all("empty-directory").unwrap();
   }
 
+  #[test]
+  fn directory_targets() {
+    for dest in ["", ".", "./", "docs/", "./docs/", "docs/.", "a/b/"] {
+      assert!(
+        is_directory_target(dest),
+        "{dest:?} must be a directory target"
+      );
+    }
+    for dest in ["docs", "./docs", "docs/README.md", "a.b", "..", "docs/.."] {
+      assert!(!is_directory_target(dest), "{dest:?} must be a file target");
+    }
+    // a trailing backslash only splits where the platform treats it as a separator
+    assert_eq!(is_directory_target("docs\\"), cfg!(windows));
+  }
+
   fn resources_map(literal: &[(&str, &str)]) -> HashMap<String, String> {
     literal
       .iter()
@@ -608,6 +637,9 @@ mod tests {
     let resources = ResourcePaths::from_map(
       &resources_map(&[
         ("../src/script.js", "main.js"),
+        ("build.rs", "scripts/"),
+        #[cfg(windows)]
+        ("some-other-json.json", "scripts\\"),
         ("../src/assets", ""),
         ("../src/index.html", "frontend/index.html"),
         ("../src/sounds", "voices"),
@@ -627,6 +659,9 @@ mod tests {
 
     let expected = expected_resources(&[
       ("../src/script.js", "main.js"),
+      ("build.rs", "scripts/build.rs"),
+      #[cfg(windows)]
+      ("some-other-json.json", "scripts/some-other-json.json"),
       ("../src/assets/javascript.svg", "javascript.svg"),
       ("../src/assets/tauri.svg", "tauri.svg"),
       ("../src/assets/rust.svg", "rust.svg"),
@@ -669,6 +704,9 @@ mod tests {
     let resources = ResourcePaths::from_map(
       &resources_map(&[
         ("../src/script.js", "main.js"),
+        ("build.rs", "scripts/"),
+        #[cfg(windows)]
+        ("some-other-json.json", "scripts\\"),
         ("../src/assets", ""),
         ("../src/index.html", "frontend/index.html"),
         ("../src/sounds", "voices"),
@@ -683,6 +721,9 @@ mod tests {
 
     let expected = expected_resources(&[
       ("../src/script.js", "main.js"),
+      ("build.rs", "scripts/build.rs"),
+      #[cfg(windows)]
+      ("some-other-json.json", "scripts/some-other-json.json"),
       ("../src/index.html", "frontend/index.html"),
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
@@ -772,6 +813,9 @@ mod tests {
     let resources = ResourcePaths::from_map(
       &resources_map(&[
         ("../src/script.js", "main.js"),
+        ("build.rs", "scripts/"),
+        #[cfg(windows)]
+        ("some-other-json.json", "scripts\\"),
         ("../src/assets", ""),
         ("../src/sounds", "voices"),
         ("../src/textures/*", "textures"),
@@ -788,6 +832,9 @@ mod tests {
 
     let expected: Vec<Resource> = [
       ("../src/script.js", "main.js"),
+      ("build.rs", "scripts/build.rs"),
+      #[cfg(windows)]
+      ("some-other-json.json", "scripts/some-other-json.json"),
       ("../src/assets/javascript.svg", "javascript.svg"),
       ("../src/assets/tauri.svg", "tauri.svg"),
       ("../src/assets/rust.svg", "rust.svg"),

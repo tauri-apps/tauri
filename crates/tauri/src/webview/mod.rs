@@ -18,15 +18,14 @@ pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
 
+use cookie::Cookie;
 pub use tauri_runtime::webview::{
-  NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse, ScrollBarStyle,
-  WebContentProcessTermination, WebContentProcessTerminationReason,
+  InitializationScript, NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse,
+  ScrollBarStyle, WebContentProcessTermination, WebContentProcessTerminationReason,
 };
-// Remove this re-export in v3
-pub use tauri_runtime::Cookie;
 use tauri_runtime::{
   WebviewDispatch,
-  webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
 };
 #[cfg(desktop)]
 use tauri_runtime::{
@@ -34,7 +33,10 @@ use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
 };
 pub use tauri_utils::config::Color;
-use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
+use tauri_utils::{
+  acl::resolved::ResolvedCommand,
+  config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig},
+};
 pub use url::Url;
 
 use crate::{
@@ -432,7 +434,7 @@ use tauri::{
   webview::WebviewBuilder,
 };
 use http::header::HeaderValue;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 tauri::Builder::default()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
@@ -444,7 +446,7 @@ tauri::Builder::default()
           //  for this example, let's dynamically change the CSP
           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
             // use the tauri helper to parse the CSP policy to a map
-            let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
+            let mut csp_map: BTreeMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
             csp_map.entry("script-src".to_string()).or_insert_with(Default::default).push("'unsafe-inline'");
             // use the tauri helper to get a CSP string from the map
             let csp_string = Csp::from(csp_map).to_string();
@@ -1103,6 +1105,8 @@ fn main() {
   }
 
   /// Whether the webview should be focused or not.
+  // without `unstable` the only caller is `WebviewWindowBuilder::focused`, which is desktop only
+  #[cfg_attr(all(mobile, not(feature = "unstable")), allow(dead_code))]
   #[must_use]
   pub fn focused(mut self, focus: bool) -> Self {
     self.webview_attributes.focus = focus;
@@ -1548,21 +1552,8 @@ impl<R: Runtime> Webview<R> {
     plugin: &str,
     command: &str,
   ) -> crate::Result<Option<ResolvedScope<T>>> {
-    let current_url = self.url()?;
-    let is_local = self.is_local_url(&current_url);
-    let origin = if is_local {
-      Origin::Local
-    } else {
-      Origin::Remote { url: current_url }
-    };
-
     let cmd_name = format!("plugin:{plugin}|{command}");
-    let resolved_access = self
-      .manager()
-      .runtime_authority
-      .lock()
-      .unwrap()
-      .resolve_access(&cmd_name, self.window().label(), self.label(), &origin);
+    let resolved_access = self.resolve_command_access(&cmd_name)?;
 
     if let Some(access) = resolved_access {
       let scope_ids = access
@@ -1826,6 +1817,42 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.can_go_forward().map_err(Into::into)
   }
 
+  /// Resolves the ACL access of the given command (`plugin:name|command` or an app command)
+  /// for this webview on the currently loaded URL.
+  ///
+  /// Returns `Ok(None)` when the command is not allowed and an error when the current URL
+  /// cannot be determined.
+  pub(crate) fn resolve_command_access(
+    &self,
+    command: &str,
+  ) -> crate::Result<Option<Vec<ResolvedCommand>>> {
+    let current_url = self.url()?;
+    Ok(self.resolve_command_access_on(command, &current_url))
+  }
+
+  /// Resolves the ACL access of the given command for this webview as if `url` was loaded,
+  /// without asking the runtime for the current URL.
+  ///
+  /// Returns `None` when the command is not allowed.
+  pub(crate) fn resolve_command_access_on(
+    &self,
+    command: &str,
+    url: &Url,
+  ) -> Option<Vec<ResolvedCommand>> {
+    let origin = if self.is_local_url(url) {
+      Origin::Local
+    } else {
+      Origin::Remote { url: url.clone() }
+    };
+
+    self
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .resolve_access(command, self.window_ref().label(), self.label(), &origin)
+  }
+
   fn is_local_url(&self, current_url: &Url) -> bool {
     let uses_https = current_url.scheme() == "https";
 
@@ -1893,7 +1920,13 @@ impl<R: Runtime> Webview<R> {
     #[cfg(mobile)]
     let app_handle = self.app_handle.clone();
 
-    let message = InvokeMessage::new(self, request.cmd.to_string(), request.body, request.headers);
+    let message = InvokeMessage::new(
+      self,
+      request.cmd.to_string(),
+      request.body,
+      request.headers,
+      request.url.clone(),
+    );
 
     let acl_origin = if is_local {
       Origin::Local
@@ -1931,11 +1964,7 @@ impl<R: Runtime> Webview<R> {
     // or when the request comes from a non-local (remote) origin.  This
     // ensures remote content can never reach custom commands unless an
     // explicit `remote` capability has been configured for them.
-    if (plugin_command.is_some() || has_app_acl_manifest || !is_local)
-      // TODO: Remove this special check in v3
-      && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-      && invoke.acl.is_none()
-    {
+    if (plugin_command.is_some() || has_app_acl_manifest || !is_local) && invoke.acl.is_none() {
       #[cfg(debug_assertions)]
       {
         let (key, command_name) = plugin_command
@@ -1959,6 +1988,11 @@ impl<R: Runtime> Webview<R> {
       invoke
         .resolver
         .reject(format!("Command {} not allowed by ACL", request.cmd));
+      // a channel payload queued while the fetch was still allowed (the webview navigated in
+      // between) must not outlive the rejected request
+      if request.cmd == crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND {
+        crate::ipc::channel::discard_rejected_fetch(&invoke.message);
+      }
       return;
     }
 
@@ -2267,7 +2301,7 @@ tauri::Builder::default()
   ///
   /// # Stability
   ///
-  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// The return value of this function leverages [`cookie::Cookie`] from the re-exported cookie crate.
   /// This dependency might receive updates in minor Tauri releases.
   ///
   /// # Known issues

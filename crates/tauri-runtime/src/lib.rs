@@ -477,6 +477,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
+  /// Brings the application to the foreground.
+  ///
+  /// This API must be called before the event loop starts.
+  ///
+  /// If `false`, the app activates only if no other app is currently active.
+  /// If `true`, the app activates regardless.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activate_ignoring_other_apps(&mut self, active: bool);
+
   /// Sets the dock visibility for the application.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]

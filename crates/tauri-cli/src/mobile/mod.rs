@@ -292,8 +292,10 @@ fn use_network_address_for_dev_url(
   };
 
   if let Some(ip) = ip {
-    std::env::set_var("TAURI_DEV_HOST", ip.to_string());
-    std::env::set_var("TRUNK_SERVE_ADDRESS", ip.to_string());
+    // FIXME: Audit that the environment access only happens in single-threaded code.
+    unsafe { std::env::set_var("TAURI_DEV_HOST", ip.to_string()) };
+    // FIXME: Audit that the environment access only happens in single-threaded code.
+    unsafe { std::env::set_var("TRUNK_SERVE_ADDRESS", ip.to_string()) };
     if ip.is_ipv6() {
       // in this case we can't ping the server for some reason
       dev_url_config.no_dev_server_wait = true;
@@ -403,7 +405,8 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
     .expect("failed to read CLI options");
 
   for (k, v) in &options.vars {
-    set_var(k, v);
+    // FIXME: Audit that the environment access only happens in single-threaded code.
+    unsafe { set_var(k, v) };
   }
   options
 }

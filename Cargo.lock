@@ -7409,9 +7409,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.35"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "533f54bc6a7d4f647e46ad909549eda97bf5afc1585190ef692b4286b198bd8f"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "log",
  "once_cell",
@@ -7495,9 +7495,9 @@ checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.13"
+version = "0.103.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
+checksum = "f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -7584,9 +7584,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "0.8.21"
+version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09c024468a378b7e36765cd36702b7a90cc3cba11654f6685c8f233408e89e92"
+checksum = "3fbf2ae1b8bc8e02df939598064d22402220cd5bbcca1c76f7d6a310974d5615"
 dependencies = [
  "dyn-clone",
  "indexmap 1.9.3",
@@ -7623,8 +7623,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "0.8.21"
-source = "git+https://github.com/tauri-apps/schemars.git?branch=feat%2Fpreserve-description-newlines#c30f98480e6e4742aa72202d55d5264c6b2e6476"
+version = "0.8.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32e265784ad618884abaea0600a9adf15393368d840e0222d101a072f3f7534d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8906,7 +8907,7 @@ dependencies = [
  "heck 0.5.0",
  "json-patch",
  "quote",
- "schemars 0.8.21",
+ "schemars 0.8.22",
  "semver",
  "serde",
  "serde_json",
@@ -9161,7 +9162,7 @@ dependencies = [
  "anyhow",
  "glob",
  "plist",
- "schemars 0.8.21",
+ "schemars 0.8.22",
  "serde",
  "serde_json",
  "tauri-utils",
@@ -9252,7 +9253,7 @@ dependencies = [
 name = "tauri-schema-generator"
 version = "0.0.0"
 dependencies = [
- "schemars 0.8.21",
+ "schemars 0.8.22",
  "serde",
  "serde_json",
  "tauri-utils",
@@ -9299,7 +9300,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "schemars 0.8.21",
+ "schemars 0.8.22",
  "semver",
  "serde",
  "serde-untagged",
@@ -11675,3 +11676,8 @@ checksum = "27bc9d5b815bc103f142aa054f561d9187d191692ec7c2d1e2b4737f8dbd7296"
 dependencies = [
  "zune-core",
 ]
+
+[[patch.unused]]
+name = "schemars_derive"
+version = "0.8.21"
+source = "git+https://github.com/tauri-apps/schemars.git?branch=feat%2Fpreserve-description-newlines#c30f98480e6e4742aa72202d55d5264c6b2e6476"

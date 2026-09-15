@@ -3,7 +3,6 @@ name = "tauri-runtime"
 version = "2.11.3"
 description = "Runtime for Tauri applications"
 exclude = ["CHANGELOG.md", "/target"]
-readme = "README.md"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -70,3 +69,6 @@ objc2-web-kit = { version = "0.3.2", default-features = false, features = [
 [features]
 devtools = []
 macos-private-api = []
+
+[lints]
+workspace = true

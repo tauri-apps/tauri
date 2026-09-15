@@ -115,7 +115,8 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   setup(&interface, &mut options, &config, &dirs, false)?;
 
   if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
-    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+    // FIXME: Audit that the environment access only happens in single-threaded code.
+    unsafe { std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version) };
   }
 
   let app_settings = interface.app_settings();

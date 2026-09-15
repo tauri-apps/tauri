@@ -32,7 +32,7 @@ use std::{
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile/android");
 
-pub fn gen(
+pub fn r#gen(
   config: &Config,
   metadata: &Metadata,
   (handlebars, mut map): (Handlebars, template::JsonMap),

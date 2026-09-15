@@ -3,7 +3,6 @@ name = "tauri-runtime-wry"
 version = "2.11.4"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
-readme = "README.md"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -73,3 +72,6 @@ macos-proxy = ["wry/mac-proxy"]
 unstable = []
 common-controls-v6 = ["windows/Win32_UI_Controls", "windows/Win32_UI_Shell"]
 dbus = ["tao/dbus"]
+
+[lints]
+workspace = true

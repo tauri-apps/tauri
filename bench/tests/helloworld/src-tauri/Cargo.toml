@@ -2,7 +2,7 @@
 name = "bench_helloworld"
 version = "0.1.0"
 description = "A very simple Tauri Application"
-edition = "2021"
+edition = "2024"
 rust-version = "1.90"
 
 [build-dependencies]

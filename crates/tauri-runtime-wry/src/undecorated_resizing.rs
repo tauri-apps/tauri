@@ -306,7 +306,7 @@ mod windows {
 
           let (cx, cy) = (GET_X_LPARAM(lparam) as i32, GET_Y_LPARAM(lparam) as i32);
 
-          let dpi = unsafe { util::hwnd_dpi(child) };
+          let dpi = util::hwnd_dpi(child);
           let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
           let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
@@ -352,7 +352,7 @@ mod windows {
               return DefWindowProcW(child, msg, wparam, lparam);
             }
 
-            let dpi = unsafe { util::hwnd_dpi(child) };
+            let dpi = util::hwnd_dpi(child);
             let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
             let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
@@ -421,7 +421,7 @@ mod windows {
       // and so we need create a cut out in the middle for the parent and other child
       // windows like the webview can receive mouse events.
 
-      let dpi = unsafe { util::hwnd_dpi(hwnd) };
+      let dpi = util::hwnd_dpi(hwnd);
       let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
       let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 

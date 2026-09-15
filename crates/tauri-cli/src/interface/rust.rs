@@ -1955,7 +1955,8 @@ mod tests {
 
     #[cfg(not(windows))]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir");
+      // FIXME: Audit that the environment access only happens in single-threaded code.
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("/path/to/env/dir/release")

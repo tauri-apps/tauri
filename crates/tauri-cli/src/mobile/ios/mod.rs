@@ -275,8 +275,10 @@ pub fn get_config(
     macos: Default::default(),
   };
 
-  set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
-  set_var("TAURI_IOS_APP_NAME", config.app().name());
+  // FIXME: Audit that the environment access only happens in single-threaded code.
+  unsafe { set_var("TAURI_IOS_PROJECT_PATH", config.project_dir()) };
+  // FIXME: Audit that the environment access only happens in single-threaded code.
+  unsafe { set_var("TAURI_IOS_APP_NAME", config.app().name()) };
 
   Ok((config, metadata))
 }

@@ -8890,9 +8890,9 @@ dependencies = [
  "url",
  "uuid",
  "webkit2gtk",
- "webview2-com",
+ "webview2-com 0.39.1",
  "window-vibrancy",
- "windows 0.61.1",
+ "windows 0.62.0",
 ]
 
 [[package]]
@@ -9219,8 +9219,8 @@ dependencies = [
  "thiserror 2.0.12",
  "url",
  "webkit2gtk",
- "webview2-com",
- "windows 0.61.1",
+ "webview2-com 0.39.1",
+ "windows 0.62.0",
 ]
 
 [[package]]
@@ -9243,8 +9243,8 @@ dependencies = [
  "tracing",
  "url",
  "webkit2gtk",
- "webview2-com",
- "windows 0.61.1",
+ "webview2-com 0.39.1",
+ "windows 0.62.0",
  "wry",
 ]
 
@@ -10528,7 +10528,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4ba622a989277ef3886dd5afb3e280e3dd6d974b766118950a08f8f678ad6a4"
 dependencies = [
  "webview2-com-macros",
- "webview2-com-sys",
+ "webview2-com-sys 0.38.0",
  "windows 0.61.1",
  "windows-core 0.61.0",
  "windows-implement",
@@ -10536,10 +10536,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "webview2-com-macros"
-version = "0.8.0"
+name = "webview2-com"
+version = "0.39.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d228f15bba3b9d56dde8bddbee66fa24545bd17b48d5128ccf4a8742b18e431"
+checksum = "3f89fca7a704cee10dcb3654c1dbb8941d1783132f1917358af75bec37a7d7e6"
+dependencies = [
+ "webview2-com-macros",
+ "webview2-com-sys 0.39.1",
+ "windows 0.62.0",
+ "windows-core 0.62.0",
+]
+
+[[package]]
+name = "webview2-com-macros"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67a921c1b6914c367b2b823cd4cde6f96beec77d30a939c8199bb377cf9b9b54"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10555,6 +10567,17 @@ dependencies = [
  "thiserror 2.0.12",
  "windows 0.61.1",
  "windows-core 0.61.0",
+]
+
+[[package]]
+name = "webview2-com-sys"
+version = "0.39.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3a07132775117d6065853d9d1178157b8c90e228de47129d6bce2c7edebedfb"
+dependencies = [
+ "thiserror 2.0.12",
+ "windows 0.62.0",
+ "windows-core 0.62.0",
 ]
 
 [[package]]
@@ -10781,6 +10804,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 
 [[package]]
+name = "windows-link"
+version = "0.100.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b39de7c7fe78858b0144c50c3fc000bab3be17d5e9b85b1053871693c7f7415"
+
+[[package]]
 name = "windows-numerics"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10802,13 +10831,13 @@ dependencies = [
 
 [[package]]
 name = "windows-registry"
-version = "0.6.1"
+version = "0.100.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02752bf7fbdcce7f2a27a742f798510f3e5ad88dbe84871e5168e2120c3d5720"
+checksum = "a14b75dbbc0f2bb1ebbf6dcb6dc0035ae17f10ec280045d10fa27ad8874903b2"
 dependencies = [
- "windows-link 0.2.1",
- "windows-result 0.4.1",
- "windows-strings 0.5.1",
+ "windows-link 0.100.0",
+ "windows-result 0.100.0",
+ "windows-strings 0.100.0",
 ]
 
 [[package]]
@@ -10830,6 +10859,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "windows-result"
+version = "0.100.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44873a1ef61c85d5e2991db91fe656cfcf0731097e00dff1ac860f1cb3b752a0"
+dependencies = [
+ "windows-link 0.100.0",
+]
+
+[[package]]
 name = "windows-strings"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10845,6 +10883,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091"
 dependencies = [
  "windows-link 0.2.1",
+]
+
+[[package]]
+name = "windows-strings"
+version = "0.100.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a70b590c684f1d2854f74999896f7c0558f1bdde62f599088599e20ea1d2f60"
+dependencies = [
+ "windows-link 0.100.0",
 ]
 
 [[package]]
@@ -11305,7 +11352,7 @@ dependencies = [
  "url",
  "webkit2gtk",
  "webkit2gtk-sys",
- "webview2-com",
+ "webview2-com 0.38.0",
  "windows 0.61.1",
  "windows-core 0.61.0",
  "windows-version",

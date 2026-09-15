@@ -479,6 +479,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "asset-streaming"
+version = "0.1.0"
+dependencies = [
+ "tauri",
+ "tauri-build",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"

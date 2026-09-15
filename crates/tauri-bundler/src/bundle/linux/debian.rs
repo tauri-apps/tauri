@@ -23,7 +23,7 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
-use super::freedesktop;
+use super::{freedesktop, gst_plugin};
 use crate::{
   bundle::settings::Arch,
   error::{Context, ErrorExt},
@@ -125,6 +125,9 @@ pub fn generate_data(
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
+
+  copy_gst_plugin(settings, &data_dir)
+    .with_context(|| "Failed to copy the asset GStreamer plugin")?;
 
   settings
     .copy_binaries(&bin_dir)
@@ -329,6 +332,16 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   let resource_dir = data_dir.join("usr/lib").join(settings.product_name());
   settings.copy_resources(&resource_dir)
+}
+
+fn copy_gst_plugin(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+  if let Some(plugin) = gst_plugin::resolve(settings)? {
+    let dest = data_dir
+      .join(gst_plugin::plugin_dir(settings.product_name()))
+      .join(gst_plugin::PLUGIN_FILE_NAME);
+    fs_utils::copy_file(&plugin, &dest)?;
+  }
+  Ok(())
 }
 
 /// Create an empty file at the given path, creating any parent directories as

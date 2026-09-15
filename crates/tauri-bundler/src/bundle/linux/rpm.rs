@@ -13,7 +13,7 @@ use std::{
 };
 use tauri_utils::config::RpmCompression;
 
-use super::freedesktop;
+use super::{freedesktop, gst_plugin};
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.
@@ -196,6 +196,28 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       let dest = resource_dir.join(resource.target());
       builder = builder.with_file(resource.path(), FileOptions::new(dest.to_string_lossy()))?;
     }
+  }
+
+  // Add the `asset://` GStreamer plugin
+  if let Some(plugin) = gst_plugin::resolve(settings)? {
+    let plugin_dir = Path::new("/").join(gst_plugin::plugin_dir(product_name));
+    // Create an empty file, needed to add a directory to the RPM package
+    // (cf https://github.com/rpm-rs/rpm/issues/177)
+    let empty_file_path = &package_dir.join("empty");
+    File::create(empty_file_path)?;
+    builder = builder.with_file(
+      empty_file_path,
+      FileOptions::new(plugin_dir.to_string_lossy()).mode(FileMode::Dir { permissions: 0o755 }),
+    )?;
+    builder = builder.with_file(
+      &plugin,
+      FileOptions::new(
+        plugin_dir
+          .join(gst_plugin::PLUGIN_FILE_NAME)
+          .to_string_lossy(),
+      )
+      .mode(FileMode::Regular { permissions: 0o755 }),
+    )?;
   }
 
   // Add Desktop entry file

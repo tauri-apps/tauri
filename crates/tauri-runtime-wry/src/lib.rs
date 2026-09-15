@@ -98,6 +98,8 @@ pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as Tao
 pub use wry;
 pub use wry::webview_version;
 
+#[cfg(target_os = "ohos")]
+use wry::WebViewBuilder;
 #[cfg(windows)]
 use wry::WebViewExtWindows;
 #[cfg(target_os = "android")]
@@ -109,7 +111,8 @@ use wry::{
   target_os = "windows",
   target_os = "macos",
   target_os = "ios",
-  target_os = "android"
+  target_os = "android",
+  target_os = "ohos"
 )))]
 use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
@@ -152,7 +155,8 @@ mod monitor;
   target_os = "dragonfly",
   target_os = "freebsd",
   target_os = "netbsd",
-  target_os = "openbsd"
+  target_os = "openbsd",
+  target_os = "ohos"
 ))]
 mod undecorated_resizing;
 mod util;
@@ -861,8 +865,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       }
     }
 
+    #[cfg(target_os = "ohos")]
+    {
+      // OHOS/HarmonyOS specific window config if needed
+    }
+
     // ignore size from config for mobile for backward compatibility
-    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    #[cfg(not(any(target_os = "ios", target_os = "android", target_os = "ohos")))]
     {
       window = window.inner_size(config.width, config.height);
     }
@@ -2422,7 +2431,8 @@ impl Drop for WebviewWrapper {
           target_os = "dragonfly",
           target_os = "freebsd",
           target_os = "netbsd",
-          target_os = "openbsd"
+          target_os = "openbsd",
+          target_os = "ohos"
         )))]
         if web_context.referenced_by_webviews.is_empty() {
           context_store.remove(&self.context_key);
@@ -3464,6 +3474,8 @@ fn handle_user_message<T: UserEvent>(
               target_os = "openbsd"
             ))]
             let _ = window.set_skip_taskbar(skip);
+            #[cfg(target_os = "ohos")]
+            let _ = skip; // OHOS/HarmonyOS: not yet implemented
           }
           WindowMessage::SetCursorGrab(grab) => {
             let _ = window.set_cursor_grab(grab);
@@ -3512,7 +3524,8 @@ fn handle_user_message<T: UserEvent>(
               target_os = "dragonfly",
               target_os = "freebsd",
               target_os = "netbsd",
-              target_os = "openbsd"
+              target_os = "openbsd",
+              target_os = "ohos"
             ))]
             window.set_badge_count(_count, _desktop_filename);
           }
@@ -4534,7 +4547,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         target_os = "dragonfly",
         target_os = "freebsd",
         target_os = "netbsd",
-        target_os = "openbsd"
+        target_os = "openbsd",
+        target_os = "ohos"
       ))]
       gtk_window: window.gtk_window(),
       #[cfg(any(
@@ -4542,7 +4556,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         target_os = "dragonfly",
         target_os = "freebsd",
         target_os = "netbsd",
-        target_os = "openbsd"
+        target_os = "openbsd",
+        target_os = "ohos"
       ))]
       default_vbox: window.default_vbox(),
       _marker: &std::marker::PhantomData,
@@ -5124,7 +5139,8 @@ You may have it installed on another user account, but it is not available for t
       target_os = "windows",
       target_os = "macos",
       target_os = "ios",
-      target_os = "android"
+      target_os = "android",
+      target_os = "ohos"
     )))]
     WebviewKind::WindowChild => {
       // only way to account for menu bar height, and also works for multiwebviews :)
@@ -5135,7 +5151,8 @@ You may have it installed on another user account, but it is not available for t
       target_os = "windows",
       target_os = "macos",
       target_os = "ios",
-      target_os = "android"
+      target_os = "android",
+      target_os = "ohos"
     ))]
     WebviewKind::WindowChild => webview_builder.build_as_child(&window),
     WebviewKind::WindowContent => {
@@ -5143,14 +5160,16 @@ You may have it installed on another user account, but it is not available for t
         target_os = "windows",
         target_os = "macos",
         target_os = "ios",
-        target_os = "android"
+        target_os = "android",
+        target_os = "ohos"
       ))]
       let builder = webview_builder.build(&window);
       #[cfg(not(any(
         target_os = "windows",
         target_os = "macos",
         target_os = "ios",
-        target_os = "android"
+        target_os = "android",
+        target_os = "ohos"
       )))]
       let builder = {
         let vbox = window.default_vbox().unwrap();

@@ -46,4 +46,10 @@ mod imp {
   pub type Webview = JniHandle;
 }
 
+#[cfg(target_os = "ohos")]
+mod imp {
+  use wry::WebView;
+  pub type Webview = WebView;
+}
+
 pub use imp::*;

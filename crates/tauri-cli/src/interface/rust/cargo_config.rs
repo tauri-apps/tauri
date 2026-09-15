@@ -79,13 +79,14 @@ impl Config {
       }
     }
 
-    if config.build.target.is_none()
-      && let Ok(cargo_home) = std::env::var("CARGO_HOME")
-      && let Some(path) = get_file_path(&PathBuf::from(cargo_home), "config", true)?
-    {
-      let toml = get_config(path)?;
-      if let Some(target) = toml.build.and_then(|b| b.target) {
-        config.build.target = Some(target);
+    if config.build.target.is_none() {
+      if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+        if let Some(path) = get_file_path(&PathBuf::from(cargo_home), "config", true)? {
+          let toml = get_config(path)?;
+          if let Some(target) = toml.build.and_then(|b| b.target) {
+            config.build.target = Some(target);
+          }
+        }
       }
     }
 

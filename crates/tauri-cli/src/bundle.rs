@@ -198,16 +198,16 @@ pub fn bundle<A: AppSettings>(
   }
 
   // if we have a package to bundle, let's run the `before_bundle_command`.
-  if !package_types.is_empty()
-    && let Some(before_bundle) = config.build.before_bundle_command.clone()
-  {
-    helpers::run_hook(
-      "beforeBundleCommand",
-      before_bundle,
-      interface,
-      options.debug,
-      dirs.frontend,
-    )?;
+  if !package_types.is_empty() {
+    if let Some(before_bundle) = config.build.before_bundle_command.clone() {
+      helpers::run_hook(
+        "beforeBundleCommand",
+        before_bundle,
+        interface,
+        options.debug,
+        dirs.frontend,
+      )?;
+    }
   }
 
   let mut settings = app_settings

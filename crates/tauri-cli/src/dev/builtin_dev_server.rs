@@ -157,11 +157,12 @@ fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
       .expect("builtin server failed to watch dir");
 
     loop {
-      if let Ok(Ok(event)) = rx.recv()
-        && let Some(event) = event.first()
-        && !event.kind.is_access()
-      {
-        handler();
+      if let Ok(Ok(event)) = rx.recv() {
+        if let Some(event) = event.first() {
+          if !event.kind.is_access() {
+            handler();
+          }
+        }
       }
     }
   });

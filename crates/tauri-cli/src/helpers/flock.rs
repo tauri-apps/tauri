@@ -73,10 +73,10 @@ impl Write for FileLock {
 
 impl Drop for FileLock {
   fn drop(&mut self) {
-    if self.state != State::Unlocked
-      && let Some(f) = self.f.take()
-    {
-      let _ = unlock(&f);
+    if self.state != State::Unlocked {
+      if let Some(f) = self.f.take() {
+        let _ = unlock(&f);
+      }
     }
   }
 }

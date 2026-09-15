@@ -193,10 +193,10 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
         framework
       ));
     }
-    if let Some(home_dir) = dirs::home_dir()
-      && copy_framework_from(&home_dir.join("Library/Frameworks/"), framework, dest_dir)?
-    {
-      continue;
+    if let Some(home_dir) = dirs::home_dir() {
+      if copy_framework_from(&home_dir.join("Library/Frameworks/"), framework, dest_dir)? {
+        continue;
+      }
     }
     if copy_framework_from("/Library/Frameworks/".as_ref(), framework, dest_dir)?
       || copy_framework_from("/Network/Library/Frameworks/".as_ref(), framework, dest_dir)?
@@ -606,13 +606,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .resources
     .clone()
     .unwrap_or(BundleResources::List(Vec::new()));
-  if target_triple.contains("windows")
-    && let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
+  if target_triple.contains("windows") {
+    if let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
       WebviewInstallMode::FixedRuntime { path } => Some(path),
       _ => None,
+    } {
+      resources.push(fixed_webview2_runtime_path.display().to_string());
     }
-  {
-    resources.push(fixed_webview2_runtime_path.display().to_string());
   }
   match resources {
     BundleResources::List(res) => {
@@ -622,24 +622,24 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   if target_triple.contains("darwin") {
-    if let Some(frameworks) = &config.bundle.macos.frameworks
-      && !frameworks.is_empty()
-    {
-      let frameworks_dir = target_dir.parent().unwrap().join("Frameworks");
-      let _ = fs::remove_dir_all(&frameworks_dir);
-      // copy frameworks to the root `target` folder (instead of `target/debug` for instance)
-      // because the rpath is set to `@executable_path/../Frameworks`.
-      copy_frameworks(&frameworks_dir, frameworks)?;
+    if let Some(frameworks) = &config.bundle.macos.frameworks {
+      if !frameworks.is_empty() {
+        let frameworks_dir = target_dir.parent().unwrap().join("Frameworks");
+        let _ = fs::remove_dir_all(&frameworks_dir);
+        // copy frameworks to the root `target` folder (instead of `target/debug` for instance)
+        // because the rpath is set to `@executable_path/../Frameworks`.
+        copy_frameworks(&frameworks_dir, frameworks)?;
 
-      // If we have frameworks, we need to set the @rpath
-      // https://github.com/tauri-apps/tauri/issues/7710
-      println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
+        // If we have frameworks, we need to set the @rpath
+        // https://github.com/tauri-apps/tauri/issues/7710
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
+      }
     }
 
-    if !is_dev()
-      && let Some(version) = &config.bundle.macos.minimum_system_version
-    {
-      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
+    if !is_dev() {
+      if let Some(version) = &config.bundle.macos.minimum_system_version {
+        println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
+      }
     }
   }
 
@@ -678,14 +678,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       res.append_rc_content(&content);
     }
 
-    if let Some(version_str) = &config.version
-      && let Ok(v) = Version::parse(version_str)
-    {
-      let version = to_winres_version(&v);
-      res.set_version_info(VersionInfo::FILEVERSION, version);
-      res.set_version_info(VersionInfo::PRODUCTVERSION, version);
-      res.set("FileVersion", version_str);
-      res.set("ProductVersion", version_str);
+    if let Some(version_str) = &config.version {
+      if let Ok(v) = Version::parse(version_str) {
+        let version = to_winres_version(&v);
+        res.set_version_info(VersionInfo::FILEVERSION, version);
+        res.set_version_info(VersionInfo::PRODUCTVERSION, version);
+        res.set("FileVersion", version_str);
+        res.set("ProductVersion", version_str);
+      }
     }
 
     if let Some(product_name) = &config.product_name {

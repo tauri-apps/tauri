@@ -34,11 +34,11 @@ static TAURI_DIR: OnceLock<PathBuf> = OnceLock::new();
 pub fn walk_builder(path: &Path) -> WalkBuilder {
   let mut default_gitignore = std::env::temp_dir();
   default_gitignore.push(".gitignore");
-  if !default_gitignore.exists()
-    && let Ok(mut file) = std::fs::File::create(default_gitignore.clone())
-  {
-    use std::io::Write;
-    let _ = file.write_all(TAURI_GITIGNORE);
+  if !default_gitignore.exists() {
+    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
+      use std::io::Write;
+      let _ = file.write_all(TAURI_GITIGNORE);
+    }
   }
 
   let mut builder = WalkBuilder::new(path);

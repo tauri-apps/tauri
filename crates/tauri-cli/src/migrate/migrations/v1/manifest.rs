@@ -139,11 +139,12 @@ fn find_dependency<'a>(
       } else if k == "target" {
         let mut matching_deps = Vec::new();
         for (_, target_value) in t.iter_mut() {
-          if let Some(target_table) = target_value.as_table_mut()
-            && let Some(deps) = target_table.get_mut(table)
-            && let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name))
-          {
-            matching_deps.push(item);
+          if let Some(target_table) = target_value.as_table_mut() {
+            if let Some(deps) = target_table.get_mut(table) {
+              if let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name)) {
+                matching_deps.push(item);
+              }
+            }
           }
         }
         return matching_deps;

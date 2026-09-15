@@ -326,10 +326,10 @@ impl<R: Runtime> WebviewManager<R> {
             }
           }
 
-          if let Some(w) = app_manager_.get_webview(&label_)
-            && let Some(on_permission_request) = &app_manager_.webview.on_permission_request
-          {
-            return on_permission_request(w, kind);
+          if let Some(w) = app_manager_.get_webview(&label_) {
+            if let Some(on_permission_request) = &app_manager_.webview.on_permission_request {
+              return on_permission_request(w, kind);
+            }
           }
 
           crate::webview::PermissionResponse::Default
@@ -571,10 +571,10 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     // make sure the directory is created and available to prevent a panic
-    if let Some(user_data_dir) = &pending.webview_attributes.data_directory
-      && !user_data_dir.exists()
-    {
-      create_dir_all(user_data_dir)?;
+    if let Some(user_data_dir) = &pending.webview_attributes.data_directory {
+      if !user_data_dir.exists() {
+        create_dir_all(user_data_dir)?;
+      }
     }
 
     #[cfg(all(desktop, not(target_os = "windows")))]
@@ -606,16 +606,17 @@ impl<R: Runtime> WebviewManager<R> {
     pending.navigation_handler = Some(Box::new(move |url| {
       // always allow navigation events for the isolation iframe and do not emit them for consumers
       #[cfg(feature = "isolation")]
-      if let crate::Pattern::Isolation { schema, .. } = &*pattern
-        && url.scheme() == schema
-        && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
-      {
-        return true;
+      if let crate::Pattern::Isolation { schema, .. } = &*pattern {
+        if url.scheme() == schema
+          && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+        {
+          return true;
+        }
       }
-      if let Some(handler) = &navigation_handler
-        && !handler(url)
-      {
-        return false;
+      if let Some(handler) = &navigation_handler {
+        if !handler(url) {
+          return false;
+        }
       }
       let webview = app_manager.webview.webviews_lock().get(&label).cloned();
       if let Some(w) = webview {

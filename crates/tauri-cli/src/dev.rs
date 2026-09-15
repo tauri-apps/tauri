@@ -234,82 +234,82 @@ pub fn setup(
 
   let mut dev_url = config.build.dev_url.clone();
   let frontend_dist = config.build.frontend_dist.clone();
-  if !options.no_dev_server
-    && dev_url.is_none()
-    && let Some(FrontendDist::Directory(path)) = &frontend_dist
-    && path.exists()
-  {
-    let path = path
-      .canonicalize()
-      .fs_context("failed to canonicalize path", path.to_path_buf())?;
+  if !options.no_dev_server && dev_url.is_none() {
+    if let Some(FrontendDist::Directory(path)) = &frontend_dist {
+      if path.exists() {
+        let path = path
+          .canonicalize()
+          .fs_context("failed to canonicalize path", path.to_path_buf())?;
 
-    let ip = options.host.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
+        let ip = options.host.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
 
-    let server_url = builtin_dev_server::start(path, ip, options.port)
-      .context("failed to start builtin dev server")?;
-    let server_url = format!("http://{server_url}");
-    dev_url = Some(server_url.parse().unwrap());
+        let server_url = builtin_dev_server::start(path, ip, options.port)
+          .context("failed to start builtin dev server")?;
+        let server_url = format!("http://{server_url}");
+        dev_url = Some(server_url.parse().unwrap());
 
-    options.config.push(crate::ConfigValue(serde_json::json!({
-      "build": {
-        "devUrl": server_url
+        options.config.push(crate::ConfigValue(serde_json::json!({
+          "build": {
+            "devUrl": server_url
+          }
+        })));
+
+        reload_config(
+          config,
+          &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+          dirs.tauri,
+        )?;
       }
-    })));
-
-    reload_config(
-      config,
-      &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
-      dirs.tauri,
-    )?;
+    }
   }
 
-  if !options.no_dev_server_wait
-    && let Some(url) = dev_url
-  {
-    let host = url.host().expect("No host name in the URL");
-    let port = url
-      .port_or_known_default()
-      .expect("No port number in the URL");
-    let addrs;
-    let addr;
-    let addrs = match host {
-      url::Host::Domain(domain) => {
-        use std::net::ToSocketAddrs;
-        addrs = (domain, port).to_socket_addrs().unwrap();
-        addrs.as_slice()
-      }
-      url::Host::Ipv4(ip) => {
-        addr = (ip, port).into();
-        std::slice::from_ref(&addr)
-      }
-      url::Host::Ipv6(ip) => {
-        addr = (ip, port).into();
-        std::slice::from_ref(&addr)
-      }
-    };
-    let mut i = 0;
-    let sleep_interval = std::time::Duration::from_secs(2);
-    let timeout_duration = std::time::Duration::from_secs(1);
-    let max_attempts = 90;
-    'waiting: loop {
-      for addr in addrs.iter() {
-        if std::net::TcpStream::connect_timeout(addr, timeout_duration).is_ok() {
-          break 'waiting;
+  if !options.no_dev_server_wait {
+    if let Some(url) = dev_url {
+      let host = url.host().expect("No host name in the URL");
+      let port = url
+        .port_or_known_default()
+        .expect("No port number in the URL");
+      let addrs;
+      let addr;
+      let addrs = match host {
+        url::Host::Domain(domain) => {
+          use std::net::ToSocketAddrs;
+          addrs = (domain, port).to_socket_addrs().unwrap();
+          addrs.as_slice()
         }
-      }
+        url::Host::Ipv4(ip) => {
+          addr = (ip, port).into();
+          std::slice::from_ref(&addr)
+        }
+        url::Host::Ipv6(ip) => {
+          addr = (ip, port).into();
+          std::slice::from_ref(&addr)
+        }
+      };
+      let mut i = 0;
+      let sleep_interval = std::time::Duration::from_secs(2);
+      let timeout_duration = std::time::Duration::from_secs(1);
+      let max_attempts = 90;
+      'waiting: loop {
+        for addr in addrs.iter() {
+          if std::net::TcpStream::connect_timeout(addr, timeout_duration).is_ok() {
+            break 'waiting;
+          }
+        }
 
-      if i % 3 == 1 {
-        log::warn!("Waiting for your frontend dev server to start on {url}...",);
+        if i % 3 == 1 {
+          log::warn!("Waiting for your frontend dev server to start on {url}...",);
+        }
+        i += 1;
+        if i == max_attempts {
+          log::error!(
+            "Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.",
+            i * sleep_interval.as_secs()
+          );
+          exit(1);
+        }
+        std::thread::sleep(sleep_interval);
       }
-      i += 1;
-      if i == max_attempts {
-        log::error!(
-          "Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.",
-          i * sleep_interval.as_secs()
-        );
-        exit(1);
-      }
-      std::thread::sleep(sleep_interval);
     }
   }
 

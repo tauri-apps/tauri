@@ -144,10 +144,10 @@ impl JavaScriptChannelId {
       Box::new(move |body| {
         let current_index = counter.fetch_add(1, Ordering::Relaxed);
 
-        if let Some(interceptor) = &webview.manager.channel_interceptor
-          && interceptor(&webview, callback_fn, current_index, &body)
-        {
-          return Ok(());
+        if let Some(interceptor) = &webview.manager.channel_interceptor {
+          if interceptor(&webview, callback_fn, current_index, &body) {
+            return Ok(());
+          }
         }
 
         match body {

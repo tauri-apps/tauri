@@ -390,10 +390,10 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   default_gitignore.push(".tauri");
   let _ = std::fs::create_dir_all(&default_gitignore);
   default_gitignore.push(".gitignore");
-  if !default_gitignore.exists()
-    && let Ok(mut file) = std::fs::File::create(default_gitignore.clone())
-  {
-    let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
+  if !default_gitignore.exists() {
+    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
+      let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
+    }
   }
 
   let mut builder = ignore::WalkBuilder::new(dir);
@@ -1259,15 +1259,15 @@ fn find_dependencies(
   found_dependency_paths: &mut Vec<PathBuf>,
 ) {
   for dependency in &package.dependencies {
-    if let Some(path) = &dependency.path
-      && let Some(package) = workspace_packages.iter().find(|workspace_package| {
+    if let Some(path) = &dependency.path {
+      if let Some(package) = workspace_packages.iter().find(|workspace_package| {
         workspace_package.name == dependency.name
           && path.join("Cargo.toml") == workspace_package.manifest_path
           && !found_dependency_paths.contains(path)
-      })
-    {
-      found_dependency_paths.push(path.to_owned());
-      find_dependencies(package, workspace_packages, found_dependency_paths);
+      }) {
+        found_dependency_paths.push(path.to_owned());
+        find_dependencies(package, workspace_packages, found_dependency_paths);
+      }
     }
   }
 }

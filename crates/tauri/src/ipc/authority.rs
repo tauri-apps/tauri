@@ -301,19 +301,19 @@ impl RuntimeAuthority {
     ) -> bool {
       for permission_id in &set.permissions {
         if permission_id == "default" {
-          if let Some(default) = &manifest.default_permission
-            && has_permissions_allowing_command(manifest, default, command)
-          {
-            return true;
+          if let Some(default) = &manifest.default_permission {
+            if has_permissions_allowing_command(manifest, default, command) {
+              return true;
+            }
           }
         } else if let Some(ref_set) = manifest.permission_sets.get(permission_id) {
           if has_permissions_allowing_command(manifest, ref_set, command) {
             return true;
           }
-        } else if let Some(permission) = manifest.permissions.get(permission_id)
-          && permission.commands.allow.contains(&command.into())
-        {
-          return true;
+        } else if let Some(permission) = manifest.permissions.get(permission_id) {
+          if permission.commands.allow.contains(&command.into()) {
+            return true;
+          }
         }
       }
       false
@@ -371,10 +371,10 @@ impl RuntimeAuthority {
         {
           let mut permissions_referencing_command = Vec::new();
 
-          if let Some(default) = &manifest.default_permission
-            && has_permissions_allowing_command(manifest, default, command_name)
-          {
-            permissions_referencing_command.push("default".into());
+          if let Some(default) = &manifest.default_permission {
+            if has_permissions_allowing_command(manifest, default, command_name) {
+              permissions_referencing_command.push("default".into());
+            }
           }
           for set in manifest.permission_sets.values() {
             if has_permissions_allowing_command(manifest, set, command_name) {

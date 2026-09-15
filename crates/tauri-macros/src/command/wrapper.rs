@@ -89,20 +89,21 @@ impl Parse for WrapperAttributes {
                 "expected string literal for rename",
               ));
             }
-          } else if v.path.is_ident("root")
-            && let Expr::Lit(ExprLit {
+          } else if v.path.is_ident("root") {
+            if let Expr::Lit(ExprLit {
               lit: Lit::Str(s),
               attrs: _,
             }) = v.value
-          {
-            let lit = s.value();
+            {
+              let lit = s.value();
 
-            wrapper_attributes.root = if lit == "crate" {
-              quote!($crate)
-            } else {
-              let ident = Ident::new(&lit, Span::call_site());
-              quote!(#ident)
-            };
+              wrapper_attributes.root = if lit == "crate" {
+                quote!($crate)
+              } else {
+                let ident = Ident::new(&lit, Span::call_site());
+                quote!(#ident)
+              };
+            }
           }
         }
         WrapperAttributeKind::Meta(Meta::Path(_)) => {
@@ -191,13 +192,14 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           syn::Type::Path(path) => {
             // Check if the type contains a lifetime argument
             let last = path.path.segments.last().unwrap();
-            if let syn::PathArguments::AngleBracketed(args) = &last.arguments
-              && args
+            if let syn::PathArguments::AngleBracketed(args) = &last.arguments {
+              if args
                 .args
                 .iter()
                 .any(|arg| matches!(arg, syn::GenericArgument::Lifetime(_)))
-            {
-              ref_argument_span = Some(pat.span());
+              {
+                ref_argument_span = Some(pat.span());
+              }
             }
           }
           _ => {}

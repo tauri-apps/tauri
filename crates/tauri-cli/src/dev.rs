@@ -34,6 +34,28 @@ mod builtin_dev_server;
 static BEFORE_DEV: OnceLock<SharedChild> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
+#[cfg(windows)]
+struct JobObject(windows_sys::Win32::Foundation::HANDLE);
+
+#[cfg(windows)]
+unsafe impl Send for JobObject {}
+#[cfg(windows)]
+unsafe impl Sync for JobObject {}
+
+#[cfg(windows)]
+impl Drop for JobObject {
+  fn drop(&mut self) {
+    if !self.0.is_null() && self.0 != windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+      unsafe {
+        windows_sys::Win32::Foundation::CloseHandle(self.0);
+      }
+    }
+  }
+}
+
+#[cfg(windows)]
+static BEFORE_DEV_JOB: OnceLock<JobObject> = OnceLock::new();
+
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
 
@@ -205,6 +227,64 @@ pub fn setup(
 
         let child = SharedChild::spawn(&mut command)
           .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
+
+        #[cfg(windows)]
+        {
+          unsafe {
+            use windows_sys::Win32::{
+              Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
+              System::{
+                JobObjects::{
+                  AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+                  SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+                  JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                },
+                Threading::{OpenProcess, PROCESS_SET_QUOTA, PROCESS_TERMINATE},
+              },
+            };
+
+            let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if !job.is_null() && job != INVALID_HANDLE_VALUE {
+              let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+              info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+              let set_info_ok = SetInformationJobObject(
+                job,
+                JobObjectExtendedLimitInformation,
+                &info as *const _ as *const _,
+                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+              );
+
+              if set_info_ok != 0 {
+                let process = OpenProcess(
+                  PROCESS_SET_QUOTA | PROCESS_TERMINATE,
+                  0,
+                  child.id(),
+                );
+
+                if !process.is_null() && process != INVALID_HANDLE_VALUE {
+                  let assign_ok = AssignProcessToJobObject(job, process);
+                  CloseHandle(process);
+
+                  if assign_ok != 0 {
+                    BEFORE_DEV_JOB.get_or_init(move || JobObject(job));
+                  } else {
+                    log::debug!("Failed to assign beforeDevCommand process to job object");
+                    CloseHandle(job);
+                  }
+                } else {
+                  log::debug!("Failed to open beforeDevCommand process handle for job object");
+                  CloseHandle(job);
+                }
+              } else {
+                log::debug!("Failed to configure kill-on-close limit on job object");
+                CloseHandle(job);
+              }
+            } else {
+              log::debug!("Failed to create job object for beforeDevCommand");
+            }
+          }
+        }
 
         let child = BEFORE_DEV.get_or_init(move || child);
         std::thread::spawn(move || {

@@ -14,13 +14,13 @@
     "@crabnebula/test-runner-backend": "^0.2.9",
     "@tauri-apps/api": "../api/dist",
     "@types/node": "^22.10.0",
-    "@wdio/cli": "^9.19.0",
-    "@wdio/globals": "^9.19.0",
-    "@wdio/local-runner": "^9.19.0",
-    "@wdio/mocha-framework": "^9.19.0",
-    "@wdio/spec-reporter": "^9.19.0",
+    "@wdio/cli": "^9.31.9",
+    "@wdio/globals": "^9.31.3",
+    "@wdio/local-runner": "^9.31.9",
+    "@wdio/mocha-framework": "^9.31.9",
+    "@wdio/spec-reporter": "^9.31.2",
     "expect-webdriverio": "^5.0.0",
     "typescript": "^6.0.3",
-    "webdriverio": "^9.19.0"
+    "webdriverio": "^9.31.9"
   }
 }

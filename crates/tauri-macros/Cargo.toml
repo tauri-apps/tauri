@@ -29,3 +29,6 @@ isolation = ["tauri-codegen/isolation"]
 config-json5 = ["tauri-codegen/config-json5", "tauri-utils/config-json5"]
 config-toml = ["tauri-codegen/config-toml", "tauri-utils/config-toml"]
 tracing = []
+
+[lints]
+workspace = true

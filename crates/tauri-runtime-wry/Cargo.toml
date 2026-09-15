@@ -72,3 +72,6 @@ macos-proxy = ["wry/mac-proxy"]
 unstable = []
 common-controls-v6 = ["windows/Win32_UI_Controls", "windows/Win32_UI_Shell"]
 dbus = ["tao/dbus"]
+
+[lints]
+workspace = true

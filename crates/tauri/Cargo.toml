@@ -270,3 +270,6 @@ path = "../../examples/streaming/main.rs"
 name = "isolation"
 path = "../../examples/isolation/main.rs"
 required-features = ["isolation"]
+
+[lints]
+workspace = true

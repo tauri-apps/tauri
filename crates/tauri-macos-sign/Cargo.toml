@@ -27,3 +27,6 @@ apple-codesign = { version = "0.29", default-features = false }
 chrono = "0.4"
 p12 = "0.6"
 base64 = "0.22"
+
+[lints]
+workspace = true

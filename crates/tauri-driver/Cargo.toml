@@ -35,3 +35,6 @@ signal-hook-tokio = { version = "0.4", features = ["futures-v0_3"] }
 
 [target."cfg(windows)".dependencies]
 win32job = "2"
+
+[lints]
+workspace = true

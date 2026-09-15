@@ -1564,6 +1564,7 @@ fn tauri_config_to_bundle_settings(
     appimage: AppImageSettings {
       files: appimage_files,
       bundle_media_framework: config.linux.appimage.bundle_media_framework,
+      exclude_libraries: config.linux.appimage.exclude_libraries,
       bundle_xdg_open: false,
     },
     rpm: RpmSettings {

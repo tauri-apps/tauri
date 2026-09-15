@@ -310,6 +310,12 @@ fn sign_updaters(
     // we expect to have only one path in the vec but we iter if we add
     // another type of updater package who require multiple file signature
     for path in &bundle.bundle_paths {
+      // The AppImage bundler returns the `.zsync` file next to the AppImage so
+      // release tooling can publish it. It is not an update package, so it
+      // must not be signed like one.
+      if path.extension().is_some_and(|ext| ext == "zsync") {
+        continue;
+      }
       // sign our path from environment variables
       let (signature_path, signature) = updater_signature::sign_file(&secret_key, path)?;
       if signature.keynum() != public_key.keynum() {

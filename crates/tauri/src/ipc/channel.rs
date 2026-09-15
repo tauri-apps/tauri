@@ -6,22 +6,23 @@ use std::{
   collections::HashMap,
   str::FromStr,
   sync::{
-    Arc, Mutex,
     atomic::{AtomicU32, AtomicUsize, Ordering},
+    Arc, Mutex,
   },
 };
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-  Manager, Runtime, State, Webview, command,
+  command,
   ipc::{CommandArg, CommandItem},
   plugin::{Builder as PluginBuilder, TauriPlugin},
+  Manager, Runtime, State, Webview,
 };
 
 use super::{
-  CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, Response,
-  format_callback::format_raw_js,
+  format_callback::format_raw_js, CallbackFn, InvokeError, InvokeResponseBody, IpcResponse,
+  Request, Response,
 };
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";

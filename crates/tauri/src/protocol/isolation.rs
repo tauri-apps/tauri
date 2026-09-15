@@ -13,9 +13,9 @@ use tauri_utils::{
 use std::sync::Arc;
 
 use crate::{
-  Runtime,
-  manager::{AppManager, set_csp, webview::PROCESS_IPC_MESSAGE_FN},
+  manager::{set_csp, webview::PROCESS_IPC_MESSAGE_FN, AppManager},
   webview::UriSchemeProtocolHandler,
+  Runtime,
 };
 
 pub fn get<R: Runtime>(

@@ -5,10 +5,10 @@
 
 use super::{app, icon::create_icns_file};
 use crate::{
-  PackageType, Settings,
-  bundle::{Bundle, settings::Arch},
+  bundle::{settings::Arch, Bundle},
   error::{Context, ErrorExt},
   utils::CommandExt,
+  PackageType, Settings,
 };
 
 use std::{

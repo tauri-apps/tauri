@@ -8,13 +8,14 @@ use anyhow::Context;
 use serde::Deserialize;
 
 use crate::{
-  AppHandle, Manager, Runtime, Webview, command,
+  command,
   image::JsImage,
   ipc::Channel,
-  menu::{Menu, Submenu, plugin::ItemKind},
+  menu::{plugin::ItemKind, Menu, Submenu},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
+  AppHandle, Manager, Runtime, Webview,
 };
 
 use super::{TrayIcon, TrayIconEvent};

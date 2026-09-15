@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Result,
   error::{Context, ErrorExt},
   helpers::{app_paths::Dirs, npm::PackageManager},
   interface::rust::manifest::{read_manifest, serialize_manifest},
+  Result,
 };
 
 use std::{fs::read_to_string, path::Path};

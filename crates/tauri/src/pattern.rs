@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use serde::Serialize;
-use serialize_to_javascript::{Template, default_template};
+use serialize_to_javascript::{default_template, Template};
 
 /// The domain of the isolation iframe source.
 #[cfg(feature = "isolation")]

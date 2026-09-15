@@ -24,7 +24,7 @@ use std::{
   fs::{create_dir, create_dir_all, read_dir, write},
   io::Cursor,
   path::{Path, PathBuf},
-  process::{Command, exit},
+  process::{exit, Command},
   sync::OnceLock,
   thread::sleep,
   time::Duration,
@@ -33,14 +33,14 @@ use sublime_fuzzy::best_match;
 use tauri_utils::resources::ResourcePaths;
 
 use super::{
-  CliOptions, MIN_DEVICE_MATCH_SCORE, OptionsHandle, Target as MobileTarget, ensure_init, get_app,
-  init::command as init_command, log_finished, read_options,
+  ensure_init, get_app, init::command as init_command, log_finished, read_options, CliOptions,
+  OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
-  ConfigValue, Error, ErrorExt, Result,
   error::Context,
   helpers::config::{BundleResources, Config as TauriConfig},
   mobile::android::check_java_gradle_versions::check_java_gradle_versions,
+  ConfigValue, Error, ErrorExt, Result,
 };
 
 mod android_studio_script;
@@ -1227,10 +1227,8 @@ android {
       .unwrap();
     let closing_brace = find_matching_brace(build_gradle, opening_brace).unwrap();
 
-    assert!(
-      build_gradle[opening_brace..closing_brace]
-        .contains(r#"manifestPlaceholders["usesCleartextTraffic"] = "true""#)
-    );
+    assert!(build_gradle[opening_brace..closing_brace]
+      .contains(r#"manifestPlaceholders["usesCleartextTraffic"] = "true""#));
 
     let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
 

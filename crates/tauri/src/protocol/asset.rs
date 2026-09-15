@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
-use http::{Request, Response, header::*, status::StatusCode};
+use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
@@ -248,7 +248,7 @@ fn random_boundary() -> String {
 mod tests {
   use super::get_response;
   use crate::scope::fs::Scope;
-  use http::{Request, header::CONTENT_TYPE, status::StatusCode};
+  use http::{header::CONTENT_TYPE, status::StatusCode, Request};
   use tauri_utils::config::FsScope;
 
   #[test]
@@ -292,10 +292,8 @@ mod tests {
     let boundary = content_types[0]
       .strip_prefix("multipart/byteranges; boundary=")
       .unwrap();
-    assert!(
-      response
-        .body()
-        .ends_with(format!("\r\n--{boundary}--\r\n").as_bytes())
-    );
+    assert!(response
+      .body()
+      .ends_with(format!("\r\n--{boundary}--\r\n").as_bytes()));
   }
 }

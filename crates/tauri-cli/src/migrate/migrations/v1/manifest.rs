@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Result,
   error::ErrorExt,
   interface::rust::manifest::{read_manifest, serialize_manifest},
+  Result,
 };
 
 use tauri_utils::config_v1::Allowlist;

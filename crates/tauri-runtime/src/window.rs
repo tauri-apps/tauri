@@ -5,15 +5,15 @@
 //! A layer between raw [`Runtime`] windows and Tauri.
 
 use crate::{
-  Icon, Runtime, UserEvent, WindowDispatch,
   webview::{DetachedWebview, PendingWebview},
+  Icon, Runtime, UserEvent, WindowDispatch,
 };
 
 use dpi::PixelUnit;
 use serde::{Deserialize, Deserializer, Serialize};
 use tauri_utils::{
-  Theme,
   config::{Color, WindowConfig},
+  Theme,
 };
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;

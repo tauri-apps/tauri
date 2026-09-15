@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Result,
   error::Context,
   helpers::{prompts, template},
+  Result,
 };
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;

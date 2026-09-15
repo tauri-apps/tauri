@@ -21,9 +21,6 @@ use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 #[cfg(windows)]
 use tauri_runtime::webview::ScrollBarStyle;
 use tauri_runtime::{
-  Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
-  ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
-  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -31,6 +28,9 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, DragDropEvent, PendingWindow, RawWindow,
     WebviewEvent, WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
   },
+  Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
+  ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
+  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_vendor = "apple")]
@@ -78,12 +78,12 @@ use tao::{
     UserAttentionType as TaoUserAttentionType,
   },
 };
+use tauri_utils::config::PreventOverflowConfig;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::config::PreventOverflowConfig;
 use tauri_utils::{
-  Theme,
   config::{Color, WindowConfig},
+  Theme,
 };
 use url::Url;
 #[cfg(windows)]
@@ -102,8 +102,8 @@ pub use wry::webview_version;
 use wry::WebViewExtWindows;
 #[cfg(target_os = "android")]
 use wry::{
-  WebViewBuilderExtAndroid, WebViewExtAndroid,
   prelude::{dispatch, find_class},
+  WebViewBuilderExtAndroid, WebViewExtAndroid,
 };
 #[cfg(not(any(
   target_os = "windows",
@@ -125,19 +125,19 @@ use tauri_runtime::ActivationPolicy;
 use std::{
   cell::RefCell,
   collections::{
-    BTreeMap, HashMap, HashSet,
     hash_map::Entry::{Occupied, Vacant},
+    BTreeMap, HashMap, HashSet,
   },
   fmt,
   ops::Deref,
   path::PathBuf,
   rc::Rc,
   sync::{
-    Arc, Mutex, Weak,
     atomic::{AtomicBool, AtomicU32, Ordering},
-    mpsc::{Sender, channel},
+    mpsc::{channel, Sender},
+    Arc, Mutex, Weak,
   },
-  thread::{ThreadId, current as current_thread},
+  thread::{current as current_thread, ThreadId},
 };
 
 pub type WebviewId = u32;

@@ -4,16 +4,16 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Settings,
   bundle::{
-    Bundle,
     windows::{
       NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, WIX_OUTPUT_FOLDER_NAME,
       WIX_UPDATER_OUTPUT_FOLDER_NAME,
     },
+    Bundle,
   },
   error::{Context, ErrorExt},
   utils::fs_utils,
+  Settings,
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -119,11 +119,11 @@ fn bundle_update_linux(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
 // Right now in windows we hot replace the bin and request a restart
 // No assets are replaced
 fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
-  use crate::PackageType;
   use crate::bundle::settings::WebviewInstallMode;
   #[cfg(target_os = "windows")]
   use crate::bundle::windows::msi;
   use crate::bundle::windows::nsis;
+  use crate::PackageType;
 
   // find our installers or rebuild
   let mut bundle_paths = Vec::new();
@@ -229,7 +229,7 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn create_tar(src_dir: &Path, dest_path: &Path) -> crate::Result<PathBuf> {
-  use flate2::{Compression, write::GzEncoder};
+  use flate2::{write::GzEncoder, Compression};
 
   let dest_file = fs_utils::create_file(dest_path)?;
   let gzip_encoder = GzEncoder::new(dest_file, Compression::default());

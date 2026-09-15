@@ -472,7 +472,7 @@ mod build_ {
 
   use super::*;
   use proc_macro2::TokenStream;
-  use quote::{ToTokens, TokenStreamExt, quote};
+  use quote::{quote, ToTokens, TokenStreamExt};
 
   impl ToTokens for ExecutionContext {
     fn to_tokens(&self, tokens: &mut TokenStream) {

@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  ConfigValue, Error, Result,
   error::{Context, ErrorExt},
-  helpers::config::{Config as TauriConfig, ConfigMetadata, reload_config},
+  helpers::config::{reload_config, Config as TauriConfig, ConfigMetadata},
   interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
+  ConfigValue, Error, Result,
 };
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
@@ -16,10 +16,10 @@ use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 
 use cargo_mobile2::{
-  ChildHandle,
   config::app::{App, Raw as RawAppConfig},
   env::Error as EnvError,
   opts::{NoiseLevel, Profile},
+  ChildHandle,
 };
 use std::{
   collections::HashMap,
@@ -29,11 +29,11 @@ use std::{
   fs::{read_to_string, write},
   net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
   path::{Path, PathBuf},
-  process::{ExitStatus, exit},
+  process::{exit, ExitStatus},
   str::FromStr,
   sync::{
-    Arc, OnceLock,
     atomic::{AtomicBool, Ordering},
+    Arc, OnceLock,
   },
 };
 use tokio::runtime::Runtime;

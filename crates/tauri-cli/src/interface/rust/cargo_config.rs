@@ -11,8 +11,8 @@ use std::{
 use tauri_utils::display_path;
 
 use crate::{
-  Result,
   error::{Context, ErrorExt},
+  Result,
 };
 
 struct PathAncestors<'a> {

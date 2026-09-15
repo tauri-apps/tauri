@@ -7,11 +7,11 @@
 
 use anyhow::Context;
 use axum::{
-  Router,
   extract::Path,
-  http::{HeaderValue, StatusCode, header},
+  http::{header, HeaderValue, StatusCode},
   response::{IntoResponse, Result},
   routing::get,
+  Router,
 };
 use semver::{Version, VersionReq};
 use serde::Deserialize;

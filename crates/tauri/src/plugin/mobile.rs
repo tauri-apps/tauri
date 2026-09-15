@@ -4,7 +4,7 @@
 
 use super::{PluginApi, PluginHandle};
 
-use crate::{AppHandle, Runtime, ipc::Channel};
+use crate::{ipc::Channel, AppHandle, Runtime};
 #[cfg(target_os = "android")]
 use crate::{
   runtime::RuntimeHandle,
@@ -16,12 +16,12 @@ use std::sync::atomic::{AtomicI32, Ordering};
 #[cfg(mobile)]
 use tokio::sync::oneshot;
 
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Serialize};
 
 use std::{
   collections::HashMap,
   fmt,
-  sync::{Mutex, OnceLock, mpsc::channel},
+  sync::{mpsc::channel, Mutex, OnceLock},
 };
 
 type PluginResponse = Result<serde_json::Value, serde_json::Value>;
@@ -210,7 +210,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
     plugin_identifier: &str,
     class_name: &str,
   ) -> Result<PluginHandle<R>, PluginInvokeError> {
-    use jni::{JNIEnv, errors::Error as JniError, objects::JObject};
+    use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
 
     fn initialize_plugin<R: Runtime>(
       env: &mut JNIEnv<'_>,
@@ -448,7 +448,7 @@ pub(crate) fn run_command<
   payload: serde_json::Value,
   handler: F,
 ) -> Result<(), PluginInvokeError> {
-  use jni::{JNIEnv, errors::Error as JniError, objects::JObject};
+  use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
 
   fn run(
     id: i32,

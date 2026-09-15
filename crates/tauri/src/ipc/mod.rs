@@ -13,15 +13,15 @@ use std::{
 
 use http::HeaderMap;
 use serde::{
-  Deserialize, Serialize,
   de::{DeserializeOwned, IntoDeserializer},
+  Deserialize, Serialize,
 };
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_macros::default_runtime;
 use tauri_utils::acl::resolved::ResolvedCommand;
 
-use crate::{Runtime, StateManager, webview::Webview};
+use crate::{webview::Webview, Runtime, StateManager};
 
 mod authority;
 #[cfg(feature = "dynamic-acl")]
@@ -37,7 +37,7 @@ pub use authority::{
 #[cfg(feature = "dynamic-acl")]
 pub use capability_builder::{CapabilityBuilder, RuntimeCapability};
 pub use channel::{Channel, JavaScriptChannelId};
-pub use command::{CommandArg, CommandItem, private};
+pub use command::{private, CommandArg, CommandItem};
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;

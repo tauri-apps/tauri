@@ -10,34 +10,34 @@ use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalRect, PhysicalSize},
   webview::PendingWebview,
 };
-pub use tauri_utils::{WindowEffect as Effect, WindowEffectState as EffectState, config::Color};
+pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
 #[cfg(desktop)]
 pub use crate::runtime::ProgressBarStatus;
 
-#[cfg(desktop)]
 use crate::{
-  CursorIcon,
-  image::Image,
-  menu::{ContextMenu, Menu, MenuId},
-  runtime::UserAttentionType,
-};
-use crate::{
-  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
-  WindowEvent,
   app::AppHandle,
   event::{Event, EventId, EventTarget},
   ipc::{CommandArg, CommandItem, InvokeError},
   manager::{AppManager, EmitPayload},
   runtime::{
-    RuntimeHandle, WindowDispatch,
     dpi::{Position, Size},
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
+    RuntimeHandle, WindowDispatch,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
+  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
+  WindowEvent,
+};
+#[cfg(desktop)]
+use crate::{
+  image::Image,
+  menu::{ContextMenu, Menu, MenuId},
+  runtime::UserAttentionType,
+  CursorIcon,
 };
 
 use serde::Serialize;

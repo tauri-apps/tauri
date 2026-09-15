@@ -4,7 +4,7 @@
 
 use super::{ActionResult, SectionItem};
 use crate::helpers::cargo_manifest::{
-  CrateVersion, cargo_manifest_and_lock, crate_latest_version, crate_version,
+  cargo_manifest_and_lock, crate_latest_version, crate_version, CrateVersion,
 };
 use colored::Colorize;
 use std::path::{Path, PathBuf};

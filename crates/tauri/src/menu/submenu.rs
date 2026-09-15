@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use super::Submenu;
 use super::run_item_main_thread;
-use super::{IsMenuItem, MenuItemKind, sealed::ContextMenuBase};
+use super::Submenu;
+use super::{sealed::ContextMenuBase, IsMenuItem, MenuItemKind};
 use crate::menu::NativeIcon;
 use crate::menu::SubmenuInner;
 use crate::run_main_thread;

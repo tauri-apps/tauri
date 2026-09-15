@@ -3,27 +3,27 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Error, Settings,
   bundle::{
     settings::Arch,
     windows::{
       sign::{should_sign, sign_command, try_sign},
       util::{
-        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
-        download_webview2_offline_installer, vc_runtime_dlls,
+        download_webview2_bootstrapper, download_webview2_offline_installer, vc_runtime_dlls,
+        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
       },
     },
   },
-  error::{ErrorExt, bail},
+  error::{bail, ErrorExt},
   utils::{
+    http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
     CommandExt,
-    http_utils::{HashAlgorithm, download_and_verify, verify_file_hash},
   },
+  Error, Settings,
 };
 use tauri_utils::display_path;
 
 use crate::error::Context;
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{

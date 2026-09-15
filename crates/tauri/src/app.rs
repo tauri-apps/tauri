@@ -3,23 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
-  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
   image::Image,
   ipc::{
-    CallbackFn, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler, InvokeResponseBody,
-    channel::ChannelDataIpcQueue,
+    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
+    InvokeHandler, InvokeResponseBody,
   },
-  manager::{AppManager, Asset, webview::UriSchemeProtocol},
+  manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
   resources::ResourceTable,
   runtime::{
-    ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
     window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
+    ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::{Env, config::Config},
+  utils::{config::Config, Env},
   webview::PageLoadPayload,
+  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
+  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]
@@ -27,27 +27,27 @@ use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
-use serialize_to_javascript::{DefaultTemplate, Template, default_template};
+use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  RuntimeInitArgs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
+  RuntimeInitArgs,
 };
-use tauri_utils::{PackageInfo, assets::AssetsIter};
+use tauri_utils::{assets::AssetsIter, PackageInfo};
 
 use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex, MutexGuard, atomic, mpsc::Sender},
+  sync::{atomic, mpsc::Sender, Arc, Mutex, MutexGuard},
   thread::ThreadId,
   time::Duration,
 };
 
-use crate::{Event, EventTarget, event::EventId, runtime::RuntimeHandle};
+use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
@@ -2345,7 +2345,7 @@ tauri::Builder::default()
       msg_hook: {
         let menus = manager.menu.menus.clone();
         Some(Box::new(move |msg| {
-          use windows::Win32::UI::WindowsAndMessaging::{HACCEL, MSG, TranslateAcceleratorW};
+          use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
           unsafe {
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {

@@ -17,18 +17,18 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::fs::{File, read_to_string};
+use std::fs::{read_to_string, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 use handlebars::Handlebars;
-use image::{self, ImageDecoder, codecs::png::PngDecoder};
+use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use serde::Serialize;
 
 use crate::{
-  Settings,
   error::Context,
   utils::{self, fs_utils},
+  Settings,
 };
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]

@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  CommandExt, ConfigValue, Error, Result,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
     command_env,
-    config::{BeforeDevCommand, ConfigMetadata, FrontendDist, get_config, reload_config},
+    config::{get_config, reload_config, BeforeDevCommand, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
   interface::{AppInterface, ExitReason},
+  CommandExt, ConfigValue, Error, Result,
 };
 
 use clap::{ArgAction, Parser};
@@ -22,10 +22,10 @@ use std::{
   env::set_current_dir,
   net::{IpAddr, Ipv4Addr},
   path::PathBuf,
-  process::{Command, Stdio, exit},
+  process::{exit, Command, Stdio},
   sync::{
-    OnceLock,
     atomic::{AtomicBool, Ordering},
+    OnceLock,
   },
 };
 

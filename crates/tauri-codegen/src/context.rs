@@ -9,7 +9,7 @@ use std::{ffi::OsStr, str::FromStr};
 
 use crate::{
   embedded_assets::{
-    AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult, ensure_out_dir,
+    ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
   },
   image::CachedIcon,
 };
@@ -20,12 +20,12 @@ use sha2::{Digest, Sha256};
 use syn::Expr;
 use tauri_utils::{
   acl::{
-    ACL_MANIFESTS_FILE_NAME, CAPABILITIES_FILE_NAME, get_capabilities, manifest::Manifest,
-    resolved::Resolved,
+    get_capabilities, manifest::Manifest, resolved::Resolved, ACL_MANIFESTS_FILE_NAME,
+    CAPABILITIES_FILE_NAME,
   },
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
-  html2::{Document, inject_nonce_token, parse_doc, serialize_doc},
+  html2::{inject_nonce_token, parse_doc, serialize_doc, Document},
   platform::Target,
   tokens::{map_lit, str_lit},
 };

@@ -7,8 +7,8 @@
 use std::sync::Arc;
 
 use napi::{
-  Error, Result, Status,
   threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
+  Error, Result, Status,
 };
 
 #[napi_derive::napi]

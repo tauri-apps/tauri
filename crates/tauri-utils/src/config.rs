@@ -25,13 +25,13 @@
 
 use http::response::Builder;
 #[cfg(feature = "schema")]
-use schemars::JsonSchema;
-#[cfg(feature = "schema")]
 use schemars::schema::Schema;
+#[cfg(feature = "schema")]
+use schemars::JsonSchema;
 use semver::Version;
 use serde::{
-  Deserialize, Serialize, Serializer,
   de::{Deserializer, Error as DeError, Visitor},
+  Deserialize, Serialize, Serializer,
 };
 use serde_json::Value as JsonValue;
 use serde_untagged::UntaggedEnumVisitor;
@@ -61,7 +61,7 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability};
+use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
 
 pub use self::parse::parse;
 
@@ -3850,7 +3850,7 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
   use proc_macro2::TokenStream;
-  use quote::{ToTokens, TokenStreamExt, quote};
+  use quote::{quote, ToTokens, TokenStreamExt};
   use std::convert::identity;
 
   impl ToTokens for WebviewUrl {

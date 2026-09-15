@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Error, Result,
   error::{Context, ErrorExt},
   helpers::template,
+  Error, Result,
 };
 use cargo_mobile2::{
   android::{
@@ -22,7 +22,7 @@ use cargo_mobile2::{
   },
 };
 use handlebars::Handlebars;
-use include_dir::{Dir, include_dir};
+use include_dir::{include_dir, Dir};
 
 use std::{
   ffi::OsStr,

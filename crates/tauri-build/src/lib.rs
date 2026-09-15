@@ -16,7 +16,7 @@ use cargo_toml::Manifest;
 
 use tauri_utils::{
   config::{BundleResources, Config, WebviewInstallMode},
-  resources::{ResourcePaths, external_binaries},
+  resources::{external_binaries, ResourcePaths},
 };
 
 use std::{

@@ -24,14 +24,14 @@
 
 use super::{
   icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file},
-  sign::{SignTarget, notarize, notarize_auth, notarize_without_stapling, sign},
+  sign::{notarize, notarize_auth, notarize_without_stapling, sign, SignTarget},
 };
 use crate::{
-  Error::GenericError,
-  Settings,
   bundle::settings::PlistKind,
   error::{Context, ErrorExt, NotarizeAuthError},
-  utils::{CommandExt, fs_utils},
+  utils::{fs_utils, CommandExt},
+  Error::GenericError,
+  Settings,
 };
 
 use std::{
@@ -654,13 +654,11 @@ mod tests {
 
     let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
     assert!(result.is_err());
-    assert!(
-      result
-        .err()
-        .unwrap()
-        .to_string()
-        .contains("Failed to copy directory")
-    );
+    assert!(result
+      .err()
+      .unwrap()
+      .to_string()
+      .contains("Failed to copy directory"));
   }
 
   #[test]
@@ -673,12 +671,10 @@ mod tests {
 
     let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
     assert!(result.is_err());
-    assert!(
-      result
-        .err()
-        .unwrap()
-        .to_string()
-        .contains("is not a file or directory.")
-    );
+    assert!(result
+      .err()
+      .unwrap()
+      .to_string()
+      .contains("is not a file or directory."));
   }
 }

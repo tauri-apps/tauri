@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Error,
   error::{Context, ErrorExt},
+  Error,
 };
 use std::path::{Path, PathBuf};
 

@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  ConfigValue, Result,
   bundle::BundleFormat,
   error::{Context, ErrorExt},
   helpers::{
     self,
     app_paths::Dirs,
-    config::{ConfigMetadata, FrontendDist, get_config},
+    config::{get_config, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
-  interface::{AppInterface, rust::get_cargo_target_dir},
+  interface::{rust::get_cargo_target_dir, AppInterface},
+  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;

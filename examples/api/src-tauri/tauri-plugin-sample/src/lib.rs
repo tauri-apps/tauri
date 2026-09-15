@@ -5,8 +5,8 @@
 use serde::Deserialize;
 use std::path::PathBuf;
 use tauri::{
-  Manager, Runtime, State,
   plugin::{Builder, TauriPlugin},
+  Manager, Runtime, State,
 };
 
 pub use models::*;

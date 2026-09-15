@@ -11,7 +11,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
-  sync::{Arc, Mutex, mpsc::sync_channel},
+  sync::{mpsc::sync_channel, Arc, Mutex},
   time::Duration,
 };
 
@@ -25,16 +25,16 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
 use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
-  ConfigValue,
-  error::{Context, Error, ErrorExt, bail},
+  error::{bail, Context, Error, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{BundleResources, Config, ConfigMetadata, nsis_settings, reload_config, wix_settings},
+    config::{nsis_settings, reload_config, wix_settings, BundleResources, Config, ConfigMetadata},
   },
+  ConfigValue,
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -44,7 +44,7 @@ pub mod installation;
 pub mod manifest;
 use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
-use manifest::{Manifest, rewrite_manifest};
+use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {

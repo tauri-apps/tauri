@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use swift_rs::{SRString, SwiftArg, swift};
+use swift_rs::{swift, SRString, SwiftArg};
 
 use std::{
   ffi::c_void,

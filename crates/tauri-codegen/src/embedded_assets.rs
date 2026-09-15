@@ -4,7 +4,7 @@
 
 use base64::Engine;
 use proc_macro2::TokenStream;
-use quote::{ToTokens, TokenStreamExt, quote};
+use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
 use std::{
   collections::BTreeMap,

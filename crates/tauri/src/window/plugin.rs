@@ -5,9 +5,9 @@
 //! The tauri plugin to create and manipulate windows from JS.
 
 use crate::{
-  Runtime, Window,
   plugin::{Builder, TauriPlugin},
   sealed::ManagerBase,
+  Runtime, Window,
 };
 
 fn get_window<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<Window<R>> {
@@ -53,8 +53,9 @@ mod commands {
 
   use super::*;
   use crate::{
-    AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme, Window, command,
-    sealed::ManagerBase, utils::config::WindowConfig, window::Color, window::WindowBuilder,
+    command, sealed::ManagerBase, utils::config::WindowConfig, window::Color,
+    window::WindowBuilder, AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
+    Theme, Window,
   };
 
   #[command(root = "crate")]
@@ -125,8 +126,8 @@ mod desktop_commands {
 
   use super::*;
   use crate::{
-    CursorIcon, Manager, PhysicalPosition, Position, UserAttentionType, Webview, command,
-    utils::config::WindowEffectsConfig, window::ProgressBarState,
+    command, utils::config::WindowEffectsConfig, window::ProgressBarState, CursorIcon, Manager,
+    PhysicalPosition, Position, UserAttentionType, Webview,
   };
 
   getter!(is_fullscreen, bool);
@@ -234,7 +235,7 @@ mod desktop_commands {
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  use serialize_to_javascript::{DefaultTemplate, Template, default_template};
+  use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
   let mut init_script = String::new();
 

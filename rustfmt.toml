@@ -7,6 +7,7 @@ reorder_imports = true
 reorder_modules = true
 remove_nested_parens = true
 edition = "2024"
+style_edition = "2021"
 merge_derives = true
 use_try_shorthand = false
 use_field_init_shorthand = false

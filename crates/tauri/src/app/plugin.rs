@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri_utils::{Theme, config::BundleType};
+use tauri_utils::{config::BundleType, Theme};
 
 use crate::{
-  AppHandle, Manager, ResourceId, Runtime, Webview, command,
+  command,
   plugin::{Builder, TauriPlugin},
+  AppHandle, Manager, ResourceId, Runtime, Webview,
 };
 
 #[command(root = "crate")]

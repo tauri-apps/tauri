@@ -10,8 +10,9 @@ use commands::{cmd, invoke, message, renamed_command_in_mod, resolver};
 
 use serde::Deserialize;
 use tauri::{
-  State, Window, command,
+  command,
   ipc::{Request, Response},
+  State, Window,
 };
 
 #[derive(Debug)]

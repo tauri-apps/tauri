@@ -5,10 +5,10 @@
 
 use super::{super::debian, write_and_make_executable};
 use crate::{
-  Settings,
   bundle::settings::Arch,
   error::Context,
-  utils::{CommandExt, fs_utils, http_utils::download},
+  utils::{fs_utils, http_utils::download, CommandExt},
+  Settings,
 };
 use std::{
   fs,

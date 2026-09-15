@@ -4,7 +4,7 @@
 
 use std::{fmt::Display, str::FromStr};
 
-use crate::{Result, error::Context};
+use crate::{error::Context, Result};
 
 pub fn input<T>(
   prompt: &str,

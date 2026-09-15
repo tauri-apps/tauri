@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{MobileTarget, detect_target_ok, ensure_init, env, get_app, get_config, read_options};
+use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
-  Error, Result,
   error::{Context, ErrorExt},
   helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
   interface::AppInterface,
   mobile::CliOptions,
+  Error, Result,
 };
 use clap::{ArgAction, Parser};
 
 use cargo_mobile2::{
   android::{adb, device::ConnectionStatus, target::Target},
   opts::Profile,
-  target::{TargetTrait, call_for_targets_with_fallback},
+  target::{call_for_targets_with_fallback, TargetTrait},
 };
 
 use std::path::Path;

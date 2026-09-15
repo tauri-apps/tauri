@@ -30,13 +30,13 @@ mod remove;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
-use env_logger::Builder;
 use env_logger::fmt::style::{AnsiColor, Style};
+use env_logger::Builder;
 pub use error::{Error, ErrorExt, Result};
 use log::Level;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
-use std::process::{Command, ExitStatus, Output, Stdio, exit};
+use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
   ffi::OsString,
   fmt::Display,

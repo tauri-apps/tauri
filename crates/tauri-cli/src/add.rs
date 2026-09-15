@@ -7,13 +7,14 @@ use colored::Colorize;
 use regex::Regex;
 
 use crate::{
-  Result, acl,
+  acl,
   error::ErrorExt,
   helpers::{
-    app_paths::{Dirs, resolve_frontend_dir},
+    app_paths::{resolve_frontend_dir, Dirs},
     cargo,
     npm::PackageManager,
   },
+  Result,
 };
 
 use std::process::Command;

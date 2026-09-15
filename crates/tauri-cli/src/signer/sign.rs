@@ -5,9 +5,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-  Result,
   error::Context,
   helpers::updater_signature::{secret_key, sign_file},
+  Result,
 };
 use base64::Engine;
 use clap::Parser;

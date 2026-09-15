@@ -8,20 +8,20 @@ use std::{
   sync::OnceLock,
 };
 
-use clap::{ArgAction, Parser, ValueEnum, builder::PossibleValue};
+use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
 use tauri_bundler::PackageType;
 use tauri_utils::platform::Target;
 
 use crate::{
-  ConfigValue,
   error::{Context, ErrorExt},
   helpers::{
     self,
     app_paths::Dirs,
-    config::{ConfigMetadata, get_config},
+    config::{get_config, ConfigMetadata},
     updater_signature,
   },
   interface::{AppInterface, AppSettings},
+  ConfigValue,
 };
 
 #[derive(Debug, Clone)]

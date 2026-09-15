@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::PluginIosFramework;
-use crate::{Result, error::Context, helpers::template};
+use crate::{error::Context, helpers::template, Result};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 
@@ -11,7 +11,7 @@ use std::{
   collections::BTreeMap,
   env::current_dir,
   ffi::{OsStr, OsString},
-  fs::{File, create_dir_all},
+  fs::{create_dir_all, File},
   path::{Component, PathBuf},
 };
 

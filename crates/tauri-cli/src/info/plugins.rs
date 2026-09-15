@@ -9,15 +9,15 @@ use std::{
 };
 
 use crate::{
-  Error,
   helpers::{
     self,
     cargo_manifest::{cargo_manifest_and_lock, crate_version},
     npm::PackageManager,
   },
+  Error,
 };
 
-use super::{SectionItem, packages_nodejs, packages_rust};
+use super::{packages_nodejs, packages_rust, SectionItem};
 
 #[derive(Debug)]
 pub struct InstalledPackage {

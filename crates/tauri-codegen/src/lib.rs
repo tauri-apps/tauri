@@ -10,16 +10,16 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 
-pub use self::context::{ContextData, context_codegen};
-use crate::embedded_assets::{EmbeddedAssetsError, ensure_out_dir};
+pub use self::context::{context_codegen, ContextData};
+use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError};
 use proc_macro2::TokenStream;
-use quote::{ToTokens, TokenStreamExt, quote};
+use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   borrow::Cow,
   fmt::{self, Write},
   path::{Path, PathBuf},
 };
-pub use tauri_utils::config::{Config, parse::ConfigError};
+pub use tauri_utils::config::{parse::ConfigError, Config};
 use tauri_utils::platform::Target;
 use tauri_utils::write_if_changed;
 

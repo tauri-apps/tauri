@@ -11,8 +11,8 @@ use std::{
   cell::Cell,
   collections::{HashMap, HashSet},
   sync::{
-    Arc, Mutex,
     atomic::{AtomicU32, Ordering},
+    Arc, Mutex,
   },
 };
 

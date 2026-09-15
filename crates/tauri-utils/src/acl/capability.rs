@@ -8,8 +8,8 @@ use std::{path::Path, str::FromStr};
 
 use crate::{acl::Identifier, platform::Target};
 use serde::{
-  Deserialize, Deserializer, Serialize,
   de::{Error, IntoDeserializer},
+  Deserialize, Deserializer, Serialize,
 };
 use serde_untagged::UntaggedEnumVisitor;
 
@@ -327,7 +327,7 @@ mod build {
   use std::convert::identity;
 
   use proc_macro2::TokenStream;
-  use quote::{ToTokens, TokenStreamExt, quote};
+  use quote::{quote, ToTokens, TokenStreamExt};
 
   use super::*;
   use crate::{literal_struct, tokens::*};

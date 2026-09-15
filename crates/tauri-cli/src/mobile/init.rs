@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{Target, get_app};
+use super::{get_app, Target};
 use crate::{
-  ConfigValue, Result,
   helpers::app_paths::Dirs,
   helpers::{config::get_config as get_tauri_config, template::JsonMap},
   interface::AppInterface,
+  ConfigValue, Result,
 };
 use cargo_mobile2::{
   config::app::App,

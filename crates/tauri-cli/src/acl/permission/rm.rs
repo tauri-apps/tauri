@@ -5,13 +5,13 @@
 use std::path::Path;
 
 use clap::Parser;
-use tauri_utils::acl::{PERMISSION_SCHEMA_FILE_NAME, manifest::PermissionFile};
+use tauri_utils::acl::{manifest::PermissionFile, PERMISSION_SCHEMA_FILE_NAME};
 
 use crate::{
-  Result,
   acl::FileFormat,
   error::{Context, ErrorExt},
   helpers::app_paths::resolve_tauri_dir,
+  Result,
 };
 
 fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {

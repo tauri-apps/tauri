@@ -5,7 +5,7 @@
 //! Schema generation for ACL items.
 
 use std::{
-  collections::{BTreeMap, btree_map::Values},
+  collections::{btree_map::Values, BTreeMap},
   fs,
   path::{Path, PathBuf},
   slice::Iter,
@@ -17,9 +17,9 @@ use super::{Error, PERMISSION_SCHEMAS_FOLDER_NAME};
 use crate::{platform::Target, write_if_changed};
 
 use super::{
-  PERMISSION_SCHEMA_FILE_NAME, Permission, PermissionSet,
   capability::CapabilityFile,
   manifest::{Manifest, PermissionFile},
+  Permission, PermissionSet, PERMISSION_SCHEMA_FILE_NAME,
 };
 
 /// Capability schema file name.

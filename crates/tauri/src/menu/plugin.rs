@@ -9,12 +9,13 @@ use tauri_runtime::dpi::Position;
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{
-  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window, command,
+  command,
   image::JsImage,
-  ipc::{Channel, channel::JavaScriptChannelId},
+  ipc::{channel::JavaScriptChannelId, Channel},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   sealed::ManagerBase,
+  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window,
 };
 use tauri_macros::do_menu_item;
 

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{ErrorExt, Result, error::Context};
+use crate::{error::Context, ErrorExt, Result};
 
 use serde_json::{Map, Value};
 use tauri_utils::acl::{
-  Scopes, Value as AclValue,
   capability::{Capability, PermissionEntry},
+  Scopes, Value as AclValue,
 };
 
 use std::{
@@ -407,7 +407,7 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
             csp.insert(
               "connect-src".into(),
               tauri_utils::config_v1::CspDirectiveSources::List(vec![
-                "ipc: http://ipc.localhost".to_string(),
+                "ipc: http://ipc.localhost".to_string()
               ]),
             );
           }
@@ -1137,12 +1137,10 @@ mod test {
       migrated["app"]["security"]["csp"]["default-src"],
       original["tauri"]["security"]["csp"]["default-src"]
     );
-    assert!(
-      migrated["app"]["security"]["csp"]["connect-src"]
-        .as_array()
-        .expect("connect-src isn't an array")
-        .contains(&"ipc: http://ipc.localhost".into())
-    );
+    assert!(migrated["app"]["security"]["csp"]["connect-src"]
+      .as_array()
+      .expect("connect-src isn't an array")
+      .contains(&"ipc: http://ipc.localhost".into()));
   }
 
   #[test]

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri::{State, command};
+use tauri::{command, State};
 
 #[command]
 pub fn cmd(_argument: String) {}

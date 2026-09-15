@@ -9,11 +9,11 @@ use clap::{ArgAction, Parser};
 
 use super::{device_prompt, env};
 use crate::{
-  ConfigValue, Result,
   error::Context,
-  helpers::config::{ConfigMetadata, get_config as get_tauri_config},
+  helpers::config::{get_config as get_tauri_config, ConfigMetadata},
   interface::{DevProcess, WatcherOptions},
   mobile::{DevChild, TargetDevice},
+  ConfigValue, Result,
 };
 
 #[derive(Debug, Clone, Parser)]

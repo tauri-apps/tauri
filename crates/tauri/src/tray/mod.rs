@@ -11,7 +11,7 @@ use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
 use crate::{
-  AppHandle, Manager, PhysicalPosition, Rect, Runtime, image::Image, menu::run_item_main_thread,
+  image::Image, menu::run_item_main_thread, AppHandle, Manager, PhysicalPosition, Rect, Runtime,
 };
 use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;

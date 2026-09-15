@@ -7,7 +7,7 @@
 pub use crate::webview_permissions::{PermissionKind, PermissionResponse};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use crate::window::WindowId;
-use crate::{Rect, Runtime, UserEvent, window::is_label_valid};
+use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
 use tauri_utils::config::{

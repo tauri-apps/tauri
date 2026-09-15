@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Result,
   error::{Error, ErrorExt},
+  Result,
 };
 
 use std::{fs::read_dir, path::PathBuf, process::Command};

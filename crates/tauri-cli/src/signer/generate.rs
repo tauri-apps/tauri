@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Result,
   helpers::updater_signature::{generate_key, save_keypair},
+  Result,
 };
 use clap::Parser;
 use std::path::PathBuf;

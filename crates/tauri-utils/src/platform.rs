@@ -8,7 +8,7 @@ use std::{fmt::Display, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Env, PackageInfo, config::BundleType};
+use crate::{config::BundleType, Env, PackageInfo};
 
 mod starting_binary;
 
@@ -372,7 +372,7 @@ pub fn bundle_type() -> Option<BundleType> {
 #[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use proc_macro2::TokenStream;
-  use quote::{ToTokens, TokenStreamExt, quote};
+  use quote::{quote, ToTokens, TokenStreamExt};
 
   use super::*;
 

@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  Result,
   error::{Context, Error, ErrorExt},
+  Result,
 };
 
 use std::{
   collections::HashMap,
-  fs::{File, create_dir_all},
+  fs::{create_dir_all, File},
   io::{BufWriter, Write},
   path::{Path, PathBuf},
   str::FromStr,
@@ -19,13 +19,12 @@ use std::{
 use clap::{Parser, ValueEnum};
 use icns::{IconFamily, IconType};
 use image::{
-  DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgba,
   codecs::{
     ico::{IcoEncoder, IcoFrame},
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open,
+  open, DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgba,
 };
 use rayon::iter::ParallelIterator;
 use resvg::{tiny_skia, usvg};

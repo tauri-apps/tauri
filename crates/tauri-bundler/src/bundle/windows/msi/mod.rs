@@ -9,19 +9,19 @@ use crate::{
     windows::{
       sign::{should_sign, try_sign},
       util::{
-        WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
-        download_webview2_offline_installer, vc_runtime_dlls,
+        download_webview2_bootstrapper, download_webview2_offline_installer, vc_runtime_dlls,
+        WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
       },
     },
   },
   error::Context,
   utils::{
-    CommandExt,
     fs_utils::copy_file,
-    http_utils::{HashAlgorithm, download_and_verify, extract_zip},
+    http_utils::{download_and_verify, extract_zip, HashAlgorithm},
+    CommandExt,
   },
 };
-use handlebars::{Handlebars, html_escape, to_json};
+use handlebars::{html_escape, to_json, Handlebars};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{

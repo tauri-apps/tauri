@@ -12,7 +12,7 @@ use tauri_utils::{
     RpmCompression,
   },
   platform::Target as TargetPlatform,
-  resources::{ResourcePaths, external_binaries},
+  resources::{external_binaries, ResourcePaths},
 };
 
 use std::{

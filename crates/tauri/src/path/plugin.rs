@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::{Component, MAIN_SEPARATOR, Path, PathBuf};
+use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
 
-use serialize_to_javascript::{DefaultTemplate, Template, default_template};
+use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
 use super::{BaseDirectory, Error, PathResolver, Result};
 use crate::{
-  AppHandle, Manager, Runtime, State, command,
+  command,
   plugin::{Builder, TauriPlugin},
+  AppHandle, Manager, Runtime, State,
 };
 
 /// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util.
@@ -152,7 +153,11 @@ pub fn join(paths: Vec<String>) -> String {
     .to_string_lossy()
     .to_string();
 
-  if p.is_empty() { ".".into() } else { p }
+  if p.is_empty() {
+    ".".into()
+  } else {
+    p
+  }
 }
 
 #[command(root = "crate")]

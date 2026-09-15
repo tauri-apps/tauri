@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{MobileTarget, ensure_init, env, get_app, get_config, read_options};
+use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
-  Error, Result,
   error::{Context, ErrorExt},
   helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
   interface::{AppInterface, Options as InterfaceOptions},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
+  Error, Result,
 };
 
 use cargo_mobile2::{apple::target::Target, opts::Profile, target::TargetTrait};
@@ -202,14 +202,12 @@ pub fn command(options: Options) -> Result<()> {
     options.platform == "iOS Simulator" || options.arches.contains(&"Simulator".to_string());
   let arches = if simulator {
     // when compiling for the simulator, we don't need to build other targets
-    vec![
-      if cfg!(target_arch = "aarch64") {
-        "arm64"
-      } else {
-        "x86_64"
-      }
-      .to_string(),
-    ]
+    vec![if cfg!(target_arch = "aarch64") {
+      "arm64"
+    } else {
+      "x86_64"
+    }
+    .to_string()]
   } else {
     options.arches
   };

@@ -3,24 +3,24 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  device_prompt, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  open_and_wait, synchronize_project_config, MobileTarget, ProjectConfig,
+  MobileTarget, ProjectConfig, device_prompt, ensure_init, env, get_app, get_config,
+  inject_resources, load_pbxproj, open_and_wait, synchronize_project_config,
 };
 use crate::{
+  ConfigValue, Result,
   dev::Options as DevOptions,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
     plist::merge_plist,
   },
   interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    ios::ensure_ios_runtime_installed, use_network_address_for_dev_url, write_options, CliOptions,
-    DevChild, DevHost, DevProcess,
+    CliOptions, DevChild, DevHost, DevProcess, ios::ensure_ios_runtime_installed,
+    use_network_address_for_dev_url, write_options,
   },
-  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 

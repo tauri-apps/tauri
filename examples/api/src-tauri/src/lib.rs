@@ -10,9 +10,9 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{
+  App, Emitter, Listener, Runtime, WebviewUrl,
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
-  App, Emitter, Listener, Runtime, WebviewUrl,
 };
 #[allow(unused)]
 use tauri::{Manager, RunEvent};

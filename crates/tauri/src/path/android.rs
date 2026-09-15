@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::Result;
-use crate::{plugin::PluginHandle, Runtime};
+use crate::{Runtime, plugin::PluginHandle};
 use std::path::{Path, PathBuf};
 
 /// A helper class to access the mobile path APIs.

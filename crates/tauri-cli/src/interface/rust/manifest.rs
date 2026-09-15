@@ -250,7 +250,10 @@ fn inject_features(
         .and_then(|v| v.as_bool())
         .unwrap_or_default()
       {
-        log::info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", dependency.features.iter().join(", "));
+        log::info!(
+          "`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]",
+          dependency.features.iter().join(", ")
+        );
       } else {
         let all_cli_managed_features = dependency.all_cli_managed_features.clone();
         let is_managed_feature: Box<dyn Fn(&str) -> bool> =

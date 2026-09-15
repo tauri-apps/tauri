@@ -24,7 +24,7 @@ use std::{
   fs::{create_dir, create_dir_all, read_dir, write},
   io::Cursor,
   path::{Path, PathBuf},
-  process::{exit, Command},
+  process::{Command, exit},
   sync::OnceLock,
   thread::sleep,
   time::Duration,
@@ -33,14 +33,14 @@ use sublime_fuzzy::best_match;
 use tauri_utils::resources::ResourcePaths;
 
 use super::{
-  ensure_init, get_app, init::command as init_command, log_finished, read_options, CliOptions,
-  OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
+  CliOptions, MIN_DEVICE_MATCH_SCORE, OptionsHandle, Target as MobileTarget, ensure_init, get_app,
+  init::command as init_command, log_finished, read_options,
 };
 use crate::{
+  ConfigValue, Error, ErrorExt, Result,
   error::Context,
   helpers::config::{BundleResources, Config as TauriConfig},
   mobile::android::check_java_gradle_versions::check_java_gradle_versions,
-  ConfigValue, Error, ErrorExt, Result,
 };
 
 mod android_studio_script;
@@ -183,9 +183,9 @@ pub fn get_config(
       let _ = create_dir(src_main_dir.join("generated"));
     } else {
       log::error!(
-      "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
-      src_main_dir.display()
-    );
+        "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
+        src_main_dir.display()
+      );
       exit(1);
     }
   }
@@ -496,7 +496,9 @@ fn ensure_java() -> Result<()> {
       // FIXME: Audit that the environment access only happens in single-threaded code.
       unsafe { std::env::set_var("JAVA_HOME", default_java_home) };
     } else if which::which("java").is_err() {
-      crate::error::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");
+      crate::error::bail!(
+        "Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding"
+      );
     }
   }
 
@@ -530,7 +532,9 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
         default_android_home.display()
       );
     } else if non_interactive {
-      crate::error::bail!("Android SDK not found. Make sure the SDK and NDK are installed and the ANDROID_HOME and NDK_HOME environment variables are set.");
+      crate::error::bail!(
+        "Android SDK not found. Make sure the SDK and NDK are installed and the ANDROID_HOME and NDK_HOME environment variables are set."
+      );
     } else {
       log::error!(
         "Android SDK not found at {}",
@@ -557,7 +561,9 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
         .unwrap_or_default();
 
         if !granted_permission_to_install {
-          crate::error::bail!("Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
+          crate::error::bail!(
+            "Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android"
+          );
         }
 
         download_cmdline_tools(&extract_path)?;
@@ -571,11 +577,16 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
         .unwrap_or_default();
 
         if !granted_permission_to_install {
-          crate::error::bail!("Skipping Android Studio SDK installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
+          crate::error::bail!(
+            "Skipping Android Studio SDK installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android"
+          );
         }
       }
 
-      log::info!("Running sdkmanager to install platform-tools, android-{SDK_VERSION} and ndk-{NDK_VERSION} on {}...", default_android_home.display());
+      log::info!(
+        "Running sdkmanager to install platform-tools, android-{SDK_VERSION} and ndk-{NDK_VERSION} on {}...",
+        default_android_home.display()
+      );
       let status = Command::new(&sdk_manager_path)
         .arg(format!("--sdk_root={}", default_android_home.display()))
         .arg("--install")
@@ -634,7 +645,9 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
     // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::set_var("NDK_HOME", ndk) };
   } else if non_interactive {
-    crate::error::bail!("Android NDK not found. Make sure the NDK is installed and the NDK_HOME environment variable is set.");
+    crate::error::bail!(
+      "Android NDK not found. Make sure the NDK is installed and the NDK_HOME environment variable is set."
+    );
   } else {
     let sdk_manager_path = android_home
       .join("cmdline-tools/bin/sdkmanager")
@@ -650,7 +663,9 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
       .unwrap_or_default();
 
       if !granted_permission_to_install {
-        crate::error::bail!("Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
+        crate::error::bail!(
+          "Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android"
+        );
       }
 
       download_cmdline_tools(&android_home)?;
@@ -664,7 +679,9 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
       .unwrap_or_default();
 
       if !granted_permission_to_install {
-        crate::error::bail!("Skipping Android Studio NDK installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
+        crate::error::bail!(
+          "Skipping Android Studio NDK installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android"
+        );
       }
     }
 
@@ -885,7 +902,9 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
             }
 
             if tries >= 3 {
-              log::info!("Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)");
+              log::info!(
+                "Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)"
+              );
             } else {
               log::info!("Waiting for emulator to start...");
             }
@@ -1070,13 +1089,13 @@ fn generate_tauri_properties(
 
           if version_code == 0 {
             crate::error::bail!(
-          "You must change the `version` in `tauri.conf.json`. The default value `0.0.0` is not allowed for Android package and must be at least `0.0.1`."
-        );
+              "You must change the `version` in `tauri.conf.json`. The default value `0.0.0` is not allowed for Android package and must be at least `0.0.1`."
+            );
           } else if version_code > 2100000000 {
             crate::error::bail!(
-          "Invalid version code {}. Version code must be between 1 and 2100000000. You must change the `version` in `tauri.conf.json`.",
-          version_code
-        );
+              "Invalid version code {}. Version code must be between 1 and 2100000000. You must change the `version` in `tauri.conf.json`.",
+              version_code
+            );
           }
 
           app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
@@ -1214,8 +1233,10 @@ android {
       .unwrap();
     let closing_brace = find_matching_brace(build_gradle, opening_brace).unwrap();
 
-    assert!(build_gradle[opening_brace..closing_brace]
-      .contains(r#"manifestPlaceholders["usesCleartextTraffic"] = "true""#));
+    assert!(
+      build_gradle[opening_brace..closing_brace]
+        .contains(r#"manifestPlaceholders["usesCleartextTraffic"] = "true""#)
+    );
 
     let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
 

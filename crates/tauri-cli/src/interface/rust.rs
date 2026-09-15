@@ -11,7 +11,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
-  sync::{mpsc::sync_channel, Arc, Mutex},
+  sync::{Arc, Mutex, mpsc::sync_channel},
   time::Duration,
 };
 
@@ -25,16 +25,16 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
+use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
 
 use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
-  error::{bail, Context, Error, ErrorExt},
+  ConfigValue,
+  error::{Context, Error, ErrorExt, bail},
   helpers::{
     app_paths::Dirs,
-    config::{nsis_settings, reload_config, wix_settings, BundleResources, Config, ConfigMetadata},
+    config::{BundleResources, Config, ConfigMetadata, nsis_settings, reload_config, wix_settings},
   },
-  ConfigValue,
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -44,7 +44,7 @@ pub mod installation;
 pub mod manifest;
 use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
-use manifest::{rewrite_manifest, Manifest};
+use manifest::{Manifest, rewrite_manifest};
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
@@ -1063,7 +1063,7 @@ impl RustAppSettings {
       None => {
         return Err(crate::Error::GenericError(
           "No package info in the config file".to_owned(),
-        ))
+        ));
       }
     };
 

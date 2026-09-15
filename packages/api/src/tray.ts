@@ -4,7 +4,7 @@
 
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
-import { Image, transformImage } from './image'
+import { JsImage, transformImage } from './image'
 import { PhysicalPosition, PhysicalSize } from './dpi'
 
 export type MouseButtonState = 'Up' | 'Down'
@@ -86,7 +86,7 @@ export interface TrayIconOptions {
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
-  icon?: string | Uint8Array | ArrayBuffer | number[] | Image
+  icon?: JsImage
   /** The tray icon tooltip */
   tooltip?: string
   /**
@@ -221,9 +221,7 @@ export class TrayIcon extends Resource {
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
-  async setIcon(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[] | null
-  ): Promise<void> {
+  async setIcon(icon: JsImage | null): Promise<void> {
     let trayIcon = null
     if (icon) {
       trayIcon = transformImage(icon)
@@ -307,7 +305,7 @@ export class TrayIcon extends Resource {
    * ```
    */
   async setIconWithAsTemplate(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[] | null,
+    icon: JsImage | null,
     asTemplate: boolean
   ): Promise<void> {
     let trayIcon = null

@@ -469,7 +469,7 @@ fn allowlist_to_permissions(
   allowlist: tauri_utils::config_v1::AllowlistConfig,
 ) -> Vec<PermissionEntry> {
   macro_rules! permissions {
-    ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr) => {{
+    ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr_2021) => {{
       if $allowlist.all || $allowlist.$object.all || $allowlist.$object.$field {
         $permissions_list.push(PermissionEntry::PermissionRef(
           $associated_permission.to_string().try_into().unwrap(),

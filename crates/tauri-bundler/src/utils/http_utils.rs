@@ -197,17 +197,21 @@ mod tests {
 
   #[test]
   fn test_generate_mirror_url_no_env_var() {
-    env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE");
+    // FIXME: Audit that the environment access only happens in single-threaded code.
+    unsafe { env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE") };
 
     assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
   }
 
   #[test]
   fn test_generate_mirror_url_non_github_url() {
-    env::set_var(
-      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
-      "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
-    );
+    // FIXME: Audit that the environment access only happens in single-threaded code.
+    unsafe {
+      env::set_var(
+        "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
+        "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+      )
+    };
 
     assert!(generate_github_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
   }
@@ -231,7 +235,8 @@ mod tests {
         ];
 
     for case in test_cases {
-      env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template);
+      // FIXME: Audit that the environment access only happens in single-threaded code.
+      unsafe { env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template) };
       assert_eq!(
         generate_github_mirror_url_from_template(GITHUB_ASSET_URL),
         Some(case.expected_url.to_string())

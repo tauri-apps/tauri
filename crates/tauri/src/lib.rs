@@ -1083,7 +1083,7 @@ impl<T> UnsafeSend<T> {
 
 #[cfg(desktop)]
 macro_rules! run_main_thread {
-  ($handle:ident, $ex:expr) => {{
+  ($handle:ident, $ex:expr_2021) => {{
     use std::sync::mpsc::channel;
     let (tx, rx) = channel();
     let task = move || {

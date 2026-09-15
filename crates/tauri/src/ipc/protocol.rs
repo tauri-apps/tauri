@@ -57,100 +57,99 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
     };
 
     match *request.method() {
-      Method::POST => {
-        if let Some(webview) = manager.get_webview(label) {
-          match parse_invoke_request(&manager, request) {
-            Ok(request) => {
-              #[cfg(feature = "tracing")]
-              span.record(
-                "request",
-                match &request.body {
-                  super::InvokeBody::Json(j) => serde_json::to_string(j).unwrap(),
-                  super::InvokeBody::Raw(b) => serde_json::to_string(b).unwrap(),
-                },
-              );
-              #[cfg(feature = "tracing")]
-              let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
+      Method::POST => match manager.get_webview(label) {
+        Some(webview) => match parse_invoke_request(&manager, request) {
+          Ok(request) => {
+            #[cfg(feature = "tracing")]
+            span.record(
+              "request",
+              match &request.body {
+                super::InvokeBody::Json(j) => serde_json::to_string(j).unwrap(),
+                super::InvokeBody::Raw(b) => serde_json::to_string(b).unwrap(),
+              },
+            );
+            #[cfg(feature = "tracing")]
+            let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
 
-              webview.on_message(
-                request,
-                Box::new(move |_webview, _cmd, response, _callback, _error| {
-                  #[cfg(feature = "tracing")]
-                  let _respond_span = tracing::trace_span!(
-                    parent: &request_span,
-                    "ipc::request::respond"
+            webview.on_message(
+              request,
+              Box::new(move |_webview, _cmd, response, _callback, _error| {
+                #[cfg(feature = "tracing")]
+                let _respond_span = tracing::trace_span!(
+                  parent: &request_span,
+                  "ipc::request::respond"
+                )
+                .entered();
+
+                #[cfg(feature = "tracing")]
+                let response_span = match &response {
+                  InvokeResponse::Ok(InvokeResponseBody::Json(v)) => tracing::trace_span!(
+                    "ipc::request::response",
+                    response = v,
+                    mime_type = tracing::field::Empty
                   )
-                  .entered();
+                  .entered(),
+                  InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => tracing::trace_span!(
+                    "ipc::request::response",
+                    response = format!("{v:?}"),
+                    mime_type = tracing::field::Empty
+                  )
+                  .entered(),
+                  InvokeResponse::Err(e) => tracing::trace_span!(
+                    "ipc::request::response",
+                    error = format!("{e:?}"),
+                    mime_type = tracing::field::Empty
+                  )
+                  .entered(),
+                };
 
-                  #[cfg(feature = "tracing")]
-                  let response_span = match &response {
-                    InvokeResponse::Ok(InvokeResponseBody::Json(v)) => tracing::trace_span!(
-                      "ipc::request::response",
-                      response = v,
-                      mime_type = tracing::field::Empty
-                    )
-                    .entered(),
-                    InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => tracing::trace_span!(
-                      "ipc::request::response",
-                      response = format!("{v:?}"),
-                      mime_type = tracing::field::Empty
-                    )
-                    .entered(),
-                    InvokeResponse::Err(e) => tracing::trace_span!(
-                      "ipc::request::response",
-                      error = format!("{e:?}"),
-                      mime_type = tracing::field::Empty
-                    )
-                    .entered(),
-                  };
+                let response_header = match &response {
+                  InvokeResponse::Ok(_) => TAURI_RESPONSE_HEADER_OK,
+                  InvokeResponse::Err(_) => TAURI_RESPONSE_HEADER_ERROR,
+                };
 
-                  let response_header = match &response {
-                    InvokeResponse::Ok(_) => TAURI_RESPONSE_HEADER_OK,
-                    InvokeResponse::Err(_) => TAURI_RESPONSE_HEADER_ERROR,
-                  };
+                let (mut response, mime_type) = match response {
+                  InvokeResponse::Ok(InvokeResponseBody::Json(v)) => (
+                    http::Response::new(v.into_bytes().into()),
+                    mime::APPLICATION_JSON,
+                  ),
+                  InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => (
+                    http::Response::new(v.into()),
+                    mime::APPLICATION_OCTET_STREAM,
+                  ),
+                  InvokeResponse::Err(e) => (
+                    http::Response::new(serde_json::to_vec(&e.0).unwrap().into()),
+                    mime::APPLICATION_JSON,
+                  ),
+                };
 
-                  let (mut response, mime_type) = match response {
-                    InvokeResponse::Ok(InvokeResponseBody::Json(v)) => (
-                      http::Response::new(v.into_bytes().into()),
-                      mime::APPLICATION_JSON,
-                    ),
-                    InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => (
-                      http::Response::new(v.into()),
-                      mime::APPLICATION_OCTET_STREAM,
-                    ),
-                    InvokeResponse::Err(e) => (
-                      http::Response::new(serde_json::to_vec(&e.0).unwrap().into()),
-                      mime::APPLICATION_JSON,
-                    ),
-                  };
+                response
+                  .headers_mut()
+                  .insert(TAURI_RESPONSE_HEADER_NAME, response_header.parse().unwrap());
 
-                  response
-                    .headers_mut()
-                    .insert(TAURI_RESPONSE_HEADER_NAME, response_header.parse().unwrap());
+                #[cfg(feature = "tracing")]
+                response_span.record("mime_type", mime_type.essence_str());
 
-                  #[cfg(feature = "tracing")]
-                  response_span.record("mime_type", mime_type.essence_str());
+                response.headers_mut().insert(
+                  CONTENT_TYPE,
+                  HeaderValue::from_str(mime_type.essence_str()).unwrap(),
+                );
 
-                  response.headers_mut().insert(
-                    CONTENT_TYPE,
-                    HeaderValue::from_str(mime_type.essence_str()).unwrap(),
-                  );
-
-                  respond(response);
-                }),
-              );
-            }
-            Err(e) => {
-              respond(
-                http::Response::builder()
-                  .status(StatusCode::INTERNAL_SERVER_ERROR)
-                  .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-                  .body(e.into_bytes().into())
-                  .unwrap(),
-              );
-            }
+                respond(response);
+              }),
+            );
           }
-        } else {
+          Err(e) => {
+            respond(
+              http::Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+                .body(e.into_bytes().into())
+                .unwrap(),
+            );
+          }
+        },
+        _ => {
           respond(
             http::Response::builder()
               .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -159,7 +158,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
               .unwrap(),
           );
         }
-      }
+      },
 
       Method::OPTIONS => {
         let mut r = http::Response::new(Vec::new().into());
@@ -209,15 +208,18 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       let map = std::collections::HashMap::<String, String>::deserialize(deserializer)?;
       let mut headers = http::HeaderMap::default();
       for (key, value) in map {
-        if let (Ok(key), Ok(value)) = (
+        match (
           http::header::HeaderName::from_bytes(key.as_bytes()),
           http::HeaderValue::from_str(&value),
         ) {
-          headers.insert(key, value);
-        } else {
-          return Err(serde::de::Error::custom(format!(
-            "invalid header `{key}` `{value}`"
-          )));
+          (Ok(key), Ok(value)) => {
+            headers.insert(key, value);
+          }
+          _ => {
+            return Err(serde::de::Error::custom(format!(
+              "invalid header `{key}` `{value}`"
+            )));
+          }
         }
       }
       Ok(Self(headers))

@@ -104,7 +104,7 @@ impl Monitor {
 }
 
 macro_rules! unstable_struct {
-    (#[doc = $doc:expr] $($tokens:tt)*) => {
+    (#[doc = $doc:expr_2021] $($tokens:tt)*) => {
       #[cfg(feature = "unstable")]
       #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
       #[doc = $doc]

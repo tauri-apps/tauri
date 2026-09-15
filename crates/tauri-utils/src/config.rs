@@ -225,7 +225,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         const_value: Some("all".into()),
@@ -237,10 +237,13 @@ impl schemars::JsonSchema for BundleTarget {
       }
       .into(),
       add_description(
-        gen.subschema_for::<Vec<BundleType>>(),
+        r#gen.subschema_for::<Vec<BundleType>>(),
         "A list of bundle targets.",
       ),
-      add_description(gen.subschema_for::<BundleType>(), "A single bundle target."),
+      add_description(
+        r#gen.subschema_for::<BundleType>(),
+        "A single bundle target.",
+      ),
     ];
 
     schemars::schema::SchemaObject {
@@ -1829,7 +1832,7 @@ impl schemars::JsonSchema for Color {
     "Color".to_string()
   }
 
-  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let mut schema = schemars::schema_for!(InnerColor).schema;
     schema.metadata = None; // Remove `title: InnerColor` from schema
 

@@ -998,7 +998,7 @@ mod test {
     let payload = "global-payload";
 
     macro_rules! test_target {
-      ($target:expr, $id:ident) => {
+      ($target:expr_2021, $id:ident) => {
         m.emit_to($target, TEST_EVENT_NAME, payload).unwrap();
         while let Ok((source, p)) = rx.recv_timeout(Duration::from_secs(1)) {
           assert_eq!(p, payload);

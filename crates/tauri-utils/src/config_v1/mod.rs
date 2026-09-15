@@ -210,7 +210,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         enum_values: Some(vec!["all".into()]),
@@ -1316,7 +1316,7 @@ pub trait Allowlist {
 }
 
 macro_rules! check_feature {
-  ($self:ident, $features:ident, $flag:ident, $feature_name: expr) => {
+  ($self:ident, $features:ident, $flag:ident, $feature_name: expr_2021) => {
     if $self.$flag {
       $features.push($feature_name)
     }

@@ -78,7 +78,7 @@ impl Origin {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! runtime_authority {
-  ($acl:expr, $resolved_acl:expr) => {
+  ($acl:expr_2021, $resolved_acl:expr_2021) => {
     $crate::ipc::RuntimeAuthority::new($acl, $resolved_acl)
   };
 }

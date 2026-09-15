@@ -144,13 +144,16 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
-    std::env::set_var(
-      "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).fs_context(
-        "failed to read certificate file",
-        root_certificate_path.clone(),
-      )?,
-    );
+    // FIXME: Audit that the environment access only happens in single-threaded code.
+    unsafe {
+      std::env::set_var(
+        "TAURI_DEV_ROOT_CERTIFICATE",
+        std::fs::read_to_string(root_certificate_path).fs_context(
+          "failed to read certificate file",
+          root_certificate_path.clone(),
+        )?,
+      )
+    };
   }
 
   let tauri_config = get_tauri_config(

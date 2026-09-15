@@ -94,10 +94,10 @@ macro_rules! bail {
    ($msg:literal $(,)?) => {
       return Err(crate::Error::GenericError($msg.into()))
    };
-    ($err:expr $(,)?) => {
+    ($err:expr_2021 $(,)?) => {
        return Err(crate::Error::GenericError($err))
     };
-   ($fmt:expr, $($arg:tt)*) => {
+   ($fmt:expr_2021, $($arg:tt)*) => {
      return Err(crate::Error::GenericError(format!($fmt, $($arg)*)))
    };
 }

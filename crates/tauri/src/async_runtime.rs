@@ -303,15 +303,16 @@ where
   F: Future + Send + 'static,
   F::Output: Send + 'static,
 {
-  if let Ok(handle) = tokio::runtime::Handle::try_current() {
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    let handle_ = handle.clone();
-    handle.spawn_blocking(move || {
-      tx.send(handle_.block_on(task)).unwrap();
-    });
-    rx.recv().unwrap()
-  } else {
-    block_on(task)
+  match tokio::runtime::Handle::try_current() {
+    Ok(handle) => {
+      let (tx, rx) = std::sync::mpsc::sync_channel(1);
+      let handle_ = handle.clone();
+      handle.spawn_blocking(move || {
+        tx.send(handle_.block_on(task)).unwrap();
+      });
+      rx.recv().unwrap()
+    }
+    _ => block_on(task),
   }
 }
 
@@ -352,10 +353,13 @@ mod tests {
       5
     });
     join.abort();
-    if let crate::Error::JoinError(raw_error) = join.await.unwrap_err() {
-      assert!(raw_error.is_cancelled());
-    } else {
-      panic!("Abort did not result in the expected `JoinError`");
+    match join.await.unwrap_err() {
+      crate::Error::JoinError(raw_error) => {
+        assert!(raw_error.is_cancelled());
+      }
+      _ => {
+        panic!("Abort did not result in the expected `JoinError`");
+      }
     }
   }
 }

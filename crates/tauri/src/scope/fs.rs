@@ -5,10 +5,10 @@
 use std::{
   collections::{HashMap, HashSet},
   fmt,
-  path::{Path, PathBuf, MAIN_SEPARATOR},
+  path::{MAIN_SEPARATOR, Path, PathBuf},
   sync::{
-    atomic::{AtomicBool, AtomicU32, Ordering},
     Arc, Mutex,
+    atomic::{AtomicBool, AtomicU32, Ordering},
   },
 };
 
@@ -504,7 +504,7 @@ mod tests {
 
   use crate::fs::ScopeInner;
 
-  use super::{push_pattern, Scope};
+  use super::{Scope, push_pattern};
 
   fn new_scope() -> Scope {
     Scope {

@@ -9,12 +9,12 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, quote_spanned};
 use syn::{
+  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
   ext::IdentExt,
   parse::{Parse, ParseStream},
   parse_macro_input,
   punctuated::Punctuated,
   spanned::Spanned,
-  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
 };
 use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 
@@ -72,7 +72,7 @@ impl Parse for WrapperAttributes {
                   return Err(syn::Error::new(
                     s.span(),
                     "expected \"camelCase\" or \"snake_case\"",
-                  ))
+                  ));
                 }
               };
             }
@@ -470,7 +470,7 @@ fn parse_arg(
       return Err(syn::Error::new(
         arg.span(),
         "unable to use self as a command function parameter",
-      ))
+      ));
     }
   };
 
@@ -484,7 +484,7 @@ fn parse_arg(
       return Err(syn::Error::new(
         err.span(),
         "only named, wildcard, struct, and tuple struct arguments allowed",
-      ))
+      ));
     }
   };
 

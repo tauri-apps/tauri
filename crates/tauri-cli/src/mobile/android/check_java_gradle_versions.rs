@@ -14,11 +14,11 @@ pub fn check_java_gradle_versions() -> Option<()> {
   // the template default) and only warn when the detected Java is too new for that Gradle.
   if java_major_version > gradle_max_supported_java {
     log::warn!(
-          "Detected Java {java_major_version}, but Gradle {project_gradle_version} used by this project can only run on Java up to {gradle_max_supported_java}. \
+      "Detected Java {java_major_version}, but Gradle {project_gradle_version} used by this project can only run on Java up to {gradle_max_supported_java}. \
            Android builds will likely fail with a cryptic error. Install a JDK that Gradle {project_gradle_version} supports \
            (Java {gradle_max_supported_java} or older) and point JAVA_HOME at it. \
            See https://docs.gradle.org/current/userguide/compatibility.html"
-        );
+    );
   }
   Some(())
 }

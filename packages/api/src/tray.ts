@@ -4,7 +4,7 @@
 
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
-import { JsImage, transformImage } from './image'
+import { type JsImage, transformImage } from './image'
 import { PhysicalPosition, PhysicalSize } from './dpi'
 
 export type MouseButtonState = 'Up' | 'Down'

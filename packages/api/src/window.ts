@@ -37,7 +37,7 @@ import {
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
 import type { DragDropEvent } from './webview'
-import { JsImage, transformImage } from './image'
+import { type JsImage, transformImage } from './image'
 
 /**
  * Allows you to retrieve information about a given monitor.

@@ -4,7 +4,7 @@
 
 import { MenuItemBase, newMenu } from './base'
 import { invoke } from '../core'
-import { JsImage } from '../image'
+import type { JsImage } from '../image'
 
 /** A metadata for the about predefined menu item. */
 export interface AboutMetadata {

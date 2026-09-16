@@ -55,7 +55,7 @@ impl<R: Runtime> MenuManager<R> {
     &self,
     window_menu: Option<&crate::window::WindowMenu<R>>,
     #[allow(unused)] theme: Option<tauri_utils::Theme>,
-  ) -> Option<impl Fn(tauri_runtime::window::RawWindow<'_>)> {
+  ) -> Option<impl Fn(tauri_runtime::window::RawWindow<'_>) + use<R>> {
     let window_menu = window_menu?;
 
     self

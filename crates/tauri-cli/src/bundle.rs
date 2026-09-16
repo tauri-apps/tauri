@@ -149,7 +149,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
   if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
-    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+    unsafe { std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version) };
   }
 
   let app_settings = interface.app_settings();

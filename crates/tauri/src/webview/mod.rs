@@ -1906,13 +1906,7 @@ tauri::Builder::default()
     #[cfg(mobile)]
     let app_handle = self.app_handle.clone();
 
-    let message = InvokeMessage::new(
-      self,
-      manager.state(),
-      request.cmd.to_string(),
-      request.body,
-      request.headers,
-    );
+    let message = InvokeMessage::new(self, request.cmd.to_string(), request.body, request.headers);
 
     let acl_origin = if is_local {
       Origin::Local

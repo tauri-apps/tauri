@@ -167,10 +167,10 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
 #[serde(untagged)]
 #[non_exhaustive]
 pub enum JsImage {
-  /// A reference to a image in the filesystem.
+  /// A reference to an image in the filesystem. This requires `image-ico` or `image-png` cargo features.
   #[non_exhaustive]
   Path(std::path::PathBuf),
-  /// Image from raw bytes.
+  /// ICO or PNG image in raw bytes. This requires `image-ico` or `image-png` cargo features.
   #[non_exhaustive]
   Bytes(Vec<u8>),
   /// An image that was previously loaded with the API and is stored in the resource table.

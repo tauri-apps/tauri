@@ -275,8 +275,8 @@ pub fn get_config(
     macos: Default::default(),
   };
 
-  set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
-  set_var("TAURI_IOS_APP_NAME", config.app().name());
+  unsafe { set_var("TAURI_IOS_PROJECT_PATH", config.project_dir()) };
+  unsafe { set_var("TAURI_IOS_APP_NAME", config.app().name()) };
 
   Ok((config, metadata))
 }

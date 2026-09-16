@@ -2,7 +2,7 @@
 name = "tauri-cli"
 version = "2.11.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
-edition = "2021"
+edition = "2024"
 rust-version = "1.90"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
@@ -152,3 +152,6 @@ native-tls = [
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
 rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]
 platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]
+
+[lints]
+workspace = true

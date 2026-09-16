@@ -2372,7 +2372,8 @@ tauri::Builder::default()
           .ok()
           .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         {
-          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path));
+          // SAFETY: Always safe on Windows
+          unsafe { std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path)) };
         } else {
           #[cfg(debug_assertions)]
           eprintln!(

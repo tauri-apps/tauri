@@ -227,7 +227,7 @@ where
   };
   // set the verbosity level so subsequent CLI calls (xcode-script, android-studio-script) refer to it
   let verbosity_number = get_verbosity(cli.verbose);
-  std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string());
+  unsafe { std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string()) };
 
   let mut builder = Builder::from_default_env();
   if let Err(err) = builder

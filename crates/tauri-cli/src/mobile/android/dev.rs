@@ -144,7 +144,6 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe {
       std::env::set_var(
         "TAURI_DEV_ROOT_CERTIFICATE",

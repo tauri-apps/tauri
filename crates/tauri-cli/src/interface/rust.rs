@@ -160,7 +160,6 @@ impl Rust {
       .as_ref()
       .is_some_and(|target| target.ends_with("ios") || target.ends_with("ios-sim"));
     if target_ios {
-      // FIXME: Audit that the environment access only happens in single-threaded code.
       unsafe {
         std::env::set_var(
           "IPHONEOS_DEPLOYMENT_TARGET",
@@ -1941,7 +1940,6 @@ mod tests {
 
     #[cfg(windows)]
     {
-      // FIXME: Audit that the environment access only happens in single-threaded code.
       unsafe { std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
@@ -1955,7 +1953,6 @@ mod tests {
 
     #[cfg(not(windows))]
     {
-      // FIXME: Audit that the environment access only happens in single-threaded code.
       unsafe { std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),

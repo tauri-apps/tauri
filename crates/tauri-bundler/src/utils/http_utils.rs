@@ -197,7 +197,6 @@ mod tests {
 
   #[test]
   fn test_generate_mirror_url_no_env_var() {
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE") };
 
     assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
@@ -205,7 +204,6 @@ mod tests {
 
   #[test]
   fn test_generate_mirror_url_non_github_url() {
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe {
       env::set_var(
         "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
@@ -235,7 +233,6 @@ mod tests {
         ];
 
     for case in test_cases {
-      // FIXME: Audit that the environment access only happens in single-threaded code.
       unsafe { env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template) };
       assert_eq!(
         generate_github_mirror_url_from_template(GITHUB_ASSET_URL),

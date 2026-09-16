@@ -584,7 +584,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
   // when running codegen in this build script, we need to access the env var directly
-  // FIXME: Audit that the environment access only happens in single-threaded code.
+  // FIXME: This can be accessed from multiple threads
   unsafe { env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple) };
 
   let target_dir = target_dir_from_out_dir(&out_dir)
@@ -874,21 +874,17 @@ mod tests {
     assert!(crate::should_static_link_vc_runtime(&config, &attributes));
 
     // 2. Set to anything but "false" in env, should be true
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::set_var("STATIC_VCRUNTIME", "qweqe") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new();
     assert!(crate::should_static_link_vc_runtime(&config, &attributes));
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
 
     // 3. Set to "false" in env, should be false
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::set_var("STATIC_VCRUNTIME", "false") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new();
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
 
     // 4. Set to true in attributes, should be true
@@ -944,13 +940,11 @@ mod tests {
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
 
     // 9. Set to false in env and true in attributes, should be false because env takes precedence over attributes
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::set_var("STATIC_VCRUNTIME", "false") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new()
       .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(true));
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
   }
 }

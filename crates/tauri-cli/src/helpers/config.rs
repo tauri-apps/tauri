@@ -179,7 +179,6 @@ fn load_config(
     }
 
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { set_var("TAURI_CONFIG", merge_config_str) };
     merge(&mut config, &merge_config);
     extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
@@ -213,7 +212,6 @@ fn load_config(
   set_current_dir(current_dir).context("failed to set current directory")?;
 
   for (plugin, conf) in &config.plugins.0 {
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe {
       set_var(
         format!(
@@ -226,7 +224,6 @@ fn load_config(
   }
 
   if config.build.remove_unused_commands {
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir) };
   }
 
@@ -271,7 +268,6 @@ pub fn merge_config_with(
   }
 
   let merge_config_str = serde_json::to_string(&merge_config).unwrap();
-  // FIXME: Audit that the environment access only happens in single-threaded code.
   unsafe { set_var("TAURI_CONFIG", merge_config_str) };
 
   let mut value =

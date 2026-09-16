@@ -20,7 +20,7 @@ fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
   let source = source.as_ref();
 
   let sdk_root = std::env::var_os("SDKROOT");
-  // FIXME: Audit that the environment access only happens in single-threaded code.
+  // FIXME: This can be accessed from multiple threads
   unsafe { std::env::remove_var("SDKROOT") };
 
   swift_rs::SwiftLinker::new(
@@ -31,7 +31,7 @@ fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
   .link();
 
   if let Some(root) = sdk_root {
-    // FIXME: Audit that the environment access only happens in single-threaded code.
+  // FIXME: This can be accessed from multiple threads
     unsafe { std::env::set_var("SDKROOT", root) };
   }
 }

@@ -2372,7 +2372,7 @@ tauri::Builder::default()
           .ok()
           .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         {
-          // FIXME: Audit that the environment access only happens in single-threaded code.
+          // SAFETY: Always safe on Windows
           unsafe { std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path)) };
         } else {
           #[cfg(debug_assertions)]

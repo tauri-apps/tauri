@@ -160,18 +160,14 @@ pub fn get_config(
     ..Default::default()
   };
 
-  // FIXME: Audit that the environment access only happens in single-threaded code.
   unsafe {
     set_var(
       "WRY_ANDROID_PACKAGE",
       app.android_identifier_escape_kotlin_keyword(),
     )
   };
-  // FIXME: Audit that the environment access only happens in single-threaded code.
   unsafe { set_var("TAURI_ANDROID_PACKAGE_UNESCAPED", app.identifier()) };
-  // FIXME: Audit that the environment access only happens in single-threaded code.
   unsafe { set_var("WRY_ANDROID_LIBRARY", app.lib_name()) };
-  // FIXME: Audit that the environment access only happens in single-threaded code.
   unsafe { set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir()) };
 
   let src_main_dir = config
@@ -189,7 +185,6 @@ pub fn get_config(
       exit(1);
     }
   }
-  // FIXME: Audit that the environment access only happens in single-threaded code.
   unsafe {
     set_var(
       "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
@@ -493,7 +488,6 @@ fn ensure_java() -> Result<()> {
 
     if Path::new(default_java_home).exists() {
       log::info!("Using Android Studio's default Java installation: {default_java_home}");
-      // FIXME: Audit that the environment access only happens in single-threaded code.
       unsafe { std::env::set_var("JAVA_HOME", default_java_home) };
     } else if which::which("java").is_err() {
       crate::error::bail!(
@@ -604,7 +598,6 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
       }
     }
 
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::set_var("ANDROID_HOME", default_android_home) };
   }
 
@@ -642,7 +635,6 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 
   if let Some(ndk) = installed_ndks.last() {
     log::info!("Using installed NDK: {}", ndk.display());
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::set_var("NDK_HOME", ndk) };
   } else if non_interactive {
     crate::error::bail!(
@@ -709,7 +701,6 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 
     let ndk_path = android_home.join("ndk").join(NDK_VERSION);
     log::info!("Installed NDK: {}", ndk_path.display());
-    // FIXME: Audit that the environment access only happens in single-threaded code.
     unsafe { std::env::set_var("NDK_HOME", ndk_path) };
   }
 
@@ -719,7 +710,6 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 fn delete_codegen_vars() {
   for (k, _) in std::env::vars() {
     if k.starts_with("WRY_") && (k.ends_with("CLASS_EXTENSION") || k.ends_with("CLASS_INIT")) {
-      // FIXME: Audit that the environment access only happens in single-threaded code.
       unsafe { std::env::remove_var(k) };
     }
   }

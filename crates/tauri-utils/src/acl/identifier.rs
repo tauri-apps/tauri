@@ -38,8 +38,8 @@ impl schemars::JsonSchema for Identifier {
     std::borrow::Cow::Borrowed(concat!(module_path!(), "::Identifier"))
   }
 
-  fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-    String::json_schema(r#gen)
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(generator)
   }
 }
 

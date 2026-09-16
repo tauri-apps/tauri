@@ -31,7 +31,7 @@ fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
   .link();
 
   if let Some(root) = sdk_root {
-  // FIXME: This can be accessed from multiple threads
+    // FIXME: This can be accessed from multiple threads
     unsafe { std::env::set_var("SDKROOT", root) };
   }
 }

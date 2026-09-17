@@ -109,11 +109,6 @@ jobs:
         # integrity instead, and the workspace is opened up so the de-elevated process can use it.
         # See https://github.com/tauri-apps/wry/issues/1782 and
         # https://github.com/MicrosoftEdge/WebView2Feedback/issues/5645.
-        # The runner has an interactive desktop session, so window-state tests run as-is;
-        # the tray module is skipped to match the Linux job.
-        env:
-          E2E_SKIP: tray
-          E2E_SPEC_RETRIES: '1'
         run: |
           winget install gerardog.gsudo --accept-source-agreements --accept-package-agreements
           icacls "$env:GITHUB_WORKSPACE" /grant "Everyone:(OI)(CI)F"

@@ -1,5 +1,38 @@
 # Changelog
 
+## \[2.11.1]
+
+### Enhancements
+
+- [`916782601`](https://www.github.com/tauri-apps/tauri/commit/9167826011cc3d114bf12dfb301968fae479891f) ([#15520](https://www.github.com/tauri-apps/tauri/pull/15520) by [@polw1](https://www.github.com/tauri-apps/tauri/../../polw1)) Document that `Monitor.size`, `Monitor.position` and `Monitor.workArea` are in physical pixels, with examples showing how to convert them to the logical pixels expected by window creation options via `toLogical(monitor.scaleFactor)`.
+
+## \[2.11.0]
+
+### New Features
+
+- [`074299c08`](https://www.github.com/tauri-apps/tauri/commit/074299c08dd99d2e1c57796f55ab24bc1d3976cc) ([#14307](https://www.github.com/tauri-apps/tauri/pull/14307)) Add Bring All to Front predefined menu item type
+- [`a12142a48`](https://www.github.com/tauri-apps/tauri/commit/a12142a481f7a19b69e88ee36a438b1db71b36f5) ([#14357](https://www.github.com/tauri-apps/tauri/pull/14357)) Add macos support for setting the icon and icon template state in the same step of the main thread, to prevent flickering.
+- [`001c8fe3d`](https://www.github.com/tauri-apps/tauri/commit/001c8fe3d288802de9a8c29cfd2f46f9220d97c5) ([#14722](https://www.github.com/tauri-apps/tauri/pull/14722)) Add a WebView option to control browser-level general autofill behavior. This option does not disable password or credit card autofill. On Windows (WebView2), setting it to true disables the general autofill "Suggestions" UI, which may appear even when `autocomplete="off"` is specified on input elements. On Linux, macOS, iOS, and Android, this option is currently unsupported and performs no operation.
+- [`eb0312ea9`](https://www.github.com/tauri-apps/tauri/commit/eb0312ea9e493954298ac0b3fdaae7eafb52750e) ([#15199](https://www.github.com/tauri-apps/tauri/pull/15199)) Propagates the `Event::Suspended` and `Event::Resumed` events from `tao` when they are emitted on mobile targets.
+
+## \[2.10.1]
+
+### Bug Fixes
+
+- Re-release of `2.10.0` with working assets.
+
+## \[2.10.0]
+
+### Dependencies
+
+- [`517b81e97`](https://www.github.com/tauri-apps/tauri/commit/517b81e97005d087ca5fc4538d954982fce0f4ac) ([#14876](https://www.github.com/tauri-apps/tauri/pull/14876)) Upgraded to `tauri@2.10`
+
+## \[2.9.1]
+
+### Bug Fixes
+
+- [`ad1dec2e2`](https://www.github.com/tauri-apps/tauri/commit/ad1dec2e2488fe5c0a004b69f1bd290dfc593bf8) ([#14464](https://www.github.com/tauri-apps/tauri/pull/14464) by [@funnydino](https://www.github.com/tauri-apps/tauri/../../funnydino)) Fix `addPluginListener` fallback added in https://github.com/tauri-apps/tauri/pull/14132 didn't work properly
+
 ## \[2.9.0]
 
 ### New Features

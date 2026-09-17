@@ -1,5 +1,154 @@
 # Changelog
 
+## \[2.11.4]
+
+### Bug Fixes
+
+- [`67ffa192a`](https://www.github.com/tauri-apps/tauri/commit/67ffa192a499131e7e750f164fe61a40ca0fb2e7) ([#15596](https://www.github.com/tauri-apps/tauri/pull/15596) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue in the AppImage bundler that caused the `/.desktop` and `.DirIcon` files to be absolute symlinks instead of relative symlinks which caused problems with AppImage installers like `AppManager`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.11.4`
+
+## \[2.11.3]
+
+### Bug Fixes
+
+- [`50b0237ed`](https://www.github.com/tauri-apps/tauri/commit/50b0237edb9ed683979b7954975b98a4d22a9f70) ([#15549](https://www.github.com/tauri-apps/tauri/pull/15549) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Escape special characters in `productName` when generating Android `strings.xml`
+- [`728c8d4a5`](https://www.github.com/tauri-apps/tauri/commit/728c8d4a5d9e3badf4683eb2e493d950d27d6b66) ([#15473](https://www.github.com/tauri-apps/tauri/pull/15473) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Skip building bundles when using `tauri android run`
+- [`be0cb0d43`](https://www.github.com/tauri-apps/tauri/commit/be0cb0d4378ddf26bc33066b3750f2639ade15f5) ([#15344](https://www.github.com/tauri-apps/tauri/pull/15344) by [@raglady](https://www.github.com/tauri-apps/tauri/../../raglady)) Fix NDK_HOME environment variable not honored when set
+- [`ed8fd411f`](https://www.github.com/tauri-apps/tauri/commit/ed8fd411fe10469da33f63ed5bd9d7ae19e77d84) ([#15552](https://www.github.com/tauri-apps/tauri/pull/15552) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Make `ureq_proto` show trace level logs only on `-vvv` instead of `-vv`
+- [`fca4a31f9`](https://www.github.com/tauri-apps/tauri/commit/fca4a31f94f8ba709d1b28e073e69867b8704e6e) ([#15454](https://www.github.com/tauri-apps/tauri/pull/15454) by [@fallintoplace](https://www.github.com/tauri-apps/tauri/../../fallintoplace)) Fix `tauri migrate` generating invalid namespace imports for aliased pluginified imports from `@tauri-apps/api`.
+
+  Inputs like `import { cli as superCli } from "@tauri-apps/api"` now migrate to `import * as superCli from "@tauri-apps/plugin-cli"` instead of producing invalid ESM syntax. The migration tests also reparse migrated JS, Svelte, and Vue output so syntax regressions are caught directly.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.11.3`
+
+## \[2.11.2]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.11.2`
+
+## \[2.11.1]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.11.1`
+
+## \[2.11.0]
+
+### New Features
+
+- [`926a57bb0`](https://www.github.com/tauri-apps/tauri/commit/926a57bb0851e45d47ad1ee68fc96a9c25754c7c) ([#15201](https://www.github.com/tauri-apps/tauri/pull/15201)) Added uninstaller icon and uninstaller header image support for NSIS installer.
+
+  Notes:
+
+  - For `tauri-bundler` lib users, the `NsisSettings` now has 2 new fields `uninstaller_icon` and `uninstaller_header_image` which can be a breaking change
+  - When bundling with NSIS, users can add `uninstallerIcon` and `uninstallerHeaderImage` under `bundle > windows > nsis` to configure them.
+- [`764b9139a`](https://www.github.com/tauri-apps/tauri/commit/764b9139a32de149d8a914a6b5ec6cd1937c64eb) ([#14313](https://www.github.com/tauri-apps/tauri/pull/14313)) Prompt to restart the Android emulator if it is not connected to adb.
+- [`5dc2cee60`](https://www.github.com/tauri-apps/tauri/commit/5dc2cee60370665af88c185684432e425b1c987d) ([#14793](https://www.github.com/tauri-apps/tauri/pull/14793)) Added support for `minimumWebview2Version` option support for the MSI (Wix) installer, the old `bundle > windows > nsis > minimumWebview2Version` is now deprecated in favor of `bundle > windows > minimumWebview2Version`
+
+  Notes:
+
+  - For anyone relying on the `WVRTINSTALLED` `Property` tag in `main.wxs`, it is now renamed to `INSTALLED_WEBVIEW2_VERSION`
+  - For `tauri-bundler` lib users, the `WindowsSettings` now has a new field `minimum_webview2_version` which can be a breaking change
+
+### Enhancements
+
+- [`be0e4bd2d`](https://www.github.com/tauri-apps/tauri/commit/be0e4bd2da02eb6cc75a8dc7c81663277e64c590) ([#15218](https://www.github.com/tauri-apps/tauri/pull/15218)) Added Vietnamese translations for the NSIS installer
+- [`8718d0816`](https://www.github.com/tauri-apps/tauri/commit/8718d08163f074dfc53387ebd1d823f9c28280ee) ([#15033](https://www.github.com/tauri-apps/tauri/pull/15033)) Show the context before prompting for updater signing key password
+
+### Bug Fixes
+
+- [`fcb702ec4`](https://www.github.com/tauri-apps/tauri/commit/fcb702ec4d924e81943efaeebea8d3edb7289c33) ([#14954](https://www.github.com/tauri-apps/tauri/pull/14954)) Fix `build --bundles` to allow `nsis` arg in linux+macOS
+- [`80c1425af`](https://www.github.com/tauri-apps/tauri/commit/80c1425af86058b1fc9489a30f778b6288d79b6b) ([#14921](https://www.github.com/tauri-apps/tauri/pull/14921)) Fix iOS build failure when `Metal Toolchain` is installed by using explicit `$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain` path instead of `$(TOOLCHAIN_DIR)` for Swift library search paths.
+
+### What's Changed
+
+- [`9979cde1c`](https://www.github.com/tauri-apps/tauri/commit/9979cde1c5534dafb1a07cc4dc2bc280d15d2f66) ([#15175](https://www.github.com/tauri-apps/tauri/pull/15175)) Update NSIS installer Italian translations
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.11.0`
+
+## \[2.10.1]
+
+### Bug Fixes
+
+- [`35c35f27a`](https://www.github.com/tauri-apps/tauri/commit/35c35f27aedc430b602ec74059b271128c15ad36) ([#14931](https://www.github.com/tauri-apps/tauri/pull/14931) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Support comma-separated list of Cargo features on all commands.
+- [`0d1cb83ba`](https://www.github.com/tauri-apps/tauri/commit/0d1cb83bab2aa482c7d73116893fd7ff6aa56283) ([#14932](https://www.github.com/tauri-apps/tauri/pull/14932) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix missing Cargo args when running mobile dev and build commands.
+- [`33754ae5e`](https://www.github.com/tauri-apps/tauri/commit/33754ae5e3740d022483b6164511c5c001a3c24b) ([#15022](https://www.github.com/tauri-apps/tauri/pull/15022) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix updater signing private keys generated using `tauri signer generate` with empty password can't be used (The keys generated during tauri were broken between v2.9.3 and v2.10.0, you'll need to regenerate them)
+
+### What's Changed
+
+- [`7be58a1c6`](https://www.github.com/tauri-apps/tauri/commit/7be58a1c643a7ed6d0f484a7e1134022618eb2b2) ([#14894](https://www.github.com/tauri-apps/tauri/pull/14894) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Log patching bundle type information again
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.10.1`
+
+## \[2.10.0]
+
+### Enhancements
+
+- [`f82594410`](https://www.github.com/tauri-apps/tauri/commit/f82594410cd57d6f794f58d4afea0ed335aa796f) ([#13253](https://www.github.com/tauri-apps/tauri/pull/13253) by [@Armaldio](https://www.github.com/tauri-apps/tauri/../../Armaldio)) Allow electron to run the CLI directly
+- [`a2abe2e6b`](https://www.github.com/tauri-apps/tauri/commit/a2abe2e6bcb9e1eed8484240dfdb76a5bc28ae58) ([#14607](https://www.github.com/tauri-apps/tauri/pull/14607) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Simplified internal representation of `features: Option<Vec<String>>` with `Vec<String>`, no user facing changes
+- [`84b04c4a8`](https://www.github.com/tauri-apps/tauri/commit/84b04c4a8d3310b7a7091d10e36244bf94996e51) ([#14759](https://www.github.com/tauri-apps/tauri/pull/14759) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added new environment variables for `tauri signer sign` command, to align with existing environment variables used in `tauri build`, `tauri bundle` and `tauri signer generate`
+
+  - `TAURI_SIGNING_PRIVATE_KEY`
+  - `TAURI_SIGNING_PRIVATE_KEY_PATH`
+  - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+  The old environment variables are deprecated and will be removed in a future release.
+
+  - `TAURI_PRIVATE_KEY`
+  - `TAURI_PRIVATE_KEY_PATH`
+  - `TAURI_PRIVATE_KEY_PASSWORD`
+
+### Bug Fixes
+
+- [`62aa13a12`](https://www.github.com/tauri-apps/tauri/commit/62aa13a124ef46bb5ce9887a2a574dd35ef86d4f) ([#14629](https://www.github.com/tauri-apps/tauri/pull/14629) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `android build`'s `--aab` and `--apk` flags requiring a value to be provided.
+- [`eccff9758`](https://www.github.com/tauri-apps/tauri/commit/eccff97588232055bd0cafd83e6ee03d11a501fb) ([#14779](https://www.github.com/tauri-apps/tauri/pull/14779) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix empty associated-domains entitlements when domains are not configured for deep links.
+- [`ea31b07f1`](https://www.github.com/tauri-apps/tauri/commit/ea31b07f19e0aa467ed0f921f60575cfe09809c8) ([#14789](https://www.github.com/tauri-apps/tauri/pull/14789) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fixed the command description for `tauri inspect`
+- [`7fca58230`](https://www.github.com/tauri-apps/tauri/commit/7fca58230f97c3e6834134419514a0c7dbbe784b) ([#14830](https://www.github.com/tauri-apps/tauri/pull/14830) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Updated `nsis_tauri_utils` to 0.5.3:
+
+  - Use an alternative method `CreateProcessWithTokenW` to run programs as user, this fixed a problem that the program launched with the previous method can't query its own handle
+- [`53611c4d7`](https://www.github.com/tauri-apps/tauri/commit/53611c4d7bdaf89b9a5d7c46a9c4bf4e34216148) ([#14747](https://www.github.com/tauri-apps/tauri/pull/14747) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Only watch dependent workspace members when running `tauri dev` instead of watching on all members
+- [`1b0e335d3`](https://www.github.com/tauri-apps/tauri/commit/1b0e335d3f3445948d6590f7e074275d97cd9859) ([#14713](https://www.github.com/tauri-apps/tauri/pull/14713) by [@wasuaje](https://www.github.com/tauri-apps/tauri/../../wasuaje)) `tauri signer sign` doesn't work for files without an extension
+
+### What's Changed
+
+- [`e3fdcb500`](https://www.github.com/tauri-apps/tauri/commit/e3fdcb5002b362b46cde2a1971e4e7f2a1161208) ([#14836](https://www.github.com/tauri-apps/tauri/pull/14836) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Continued refactors of tauri-cli, fix too weak atomics.
+- [`0575dd287`](https://www.github.com/tauri-apps/tauri/commit/0575dd287e021b61d2aedf64d62ae84a2c925fb4) ([#14521](https://www.github.com/tauri-apps/tauri/pull/14521) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Change the way bundle type information is added to binary files. Instead of looking up the value of a variable we simply look for the default value.
+- [`7f7d9aac2`](https://www.github.com/tauri-apps/tauri/commit/7f7d9aac214e22d9492490543f7a9bcae0a6659e) ([#14668](https://www.github.com/tauri-apps/tauri/pull/14668) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Refactored internal use of static on config and directory resolvings, no user facing changes, please report any regressions if you encounter any
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.10.0`
+
+## \[2.9.6]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.9.6`
+
+## \[2.9.5]
+
+### Bug Fixes
+
+- [`f855caf8a`](https://www.github.com/tauri-apps/tauri/commit/f855caf8a3830aa5dd6d0b039312866a5d9c3606) ([#14481](https://www.github.com/tauri-apps/tauri/pull/14481) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fixed the mismatched tauri package versions check didn't work for pnpm
+
+### Performance Improvements
+
+- [`ce98d87ce`](https://www.github.com/tauri-apps/tauri/commit/ce98d87ce0aaa907285852eb80691197424e03c3) ([#14474](https://www.github.com/tauri-apps/tauri/pull/14474) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) refactor: remove needless collect. No user facing changes.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.9.5`
+
 ## \[2.9.4]
 
 ### Bug Fixes

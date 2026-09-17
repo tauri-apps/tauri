@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use super::run_item_main_thread;
 use super::Submenu;
-use super::{sealed::ContextMenuBase, IsMenuItem, MenuItemKind};
+use super::run_item_main_thread;
+use super::{IsMenuItem, MenuItemKind, sealed::ContextMenuBase};
 use crate::menu::NativeIcon;
 use crate::menu::SubmenuInner;
 use crate::run_main_thread;
@@ -96,11 +96,7 @@ impl<R: Runtime> Submenu<R> {
 
     let submenu = run_main_thread!(handle, || {
       let submenu = muda::Submenu::new(text, enabled);
-      SubmenuInner {
-        id: submenu.id().clone(),
-        inner: Some(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
 
     Ok(Self(Arc::new(submenu)))
@@ -117,16 +113,12 @@ impl<R: Runtime> Submenu<R> {
     let app_handle = handle.clone();
     let text = text.as_ref().to_owned();
     let icon_data = icon.map(|i| (i.rgba().to_vec(), i.width(), i.height()));
-    let submenu = run_main_thread!(handle, || {
+    let submenu = run_main_thread!(handle, move || {
       let submenu = muda::Submenu::new(text, enabled);
-      if let Some((rgba, width, height)) = icon_data.clone() {
+      if let Some((rgba, width, height)) = icon_data {
         submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
       }
-      SubmenuInner {
-        id: submenu.id().clone(),
-        inner: Some(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
     Ok(Self(Arc::new(submenu)))
   }
@@ -146,11 +138,7 @@ impl<R: Runtime> Submenu<R> {
       if let Some(icon) = icon {
         submenu.set_native_icon(Some(icon.into()));
       }
-      SubmenuInner {
-        id: submenu.id().clone(),
-        inner: Some(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
     Ok(Self(Arc::new(submenu)))
   }
@@ -170,11 +158,7 @@ impl<R: Runtime> Submenu<R> {
 
     let submenu = run_main_thread!(handle, || {
       let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
-      SubmenuInner {
-        id,
-        inner: Some(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
 
     Ok(Self(Arc::new(submenu)))
@@ -193,16 +177,12 @@ impl<R: Runtime> Submenu<R> {
     let id = id.into();
     let text = text.as_ref().to_owned();
     let icon_data = icon.map(|i| (i.rgba().to_vec(), i.width(), i.height()));
-    let submenu = run_main_thread!(handle, || {
+    let submenu = run_main_thread!(handle, move || {
       let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
-      if let Some((rgba, width, height)) = icon_data.clone() {
+      if let Some((rgba, width, height)) = icon_data {
         submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
       }
-      SubmenuInner {
-        id,
-        inner: Some(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
     Ok(Self(Arc::new(submenu)))
   }
@@ -224,11 +204,7 @@ impl<R: Runtime> Submenu<R> {
       if let Some(icon) = icon {
         submenu.set_native_icon(Some(icon.into()));
       }
-      SubmenuInner {
-        id,
-        inner: Some(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
     Ok(Self(Arc::new(submenu)))
   }
@@ -270,7 +246,7 @@ impl<R: Runtime> Submenu<R> {
 
   /// Returns a unique identifier associated with this submenu.
   pub fn id(&self) -> &MenuId {
-    &self.0.id
+    self.0.inner.id()
   }
 
   /// Add a menu item to the end of this submenu.

@@ -25,12 +25,12 @@
       "identifier": "fs:allow-app",
       "allow": [
         {
-          "path": "$APP/**"
+          "path": "$APPDATA/**"
         }
       ],
       "deny": [
         {
-          "path": "$APP/*.db"
+          "path": "$APPDATA/*.db"
         }
       ]
     },

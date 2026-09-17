@@ -25,12 +25,12 @@
 
 use super::freedesktop;
 use crate::{
+  Settings,
   bundle::settings::Arch,
   error::{Context, ErrorExt},
   utils::fs_utils,
-  Settings,
 };
-use flate2::{write::GzEncoder, Compression};
+use flate2::{Compression, write::GzEncoder};
 use tar::HeaderMode;
 use walkdir::WalkDir;
 
@@ -119,8 +119,9 @@ pub fn generate_data(
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    fs_utils::copy_file(&bin_path, &bin_dir.join(bin.name()))
-      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
+    let trgt = bin_dir.join(bin.name());
+    fs_utils::copy_file(&bin_path, &trgt)
+      .with_context(|| format!("Failed to copy binary from {bin_path:?} to {trgt:?}"))?;
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;

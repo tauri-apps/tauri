@@ -5,16 +5,16 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
+  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
   app::UriSchemeResponder,
   ipc::{Invoke, InvokeHandler, ScopeObject, ScopeValue},
   manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
   webview::PageLoadPayload,
-  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
 };
 use serde::{
-  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
   Serialize, Serializer,
+  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
 };
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
@@ -113,6 +113,7 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {}
 
+  // TODO: Change this to `run_invoke_handler` in v3
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
   fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
@@ -651,13 +652,13 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   >(
     mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(move |ctx, request, responder| {
-          responder.respond(protocol(ctx, request))
+        handler: Box::new(move |ctx, request, responder| {
+          responder.respond(protocol_handler(ctx, request))
         }),
       }),
     );
@@ -721,12 +722,12 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   >(
     mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(protocol),
+        handler: Box::new(protocol_handler),
       }),
     );
     self
@@ -997,10 +998,10 @@ impl<R: Runtime> PluginStore<R> {
     })
   }
 
-  /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
-  pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
+  pub(crate) fn run_invoke_handler(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
     for p in self.store.iter_mut() {
       if p.name() == plugin {
         #[cfg(feature = "tracing")]

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use swift_rs::{swift, SRString, SwiftArg};
+use swift_rs::{SRString, SwiftArg, swift};
 
 use std::{
   ffi::c_void,
@@ -46,3 +46,4 @@ swift!(pub fn register_plugin(
   webview: *const c_void
 ));
 swift!(pub fn on_webview_created(webview: *const c_void, controller: *const c_void));
+swift!(pub fn log_stdout());

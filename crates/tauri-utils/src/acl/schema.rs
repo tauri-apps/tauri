@@ -5,7 +5,7 @@
 //! Schema generation for ACL items.
 
 use std::{
-  collections::{btree_map::Values, BTreeMap},
+  collections::{BTreeMap, btree_map::Values},
   fs,
   path::{Path, PathBuf},
   slice::Iter,
@@ -17,9 +17,9 @@ use super::{Error, PERMISSION_SCHEMAS_FOLDER_NAME};
 use crate::{platform::Target, write_if_changed};
 
 use super::{
+  PERMISSION_SCHEMA_FILE_NAME, Permission, PermissionSet,
   capability::CapabilityFile,
   manifest::{Manifest, PermissionFile},
-  Permission, PermissionSet, PERMISSION_SCHEMA_FILE_NAME,
 };
 
 /// Capability schema file name.
@@ -317,6 +317,9 @@ pub fn generate_capability_schema(
   extend_permission_entry_schema(&mut schema, acl);
 
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
+  // FIXME: in schemars@v1 this doesn't seem to be necessary anymore. If it is, find a better solution.
+  let schema_str = schema_str.replace("\\r\\n", "\\n");
+
   let out_dir = PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH);
   fs::create_dir_all(&out_dir)?;
 
@@ -388,6 +391,9 @@ pub fn generate_permissions_schema<P: AsRef<Path>>(
   extend_permission_file_schema(&mut schema, permissions);
 
   let schema_str = serde_json::to_string_pretty(&schema)?;
+
+  // FIXME: in schemars@v1 this doesn't seem to be necessary anymore. If it is, find a better solution.
+  let schema_str = schema_str.replace("\\r\\n", "\\n");
 
   let out_dir = out_dir.as_ref().join(PERMISSION_SCHEMAS_FOLDER_NAME);
   fs::create_dir_all(&out_dir).map_err(|e| Error::CreateDir(e, out_dir.clone()))?;

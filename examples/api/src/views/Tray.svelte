@@ -1,79 +1,134 @@
-<script>
+<script lang="ts">
   import { TrayIcon } from '@tauri-apps/api/tray'
-  import MenuBuilder from '../components/MenuBuilder.svelte'
+  import MenuBuilder, {
+    reorderMenuItems,
+    type Item,
+    type MenuItemClickDetail,
+    type MenuItems
+  } from '../components/MenuBuilder.svelte'
   import { Menu } from '@tauri-apps/api/menu'
+  import type { ViewProps } from '../App.svelte'
+  import { onDestroy } from 'svelte'
 
-  let { onMessage } = $props()
+  let { onMessage }: ViewProps = $props()
 
-  let icon = $state(null)
-  let tooltip = $state(null)
-  let title = $state(null)
+  let icon = $state<string>('../../.icons/tray_icon.png')
+  let tooltip = $state<string>()
+  let title = $state<string>()
   let iconAsTemplate = $state(false)
   let menuOnLeftClick = $state(true)
-  let menuItems = $state([])
+  let menuItems = $state<Item[]>([])
 
-  function onItemClick(detail) {
+  let menu: Menu | undefined
+  let tray = $state<TrayIcon | undefined>()
+
+  function onItemClick(detail: MenuItemClickDetail) {
     onMessage(`Item ${detail.text} clicked`)
   }
 
   async function create() {
-    TrayIcon.new({
-      icon,
-      tooltip,
-      title,
-      iconAsTemplate,
-      menuOnLeftClick,
-      menu: await Menu.new({
-        items: menuItems.map((i) => i.item)
-      }),
-      action: (event) => onMessage(event)
-    }).catch(onMessage)
+    try {
+      menu = await Menu.new({
+        items: menuItems.map((i) => i.menu).filter(Boolean) as MenuItems[]
+      })
+      tray = await TrayIcon.new({
+        icon,
+        tooltip,
+        title,
+        iconAsTemplate,
+        menuOnLeftClick,
+        menu,
+        action: (event) => onMessage(event)
+      })
+    } catch (error) {
+      menu?.close()
+      menu = undefined
+      tray?.close()
+      tray = undefined
+      onMessage(error)
+    }
   }
+
+  onDestroy(() => {
+    menu?.close()
+    tray?.close()
+  })
 </script>
 
-<div class="flex flex-col children:grow gap-2">
-  <div class="flex gap-1">
-    <input
-      class="input grow"
-      type="text"
-      placeholder="Title"
-      bind:value={title}
-    />
+<div class="grid gap-8 mb-4">
+  <MenuBuilder
+    bind:items={menuItems}
+    itemClick={onItemClick}
+    onItemAdded={async (item) => {
+      if (item.menu) {
+        await menu?.append(item.menu)
+      }
+    }}
+    onItemRemoved={async (item) => {
+      if (item.menu) {
+        await menu?.remove(item.menu)
+      }
+    }}
+    onItemMoved={(item, toIndex) => {
+      if (menu) {
+        reorderMenuItems(menu, item, toIndex)
+      }
+    }}
+  />
 
-    <input
-      class="input grow"
-      type="text"
-      placeholder="Tooltip"
-      bind:value={tooltip}
-    />
+  <div class="flex items-center gap-8">
+    <div class="grid gap-2 grid-cols-3 items-center">
+      <input
+        class="input grow"
+        type="text"
+        placeholder="Title"
+        bind:value={title}
+      />
 
-    <label>
-      <input type="checkbox" class="checkbox" bind:checked={menuOnLeftClick} />
-      Menu on left click
-    </label>
-  </div>
+      <input
+        class="input grow"
+        type="text"
+        placeholder="Tooltip"
+        bind:value={tooltip}
+      />
 
-  <div class="flex gap-1">
-    <input
-      class="input grow"
-      type="text"
-      placeholder="Icon path"
-      bind:value={icon}
-    />
+      <label class="flex gap-2">
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={menuOnLeftClick}
+        />
+        Menu on left click
+      </label>
 
-    <label>
-      <input type="checkbox" class="checkbox" bind:checked={iconAsTemplate} />
-      Icon as template
-    </label>
-  </div>
+      <input
+        class="input col-span-2"
+        type="text"
+        placeholder="Icon path"
+        bind:value={icon}
+      />
 
-  <div class="flex children:grow">
-    <MenuBuilder bind:items={menuItems} itemClick={onItemClick} />
-  </div>
+      <label class="flex gap-2">
+        <input type="checkbox" class="checkbox" bind:checked={iconAsTemplate} />
+        Icon as template
+      </label>
+    </div>
 
-  <div class="flex">
-    <button class="btn" onclick={create} title="Creates the tray icon"
-      >Create tray</button
-    >
+    <div class="flex">
+      {#if tray}
+        <button
+          class="btn"
+          onclick={() => {
+            tray?.close()
+            tray = undefined
+          }}
+          title="Remove the tray icon">Remove tray</button
+        >
+      {:else}
+        <button class="btn" onclick={create} title="Creates the tray icon"
+          >Create tray</button
+        >
+      {/if}
+    </div>
   </div>
 </div>

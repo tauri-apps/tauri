@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(all(desktop, not(test)))]
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
-  include_image,
+  Manager, Runtime, WebviewUrl, include_image,
   menu::{Menu, MenuItem},
   tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-  Manager, Runtime, WebviewUrl,
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
@@ -44,7 +41,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
 
   let is_menu1 = AtomicBool::new(true);
 
-  let _ = TrayIconBuilder::with_id("tray-1")
+  let _tray = TrayIconBuilder::with_id("tray-1")
     .tooltip("Tauri")
     .icon(app.default_window_icon().unwrap().clone())
     .menu(&menu1)
@@ -123,7 +120,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         }
       }
     })
-    .build(app);
+    .build(app)?;
 
   Ok(())
 }

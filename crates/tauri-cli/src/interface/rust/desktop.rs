@@ -4,19 +4,19 @@
 
 use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
 use crate::{
-  error::{Context, ErrorExt},
   CommandExt, Error,
+  error::{Context, ErrorExt},
 };
 
 use shared_child::SharedChild;
 use std::{
   fs,
   io::{BufReader, ErrorKind, Write},
-  path::PathBuf,
+  path::{Path, PathBuf},
   process::{Command, ExitStatus, Stdio},
   sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
   },
 };
 use tauri_utils::platform::Target as TargetPlatform;
@@ -64,12 +64,8 @@ kill -9 {pid} 2>/dev/null || true
     }
 
     self.dev_child.kill()?;
-    self.manually_killed_app.store(true, Ordering::Relaxed);
+    self.manually_killed_app.store(true, Ordering::SeqCst);
     Ok(())
-  }
-
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    self.dev_child.try_wait()
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
@@ -77,17 +73,17 @@ kill -9 {pid} 2>/dev/null || true
   }
 
   fn manually_killed_process(&self) -> bool {
-    self.manually_killed_app.load(Ordering::Relaxed)
+    self.manually_killed_app.load(Ordering::SeqCst)
   }
 }
 
 pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   options: Options,
-  run_args: Vec<String>,
+  run_args: &[String],
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
-) -> crate::Result<impl DevProcess> {
+) -> crate::Result<DevChild> {
   let mut dev_cmd = cargo_command(true, options, available_targets, config_features)?;
   let runner = dev_cmd.get_program().to_string_lossy().into_owned();
 
@@ -118,7 +114,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
 
-  log::info!(action = "Running"; "DevCommand (`{} {}`)", &dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+  log::info!(action = "Running"; "DevCommand (`{} {}`)", dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
   let dev_child = match SharedChild::spawn(&mut dev_cmd) {
     Ok(c) => Ok(c),
@@ -172,7 +168,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         status.code(),
         if status.code() == Some(101) && is_cargo_compile_error {
           ExitReason::CompilationFailed
-        } else if manually_killed_app_.load(Ordering::Relaxed) {
+        } else if manually_killed_app_.load(Ordering::SeqCst) {
           ExitReason::TriggeredKill
         } else {
           ExitReason::NormalExit
@@ -193,13 +189,10 @@ pub fn build(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   main_binary_name: Option<&str>,
+  tauri_dir: &Path,
 ) -> crate::Result<PathBuf> {
-  let out_dir = app_settings.out_dir(&options)?;
-  let bin_path = app_settings.app_binary_path(&options)?;
-
-  if !std::env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "false") {
-    std::env::set_var("STATIC_VCRUNTIME", "true");
-  }
+  let out_dir = app_settings.out_dir(&options, tauri_dir)?;
+  let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
 
   if options.target == Some("universal-apple-darwin".into()) {
     std::fs::create_dir_all(&out_dir)
@@ -217,7 +210,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(&options)
+        .out_dir(&options, tauri_dir)
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())
@@ -297,9 +290,7 @@ fn cargo_command(
   build_cmd.args(&options.args);
 
   let mut features = config_features;
-  if let Some(f) = options.features {
-    features.extend(f);
-  }
+  features.extend(options.features);
   if !features.is_empty() {
     build_cmd.arg("--features");
     build_cmd.arg(features.join(","));
@@ -345,14 +336,22 @@ fn validate_target(
     if let Some(target) = available_targets.iter().find(|t| t.name == target) {
       if !target.installed {
         crate::error::bail!(
-            "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
-            target = target.name,
-            installed = available_targets.iter().filter(|t| t.installed).map(|t| t.name.as_str()).collect::<Vec<&str>>().join(", ")
-          );
+          "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
+          target = target.name,
+          installed = available_targets
+            .iter()
+            .filter(|t| t.installed)
+            .map(|t| t.name.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ")
+        );
       }
     }
     if !available_targets.iter().any(|t| t.name == target) {
-      crate::error::bail!("Target {target} does not exist. Please run `rustup target list` to see the available targets.", target = target);
+      crate::error::bail!(
+        "Target {target} does not exist. Please run `rustup target list` to see the available targets.",
+        target = target
+      );
     }
   }
   Ok(())
@@ -370,7 +369,7 @@ fn rename_app(
       ""
     };
     let new_path = bin_path.with_file_name(format!("{main_binary_name}{extension}"));
-    fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path.clone())?;
+    fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path)?;
     Ok(new_path)
   } else {
     Ok(bin_path)
@@ -406,14 +405,14 @@ mod terminal {
   use std::{cmp, mem, ptr};
 
   use windows_sys::{
-    core::PCSTR,
     Win32::{
       Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE},
       Storage::FileSystem::{CreateFileA, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
       System::Console::{
-        GetConsoleScreenBufferInfo, GetStdHandle, CONSOLE_SCREEN_BUFFER_INFO, STD_ERROR_HANDLE,
+        CONSOLE_SCREEN_BUFFER_INFO, GetConsoleScreenBufferInfo, GetStdHandle, STD_ERROR_HANDLE,
       },
     },
+    core::PCSTR,
   };
 
   pub fn stderr_width() -> Option<usize> {

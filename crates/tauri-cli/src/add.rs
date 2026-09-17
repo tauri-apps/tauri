@@ -7,14 +7,13 @@ use colored::Colorize;
 use regex::Regex;
 
 use crate::{
-  acl,
+  Result, acl,
   error::ErrorExt,
   helpers::{
-    app_paths::{resolve_frontend_dir, tauri_dir},
+    app_paths::{Dirs, resolve_frontend_dir},
     cargo,
     npm::PackageManager,
   },
-  Result,
 };
 
 use std::process::Command;
@@ -39,11 +38,11 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
-  run(options)
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  run(options, &dirs)
 }
 
-pub fn run(options: Options) -> Result<()> {
+pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
   let (plugin, version) = options
     .plugin
     .split_once('@')
@@ -71,7 +70,6 @@ pub fn run(options: Options) -> Result<()> {
   }
 
   let frontend_dir = resolve_frontend_dir();
-  let tauri_dir = tauri_dir();
 
   let target_str = metadata
     .desktop_only
@@ -90,7 +88,7 @@ pub fn run(options: Options) -> Result<()> {
     branch: options.branch.as_deref(),
     rev: options.rev.as_deref(),
     tag: options.tag.as_deref(),
-    cwd: Some(tauri_dir),
+    cwd: Some(dirs.tauri),
     target: target_str,
   })?;
 
@@ -117,7 +115,7 @@ pub fn run(options: Options) -> Result<()> {
         (None, None, None, None) => npm_name,
         _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
-      manager.install(&[npm_spec], tauri_dir)?;
+      manager.install(&[npm_spec], dirs.frontend)?;
     }
 
     let _ = acl::permission::add::command(acl::permission::add::Options {
@@ -143,7 +141,10 @@ pub fn run(options: Options) -> Result<()> {
   let plugin_init = format!(".plugin(tauri_plugin_{plugin_snake_case}::{plugin_init_fn})");
 
   let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)").unwrap();
-  for file in [tauri_dir.join("src/main.rs"), tauri_dir.join("src/lib.rs")] {
+  for file in [
+    dirs.tauri.join("src/main.rs"),
+    dirs.tauri.join("src/lib.rs"),
+  ] {
     let contents =
       std::fs::read_to_string(&file).fs_context("failed to read Rust entry point", file.clone())?;
 
@@ -166,7 +167,7 @@ pub fn run(options: Options) -> Result<()> {
         log::info!("Running `cargo fmt`...");
         let _ = Command::new("cargo")
           .arg("fmt")
-          .current_dir(tauri_dir)
+          .current_dir(dirs.tauri)
           .status();
       }
 

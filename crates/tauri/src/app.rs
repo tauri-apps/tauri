@@ -1108,6 +1108,14 @@ macro_rules! shared_app_impl {
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
+        // run plugin cleanup hooks first so plugins can still use the app resources (e.g. stop sidecars)
+        self
+          .manager
+          .plugins
+          .lock()
+          .unwrap()
+          .cleanup_before_exit(self.app_handle());
+
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
@@ -1119,13 +1127,6 @@ macro_rules! shared_app_impl {
         for (_, webview) in self.manager.webviews() {
           webview.resources_table().clear();
         }
-        // run plugin cleanup hooks so plugins can perform shutdown tasks (e.g. stop sidecars)
-        self
-          .manager
-          .plugins
-          .lock()
-          .unwrap()
-          .cleanup_before_exit(self.app_handle());
       }
 
       /// Gets the invoke key that must be referenced when using [`crate::webview::InvokeRequest`].

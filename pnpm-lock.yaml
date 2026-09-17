@@ -246,9 +246,6 @@ importers:
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
-      expect-webdriverio:
-        specifier: ^6.0.10
-        version: 6.0.10(@wdio/globals@9.31.3)(@wdio/logger@9.29.1)(webdriverio@9.31.9(supports-color@8.1.1))
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

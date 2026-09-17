@@ -11,8 +11,7 @@
     "types": [
       "node",
       "@wdio/globals/types",
-      "@wdio/mocha-framework",
-      "expect-webdriverio"
+      "@wdio/mocha-framework"
     ],
     "strict": true,
     "skipLibCheck": true,

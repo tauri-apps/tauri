@@ -21,7 +21,6 @@
     "@wdio/mocha-framework": "^9.31.9",
     "@wdio/spec-reporter": "^9.31.2",
     "cross-env": "^10.1.0",
-    "expect-webdriverio": "^6.0.10",
     "typescript": "^6.0.3",
     "webdriverio": "^9.31.9"
   }

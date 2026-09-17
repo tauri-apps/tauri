@@ -993,7 +993,8 @@ impl<R: Runtime> PluginStore<R> {
   pub(crate) fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {
     self.store.iter_mut().for_each(|plugin| {
       #[cfg(feature = "tracing")]
-      let _span = tracing::trace_span!("plugin::hooks::cleanup_before_exit", name = plugin.name()).entered();
+      let _span =
+        tracing::trace_span!("plugin::hooks::cleanup_before_exit", name = plugin.name()).entered();
       plugin.cleanup_before_exit(app)
     })
   }

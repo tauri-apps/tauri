@@ -46,7 +46,8 @@ impl DevProcess for DevChild {
       #[cfg(not(windows))]
       {
         use std::process::Command;
-        let sh = format!(r#"
+        let sh = format!(
+          r#"
 getcpid() {{
   for cpid in $(pgrep -P "$1" 2>/dev/null || true); do
     getcpid "$cpid"
@@ -57,7 +58,9 @@ for p in $(getcpid {pid}); do
   kill -9 "$p" 2>/dev/null || true
 done
 kill -9 {pid} 2>/dev/null || true
-"#, pid = pid);
+"#,
+          pid = pid
+        );
 
         let _ = Command::new("sh").arg("-c").arg(sh).status();
       }

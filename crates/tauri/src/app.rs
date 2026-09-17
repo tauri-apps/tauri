@@ -541,8 +541,6 @@ impl<R: Runtime> AppHandle<R> {
     Ok(())
   }
 
-
-
   /// Removes the plugin with the given name.
   ///
   /// # Examples

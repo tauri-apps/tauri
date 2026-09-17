@@ -185,7 +185,10 @@ pub fn kill_process_tree(pid: u32) -> std::io::Result<()> {
     } else {
       Err(std::io::Error::new(
         std::io::ErrorKind::Other,
-        format!("kill-tree failed: powershell exited with status: {}", status),
+        format!(
+          "kill-tree failed: powershell exited with status: {}",
+          status
+        ),
       ))
     }
   }
@@ -197,7 +200,8 @@ pub fn kill_process_tree(pid: u32) -> std::io::Result<()> {
     // On Unix, recursively collect children via pgrep -P and kill them. We use a small
     // shell function to traverse descendants and then kill them. Use SIGKILL to ensure
     // termination (best effort).
-    let sh = format!(r#"
+    let sh = format!(
+      r#"
 getcpid() {{
   for cpid in $(pgrep -P "$1" 2>/dev/null || true); do
     getcpid "$cpid"
@@ -208,7 +212,9 @@ for p in $(getcpid {pid}); do
   kill -9 "$p" 2>/dev/null || true
 done
 kill -9 {pid} 2>/dev/null || true
-"#, pid = pid);
+"#,
+      pid = pid
+    );
 
     let status = Command::new("sh").arg("-c").arg(sh).status()?;
 
@@ -222,4 +228,3 @@ kill -9 {pid} 2>/dev/null || true
     }
   }
 }
-

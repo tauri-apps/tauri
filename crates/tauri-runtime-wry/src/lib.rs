@@ -46,7 +46,7 @@ use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS}
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
+use tao::platform::unix::{EventLoopWindowTargetExtUnix, WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
@@ -649,6 +649,35 @@ fn find_monitor_for_position(
       && monitor_pos.y <= window_position.y
       && window_position.y < monitor_pos.y + monitor_size.height as i32
   })
+}
+
+/// Logs a warning (at most once per process) explaining that explicit window
+/// positioning is not supported on Wayland, so the requested position is
+/// silently ignored by the compositor.
+///
+/// This is a Wayland design limitation: clients cannot position their own
+/// toplevel windows, so `gtk_window_move` (used by the initial builder
+/// position and by `set_position`) is a no-op there. See
+/// <https://github.com/tauri-apps/tauri/issues/7376>.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn warn_wayland_positioning_unsupported() {
+  use std::sync::Once;
+  static WARN_ONCE: Once = Once::new();
+  WARN_ONCE.call_once(|| {
+    log::warn!(
+      "explicit window positioning is not supported on Wayland; the requested position \
+       will be ignored by the compositor. To place a window on a specific monitor, use \
+       `set_fullscreen_on_monitor` (`setFullscreenOnMonitor` in JavaScript), or set the \
+       window fullscreen together with the position. See \
+       https://github.com/tauri-apps/tauri/issues/7376"
+    );
+  });
 }
 
 #[derive(Debug, Clone)]
@@ -3438,7 +3467,19 @@ fn handle_user_message<T: UserEvent>(
               max_height: constraints.max_height,
             });
           }
-          WindowMessage::SetPosition(position) => window.set_outer_position(position),
+          WindowMessage::SetPosition(position) => {
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            if event_loop.is_wayland() {
+              warn_wayland_positioning_unsupported();
+            }
+            window.set_outer_position(position);
+          }
           WindowMessage::SetFullscreen(fullscreen) => {
             if fullscreen {
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
@@ -3447,7 +3488,11 @@ fn handle_user_message<T: UserEvent>(
             }
           }
           WindowMessage::SetFullscreenOnMonitor(position) => {
-            if let Some(monitor) = window.monitor_from_point(position.x, position.y) {
+            // Not `Window::monitor_from_point`: on macOS and Linux (GTK) it takes logical
+            // coordinates, while callers pass physical ones (e.g. `Monitor::position`).
+            if let Some(monitor) =
+              find_monitor_for_position(window.available_monitors(), position.into())
+            {
               window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))))
             }
           }
@@ -4515,6 +4560,13 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     {
       window_builder.inner.window.fullscreen = Some(Fullscreen::Borderless(Some(target_monitor)));
     }
+  }
+
+  // On Wayland an explicit (non-fullscreen) position is ignored by the compositor,
+  // so warn the developer instead of silently failing.
+  #[cfg(target_os = "linux")]
+  if initial_position.is_some() && !is_fullscreen && event_loop.is_wayland() {
+    warn_wayland_positioning_unsupported();
   }
 
   let window = window_builder

@@ -8,11 +8,15 @@
     Effect,
     EffectState,
     ProgressBarStatus,
-    availableMonitors,
-    currentMonitor,
+    availableMonitors
   } from '@tauri-apps/api/window'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
-  import type { CursorIcon, Effects, Theme } from '@tauri-apps/api/window'
+  import type {
+    CursorIcon,
+    Effects,
+    Monitor,
+    Theme
+  } from '@tauri-apps/api/window'
   import type { UnlistenFn } from '@tauri-apps/api/event'
   import type { ViewProps } from '../App.svelte'
 
@@ -26,12 +30,13 @@
   let selectedWebviewLabel = $state(webview.label)
   let selectedWebview = $derived(webviewMap[selectedWebviewLabel])
 
-  let monitor = $state("")
-  let selectedMonitor = $state("")
-  let monitorMap = $state({})
+  let monitorMap = $state<Record<string, Monitor>>({})
+  let selectedMonitor = $state('')
 
-  availableMonitors().then((response) => {
-    monitorMap = Object.fromEntries(response.map((m) => [m.name, m]))
+  availableMonitors().then((monitors) => {
+    monitorMap = Object.fromEntries(
+      monitors.map((m, i) => [m.name ?? `Monitor ${i + 1}`, m])
+    )
   })
 
   let focusable = $state(true)
@@ -125,6 +130,16 @@
   let outerPosition = $state(new PhysicalPosition(0, 0))
   let innerSize = $state(new PhysicalSize(0, 0))
   let outerSize = $state(new PhysicalSize(0, 0))
+  // name of the monitor containing the selected window's top-left corner
+  let monitor = $derived(
+    Object.entries(monitorMap).find(
+      ([, m]) =>
+        outerPosition.x >= m.position.x
+        && outerPosition.x < m.position.x + m.size.width
+        && outerPosition.y >= m.position.y
+        && outerPosition.y < m.position.y + m.size.height
+    )?.[0] ?? ''
+  )
   let resizeEventUnlisten: UnlistenFn | undefined
   let moveEventUnlisten: UnlistenFn | undefined
   let cursorGrab = $state(false)
@@ -230,11 +245,6 @@
       outerPosition = response
       x = outerPosition.x
       y = outerPosition.y
-    })
-    currentMonitor().then((response) => {
-      if (response) {
-        monitor = response.name
-      }
     })
   }
 
@@ -366,6 +376,13 @@
 
   function updateSimpleFullscreen() {
     selectedWebview.setSimpleFullscreen(simpleFullscreen)
+  }
+
+  async function setFullscreenOnMonitor() {
+    const target = monitorMap[selectedMonitor]
+    if (!target) return
+    await selectedWebview.setFullscreenOnMonitor(target.position)
+    fullscreen = true
   }
 
   function updateMinSize() {
@@ -528,26 +545,23 @@
         Set focusable to {!focusable}
       </button>
 
-      <div class="gap-2">
-        <form
-          class="flex"
-          onsubmit={(ev) => {
-            if (selectedMonitor) {
-              webviewMap[selectedWebview].setFullscreenOnMonitor(monitorMap[selectedMonitor].position)
-                .then((r) => {fullscreen = true})
-            }
-            ev.preventDefault()
-          }}
-        >
-        <button class="btn" type="submit">Set Fullscreen on Monitor</button>
-        <select class="input" style="padding-top: 0;padding-bottom: 0;" bind:value={selectedMonitor}>
-          <option value="" disabled selected>Choose a monitor...</option>
+      <form
+        class="flex gap-2"
+        onsubmit={(ev) => {
+          setFullscreenOnMonitor()
+          ev.preventDefault()
+        }}
+      >
+        <button class="btn" type="submit" disabled={!selectedMonitor}>
+          Set Fullscreen on Monitor
+        </button>
+        <select class="input" bind:value={selectedMonitor}>
+          <option value="" disabled>Choose a monitor...</option>
           {#each Object.keys(monitorMap) as label}
             <option value={label}>{label}</option>
           {/each}
         </select>
-        </form>
-      </div>
+      </form>
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))] *:flex *:gap-2">
       <label>

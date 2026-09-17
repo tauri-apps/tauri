@@ -10,7 +10,7 @@ license = "Apache-2.0 OR MIT"
 keywords = ["bundle", "cargo", "tauri"]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
-edition = "2021"
+edition = "2024"
 rust-version = "1.90"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
@@ -29,7 +29,7 @@ bytesize = "2"
 handlebars = "6"
 tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }
-dirs = "6"
+dirs = "7"
 os_pipe = "1"
 ureq = { version = "3", default-features = false, features = ["socks-proxy"] }
 native-tls = { version = "0.2", optional = true }
@@ -77,3 +77,6 @@ native-tls = ["ureq/native-tls"]
 native-tls-vendored = ["native-tls", "native-tls/vendored"]
 rustls = ["ureq/rustls"]
 platform-certs = ["ureq/platform-verifier"]
+
+[lints]
+workspace = true

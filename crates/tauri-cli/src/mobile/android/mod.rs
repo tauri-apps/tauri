@@ -160,13 +160,15 @@ pub fn get_config(
     ..Default::default()
   };
 
-  set_var(
-    "WRY_ANDROID_PACKAGE",
-    app.android_identifier_escape_kotlin_keyword(),
-  );
-  set_var("TAURI_ANDROID_PACKAGE_UNESCAPED", app.identifier());
-  set_var("WRY_ANDROID_LIBRARY", app.lib_name());
-  set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
+  unsafe {
+    set_var(
+      "WRY_ANDROID_PACKAGE",
+      app.android_identifier_escape_kotlin_keyword(),
+    )
+  };
+  unsafe { set_var("TAURI_ANDROID_PACKAGE_UNESCAPED", app.identifier()) };
+  unsafe { set_var("WRY_ANDROID_LIBRARY", app.lib_name()) };
+  unsafe { set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir()) };
 
   let src_main_dir = config
     .project_dir()
@@ -183,10 +185,12 @@ pub fn get_config(
       exit(1);
     }
   }
-  set_var(
-    "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
-    src_main_dir.join("generated"),
-  );
+  unsafe {
+    set_var(
+      "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
+      src_main_dir.join("generated"),
+    )
+  };
 
   check_java_gradle_versions();
 
@@ -484,7 +488,7 @@ fn ensure_java() -> Result<()> {
 
     if Path::new(default_java_home).exists() {
       log::info!("Using Android Studio's default Java installation: {default_java_home}");
-      std::env::set_var("JAVA_HOME", default_java_home);
+      unsafe { std::env::set_var("JAVA_HOME", default_java_home) };
     } else if which::which("java").is_err() {
       crate::error::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");
     }
@@ -583,7 +587,7 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
       }
     }
 
-    std::env::set_var("ANDROID_HOME", default_android_home);
+    unsafe { std::env::set_var("ANDROID_HOME", default_android_home) };
   }
 
   Ok(())
@@ -620,7 +624,7 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 
   if let Some(ndk) = installed_ndks.last() {
     log::info!("Using installed NDK: {}", ndk.display());
-    std::env::set_var("NDK_HOME", ndk);
+    unsafe { std::env::set_var("NDK_HOME", ndk) };
   } else if non_interactive {
     crate::error::bail!("Android NDK not found. Make sure the NDK is installed and the NDK_HOME environment variable is set.");
   } else {
@@ -680,7 +684,7 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 
     let ndk_path = android_home.join("ndk").join(NDK_VERSION);
     log::info!("Installed NDK: {}", ndk_path.display());
-    std::env::set_var("NDK_HOME", ndk_path);
+    unsafe { std::env::set_var("NDK_HOME", ndk_path) };
   }
 
   Ok(())
@@ -689,7 +693,7 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 fn delete_codegen_vars() {
   for (k, _) in std::env::vars() {
     if k.starts_with("WRY_") && (k.ends_with("CLASS_EXTENSION") || k.ends_with("CLASS_INIT")) {
-      std::env::remove_var(k);
+      unsafe { std::env::remove_var(k) };
     }
   }
 }

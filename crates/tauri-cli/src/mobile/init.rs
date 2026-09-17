@@ -147,7 +147,7 @@ fn exec(
         map.insert("android-debug-application-id-suffix", suffix);
       }
 
-      super::android::project::gen(
+      super::android::project::generate(
         &config,
         &metadata,
         (handlebars, map),
@@ -162,7 +162,7 @@ fn exec(
       let (config, metadata) =
         super::ios::get_config(&app, &tauri_config, &[], &Default::default(), dirs.tauri)?;
       map.insert("apple", &config);
-      super::ios::project::gen(
+      super::ios::project::generate(
         &tauri_config,
         &config,
         &metadata,

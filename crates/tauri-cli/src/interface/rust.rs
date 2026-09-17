@@ -160,10 +160,12 @@ impl Rust {
       .as_ref()
       .is_some_and(|target| target.ends_with("ios") || target.ends_with("ios-sim"));
     if target_ios {
-      std::env::set_var(
-        "IPHONEOS_DEPLOYMENT_TARGET",
-        &config.bundle.ios.minimum_system_version,
-      );
+      unsafe {
+        std::env::set_var(
+          "IPHONEOS_DEPLOYMENT_TARGET",
+          &config.bundle.ios.minimum_system_version,
+        )
+      };
     }
 
     let app_settings = RustAppSettings::new(config, manifest, target, tauri_dir)?;
@@ -1938,7 +1940,7 @@ mod tests {
 
     #[cfg(windows)]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir");
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("D:\\path\\to\\env\\dir\\release")
@@ -1951,7 +1953,7 @@ mod tests {
 
     #[cfg(not(windows))]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir");
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("/path/to/env/dir/release")

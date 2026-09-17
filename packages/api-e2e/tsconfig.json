@@ -8,12 +8,7 @@
     // resolves the api types.
     "moduleResolution": "Bundler",
     "lib": ["ES2023", "DOM"],
-    "types": [
-      "node",
-      "@wdio/globals/types",
-      "@wdio/mocha-framework",
-      "expect-webdriverio"
-    ],
+    "types": ["node", "@wdio/globals/types", "@wdio/mocha-framework"],
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,

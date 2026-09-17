@@ -106,16 +106,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  brace-expansion@<1.1.16: ^1.1.16
-  brace-expansion@>=2.0.0 <2.1.2: ^2.1.2
-  brace-expansion@>=3.0.0 <5.0.7: ^5.0.7
-  diff@>=6.0.0 <8.0.3: ^8.0.3
-  esbuild@>=0.27.3 <0.28.1: '>=0.28.1'
-  ip-address@<10.3.1: ^10.3.1
   serialize-javascript@<7.0.5: ^7.0.5
-  sharp@<0.35.4: ^0.35.4
-  undici@>=7.0.0 <7.29.0: ^7.29.0
-  ws@>=8.0.0 <8.20.1: '>=8.20.1'
 
 importers:
 
@@ -128,8 +119,8 @@ importers:
   crates/tauri-schema-worker:
     devDependencies:
       wrangler:
-        specifier: ^4.114.0
-        version: 4.114.0(@types/node@24.11.0)
+        specifier: ^4.132.0
+        version: 4.132.0(@types/node@24.11.0)
 
   examples/api:
     dependencies:
@@ -230,10 +221,10 @@ importers:
         version: 22.20.0
       '@wdio/cli':
         specifier: ^9.31.9
-        version: 9.31.9(@types/node@22.20.0)(expect-webdriverio@5.7.0)(supports-color@8.1.1)
+        version: 9.31.9(@types/node@22.20.0)(expect-webdriverio@6.0.10)(supports-color@8.1.1)
       '@wdio/globals':
         specifier: ^9.31.3
-        version: 9.31.3(expect-webdriverio@5.7.0)(webdriverio@9.31.9(supports-color@8.1.1))
+        version: 9.31.3(expect-webdriverio@6.0.10)(webdriverio@9.31.9(supports-color@8.1.1))
       '@wdio/local-runner':
         specifier: ^9.31.9
         version: 9.31.9(@wdio/globals@9.31.3)(supports-color@8.1.1)(webdriverio@9.31.9(supports-color@8.1.1))
@@ -243,9 +234,9 @@ importers:
       '@wdio/spec-reporter':
         specifier: ^9.31.2
         version: 9.31.2
-      expect-webdriverio:
-        specifier: ^5.0.0
-        version: 5.7.0(@wdio/globals@9.31.3)(@wdio/logger@9.29.1)(webdriverio@9.31.9(supports-color@8.1.1))
+      cross-env:
+        specifier: ^10.1.0
+        version: 10.1.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -294,32 +285,32 @@ packages:
       workerd:
         optional: true
 
-  '@cloudflare/workerd-darwin-64@1.20260722.1':
-    resolution: {integrity: sha512-vZOP8vIS3NwnuaO+gz0FZ7kIGeiO3bZmxV35Ph9zOXKSREhDFlH7wQ7mkCdhW3O4jnXsew+XT7b+DNEI2CcJGQ==}
+  '@cloudflare/workerd-darwin-64@1.20260915.1':
+    resolution: {integrity: sha512-EFjNxN4l5caJoHADhchROvO52EFFt+zmJvFZRmwX6UU9pE53BAbF94wRBhbpylv5Ethsd1TdJNwYuUPgZYbETg==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [darwin]
 
-  '@cloudflare/workerd-darwin-arm64@1.20260722.1':
-    resolution: {integrity: sha512-EmIQymihDq6WNdER4+LF8Qn80yqayBUpJ+tkOO7wmY8pmgfyXjIUFNXotl21AHovTeu2seR7HdVUgeN/BilCWw==}
+  '@cloudflare/workerd-darwin-arm64@1.20260915.1':
+    resolution: {integrity: sha512-Xm2jbLw8M/o5YkuI5VsHCVU4rgnzr3ROl+Awk7FCBJ3mtLJNuxPtJNB/zZI+/t+3QtgsSPnmTisS5Gq6/KLQ/A==}
     engines: {node: '>=16'}
     cpu: [arm64]
     os: [darwin]
 
-  '@cloudflare/workerd-linux-64@1.20260722.1':
-    resolution: {integrity: sha512-jvZ3k9fxcnEn04s80CgIYxQfpOyAiz/8qC42DP8EBa9tR27qWyg9wmm31zIobVlrgBZn/+8NfdP73avRGcQOjQ==}
+  '@cloudflare/workerd-linux-64@1.20260915.1':
+    resolution: {integrity: sha512-hkQp+PWBp7U6uDMd6hqUf4lfErPV79jolLaK6j4U50HrHC4jqWxESPemkxEk8H7p9jTKkZ9I9Z0nA5DLAE0J6g==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [linux]
 
-  '@cloudflare/workerd-linux-arm64@1.20260722.1':
-    resolution: {integrity: sha512-BOSB55SMNdy+DA5uj2WirgiNanpHGis5PVvXH1wSfvjRKr4JGgWK+EZzxz0RFUo6QjjQQC/NimEzNZ7va7jmKg==}
+  '@cloudflare/workerd-linux-arm64@1.20260915.1':
+    resolution: {integrity: sha512-3yi8/irVGNQbuYTSmLXcEGupk4Js42jU3kyAx88MDbwGQUa34VbucKcNwHwfhqwEUNaIrn8ohlOEcNJChQl0Og==}
     engines: {node: '>=16'}
     cpu: [arm64]
     os: [linux]
 
-  '@cloudflare/workerd-windows-64@1.20260722.1':
-    resolution: {integrity: sha512-sYM8YgUpKnRz2xjvdJLX1Ojzoi4MlA4gk8WTTExhGydjYB2UTs5NIbv0ZmpKgMoK9io3ixgmiW56ZnTbcWOdiA==}
+  '@cloudflare/workerd-windows-64@1.20260915.1':
+    resolution: {integrity: sha512-+FQ3o/grK2tQy6dw3AqSOYWsYROZqxCQKBqSHQVcXvr2x2QetCT64OrvAAJ0hpQAokREFwQyzsNmMiZbAdW0zw==}
     engines: {node: '>=16'}
     cpu: [x64]
     os: [win32]
@@ -2916,14 +2907,6 @@ packages:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
 
-  expect-webdriverio@5.7.0:
-    resolution: {integrity: sha512-jLOTrJoPBC3Wtd83ryHMbRcEajMGtAnn6OWtSnoJoDLt16nHvxVdjcI4Bc0n+1KAOr8DvQtlJ55f0M48kJtEpw==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@wdio/globals': ^9.0.0
-      '@wdio/logger': ^9.0.0
-      webdriverio: ^9.0.0
-
   expect-webdriverio@6.0.10:
     resolution: {integrity: sha512-VBaMl4U6orgn3uzM7n65Gd48legqi37GoP0mklR+3f7vs/cC1s4hQVmGoiqz9aBcISVF37dAynP3aoi0R0CDow==}
     engines: {node: '>=20'}
@@ -3472,10 +3455,9 @@ packages:
     resolution: {integrity: sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==}
     engines: {node: '>=8.6'}
 
-  miniflare@4.20260722.0:
-    resolution: {integrity: sha512-LW6ABMhCx/yIEFBLC/DO4yAhdm2T/G7jp7pr5T2kj895+CCIaHZqpMXdW9O6YE48LcYcCJChwWc8aEs1vpbTXw==}
+  miniflare@5.20260915.0-alpha:
+    resolution: {integrity: sha512-ApLsq9X2jbpkLAPXx89afGvuNxAFzd1rUK+nzfBSLu+34YWc2Q2YlgH6f3kSEEQYZ2gAlC5Q5IP6tDNNg/1KqQ==}
     engines: {node: '>=22.0.0'}
-    hasBin: true
 
   minimatch@10.2.5:
     resolution: {integrity: sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==}
@@ -4187,7 +4169,7 @@ packages:
     peerDependencies:
       '@types/node': ^20.19.0 || >=22.12.0
       '@vitejs/devtools': ^0.3.0
-      esbuild: '>=0.28.1'
+      esbuild: ^0.27.0 || ^0.28.0
       jiti: '>=1.21.0'
       less: ^4.0.0
       sass: ^1.70.0
@@ -4324,20 +4306,20 @@ packages:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
 
-  workerd@1.20260722.1:
-    resolution: {integrity: sha512-NycKuc1x2onvsRfGGpM093vRlLFU2zHDAM0+APpccfg4+gZxDGCH27RmdDvkeBuoZyYqgLo3oAfF6re4mvC3vQ==}
+  workerd@1.20260915.1:
+    resolution: {integrity: sha512-9Nqh22lW/ondXnMkFTbn65MHZLdsE2izJ9sFIVdqAufQTEVWnUkcpp7T5JtLr4ASN/VuxlTVZ5xgYntyo+d4ag==}
     engines: {node: '>=16'}
     hasBin: true
 
   workerpool@6.5.1:
     resolution: {integrity: sha512-Fs4dNYcsdpYSAfVxhnl1L5zTksjvOJxtC5hzMNl+1t9B8hTJTdKDyZ5ju7ztgPy+ft9tBFXoOlDNiOT9WUXZlA==}
 
-  wrangler@4.114.0:
-    resolution: {integrity: sha512-M65P25t5UHA1TIJfgZXDcj+YzVobgKdRguM2QPz0xnxLFuOcuE3ErgllDht0iaho7MS4o0g/Bb4YK2+GT+bibg==}
+  wrangler@4.132.0:
+    resolution: {integrity: sha512-61HD7Unw3g7h9zSQoqldzfL3MEbCKUVfwtlMgfSQtjYwMjBD8z83K/EXnYGv75R5hczx3grFfjYH+tdmJm5PHg==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
-      '@cloudflare/workers-types': ^5.20260722.1
+      '@cloudflare/workers-types': ^5.20260915.1
     peerDependenciesMeta:
       '@cloudflare/workers-types':
         optional: true
@@ -4442,25 +4424,25 @@ snapshots:
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 
-  '@cloudflare/unenv-preset@2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260722.1)':
+  '@cloudflare/unenv-preset@2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260915.1)':
     dependencies:
       unenv: 2.0.0-rc.24
     optionalDependencies:
-      workerd: 1.20260722.1
+      workerd: 1.20260915.1
 
-  '@cloudflare/workerd-darwin-64@1.20260722.1':
+  '@cloudflare/workerd-darwin-64@1.20260915.1':
     optional: true
 
-  '@cloudflare/workerd-darwin-arm64@1.20260722.1':
+  '@cloudflare/workerd-darwin-arm64@1.20260915.1':
     optional: true
 
-  '@cloudflare/workerd-linux-64@1.20260722.1':
+  '@cloudflare/workerd-linux-64@1.20260915.1':
     optional: true
 
-  '@cloudflare/workerd-linux-arm64@1.20260722.1':
+  '@cloudflare/workerd-linux-arm64@1.20260915.1':
     optional: true
 
-  '@cloudflare/workerd-windows-64@1.20260722.1':
+  '@cloudflare/workerd-windows-64@1.20260915.1':
     optional: true
 
   '@crabnebula/tauri-driver-darwin-arm64@2.0.9':
@@ -6092,11 +6074,11 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
-  '@wdio/cli@9.31.9(@types/node@22.20.0)(expect-webdriverio@5.7.0)(supports-color@8.1.1)':
+  '@wdio/cli@9.31.9(@types/node@22.20.0)(expect-webdriverio@6.0.10)(supports-color@8.1.1)':
     dependencies:
       '@vitest/snapshot': 3.2.7
       '@wdio/config': 9.31.9(supports-color@8.1.1)
-      '@wdio/globals': 9.31.3(expect-webdriverio@5.7.0)(webdriverio@9.31.9(supports-color@8.1.1))
+      '@wdio/globals': 9.31.3(expect-webdriverio@6.0.10)(webdriverio@9.31.9(supports-color@8.1.1))
       '@wdio/logger': 9.29.1
       '@wdio/protocols': 9.31.5
       '@wdio/types': 9.31.2
@@ -6145,11 +6127,6 @@ snapshots:
       '@wdio/reporter': 9.31.2
       '@wdio/types': 9.31.2
       chalk: 5.6.2
-
-  '@wdio/globals@9.31.3(expect-webdriverio@5.7.0)(webdriverio@9.31.9(supports-color@8.1.1))':
-    dependencies:
-      expect-webdriverio: 5.7.0(@wdio/globals@9.31.3)(@wdio/logger@9.29.1)(webdriverio@9.31.9(supports-color@8.1.1))
-      webdriverio: 9.31.9(supports-color@8.1.1)
 
   '@wdio/globals@9.31.3(expect-webdriverio@6.0.10)(webdriverio@9.31.9(supports-color@8.1.1))':
     dependencies:
@@ -6897,20 +6874,10 @@ snapshots:
 
   expect-type@1.4.0: {}
 
-  expect-webdriverio@5.7.0(@wdio/globals@9.31.3)(@wdio/logger@9.29.1)(webdriverio@9.31.9(supports-color@8.1.1)):
-    dependencies:
-      '@vitest/snapshot': 4.1.11
-      '@wdio/globals': 9.31.3(expect-webdriverio@5.7.0)(webdriverio@9.31.9(supports-color@8.1.1))
-      '@wdio/logger': 9.29.1
-      deep-eql: 5.0.2
-      expect: 30.4.1
-      jest-matcher-utils: 30.4.1
-      webdriverio: 9.31.9(supports-color@8.1.1)
-
   expect-webdriverio@6.0.10(@wdio/globals@9.31.3)(@wdio/logger@9.29.1)(webdriverio@9.31.9(supports-color@8.1.1)):
     dependencies:
       '@vitest/snapshot': 4.1.11
-      '@wdio/globals': 9.31.3(expect-webdriverio@5.7.0)(webdriverio@9.31.9(supports-color@8.1.1))
+      '@wdio/globals': 9.31.3(expect-webdriverio@6.0.10)(webdriverio@9.31.9(supports-color@8.1.1))
       '@wdio/logger': 9.29.1
       deep-eql: 5.0.2
       expect: 30.4.1
@@ -7435,12 +7402,12 @@ snapshots:
       braces: 3.0.3
       picomatch: 2.3.2
 
-  miniflare@4.20260722.0(@types/node@24.11.0):
+  miniflare@5.20260915.0-alpha(@types/node@24.11.0):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.4(@types/node@24.11.0)
       undici: 7.29.0
-      workerd: 1.20260722.1
+      workerd: 1.20260915.1
       ws: 8.21.0
       youch: 4.1.0-beta.10
     transitivePeerDependencies:
@@ -8401,26 +8368,26 @@ snapshots:
 
   word-wrap@1.2.5: {}
 
-  workerd@1.20260722.1:
+  workerd@1.20260915.1:
     optionalDependencies:
-      '@cloudflare/workerd-darwin-64': 1.20260722.1
-      '@cloudflare/workerd-darwin-arm64': 1.20260722.1
-      '@cloudflare/workerd-linux-64': 1.20260722.1
-      '@cloudflare/workerd-linux-arm64': 1.20260722.1
-      '@cloudflare/workerd-windows-64': 1.20260722.1
+      '@cloudflare/workerd-darwin-64': 1.20260915.1
+      '@cloudflare/workerd-darwin-arm64': 1.20260915.1
+      '@cloudflare/workerd-linux-64': 1.20260915.1
+      '@cloudflare/workerd-linux-arm64': 1.20260915.1
+      '@cloudflare/workerd-windows-64': 1.20260915.1
 
   workerpool@6.5.1: {}
 
-  wrangler@4.114.0(@types/node@24.11.0):
+  wrangler@4.132.0(@types/node@24.11.0):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
-      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260722.1)
+      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260915.1)
       blake3-wasm: 2.1.5
       esbuild: 0.28.1
-      miniflare: 4.20260722.0(@types/node@24.11.0)
+      miniflare: 5.20260915.0-alpha(@types/node@24.11.0)
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
-      workerd: 1.20260722.1
+      workerd: 1.20260915.1
     optionalDependencies:
       fsevents: 2.3.3
     transitivePeerDependencies:

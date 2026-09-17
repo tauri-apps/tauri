@@ -3,23 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_resources, open_and_wait, sync_debug_application_id_suffix, MobileTarget,
+  MobileTarget, configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app,
+  get_config, inject_resources, open_and_wait, sync_debug_application_id_suffix,
 };
 use crate::{
+  ConfigValue, Error, Result,
   dev::Options as DevOptions,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
   },
   interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    android::generate_tauri_properties, use_network_address_for_dev_url, write_options, CliOptions,
-    DevChild, DevHost, DevProcess, TargetDevice,
+    CliOptions, DevChild, DevHost, DevProcess, TargetDevice, android::generate_tauri_properties,
+    use_network_address_for_dev_url, write_options,
   },
-  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
 

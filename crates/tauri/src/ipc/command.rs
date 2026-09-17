@@ -8,12 +8,12 @@
 //! attribute macro along the way and used by [`crate::generate_handler`] macro.
 
 use crate::{
-  ipc::{InvokeBody, InvokeError, InvokeMessage},
   Runtime,
+  ipc::{InvokeBody, InvokeError, InvokeMessage},
 };
 use serde::{
-  de::{Error, Visitor},
   Deserialize, Deserializer,
+  de::{Error, Visitor},
 };
 
 use tauri_utils::acl::resolved::ResolvedCommand;
@@ -183,8 +183,8 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
 #[doc(hidden)]
 pub mod private {
   use crate::{
-    ipc::{InvokeError, InvokeResolver, InvokeResponseBody, IpcResponse},
     Runtime,
+    ipc::{InvokeError, InvokeResolver, InvokeResponseBody, IpcResponse},
   };
   use std::future::Future;
   #[cfg(feature = "tracing")]

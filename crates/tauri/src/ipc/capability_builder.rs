@@ -5,8 +5,8 @@
 use serde::Serialize;
 use tauri_utils::{
   acl::{
-    capability::{Capability, CapabilityFile, PermissionEntry},
     Scopes,
+    capability::{Capability, CapabilityFile, PermissionEntry},
   },
   platform::Target,
 };

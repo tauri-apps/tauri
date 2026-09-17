@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
-use http::{header::*, status::StatusCode, Request, Response};
+use http::{Request, Response, header::*, status::StatusCode};
 use http_range::HttpRange;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
@@ -55,7 +55,9 @@ fn get_response(
       #[cfg(target_os = "android")]
       {
         if path.starts_with("/storage/emulated/0/Android/data/") {
-          log::error!("Failed to open Android external storage file '{path}': {e}. This may be due to missing storage permissions.");
+          log::error!(
+            "Failed to open Android external storage file '{path}': {e}. This may be due to missing storage permissions."
+          );
         }
       }
       return if e.kind() == std::io::ErrorKind::NotFound {
@@ -246,7 +248,7 @@ fn random_boundary() -> String {
 mod tests {
   use super::get_response;
   use crate::scope::fs::Scope;
-  use http::{header::CONTENT_TYPE, status::StatusCode, Request};
+  use http::{Request, header::CONTENT_TYPE, status::StatusCode};
   use tauri_utils::config::FsScope;
 
   #[test]
@@ -290,8 +292,10 @@ mod tests {
     let boundary = content_types[0]
       .strip_prefix("multipart/byteranges; boundary=")
       .unwrap();
-    assert!(response
-      .body()
-      .ends_with(format!("\r\n--{boundary}--\r\n").as_bytes()));
+    assert!(
+      response
+        .body()
+        .ends_with(format!("\r\n--{boundary}--\r\n").as_bytes())
+    );
   }
 }

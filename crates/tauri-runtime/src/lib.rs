@@ -145,6 +145,7 @@ pub enum Error {
   #[error("failed to get monitor")]
   FailedToGetMonitor,
   /// Failed to get cursor position.
+  // TODO(v3): remove
   #[error("failed to get cursor position")]
   FailedToGetCursorPosition,
   #[error("Invalid header name: {0}")]
@@ -171,8 +172,9 @@ pub enum Error {
   /// The operation is not supported by the backend.
   #[error("The operation is not supported by the backend")]
   NotSupported,
-  #[error("The OS cannot perform the operation")]
-  Os(Box<dyn std::error::Error + Send + Sync>),
+  /// The OS cannot perform the operation.
+  #[error("The OS cannot perform the operation: {0}")]
+  Os(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Result type.

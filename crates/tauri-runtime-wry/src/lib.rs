@@ -335,33 +335,47 @@ impl<T: UserEvent> Context<T> {
       .recv()
       .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
+    Ok(self.detach_window(
+      window_id,
+      label,
+      window,
+      webview_id.map(|id| (id, use_https_scheme)),
+    ))
+  }
+
+  /// Builds the [`DetachedWindow`] handed to tauri for a window that was just created,
+  /// with the dispatcher of its main webview if it has one.
+  fn detach_window(
+    &self,
+    window_id: WindowId,
+    label: String,
+    window: Weak<Window>,
+    webview: Option<(WebviewId, bool)>,
+  ) -> DetachedWindow<T, Wry<T>> {
     let dispatcher = WryWindowDispatcher {
       window_id,
       window,
       context: self.clone(),
     };
 
-    let detached_webview = webview_id.map(|id| {
-      let webview = DetachedWebview {
+    let webview = webview.map(|(webview_id, use_https_scheme)| DetachedWindowWebview {
+      webview: DetachedWebview {
         label: label.clone(),
         dispatcher: WryWebviewDispatcher {
           window_id: Arc::new(Mutex::new(window_id)),
-          webview_id: id,
+          webview_id,
           context: self.clone(),
         },
-      };
-      DetachedWindowWebview {
-        webview,
-        use_https_scheme,
-      }
+      },
+      use_https_scheme,
     });
 
-    Ok(DetachedWindow {
+    DetachedWindow {
       id: window_id,
       label,
       dispatcher,
-      webview: detached_webview,
-    })
+      webview,
+    }
   }
 
   fn create_webview(
@@ -666,6 +680,26 @@ impl From<UserAttentionType> for UserAttentionTypeWrapper {
   }
 }
 
+#[derive(Debug, Clone)]
+pub struct ResizeDirectionWrapper(pub tao::window::ResizeDirection);
+
+impl From<tauri_runtime::ResizeDirection> for ResizeDirectionWrapper {
+  fn from(direction: tauri_runtime::ResizeDirection) -> Self {
+    use tauri_runtime::ResizeDirection::*;
+    let d = match direction {
+      East => tao::window::ResizeDirection::East,
+      North => tao::window::ResizeDirection::North,
+      NorthEast => tao::window::ResizeDirection::NorthEast,
+      NorthWest => tao::window::ResizeDirection::NorthWest,
+      South => tao::window::ResizeDirection::South,
+      SouthEast => tao::window::ResizeDirection::SouthEast,
+      SouthWest => tao::window::ResizeDirection::SouthWest,
+      West => tao::window::ResizeDirection::West,
+    };
+    Self(d)
+  }
+}
+
 #[derive(Debug)]
 pub struct CursorIconWrapper(pub TaoCursorIcon);
 
@@ -964,12 +998,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
-    self.inner.window.inner_size_constraints = tao::window::WindowSizeConstraints {
-      min_width: constraints.min_width,
-      min_height: constraints.min_height,
-      max_width: constraints.max_width,
-      max_height: constraints.max_height,
-    };
+    self.inner.window.inner_size_constraints = to_tao_size_constraints(constraints);
     self
   }
 
@@ -1022,13 +1051,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn fullscreen(mut self, fullscreen: bool) -> Self {
-    self.inner = if fullscreen {
-      self
-        .inner
-        .with_fullscreen(Some(Fullscreen::Borderless(None)))
-    } else {
-      self.inner.with_fullscreen(None)
-    };
+    self.inner = self.inner.with_fullscreen(to_tao_fullscreen(fullscreen));
     self
   }
 
@@ -1272,6 +1295,45 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 }
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub struct GtkWindow(pub gtk::ApplicationWindow);
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for GtkWindow {}
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub struct GtkBox(pub gtk::Box);
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for GtkBox {}
+
+pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
+unsafe impl Send for SendRawWindowHandle {}
+
 pub enum ApplicationMessage {
   #[cfg(target_os = "macos")]
   Show,
@@ -1285,7 +1347,10 @@ pub enum ApplicationMessage {
 
 pub enum WindowMessage {
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
+  // Getters
   IsFocused(Sender<bool>),
+  InnerSize(Sender<PhysicalSize<u32>>),
+  // Setters
   SetResizable(bool),
   Close,
   Destroy,
@@ -1719,6 +1784,11 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 #[derive(Debug, Clone)]
 pub struct WryWindowDispatcher<T: UserEvent> {
   window_id: WindowId,
+  /// Weak handle to the tao window.
+  ///
+  /// It must only be upgraded inside [`Self::dispatch`] / [`Self::query`] closures, which run on
+  /// the event-loop thread: tao's platform backends are not thread-safe and the last `Arc` must
+  /// not be dropped off the main thread.
   window: Weak<Window>,
   context: Context<T>,
 }
@@ -1728,8 +1798,37 @@ pub struct WryWindowDispatcher<T: UserEvent> {
 unsafe impl<T: UserEvent> Sync for WryWindowDispatcher<T> {}
 
 impl<T: UserEvent> WryWindowDispatcher<T> {
-  fn window(&self) -> Result<Arc<Window>> {
-    self.window.upgrade().ok_or(Error::WindowNotFound)
+  /// Runs `f` against the tao window on the event-loop thread without waiting for it.
+  ///
+  /// Use for setters. Returns [`Error::WindowNotFound`] if the window is already gone.
+  fn dispatch(&self, f: impl FnOnce(&Window) + Send + 'static) -> Result<()> {
+    if self.window.strong_count() == 0 {
+      return Err(Error::WindowNotFound);
+    }
+    let window = self.window.clone();
+    self
+      .context
+      .send_user_message(Message::Task(Box::new(move || {
+        if let Some(window) = window.upgrade() {
+          f(&window);
+        }
+      })))
+  }
+
+  /// Runs `f` against the tao window on the event-loop thread and waits for its result.
+  ///
+  /// Use for getters and for setters that must report a tao error.
+  fn query<R: Send + 'static>(&self, f: impl FnOnce(&Window) -> R + Send + 'static) -> Result<R> {
+    let window = self.window.clone();
+    let (tx, rx) = channel();
+    self
+      .context
+      .send_user_message(Message::Task(Box::new(move || {
+        let _ = tx.send(window.upgrade().map(|window| f(&window)));
+      })))?;
+    rx.recv()
+      .map_err(|_| Error::FailedToReceiveMessage)?
+      .ok_or(Error::WindowNotFound)
   }
 }
 
@@ -1753,41 +1852,35 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   // Getters
 
   fn scale_factor(&self) -> Result<f64> {
-    Ok(self.window()?.scale_factor())
+    self.query(|w| w.scale_factor())
   }
 
   fn inner_position(&self) -> Result<PhysicalPosition<i32>> {
-    self
-      .window()?
-      .inner_position()
-      .map_err(|_| Error::NotSupported)
+    self.query(|w| w.inner_position().map_err(|_| Error::NotSupported))?
   }
 
   fn outer_position(&self) -> Result<PhysicalPosition<i32>> {
-    self
-      .window()?
-      .outer_position()
-      .map_err(|_| Error::NotSupported)
+    self.query(|w| w.outer_position().map_err(|_| Error::NotSupported))?
   }
 
   fn inner_size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(self.window()?.inner_size())
+    window_getter!(self, WindowMessage::InnerSize)
   }
 
   fn outer_size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(self.window()?.outer_size())
+    self.query(|w| w.outer_size())
   }
 
   fn is_fullscreen(&self) -> Result<bool> {
-    Ok(self.window()?.fullscreen().is_some())
+    self.query(|w| w.fullscreen().is_some())
   }
 
   fn is_minimized(&self) -> Result<bool> {
-    Ok(self.window()?.is_minimized())
+    self.query(|w| w.is_minimized())
   }
 
   fn is_maximized(&self) -> Result<bool> {
-    Ok(self.window()?.is_maximized())
+    self.query(|w| w.is_maximized())
   }
 
   fn is_focused(&self) -> Result<bool> {
@@ -1796,84 +1889,70 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   /// Gets the window's current decoration state.
   fn is_decorated(&self) -> Result<bool> {
-    Ok(self.window()?.is_decorated())
+    self.query(|w| w.is_decorated())
   }
 
   /// Gets the window's current resizable state.
   fn is_resizable(&self) -> Result<bool> {
-    Ok(self.window()?.is_resizable())
+    self.query(|w| w.is_resizable())
   }
 
   /// Gets the current native window's maximize button state
   fn is_maximizable(&self) -> Result<bool> {
-    Ok(self.window()?.is_maximizable())
+    self.query(|w| w.is_maximizable())
   }
 
   /// Gets the current native window's minimize button state
   fn is_minimizable(&self) -> Result<bool> {
-    Ok(self.window()?.is_minimizable())
+    self.query(|w| w.is_minimizable())
   }
 
   /// Gets the current native window's close button state
   fn is_closable(&self) -> Result<bool> {
-    Ok(self.window()?.is_closable())
+    self.query(|w| w.is_closable())
   }
 
   fn is_visible(&self) -> Result<bool> {
-    Ok(self.window()?.is_visible())
+    self.query(|w| w.is_visible())
   }
 
   fn title(&self) -> Result<String> {
-    Ok(self.window()?.title())
+    self.query(|w| w.title())
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(
-      self
-        .window()?
-        .current_monitor()
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    self.query(|w| w.current_monitor().map(|m| MonitorHandleWrapper(m).into()))
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(
-      self
-        .window()?
-        .primary_monitor()
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    self.query(|w| w.primary_monitor().map(|m| MonitorHandleWrapper(m).into()))
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
-    Ok(
-      self
-        .window()?
-        .monitor_from_point(x, y)
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    self.query(move |w| {
+      w.monitor_from_point(x, y)
+        .map(|m| MonitorHandleWrapper(m).into())
+    })
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-    Ok(
-      self
-        .window()?
-        .available_monitors()
+    self.query(|w| {
+      w.available_monitors()
         .map(|m| MonitorHandleWrapper(m).into())
-        .collect(),
-    )
+        .collect()
+    })
   }
 
   fn theme(&self) -> Result<Theme> {
-    Ok(map_theme(&self.window()?.theme()))
+    self.query(|w| map_theme(&w.theme()))
   }
 
   fn is_enabled(&self) -> Result<bool> {
-    Ok(self.window()?.is_enabled())
+    self.query(|w| w.is_enabled())
   }
 
   fn is_always_on_top(&self) -> Result<bool> {
-    Ok(self.window()?.is_always_on_top())
+    self.query(|w| w.is_always_on_top())
   }
 
   #[cfg(any(
@@ -1884,7 +1963,9 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
-    Ok(self.window()?.gtk_window().clone())
+    self
+      .query(|w| GtkWindow(w.gtk_window().clone()))
+      .map(|w| w.0)
   }
 
   #[cfg(any(
@@ -1896,46 +1977,41 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
     self
-      .window()?
-      .default_vbox()
-      .cloned()
-      .ok_or(Error::WindowNotFound)
+      .query(|w| w.default_vbox().cloned().map(GtkBox))?
+      .map(|b| b.0)
+      .ok_or(Error::NotSupported)
   }
 
   /// Returns the name of the Android activity associated with this window.
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String> {
-    Ok(self.window()?.activity_name())
+    self.query(|w| w.activity_name())
   }
 
   /// Returns the identifier of the UIScene tied to this UIWindow.
   #[cfg(target_os = "ios")]
   fn scene_identifier(&self) -> Result<String> {
-    Ok(self.window()?.scene_identifier())
+    self.query(|w| w.scene_identifier())
   }
 
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    self
-      .window()
-      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
-      .window_handle()
-      .map(|handle| unsafe { raw_window_handle::WindowHandle::borrow_raw(handle.as_raw()) })
+    let raw = self
+      .query(|w| w.window_handle().map(|h| SendRawWindowHandle(h.as_raw())))
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)??;
+    Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(raw.0) })
   }
 
   // Setters
 
   fn center(&self) -> Result<()> {
-    self.window()?.center();
-    Ok(())
+    self.dispatch(|w| w.center())
   }
 
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
-    self
-      .window()?
-      .request_user_attention(request_type.map(|r| UserAttentionTypeWrapper::from(r).0));
-    Ok(())
+    let request_type = request_type.map(|r| UserAttentionTypeWrapper::from(r).0);
+    self.dispatch(move |w| w.request_user_attention(request_type))
   }
 
   // Creates a window by dispatching a message to the event loop.
@@ -1965,58 +2041,48 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn set_enabled(&self, enabled: bool) -> Result<()> {
-    self.window()?.set_enabled(enabled);
-    Ok(())
+    self.dispatch(move |w| w.set_enabled(enabled))
   }
 
   fn set_maximizable(&self, maximizable: bool) -> Result<()> {
-    self.window()?.set_maximizable(maximizable);
-    Ok(())
+    self.dispatch(move |w| w.set_maximizable(maximizable))
   }
 
   fn set_minimizable(&self, minimizable: bool) -> Result<()> {
-    self.window()?.set_minimizable(minimizable);
-    Ok(())
+    self.dispatch(move |w| w.set_minimizable(minimizable))
   }
 
   fn set_closable(&self, closable: bool) -> Result<()> {
-    self.window()?.set_closable(closable);
-    Ok(())
+    self.dispatch(move |w| w.set_closable(closable))
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
-    self.window()?.set_title(&title.into());
-    Ok(())
+    let title = title.into();
+    self.dispatch(move |w| w.set_title(&title))
   }
 
   fn maximize(&self) -> Result<()> {
-    self.window()?.set_maximized(true);
-    Ok(())
+    self.dispatch(|w| w.set_maximized(true))
   }
 
   fn unmaximize(&self) -> Result<()> {
-    self.window()?.set_maximized(false);
-    Ok(())
+    self.dispatch(|w| w.set_maximized(false))
   }
 
   fn minimize(&self) -> Result<()> {
-    self.window()?.set_minimized(true);
-    Ok(())
+    self.dispatch(|w| w.set_minimized(true))
   }
 
   fn unminimize(&self) -> Result<()> {
-    self.window()?.set_minimized(false);
-    Ok(())
+    self.dispatch(|w| w.set_minimized(false))
   }
 
   fn show(&self) -> Result<()> {
-    self.window()?.set_visible(true);
-    Ok(())
+    self.dispatch(|w| w.set_visible(true))
   }
 
   fn hide(&self) -> Result<()> {
-    self.window()?.set_visible(false);
-    Ok(())
+    self.dispatch(|w| w.set_visible(false))
   }
 
   fn close(&self) -> Result<()> {
@@ -2052,103 +2118,66 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
-    self.window()?.set_always_on_bottom(always_on_bottom);
-    Ok(())
+    self.dispatch(move |w| w.set_always_on_bottom(always_on_bottom))
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
-    self.window()?.set_always_on_top(always_on_top);
-    Ok(())
+    self.dispatch(move |w| w.set_always_on_top(always_on_top))
   }
 
   fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()> {
-    self
-      .window()?
-      .set_visible_on_all_workspaces(visible_on_all_workspaces);
-    Ok(())
+    self.dispatch(move |w| w.set_visible_on_all_workspaces(visible_on_all_workspaces))
   }
 
   fn set_content_protected(&self, protected: bool) -> Result<()> {
-    self.window()?.set_content_protection(protected);
-    Ok(())
+    self.dispatch(move |w| w.set_content_protection(protected))
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    self.window()?.set_inner_size(size);
-    Ok(())
+    self.dispatch(move |w| w.set_inner_size(size))
   }
 
   fn set_min_size(&self, size: Option<Size>) -> Result<()> {
-    self.window()?.set_min_inner_size(size);
-    Ok(())
+    self.dispatch(move |w| w.set_min_inner_size(size))
   }
 
   fn set_max_size(&self, size: Option<Size>) -> Result<()> {
-    self.window()?.set_max_inner_size(size);
-    Ok(())
+    self.dispatch(move |w| w.set_max_inner_size(size))
   }
 
   fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()> {
-    self
-      .window()?
-      .set_inner_size_constraints(tao::window::WindowSizeConstraints {
-        min_width: constraints.min_width,
-        min_height: constraints.min_height,
-        max_width: constraints.max_width,
-        max_height: constraints.max_height,
-      });
-    Ok(())
+    self.dispatch(move |w| w.set_inner_size_constraints(to_tao_size_constraints(constraints)))
   }
 
   fn set_position(&self, position: Position) -> Result<()> {
-    self.window()?.set_outer_position(position);
-    Ok(())
+    self.dispatch(move |w| w.set_outer_position(position))
   }
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
-    self.window()?.set_fullscreen(if fullscreen {
-      Some(Fullscreen::Borderless(None))
-    } else {
-      None
-    });
-    Ok(())
+    self.dispatch(move |w| w.set_fullscreen(to_tao_fullscreen(fullscreen)))
   }
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()> {
-    self.window()?.set_simple_fullscreen(enable);
-    Ok(())
+    self.dispatch(move |w| {
+      w.set_simple_fullscreen(enable);
+    })
   }
 
   fn set_focus(&self) -> Result<()> {
-    self.window()?.set_focus();
-    Ok(())
+    self.dispatch(|w| w.set_focus())
   }
 
   fn set_focusable(&self, focusable: bool) -> Result<()> {
-    self.window()?.set_focusable(focusable);
-    Ok(())
+    self.dispatch(move |w| w.set_focusable(focusable))
   }
 
   fn set_icon(&self, icon: Icon) -> Result<()> {
-    self
-      .window()?
-      .set_window_icon(Some(TaoIcon::try_from(icon)?.0));
-    Ok(())
+    let icon = TaoIcon::try_from(icon)?.0;
+    self.dispatch(move |w| w.set_window_icon(Some(icon)))
   }
 
-  #[cfg_attr(
-    not(any(
-      windows,
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    )),
-    allow(unused_variables)
-  )]
-  fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
+  fn set_skip_taskbar(&self, _skip: bool) -> Result<()> {
     #[cfg(any(
       windows,
       target_os = "linux",
@@ -2157,72 +2186,73 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    let _ = self.window()?.set_skip_taskbar(skip);
+    {
+      self.dispatch(move |w| {
+        let _ = w.set_skip_taskbar(_skip);
+      })
+    }
+    #[cfg(not(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )))]
     Ok(())
   }
 
   fn set_cursor_grab(&self, grab: bool) -> crate::Result<()> {
-    self
-      .window()?
-      .set_cursor_grab(grab)
-      .map_err(tao_error_to_runtime_error)
+    self.query(move |w| w.set_cursor_grab(grab).map_err(tao_error_to_runtime_error))?
   }
 
   fn set_cursor_visible(&self, visible: bool) -> crate::Result<()> {
-    self.window()?.set_cursor_visible(visible);
-    Ok(())
+    self.dispatch(move |w| w.set_cursor_visible(visible))
   }
 
   fn set_cursor_icon(&self, icon: CursorIcon) -> crate::Result<()> {
-    self
-      .window()?
-      .set_cursor_icon(CursorIconWrapper::from(icon).0);
-    Ok(())
+    let icon = CursorIconWrapper::from(icon).0;
+    self.dispatch(move |w| w.set_cursor_icon(icon))
   }
 
   fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
-    self
-      .window()?
-      .set_cursor_position(position.into())
-      .map_err(tao_error_to_runtime_error)
+    let position = position.into();
+    self.query(move |w| {
+      w.set_cursor_position(position)
+        .map_err(tao_error_to_runtime_error)
+    })?
   }
 
   fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
-    self
-      .window()?
-      .set_ignore_cursor_events(ignore)
-      .map_err(tao_error_to_runtime_error)
+    self.query(move |w| {
+      w.set_ignore_cursor_events(ignore)
+        .map_err(tao_error_to_runtime_error)
+    })?
   }
 
   fn start_dragging(&self) -> Result<()> {
-    self
-      .window()?
-      .drag_window()
-      .map_err(tao_error_to_runtime_error)
+    self.query(|w| w.drag_window().map_err(tao_error_to_runtime_error))?
   }
 
   fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
-    self
-      .window()?
-      .drag_resize_window(match direction {
-        tauri_runtime::ResizeDirection::East => tao::window::ResizeDirection::East,
-        tauri_runtime::ResizeDirection::North => tao::window::ResizeDirection::North,
-        tauri_runtime::ResizeDirection::NorthEast => tao::window::ResizeDirection::NorthEast,
-        tauri_runtime::ResizeDirection::NorthWest => tao::window::ResizeDirection::NorthWest,
-        tauri_runtime::ResizeDirection::South => tao::window::ResizeDirection::South,
-        tauri_runtime::ResizeDirection::SouthEast => tao::window::ResizeDirection::SouthEast,
-        tauri_runtime::ResizeDirection::SouthWest => tao::window::ResizeDirection::SouthWest,
-        tauri_runtime::ResizeDirection::West => tao::window::ResizeDirection::West,
-      })
-      .map_err(tao_error_to_runtime_error)
+    let direction = ResizeDirectionWrapper::from(direction).0;
+    self.query(move |w| {
+      w.drag_resize_window(direction)
+        .map_err(tao_error_to_runtime_error)
+    })?
   }
 
   fn set_badge_count(&self, _count: Option<i64>, _desktop_filename: Option<String>) -> Result<()> {
-    let _window = self.window()?;
     #[cfg(target_os = "ios")]
-    _window.set_badge_count(_count.map_or(0, |x| x.clamp(i32::MIN as i64, i32::MAX as i64) as i32));
+    {
+      self.dispatch(move |w| {
+        w.set_badge_count(_count.map_or(0, |x| x.clamp(i32::MIN as i64, i32::MAX as i64) as i32))
+      })
+    }
     #[cfg(target_os = "macos")]
-    _window.set_badge_label(_count.map(|x| x.to_string()));
+    {
+      self.set_badge_label(_count.map(|x| x.to_string()))
+    }
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -2230,32 +2260,43 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    _window.set_badge_count(_count, _desktop_filename);
+    {
+      self.dispatch(move |w| w.set_badge_count(_count, _desktop_filename))
+    }
+    #[cfg(not(any(
+      target_os = "ios",
+      target_os = "macos",
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )))]
     Ok(())
   }
 
   fn set_badge_label(&self, _label: Option<String>) -> Result<()> {
     #[cfg(target_os = "macos")]
-    self.window()?.set_badge_label(_label);
+    {
+      self.dispatch(move |w| w.set_badge_label(_label))
+    }
+    #[cfg(not(target_os = "macos"))]
     Ok(())
   }
 
-  #[cfg_attr(not(windows), allow(unused_variables))]
-  fn set_overlay_icon(&self, icon: Option<Icon>) -> Result<()> {
+  fn set_overlay_icon(&self, _icon: Option<Icon>) -> Result<()> {
     #[cfg(windows)]
     {
-      let icon: Result<Option<TaoIcon>> =
-        icon.map_or(Ok(None), |x| Ok(Some(TaoIcon::try_from(x)?)));
-      self.window()?.set_overlay_icon(icon?.map(|x| x.0).as_ref());
+      let icon = _icon.map(TaoIcon::try_from).transpose()?.map(|i| i.0);
+      self.dispatch(move |w| w.set_overlay_icon(icon.as_ref()))
     }
+    #[cfg(not(windows))]
     Ok(())
   }
 
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
-    self
-      .window()?
-      .set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
-    Ok(())
+    let state = ProgressBarStateWrapper::from(progress_state).0;
+    self.dispatch(move |w| w.set_progress_bar(state))
   }
 
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
@@ -2267,18 +2308,19 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   fn set_traffic_light_position(&self, _position: Position) -> Result<()> {
     #[cfg(target_os = "macos")]
-    self.window()?.set_traffic_light_inset(_position);
+    {
+      self.dispatch(move |w| w.set_traffic_light_inset(_position))
+    }
+    #[cfg(not(target_os = "macos"))]
     Ok(())
   }
 
   fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
-    self.window()?.set_theme(to_tao_theme(theme));
-    Ok(())
+    self.dispatch(move |w| w.set_theme(to_tao_theme(theme)))
   }
 
   fn set_background_color(&self, color: Option<Color>) -> Result<()> {
-    self.window()?.set_background_color(color.map(Into::into));
-    Ok(())
+    self.dispatch(move |w| w.set_background_color(color.map(Into::into)))
   }
 }
 
@@ -2373,6 +2415,11 @@ pub struct WindowWrapper {
 impl WindowWrapper {
   pub fn label(&self) -> &str {
     &self.label
+  }
+
+  /// Weak handle to the tao window. Panics if the window was already closed.
+  fn tao_window(&self) -> Weak<Window> {
+    Arc::downgrade(self.inner.as_ref().unwrap())
   }
 }
 
@@ -2577,7 +2624,6 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     event_loop_window_getter!(self, EventLoopWindowTargetMessage::CursorPosition)?
-      .map_err(|_| Error::FailedToGetCursorPosition)
   }
 
   fn set_theme(&self, theme: Option<Theme>) {
@@ -2783,11 +2829,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       after_window_creation,
     )?;
 
-    let dispatcher = WryWindowDispatcher {
-      window_id,
-      window: Arc::downgrade(window.inner.as_ref().unwrap()),
-      context: self.context.clone(),
-    };
+    let tao_window = window.tao_window();
 
     self
       .context
@@ -2797,27 +2839,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .borrow_mut()
       .insert(window_id, window);
 
-    let detached_webview = webview_id.map(|id| {
-      let webview = DetachedWebview {
-        label: label.clone(),
-        dispatcher: WryWebviewDispatcher {
-          window_id: Arc::new(Mutex::new(window_id)),
-          webview_id: id,
-          context: self.context.clone(),
-        },
-      };
-      DetachedWindowWebview {
-        webview,
-        use_https_scheme,
-      }
-    });
-
-    Ok(DetachedWindow {
-      id: window_id,
+    Ok(self.context.detach_window(
+      window_id,
       label,
-      dispatcher,
-      webview: detached_webview,
-    })
+      tao_window,
+      webview_id.map(|id| (id, use_https_scheme)),
+    ))
   }
 
   fn create_webview(
@@ -2917,7 +2944,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .main_thread
       .window_target
       .cursor_position()
-      .map_err(|_| Error::FailedToGetCursorPosition)
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn set_theme(&self, theme: Option<Theme>) {
@@ -3132,24 +3159,14 @@ fn handle_user_message<T: UserEvent>(
       }
     },
     Message::Window(id, window_message) => {
-      let window = windows.0.borrow().get(&id).map(|w| {
-        #[cfg(windows)]
-        let focused_webview = w.focused_webview.clone();
-        #[cfg(not(windows))]
-        let focused_webview = ();
-        #[cfg(windows)]
-        let has_children = w.has_children.load(Ordering::Relaxed);
-        #[cfg(not(windows))]
-        let has_children = ();
-        (
-          w.inner.clone(),
-          has_children,
-          w.window_event_listeners.clone(),
-          focused_webview,
-        )
-      });
-      if let Some((Some(window), _has_children, window_event_listeners, _focused_webview)) = window
-      {
+      // clone the handles out of the store instead of holding the borrow across the tao call:
+      // the call can re-enter the event loop callback, which borrows the store again
+      let window = windows
+        .0
+        .borrow()
+        .get(&id)
+        .map(|w| (w.inner.clone(), w.window_event_listeners.clone()));
+      if let Some((Some(window), window_event_listeners)) = window {
         match window_message {
           WindowMessage::AddEventListener(id, listener) => {
             window_event_listeners.lock().unwrap().insert(id, listener);
@@ -3160,17 +3177,32 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
           #[cfg(windows)]
           WindowMessage::IsFocused(tx) => {
-            let focused = if _has_children {
+            let focused_webview = windows.0.borrow().get(&id).and_then(|w| {
+              w.has_children
+                .load(Ordering::Relaxed)
+                .then(|| w.focused_webview.clone())
+            });
+            let focused = if let Some(focused_webview) = focused_webview {
               // on multiwebview mode, get the focused state from cache,
               // as the window might not have direct focus
               matches!(
-                *_focused_webview.lock().unwrap(),
+                *focused_webview.lock().unwrap(),
                 FocusState::WindowFocused | FocusState::WebviewFocused { .. }
               )
             } else {
               window.is_focused()
             };
             tx.send(focused).unwrap()
+          }
+          WindowMessage::InnerSize(tx) => {
+            // on macOS wry replaces the window's content view, so the size must be read from the webview
+            let (webviews, has_children) = windows
+              .0
+              .borrow()
+              .get(&id)
+              .map(|w| (w.webviews.clone(), w.has_children.load(Ordering::Relaxed)))
+              .unwrap_or_default();
+            let _ = tx.send(inner_size(&window, &webviews, has_children));
           }
           // Setters
           WindowMessage::SetResizable(resizable) => {
@@ -3237,11 +3269,7 @@ fn handle_user_message<T: UserEvent>(
             };
           }
           WindowMessage::SetFullscreen(fullscreen) => {
-            if fullscreen {
-              window.set_fullscreen(Some(Fullscreen::Borderless(None)))
-            } else {
-              window.set_fullscreen(None)
-            }
+            window.set_fullscreen(to_tao_fullscreen(fullscreen))
           }
         }
       }
@@ -3651,7 +3679,7 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::CreateWindow(window_id, handler, sender) => match handler(event_loop) {
       Ok(window) => {
-        let tao_window = Arc::downgrade(window.inner.as_ref().unwrap());
+        let tao_window = window.tao_window();
         windows.0.borrow_mut().insert(window_id, window);
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
         sender.send(Ok(tao_window)).unwrap();
@@ -4982,6 +5010,21 @@ fn to_tao_theme(theme: Option<Theme>) -> Option<TaoTheme> {
   }
 }
 
+fn to_tao_fullscreen(fullscreen: bool) -> Option<Fullscreen> {
+  fullscreen.then_some(Fullscreen::Borderless(None))
+}
+
+fn to_tao_size_constraints(
+  constraints: WindowSizeConstraints,
+) -> tao::window::WindowSizeConstraints {
+  tao::window::WindowSizeConstraints {
+    min_width: constraints.min_width,
+    min_height: constraints.min_height,
+    max_width: constraints.max_width,
+    max_height: constraints.max_height,
+  }
+}
+
 /// Used to prevent duplicated [`WindowEvent::Focused`] events,
 /// and to track last focused webview in multi-webview mode for us to restore webview focuses
 #[cfg(windows)]
@@ -5067,6 +5110,7 @@ fn tao_error_to_runtime_error(tao_error: tao::error::ExternalError) -> tauri_run
   match tao_error {
     tao::error::ExternalError::NotSupported(_) => tauri_runtime::Error::NotSupported,
     tao::error::ExternalError::Os(os_error) => tauri_runtime::Error::Os(os_error.into()),
-    _ => unreachable!(),
+    // `ExternalError` is `#[non_exhaustive]`
+    other => tauri_runtime::Error::Os(Box::new(other)),
   }
 }

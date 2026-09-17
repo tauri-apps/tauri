@@ -104,11 +104,19 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
 
-  /// Callback invoked when the application is performing cleanup before exit.
+  /// Callback invoked by [`App::cleanup_before_exit`](crate::App::cleanup_before_exit) right before the process exits.
   ///
-  /// Plugins can use this hook to perform any process shutdown/cleanup they need
-  /// to do before the runtime exits (for example, killing sidecars or stopping
-  /// background tasks). This hook is executed inside `App::cleanup_before_exit` during application shutdown.
+  /// Use it to release resources the OS does not reclaim on its own, such as child processes (sidecars).
+  ///
+  /// Unlike [`RunEvent::Exit`], this hook also runs on exit paths that bypass the event loop,
+  /// e.g. [`AppHandle::restart`] when called on the main thread. On a regular exit,
+  /// [`Plugin::on_event`] receives [`RunEvent::Exit`] first and then this hook is called.
+  /// It does **not** run when the process is killed (e.g. by `tauri dev` on rebuild)
+  /// or when `std::process::exit` is called directly.
+  ///
+  /// The plugin store is locked while this hook runs, so it must not call APIs that access
+  /// other plugins such as [`AppHandle::remove_plugin`] or [`AppHandle::plugin`].
+  /// No Tauri API should be used after it returns.
   #[allow(unused_variables)]
   fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {}
 

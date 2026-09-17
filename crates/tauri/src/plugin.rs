@@ -109,7 +109,6 @@ pub trait Plugin<R: Runtime>: Send {
   /// Plugins can use this hook to perform any process shutdown/cleanup they need
   /// to do before the runtime exits (for example, killing sidecars or stopping
   /// background tasks). This hook is executed inside `App::cleanup_before_exit` during application shutdown.
-
   #[allow(unused_variables)]
   fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {}
 

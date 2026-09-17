@@ -125,6 +125,7 @@ type SetupHook<R, C> =
 type OnWindowReady<R> = dyn FnMut(Window<R>) + Send;
 type OnWebviewReady<R> = dyn FnMut(Webview<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
+type OnCleanupBeforeExit<R> = dyn FnMut(&AppHandle<R>) + Send;
 type OnNavigation<R> = dyn Fn(&Webview<R>, &Url) -> bool + Send;
 type OnPageLoad<R> = dyn FnMut(&Webview<R>, &PageLoadPayload<'_>) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
@@ -280,6 +281,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
+  on_cleanup_before_exit: Box<OnCleanupBeforeExit<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
   uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 }
@@ -297,6 +299,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_window_ready: Box::new(|_| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
+      on_cleanup_before_exit: Box::new(|_| ()),
       on_drop: None,
       uri_scheme_protocols: Default::default(),
     }
@@ -576,6 +579,32 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
+  /// Callback invoked when the application is performing cleanup before exit.
+  ///
+  /// See [`Plugin::cleanup_before_exit`] for details.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_cleanup_before_exit(|app| {
+  ///       // release OS resources such as child processes here
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
+  #[must_use]
+  pub fn on_cleanup_before_exit<F>(mut self, on_cleanup_before_exit: F) -> Self
+  where
+    F: FnMut(&AppHandle<R>) + Send + 'static,
+  {
+    self.on_cleanup_before_exit = Box::new(on_cleanup_before_exit);
+    self
+  }
+
   /// Callback invoked when the plugin is dropped.
   ///
   /// # Examples
@@ -749,6 +778,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_window_ready: self.on_window_ready,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
+      on_cleanup_before_exit: self.on_cleanup_before_exit,
       on_drop: self.on_drop,
       uri_scheme_protocols: self.uri_scheme_protocols,
     })
@@ -776,6 +806,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
+  on_cleanup_before_exit: Box<OnCleanupBeforeExit<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
   uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 }
@@ -854,6 +885,10 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
 
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
     (self.on_event)(app, event)
+  }
+
+  fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {
+    (self.on_cleanup_before_exit)(app)
   }
 
   fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
@@ -1076,5 +1111,33 @@ impl<'de> Deserialize<'de> for PermissionState {
       "prompt-with-rationale" => Ok(Self::PromptWithRationale),
       _ => Err(DeError::custom(format!("unknown permission state '{s}'"))),
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{Builder, TauriPlugin};
+  use crate::test::{MockRuntime, mock_builder, mock_context, noop_assets};
+  use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+  };
+
+  #[test]
+  fn builder_cleanup_before_exit_hook_runs_on_app_cleanup() {
+    let called = Arc::new(AtomicBool::new(false));
+    let called_ = called.clone();
+    let plugin: TauriPlugin<MockRuntime> = Builder::new("cleanup-test")
+      .on_cleanup_before_exit(move |_app| called_.store(true, Ordering::SeqCst))
+      .build();
+
+    let app = mock_builder()
+      .plugin(plugin)
+      .build(mock_context(noop_assets()))
+      .unwrap();
+
+    app.cleanup_before_exit();
+
+    assert!(called.load(Ordering::SeqCst));
   }
 }

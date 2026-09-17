@@ -3,23 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_resources, open_and_wait, MobileTarget,
+  MobileTarget, configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app,
+  get_config, inject_resources, open_and_wait, sync_debug_application_id_suffix,
 };
 use crate::{
+  ConfigValue, Error, Result,
   dev::Options as DevOptions,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
   },
   interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    android::generate_tauri_properties, use_network_address_for_dev_url, write_options, CliOptions,
-    DevChild, DevHost, DevProcess, TargetDevice,
+    CliOptions, DevChild, DevHost, DevProcess, TargetDevice, android::generate_tauri_properties,
+    use_network_address_for_dev_url, write_options,
   },
-  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
 
@@ -44,7 +44,7 @@ use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 )]
 pub struct Options {
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
@@ -144,13 +144,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
-    std::env::set_var(
-      "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).fs_context(
-        "failed to read certificate file",
-        root_certificate_path.clone(),
-      )?,
-    );
+    unsafe {
+      std::env::set_var(
+        "TAURI_DEV_ROOT_CERTIFICATE",
+        std::fs::read_to_string(root_certificate_path).fs_context(
+          "failed to read certificate file",
+          root_certificate_path.clone(),
+        )?,
+      )
+    };
   }
 
   let tauri_config = get_tauri_config(
@@ -182,6 +184,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple);
+  dev_options.args.push("--lib".into());
 
   let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
 
@@ -190,7 +193,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     &app,
     &tauri_config,
     dev_options.features.as_ref(),
-    &Default::default(),
+    &CliOptions {
+      dev: true,
+      features: dev_options.features.clone(),
+      args: dev_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: dev_options.config.clone(),
+      target_device: None,
+    },
   );
 
   set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
@@ -265,6 +276,7 @@ fn run_dev(
   configure_cargo(&mut env, config)?;
 
   generate_tauri_properties(config, &tauri_config, true)?;
+  sync_debug_application_id_suffix(config, &tauri_config)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();
@@ -330,7 +342,15 @@ fn run_dev(
       if open {
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
-        match run(device, options, config, &env, metadata, noise_level) {
+        match run(
+          device,
+          options,
+          config,
+          &env,
+          metadata,
+          noise_level,
+          tauri_config,
+        ) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
           Err(e) => {
             crate::dev::kill_before_dev_process();
@@ -352,6 +372,7 @@ fn run(
   env: &Env,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
+  tauri_config: &tauri_utils::config::Config,
 ) -> crate::Result<DevChild> {
   let profile = if options.debug {
     Profile::Debug
@@ -361,8 +382,18 @@ fn run(
 
   let build_app_bundle = metadata.asset_packs().is_some();
 
+  let application_id_suffix = if profile == Profile::Debug {
+    tauri_config
+      .bundle
+      .android
+      .debug_application_id_suffix
+      .clone()
+  } else {
+    None
+  };
+
   device
-    .run(
+    .run_with_application_id_suffix(
       config,
       env,
       noise_level,
@@ -374,7 +405,8 @@ fn run(
       }),
       build_app_bundle,
       false,
-      ".MainActivity".into(),
+      format!("{}.MainActivity", config.app().identifier()),
+      application_id_suffix,
     )
     .map(DevChild::new)
     .context("failed to run Android app")

@@ -11,6 +11,7 @@ Default permissions for the plugin.
 - `allow-bundle-type`
 - `allow-register-listener`
 - `allow-remove-listener`
+- `allow-supports-multiple-windows`
 
 ## Permission Table
 
@@ -329,6 +330,32 @@ Enables the set_dock_visibility command without any pre-configured scope.
 <td>
 
 Denies the set_dock_visibility command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-supports-multiple-windows`
+
+</td>
+<td>
+
+Enables the supports_multiple_windows command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-supports-multiple-windows`
+
+</td>
+<td>
+
+Denies the supports_multiple_windows command without any pre-configured scope.
 
 </td>
 </tr>

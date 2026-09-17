@@ -15,6 +15,7 @@ mod macos;
 #[cfg(windows)]
 mod windows;
 
+#[cfg(desktop)]
 use crate::monitor::MonitorExt;
 
 pub trait WindowExt {
@@ -59,6 +60,7 @@ impl WindowExt for tao::window::Window {
   }
 }
 
+#[cfg(desktop)]
 pub fn calculate_window_center_position(
   window_size: tao::dpi::PhysicalSize<u32>,
   target_monitor: tao::monitor::MonitorHandle,

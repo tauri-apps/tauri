@@ -8,7 +8,7 @@ use std::{fmt::Display, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{config::BundleType, Env, PackageInfo};
+use crate::{Env, PackageInfo, config::BundleType};
 
 mod starting_binary;
 
@@ -369,10 +369,10 @@ pub fn bundle_type() -> Option<BundleType> {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
 
   use super::*;
 
@@ -398,6 +398,7 @@ mod tests {
   use crate::{Env, PackageInfo};
 
   #[test]
+  #[cfg(not(target_os = "android"))]
   fn resolve_resource_dir() {
     let package_info = PackageInfo {
       name: "MyApp".into(),

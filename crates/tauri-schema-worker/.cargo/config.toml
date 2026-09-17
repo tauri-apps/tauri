@@ -1,0 +1,5 @@
+[profile.release]
+opt-level = 3
+# Fails with 'externref table required for catch wrappers' if we set it to `strip = true`
+# see https://github.com/cloudflare/workers-rs/issues/1014
+strip = "debuginfo"

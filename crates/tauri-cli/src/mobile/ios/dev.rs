@@ -3,24 +3,24 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  device_prompt, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  open_and_wait, synchronize_project_config, MobileTarget, ProjectConfig,
+  MobileTarget, ProjectConfig, device_prompt, ensure_init, env, get_app, get_config,
+  inject_resources, load_pbxproj, open_and_wait, synchronize_project_config,
 };
 use crate::{
+  ConfigValue, Result,
   dev::Options as DevOptions,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
     plist::merge_plist,
   },
   interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    ios::ensure_ios_runtime_installed, use_network_address_for_dev_url, write_options, CliOptions,
-    DevChild, DevHost, DevProcess,
+    CliOptions, DevChild, DevHost, DevProcess, ios::ensure_ios_runtime_installed,
+    use_network_address_for_dev_url, write_options,
   },
-  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
@@ -53,7 +53,7 @@ environment variable to determine whether the public network should be used or n
 )]
 pub struct Options {
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
@@ -150,13 +150,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
-    std::env::set_var(
-      "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).fs_context(
-        "failed to read root certificate file",
-        root_certificate_path.clone(),
-      )?,
-    );
+    unsafe {
+      std::env::set_var(
+        "TAURI_DEV_ROOT_CERTIFICATE",
+        std::fs::read_to_string(root_certificate_path).fs_context(
+          "failed to read root certificate file",
+          root_certificate_path.clone(),
+        )?,
+      )
+    };
   }
 
   let env = env().context("failed to load iOS environment")?;
@@ -182,6 +184,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| "aarch64-apple-ios".into());
   dev_options.target = Some(target_triple.clone());
+  dev_options.args.push("--lib".into());
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
@@ -195,7 +198,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     &app,
     &tauri_config,
     &dev_options.features,
-    &Default::default(),
+    &CliOptions {
+      dev: true,
+      features: dev_options.features.clone(),
+      args: dev_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: dev_options.config.clone(),
+      target_device: None,
+    },
     dirs.tauri,
   )?;
 
@@ -221,8 +232,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   if dirs.tauri.join("Info.ios.plist").exists() {
     src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
-    src_plists.push(info_plist.clone().into());
+  {
+    if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
+      src_plists.push(info_plist.clone().into());
+    }
+    if let Some(associations) = tauri_config.bundle.file_associations.as_ref() {
+      if let Some(file_associations) = tauri_utils::config::file_associations_plist(associations) {
+        src_plists.push(file_associations.into());
+      }
+    }
   }
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist
@@ -297,7 +315,7 @@ fn run_dev(
     )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, &dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(
@@ -360,7 +378,7 @@ fn run_dev(
         open_xcode()
       }
     },
-    &dirs,
+    dirs,
   )
 }
 

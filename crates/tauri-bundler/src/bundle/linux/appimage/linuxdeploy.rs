@@ -5,10 +5,10 @@
 
 use super::{super::debian, write_and_make_executable};
 use crate::{
-  bundle::settings::Arch,
-  error::{Context, ErrorExt},
-  utils::{fs_utils, http_utils::download, CommandExt},
   Settings,
+  bundle::settings::Arch,
+  error::Context,
+  utils::{CommandExt, fs_utils, http_utils::download},
 };
 use std::{
   fs,
@@ -118,21 +118,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs::create_dir_all(&app_dir_usr_bin)?;
   fs::create_dir_all(app_dir_usr_lib)?;
 
-  // Copy bins and libs that linuxdeploy doesn't know about
-
-  // we also check if the user may have provided their own copy already
-  // xdg-open will be handled by the `files` config instead
-  if settings.deep_link_protocols().is_some() && !app_dir_usr_bin.join("xdg-open").exists() {
-    fs::copy("/usr/bin/xdg-mime", app_dir_usr_bin.join("xdg-mime"))
-      .fs_context("xdg-mime binary not found", "/usr/bin/xdg-mime".to_string())?;
-  }
-
-  // we also check if the user may have provided their own copy already
-  if settings.appimage().bundle_xdg_open && !app_dir_usr_bin.join("xdg-open").exists() {
-    fs::copy("/usr/bin/xdg-open", app_dir_usr_bin.join("xdg-open"))
-      .fs_context("xdg-open binary not found", "/usr/bin/xdg-open".to_string())?;
-  }
-
   let search_dirs = [
     match settings.binary_arch() {
       Arch::X86_64 => "/usr/lib/x86_64-linux-gnu/",
@@ -171,12 +156,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     app_dir_path.join(larger_icon_path),
     app_dir_path.join(format!("{product_name}.png")),
   )?;
+  std::os::unix::fs::symlink(format!("{product_name}.png"), app_dir_path.join(".DirIcon"))?;
   std::os::unix::fs::symlink(
-    app_dir_path.join(format!("{product_name}.png")),
-    app_dir_path.join(".DirIcon"),
-  )?;
-  std::os::unix::fs::symlink(
-    app_dir_path.join(format!("usr/share/applications/{product_name}.desktop")),
+    format!("usr/share/applications/{product_name}.desktop"),
     app_dir_path.join(format!("{product_name}.desktop")),
   )?;
 
@@ -232,29 +214,37 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     write_and_make_executable(&apprun, data)?;
   }
 
-  let linuxdeploy_arch = if arch == "i686" { "i383" } else { arch };
+  let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
   let linuxdeploy = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}.AppImage"));
   if !linuxdeploy.exists() {
-    let data = download(&format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"))?;
+    let data = download(&format!(
+      "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"
+    ))?;
     write_and_make_executable(&linuxdeploy, data)?;
   }
 
   let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
   if !gtk.exists() {
-    let data = download("https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh")?;
+    let data = download(
+      "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh",
+    )?;
     write_and_make_executable(&gtk, data)?;
   }
 
   let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
   if !gstreamer.exists() {
-    let data = download("https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh")?;
+    let data = download(
+      "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh",
+    )?;
     write_and_make_executable(&gstreamer, data)?;
   }
 
   let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");
   if !appimage.exists() {
     // This is optional, linuxdeploy will fall back to its built-in version if the download failed.
-    let data = download(&format!("https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"));
+    let data = download(&format!(
+      "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"
+    ));
     match data {
       Ok(data) => write_and_make_executable(&appimage, data)?,
       Err(err) => {

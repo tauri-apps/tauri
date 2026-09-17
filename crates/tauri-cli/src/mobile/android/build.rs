@@ -3,20 +3,20 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_resources,
-  log_finished, open_and_wait, MobileTarget, OptionsHandle,
+  MobileTarget, OptionsHandle, configure_cargo, delete_codegen_vars, ensure_init, env, get_app,
+  get_config, inject_resources, log_finished, open_and_wait, sync_debug_application_id_suffix,
 };
 use crate::{
+  ConfigValue, Error, Result,
   build::Options as BuildOptions,
   error::Context,
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
   },
   interface::{AppInterface, Options as InterfaceOptions},
-  mobile::{android::generate_tauri_properties, write_options, CliOptions, TargetDevice},
-  ConfigValue, Error, Result,
+  mobile::{CliOptions, TargetDevice, android::generate_tauri_properties, write_options},
 };
 use clap::{ArgAction, Parser};
 
@@ -48,7 +48,7 @@ pub struct Options {
   )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
@@ -106,6 +106,7 @@ impl From<Options> for BuildOptions {
       skip_stapling: false,
       ignore_version_mismatches: options.ignore_version_mismatches,
       no_sign: false,
+      no_binary_patching: false,
     }
   }
 }
@@ -154,14 +155,22 @@ pub fn run(
   build_options.target = Some(first_target.triple.into());
 
   let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
-  interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
   let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
   let (config, metadata) = get_config(
     &app,
     tauri_config,
     &build_options.features,
-    &Default::default(),
+    &CliOptions {
+      dev: false,
+      features: build_options.features.clone(),
+      args: build_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: build_options.config.clone(),
+      target_device: None,
+    },
   );
 
   let profile = if options.debug {
@@ -184,6 +193,7 @@ pub fn run(
   configure_cargo(&mut env, &config)?;
 
   generate_tauri_properties(&config, tauri_config, false)?;
+  sync_debug_application_id_suffix(&config, tauri_config)?;
 
   crate::build::setup(&interface, &mut build_options, tauri_config, dirs, true)?;
 

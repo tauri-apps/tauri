@@ -4,8 +4,8 @@
 
 use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
 use crate::{
-  error::{Context, ErrorExt},
   CommandExt, Error,
+  error::{Context, ErrorExt},
 };
 
 use shared_child::SharedChild;
@@ -15,8 +15,8 @@ use std::{
   path::{Path, PathBuf},
   process::{Command, ExitStatus, Stdio},
   sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
   },
 };
 use tauri_utils::platform::Target as TargetPlatform;
@@ -79,7 +79,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
 
-  log::info!(action = "Running"; "DevCommand (`{} {}`)", &dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+  log::info!(action = "Running"; "DevCommand (`{} {}`)", dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
   let dev_child = match SharedChild::spawn(&mut dev_cmd) {
     Ok(c) => Ok(c),
@@ -158,10 +158,6 @@ pub fn build(
 ) -> crate::Result<PathBuf> {
   let out_dir = app_settings.out_dir(&options, tauri_dir)?;
   let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
-
-  if !std::env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "false") {
-    std::env::set_var("STATIC_VCRUNTIME", "true");
-  }
 
   if options.target == Some("universal-apple-darwin".into()) {
     std::fs::create_dir_all(&out_dir)
@@ -305,14 +301,22 @@ fn validate_target(
     if let Some(target) = available_targets.iter().find(|t| t.name == target) {
       if !target.installed {
         crate::error::bail!(
-            "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
-            target = target.name,
-            installed = available_targets.iter().filter(|t| t.installed).map(|t| t.name.as_str()).collect::<Vec<&str>>().join(", ")
-          );
+          "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
+          target = target.name,
+          installed = available_targets
+            .iter()
+            .filter(|t| t.installed)
+            .map(|t| t.name.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ")
+        );
       }
     }
     if !available_targets.iter().any(|t| t.name == target) {
-      crate::error::bail!("Target {target} does not exist. Please run `rustup target list` to see the available targets.", target = target);
+      crate::error::bail!(
+        "Target {target} does not exist. Please run `rustup target list` to see the available targets.",
+        target = target
+      );
     }
   }
   Ok(())
@@ -366,14 +370,14 @@ mod terminal {
   use std::{cmp, mem, ptr};
 
   use windows_sys::{
-    core::PCSTR,
     Win32::{
       Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE},
       Storage::FileSystem::{CreateFileA, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
       System::Console::{
-        GetConsoleScreenBufferInfo, GetStdHandle, CONSOLE_SCREEN_BUFFER_INFO, STD_ERROR_HANDLE,
+        CONSOLE_SCREEN_BUFFER_INFO, GetConsoleScreenBufferInfo, GetStdHandle, STD_ERROR_HANDLE,
       },
     },
+    core::PCSTR,
   };
 
   pub fn stderr_width() -> Option<usize> {

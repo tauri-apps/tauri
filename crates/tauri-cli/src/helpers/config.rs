@@ -15,7 +15,7 @@ use std::{
   ffi::{OsStr, OsString},
   path::Path,
   process::exit,
-  sync::OnceLock,
+  sync::LazyLock,
 };
 
 use crate::error::Context;
@@ -110,6 +110,8 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     header_image: config.header_image,
     sidebar_image: config.sidebar_image,
     installer_icon: config.installer_icon,
+    uninstaller_icon: config.uninstaller_icon,
+    uninstaller_header_image: config.uninstaller_header_image,
     install_mode: config.install_mode,
     languages: config.languages,
     custom_language_files: config.custom_language_files,
@@ -117,6 +119,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     compression: config.compression,
     start_menu_folder: config.start_menu_folder,
     installer_hooks: config.installer_hooks,
+    #[allow(deprecated)]
     minimum_webview2_version: config.minimum_webview2_version,
   }
 }
@@ -138,15 +141,11 @@ pub fn custom_sign_settings(
   }
 }
 
-fn config_schema_validator() -> &'static jsonschema::Validator {
-  // TODO: Switch to `LazyLock` when we bump MSRV to above 1.80
-  static CONFIG_SCHEMA_VALIDATOR: OnceLock<jsonschema::Validator> = OnceLock::new();
-  CONFIG_SCHEMA_VALIDATOR.get_or_init(|| {
-    let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
-      .expect("Failed to parse config schema bundled in the tauri-cli");
-    jsonschema::validator_for(&schema).expect("Config schema bundled in the tauri-cli is invalid")
-  })
-}
+static CONFIG_SCHEMA_VALIDATOR: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
+  let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
+    .expect("Failed to parse config schema bundled in the tauri-cli");
+  jsonschema::validator_for(&schema).expect("Config schema bundled in the tauri-cli is invalid")
+});
 
 fn load_config(
   merge_configs: &[&serde_json::Value],
@@ -180,7 +179,7 @@ fn load_config(
     }
 
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
-    set_var("TAURI_CONFIG", merge_config_str);
+    unsafe { set_var("TAURI_CONFIG", merge_config_str) };
     merge(&mut config, &merge_config);
     extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
   }
@@ -188,10 +187,10 @@ fn load_config(
   if config_path.extension() == Some(OsStr::new("json"))
     || config_path.extension() == Some(OsStr::new("json5"))
   {
-    let mut errors = config_schema_validator().iter_errors(&config).peekable();
+    let mut errors = CONFIG_SCHEMA_VALIDATOR.iter_errors(&config).peekable();
     if errors.peek().is_some() {
       for error in errors {
-        let path = error.instance_path.into_iter().join(" > ");
+        let path = error.instance_path().into_iter().join(" > ");
         if path.is_empty() {
           log::error!("`{config_file_name:?}` error: {error}");
         } else {
@@ -213,17 +212,19 @@ fn load_config(
   set_current_dir(current_dir).context("failed to set current directory")?;
 
   for (plugin, conf) in &config.plugins.0 {
-    set_var(
-      format!(
-        "TAURI_{}_PLUGIN_CONFIG",
-        plugin.to_uppercase().replace('-', "_")
-      ),
-      serde_json::to_string(&conf).context("failed to serialize config")?,
-    );
+    unsafe {
+      set_var(
+        format!(
+          "TAURI_{}_PLUGIN_CONFIG",
+          plugin.to_uppercase().replace('-', "_")
+        ),
+        serde_json::to_string(&conf).context("failed to serialize config")?,
+      )
+    };
   }
 
   if config.build.remove_unused_commands {
-    std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir);
+    unsafe { std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir) };
   }
 
   Ok(ConfigMetadata {
@@ -267,7 +268,7 @@ pub fn merge_config_with(
   }
 
   let merge_config_str = serde_json::to_string(&merge_config).unwrap();
-  set_var("TAURI_CONFIG", merge_config_str);
+  unsafe { set_var("TAURI_CONFIG", merge_config_str) };
 
   let mut value =
     serde_json::to_value(config.inner.clone()).context("failed to serialize config")?;

@@ -11,19 +11,24 @@ use std::{borrow::Cow, io::SeekFrom};
 use tauri_utils::mime_type::MimeType;
 
 pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
-  Box::new(
-    move |_, request, responder| match get_response(request, &scope, &window_origin) {
-      Ok(response) => responder.respond(response),
-      Err(e) => responder.respond(
-        http::Response::builder()
-          .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-          .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-          .header("Access-Control-Allow-Origin", &window_origin)
-          .body(e.to_string().into_bytes())
-          .unwrap(),
-      ),
-    },
-  )
+  Box::new(move |_, request, responder| {
+    let scope = scope.clone();
+    let window_origin = window_origin.clone();
+    // reading the file blocks, and this is called on the thread that runs the event loop
+    crate::async_runtime::spawn_blocking(move || {
+      match get_response(request, &scope, &window_origin) {
+        Ok(response) => responder.respond(response),
+        Err(e) => responder.respond(
+          http::Response::builder()
+            .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+            .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+            .header("Access-Control-Allow-Origin", &window_origin)
+            .body(e.to_string().into_bytes())
+            .unwrap(),
+        ),
+      }
+    });
+  })
 }
 
 fn get_response(

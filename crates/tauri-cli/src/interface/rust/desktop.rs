@@ -28,26 +28,27 @@ pub struct DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
-    if let Some(pid) = self.dev_child.id() {
-      #[cfg(windows)]
-      {
-        use std::process::Command;
-        let ps = format!(
-          "function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}",
-          pid
-        );
-        let _ = Command::new("powershell")
-          .arg("-NoProfile")
-          .arg("-Command")
-          .arg(ps)
-          .status();
-      }
+    let pid = self.dev_child.id();
 
-      #[cfg(not(windows))]
-      {
-        use std::process::Command;
-        let sh = format!(
-          r#"
+    #[cfg(windows)]
+    {
+      use std::process::Command;
+      let ps = format!(
+        "function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}",
+        pid
+      );
+      let _ = Command::new("powershell")
+        .arg("-NoProfile")
+        .arg("-Command")
+        .arg(ps)
+        .status();
+    }
+
+    #[cfg(not(windows))]
+    {
+      use std::process::Command;
+      let sh = format!(
+        r#"
 getcpid() {{
   for cpid in $(pgrep -P "$1" 2>/dev/null || true); do
     getcpid "$cpid"
@@ -59,11 +60,10 @@ for p in $(getcpid {pid}); do
 done
 kill -9 {pid} 2>/dev/null || true
 "#,
-          pid = pid
-        );
+        pid = pid
+      );
 
-        let _ = Command::new("sh").arg("-c").arg(sh).status();
-      }
+      let _ = Command::new("sh").arg("-c").arg(sh).status();
     }
 
     self.dev_child.kill()?;

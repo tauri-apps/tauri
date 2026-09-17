@@ -41,24 +41,27 @@ impl DevProcess for DevChild {
 
     #[cfg(not(windows))]
     {
-      use std::process::Command;
-      let sh = format!(
-        r#"
-getcpid() {{
-  for cpid in $(pgrep -P "$1" 2>/dev/null || true); do
-    getcpid "$cpid"
-    echo "$cpid"
+      // collect the whole tree first, then kill the root before its descendants
+      // so it cannot respawn them in the meantime
+      const KILL_TREE: &str = r#"
+descendants() {
+  for child in $(pgrep -P "$1" 2>/dev/null); do
+    echo "$child"
+    descendants "$child"
   done
-}}
-for p in $(getcpid {pid}); do
-  kill -9 "$p" 2>/dev/null || true
+}
+tree=$(descendants "$1")
+kill -9 "$1" 2>/dev/null
+for p in $tree; do
+  kill -9 "$p" 2>/dev/null
 done
-kill -9 {pid} 2>/dev/null || true
-"#,
-        pid = pid
-      );
+true
+"#;
 
-      let _ = Command::new("sh").arg("-c").arg(sh).status();
+      let pid = pid.to_string();
+      let _ = Command::new("sh")
+        .args(["-c", KILL_TREE, "sh", pid.as_str()])
+        .status();
     }
 
     self.dev_child.kill()?;

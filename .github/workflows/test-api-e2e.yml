@@ -90,13 +90,14 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 45
         # A real window manager (fluxbox) is started so that window-state tests
-        # (minimize/maximize/fullscreen/position) behave. The tray host is absent
-        # in this environment, so the tray module is skipped.
+        # (minimize/maximize/fullscreen/position) behave.
+        env:
+          E2E_SPEC_RETRIES: '1'
         run: |
           xvfb-run --auto-servernum -- bash -c '
             fluxbox >/dev/null 2>&1 &
             sleep 1
-            E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
+            pnpm test:api-e2e
           '
 
       - name: run e2e tests (Windows)
@@ -109,10 +110,7 @@ jobs:
         # integrity instead, and the workspace is opened up so the de-elevated process can use it.
         # See https://github.com/tauri-apps/wry/issues/1782 and
         # https://github.com/MicrosoftEdge/WebView2Feedback/issues/5645.
-        # The runner has an interactive desktop session, so window-state tests run as-is;
-        # the tray module is skipped to match the Linux job.
         env:
-          E2E_SKIP: tray
           E2E_SPEC_RETRIES: '1'
         run: |
           winget install gerardog.gsudo --accept-source-agreements --accept-package-agreements
@@ -122,13 +120,14 @@ jobs:
       - name: run e2e tests (macOS)
         if: runner.os == 'macOS' && env.CN_API_KEY != ''
         timeout-minutes: 45
+        env:
+          CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY }}
+          E2E_SPEC_RETRIES: '1'
         # macOS has no native WebDriver for WKWebView, so the app is driven through the
         # CrabNebula Webdriver (tauri-plugin-automation + test-runner-backend), which
         # authenticates with CN_API_KEY. wdio.conf enables it automatically on darwin and
-        # builds the `.app` bundle it needs. The tray module is skipped to match the other jobs.
-        run: E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
-        env:
-          CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY }}
+        # builds the `.app` bundle it needs.
+        run: pnpm test:api-e2e
 
       - name: collect app crash reports (macOS)
         if: runner.os == 'macOS' && failure()

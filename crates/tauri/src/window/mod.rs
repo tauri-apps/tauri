@@ -819,13 +819,6 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// The initial position of the window in logical pixels.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux (Wayland):** Not supported. Wayland does not let clients position their
-  ///   own windows, so the position is ignored by the compositor. To open a window on a
-  ///   specific monitor, set it fullscreen together with the position, or use
-  ///   [`WindowBuilder::fullscreen`].
   #[must_use]
   pub fn position(mut self, x: f64, y: f64) -> Self {
     self.window_builder = self.window_builder.position(x, y);
@@ -1883,12 +1876,6 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Sets this window's position.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux (Wayland):** Not supported. Wayland does not let clients position their
-  ///   own windows, so this call is ignored by the compositor. To place a window on a
-  ///   specific monitor, use [`Window::set_fullscreen_on_monitor`] instead.
   pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
     self
       .window

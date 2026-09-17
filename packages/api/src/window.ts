@@ -1417,12 +1417,6 @@ class Window {
    * await getCurrentWindow().setPosition(new LogicalPosition(600, 500));
    * ```
    *
-   * #### Platform-specific
-   *
-   * - **Linux (Wayland):** Not supported. Wayland does not let clients position their
-   * own windows, so this call is ignored by the compositor. To place a window on a
-   * specific monitor, use {@linkcode Window.setFullscreenOnMonitor} instead.
-   *
    * @param position The new position, in logical or physical pixels.
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -2376,22 +2370,10 @@ interface WindowOptions {
   center?: boolean
   /**
    * The initial vertical position in logical pixels. Only applies if `y` is also set.
-   *
-   * #### Platform-specific
-   *
-   * - **Linux (Wayland):** Not supported. Wayland does not let clients position their own
-   * windows, so this is ignored by the compositor. To open a window on a specific monitor,
-   * set it fullscreen together with the position.
    */
   x?: number
   /**
    * The initial horizontal position in logical pixels. Only applies if `x` is also set.
-   *
-   * #### Platform-specific
-   *
-   * - **Linux (Wayland):** Not supported. Wayland does not let clients position their own
-   * windows, so this is ignored by the compositor. To open a window on a specific monitor,
-   * set it fullscreen together with the position.
    */
   y?: number
   /** The initial width in logical pixels. */

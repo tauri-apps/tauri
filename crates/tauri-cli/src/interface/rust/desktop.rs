@@ -32,15 +32,10 @@ impl DevProcess for DevChild {
 
     #[cfg(windows)]
     {
-      use std::process::Command;
-      let ps = format!(
-        "function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}",
-        pid
-      );
-      let _ = Command::new("powershell")
-        .arg("-NoProfile")
-        .arg("-Command")
-        .arg(ps)
+      // `/T` terminates the whole process tree, `/F` forces it
+      let pid = pid.to_string();
+      let _ = Command::new("taskkill")
+        .args(["/T", "/F", "/PID", pid.as_str()])
         .status();
     }
 

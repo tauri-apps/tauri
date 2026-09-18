@@ -46,7 +46,7 @@ use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS}
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-use tao::platform::unix::{EventLoopWindowTargetExtUnix, WindowBuilderExtUnix, WindowExtUnix};
+use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
@@ -632,7 +632,6 @@ impl From<MonitorHandleWrapper> for Monitor {
   }
 }
 
-#[cfg(desktop)]
 fn find_monitor_for_position(
   monitors: impl Iterator<Item = MonitorHandle>,
   window_position: Position,

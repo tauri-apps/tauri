@@ -227,7 +227,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       basename,
       is_absolute
     ])
-    .js_init_script(init_js.to_string())
+    .initialization_script(init_js.to_string())
     .setup(|app, _api| {
       #[cfg(target_os = "android")]
       {

@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, atomic::AtomicBool},
 };
 
 use serde::Serialize;
@@ -19,6 +19,7 @@ use tauri_utils::{
 };
 
 use crate::{
+  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
@@ -27,9 +28,11 @@ use crate::{
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
   resources::ResourceTable,
-  utils::{config::Config, PackageInfo},
-  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
+  utils::{PackageInfo, config::Config},
 };
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::app::OnWebContentProcessTerminate;
 
 #[cfg(desktop)]
 mod menu;
@@ -251,6 +254,10 @@ impl<R: Runtime> AppManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
+    on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
+    #[cfg(any(target_os = "macos", target_os = "ios"))] on_web_content_process_terminate: Option<
+      Arc<OnWebContentProcessTerminate<R>>,
+    >,
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
     #[cfg(desktop)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
@@ -284,6 +291,9 @@ impl<R: Runtime> AppManager<R> {
         webviews: Mutex::default(),
         invoke_handler,
         on_page_load,
+        on_permission_request,
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webview_event_listeners),
         invoke_initialization_script,
@@ -321,11 +331,6 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  /// State managed by the application.
-  pub(crate) fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
-  }
-
   /// The `tauri` custom protocol URL we use to serve the embedded assets.
   /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
@@ -339,7 +344,7 @@ impl<R: Runtime> AppManager<R> {
 
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
   ///
-  /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exsits.
+  /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exists.
   /// * In production mode, this is the [`frontendDist`](tauri_utils::config::BuildConfig::frontend_dist) configuration value if it's a [`FrontendDist::Url`](tauri_utils::config::FrontendDist::Url).
   /// * Returns [`Self::tauri_protocol_url`] (e.g. `tauri://localhost`) otherwise.
   pub(crate) fn get_app_url(&self, https: bool) -> Cow<'_, Url> {
@@ -372,11 +377,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  pub fn get_asset(
-    &self,
-    mut path: String,
-    _use_https_schema: bool,
-  ) -> Result<Asset, Box<dyn std::error::Error>> {
+  pub fn get_asset(&self, mut path: String, _use_https_schema: bool) -> crate::Result<Asset> {
     let assets = &self.assets;
     if path.ends_with('/') {
       path.pop();
@@ -417,49 +418,42 @@ impl<R: Runtime> AppManager<R> {
         asset_path = fallback;
         asset
       })
-      .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
-      .map(Cow::into_owned);
+      .ok_or_else(|| {
+        let error = crate::Error::AssetNotFound(path.clone());
+        log::error!("{error}");
+        error
+      })?;
 
     let mut csp_header = None;
     let is_html = asset_path.as_ref().ends_with(".html");
 
-    match asset_response {
-      Ok(asset) => {
-        let final_data = if is_html {
-          let mut asset = String::from_utf8_lossy(&asset).into_owned();
-          if let Some(csp) = self.csp() {
-            #[allow(unused_mut)]
-            let mut csp_map = set_csp(&mut asset, &self.assets, &asset_path, self, csp);
-            #[cfg(feature = "isolation")]
-            if let Pattern::Isolation { schema, .. } = &*self.pattern {
-              let default_src = csp_map
-                .entry("default-src".into())
-                .or_insert_with(Default::default);
-              default_src.push(crate::pattern::format_real_schema(
-                schema,
-                _use_https_schema,
-              ));
-            }
+    let final_data = if is_html {
+      let mut asset = String::from_utf8_lossy(&asset_response).into_owned();
+      if let Some(csp) = self.csp() {
+        #[allow(unused_mut)]
+        let mut csp_map = set_csp(&mut asset, &self.assets, &asset_path, self, csp);
+        #[cfg(feature = "isolation")]
+        if let Pattern::Isolation { schema, .. } = &*self.pattern {
+          let default_src = csp_map.entry("default-src".to_owned()).or_default();
+          default_src.push(crate::pattern::format_real_schema(
+            schema,
+            _use_https_schema,
+          ));
+        }
 
-            csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
-          }
+        csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
+      }
 
-          asset.into_bytes()
-        } else {
-          asset
-        };
-        let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
-        Ok(Asset {
-          bytes: final_data,
-          mime_type,
-          csp_header,
-        })
-      }
-      Err(e) => {
-        log::error!("{:?}", e);
-        Err(Box::new(e))
-      }
-    }
+      asset.into_bytes()
+    } else {
+      asset_response.into_owned()
+    };
+    let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
+    Ok(Asset {
+      bytes: final_data,
+      mime_type,
+      csp_header,
+    })
   }
 
   pub(crate) fn listeners(&self) -> &Listeners {
@@ -470,12 +464,15 @@ impl<R: Runtime> AppManager<R> {
     (self.webview.invoke_handler)(invoke)
   }
 
-  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
+  /// Runs the plugin [`crate::plugin::Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  ///
+  /// The message is not handled when the plugin exists **and** the command does not.
+  pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(plugin, invoke)
+      .run_invoke_handler(plugin, invoke)
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
@@ -643,9 +640,9 @@ impl<R: Runtime> AppManager<R> {
     self
       .window
       .windows_lock()
-      .iter()
-      .find(|w| w.1.is_focused().unwrap_or(false))
-      .map(|w| w.1.clone())
+      .values()
+      .find(|w| w.is_focused().unwrap_or(false))
+      .cloned()
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {
@@ -653,13 +650,16 @@ impl<R: Runtime> AppManager<R> {
     if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
+        self.listeners().remove_webview_listeners(webview.label());
       }
     }
+    self.listeners().remove_window_listeners(label);
   }
 
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
+    self.listeners().remove_webview_listeners(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
@@ -727,19 +727,19 @@ mod tests {
 #[cfg(test)]
 mod test {
   use std::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
     time::Duration,
   };
 
   use crate::{
+    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
+    Window, Wry,
     event::EventTarget,
     generate_context,
     plugin::PluginStore,
-    test::{mock_app, MockRuntime},
+    test::{MockRuntime, mock_app},
     webview::WebviewBuilder,
     window::WindowBuilder,
-    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
-    Window, Wry,
   };
 
   use super::AppManager;
@@ -762,6 +762,9 @@ mod test {
       PluginStore::default(),
       Box::new(|_| false),
       None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),

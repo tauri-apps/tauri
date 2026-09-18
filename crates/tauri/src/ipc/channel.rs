@@ -6,23 +6,22 @@ use std::{
   collections::HashMap,
   str::FromStr,
   sync::{
-    atomic::{AtomicU32, AtomicUsize, Ordering},
     Arc, Mutex,
+    atomic::{AtomicU32, AtomicUsize, Ordering},
   },
 };
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-  command,
+  Manager, Runtime, State, Webview, command,
   ipc::{CommandArg, CommandItem},
   plugin::{Builder as PluginBuilder, TauriPlugin},
-  Manager, Runtime, State, Webview,
 };
 
 use super::{
-  format_callback::format_raw_js, CallbackFn, InvokeError, InvokeResponseBody, IpcResponse,
-  Request, Response,
+  CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, Response,
+  format_callback::format_raw_js,
 };
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
@@ -54,9 +53,9 @@ pub struct Channel<TSend = InvokeResponseBody> {
 #[cfg(feature = "specta")]
 const _: () = {
   #[derive(specta::Type)]
-  #[specta(remote = super::Channel, rename = "TAURI_CHANNEL")]
-  #[allow(dead_code)]
-  struct Channel<TSend>(std::marker::PhantomData<TSend>);
+  #[specta(remote = super::Channel)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_CHANNEL<TSend>(std::marker::PhantomData<TSend>);
 };
 
 impl<TSend> Clone for Channel<TSend> {

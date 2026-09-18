@@ -5,12 +5,11 @@
 use clap::Parser;
 
 use crate::{
-  error::{Context, ErrorExt},
-  helpers::app_paths::tauri_dir,
   Result,
+  error::{Context, ErrorExt},
 };
 use colored::Colorize;
-use tauri_utils::acl::{manifest::Manifest, APP_ACL_KEY};
+use tauri_utils::acl::{APP_ACL_KEY, manifest::Manifest};
 
 use std::{collections::BTreeMap, fs::read_to_string};
 
@@ -25,9 +24,10 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let acl_manifests_path = tauri_dir()
+  let acl_manifests_path = dirs
+    .tauri
     .join("gen")
     .join("schemas")
     .join("acl-manifests.json");

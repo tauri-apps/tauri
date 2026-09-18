@@ -1,20 +1,20 @@
-<script>
+<script lang="ts">
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { Channel, invoke } from '@tauri-apps/api/core'
   import { onMount, onDestroy } from 'svelte'
+  import type { UnlistenFn } from '@tauri-apps/api/event'
+  import type { ViewProps } from '../App.svelte'
 
-  let { onMessage } = $props()
-  let unlisten
+  let { onMessage }: ViewProps = $props()
 
   const webviewWindow = getCurrentWebviewWindow()
 
+  let unlisten: UnlistenFn | undefined
   onMount(async () => {
     unlisten = await webviewWindow.listen('rust-event', onMessage)
   })
   onDestroy(() => {
-    if (unlisten) {
-      unlisten()
-    }
+    unlisten?.()
   })
 
   function log() {
@@ -57,7 +57,7 @@
   }
 </script>
 
-<div>
+<div class="flex gap-2">
   <button class="btn" id="log" onclick={log}>Call Log API</button>
   <button class="btn" id="request" onclick={performRequest}>
     Call Request (async) API
@@ -65,6 +65,6 @@
   <button class="btn" id="event" onclick={emitEvent}>
     Send event to Rust
   </button>
-  <button class="btn" id="request" onclick={echo}> Echo </button>
-  <button class="btn" id="request" onclick={spam}> Spam </button>
+  <button class="btn" id="request" onclick={echo}>Echo</button>
+  <button class="btn" id="request" onclick={spam}>Spam</button>
 </div>

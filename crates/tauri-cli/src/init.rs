@@ -3,27 +3,28 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  VersionMetadata,
   helpers::{
-    framework::{infer_from_package_json as infer_framework, Framework},
+    framework::{Framework, infer_from_package_json as infer_framework},
     npm::PackageManager,
     prompts, resolve_tauri_path, template,
   },
-  VersionMetadata,
 };
 use std::{
   collections::BTreeMap,
   env::current_dir,
   fs::{read_to_string, remove_dir_all},
+  io::IsTerminal,
   path::PathBuf,
 };
 
 use crate::{
-  error::{Context, ErrorExt},
   Result,
+  error::{Context, ErrorExt},
 };
 use clap::Parser;
-use handlebars::{to_json, Handlebars};
-use include_dir::{include_dir, Dir};
+use handlebars::{Handlebars, to_json};
+use include_dir::{Dir, include_dir};
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
@@ -75,6 +76,9 @@ struct InitDefaults {
 
 impl Options {
   fn load(mut self) -> Result<Self> {
+    if !std::io::stdin().is_terminal() {
+      self.ci = true;
+    }
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
@@ -142,7 +146,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend dev command?",
+          "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
           Some(default_dev_command(detected_package_manager).into()),
           self.ci,
           true,
@@ -154,7 +158,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend build command?",
+          "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
           Some(default_build_command(detected_package_manager).into()),
           self.ci,
           true,

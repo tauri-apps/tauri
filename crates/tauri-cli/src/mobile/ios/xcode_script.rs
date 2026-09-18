@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
+use super::{MobileTarget, ensure_init, env, get_app, get_config, read_options};
 use crate::{
-  error::{Context, ErrorExt},
-  helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
-  mobile::ios::LIB_OUTPUT_FILE_NAME,
   Error, Result,
+  error::{Context, ErrorExt},
+  helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
+  interface::{AppInterface, Options as InterfaceOptions},
+  mobile::ios::LIB_OUTPUT_FILE_NAME,
 };
 
 use cargo_mobile2::{apple::target::Target, opts::Profile, target::TargetTrait};
@@ -89,50 +89,39 @@ pub fn command(options: Options) -> Result<()> {
     .unwrap();
   }
 
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  let (tauri_config, cli_options) = {
-    let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[])?;
-    let cli_options = {
-      let tauri_config_guard = tauri_config.lock().unwrap();
-      let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-      read_options(tauri_config_)
-    };
-    let tauri_config = if cli_options.config.is_empty() {
-      tauri_config
-    } else {
-      // reload config with merges from the ios dev|build script
-      reload_tauri_config(
-        &cli_options
-          .config
-          .iter()
-          .map(|conf| &conf.0)
-          .collect::<Vec<_>>(),
-      )?
-    };
-
-    (tauri_config, cli_options)
+  let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[], dirs.tauri)?;
+  let cli_options = read_options(&tauri_config);
+  if !cli_options.config.is_empty() {
+    // reload config with merges from the ios dev|build script
+    reload_tauri_config(
+      &mut tauri_config,
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+      dirs.tauri,
+    )?
   };
 
-  let (config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = read_options(tauri_config_);
-    let (config, metadata) = get_config(
-      &get_app(
-        MobileTarget::Ios,
-        tauri_config_,
-        &AppInterface::new(tauri_config_, None)?,
-      ),
-      tauri_config_,
-      &[],
-      &cli_options,
-    )?;
-    (config, metadata)
-  };
+  let (config, metadata) = get_config(
+    &get_app(
+      MobileTarget::Ios,
+      &tauri_config,
+      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      dirs.tauri,
+    ),
+    &tauri_config,
+    &[],
+    &cli_options,
+    dirs.tauri,
+  )?;
+
   ensure_init(
     &tauri_config,
     config.app(),
@@ -142,7 +131,8 @@ pub fn command(options: Options) -> Result<()> {
   )?;
 
   if !cli_options.config.is_empty() {
-    crate::helpers::config::merge_with(
+    crate::helpers::config::merge_config_with(
+      &mut tauri_config,
       &cli_options
         .config
         .iter()
@@ -212,12 +202,14 @@ pub fn command(options: Options) -> Result<()> {
     options.platform == "iOS Simulator" || options.arches.contains(&"Simulator".to_string());
   let arches = if simulator {
     // when compiling for the simulator, we don't need to build other targets
-    vec![if cfg!(target_arch = "aarch64") {
-      "arm64"
-    } else {
-      "x86_64"
-    }
-    .to_string()]
+    vec![
+      if cfg!(target_arch = "aarch64") {
+        "arm64"
+      } else {
+        "x86_64"
+      }
+      .to_string(),
+    ]
   } else {
     options.arches
   };
@@ -236,10 +228,7 @@ pub fn command(options: Options) -> Result<()> {
       }
     };
 
-    let interface = AppInterface::new(
-      tauri_config.lock().unwrap().as_ref().unwrap(),
-      Some(rust_triple.into()),
-    )?;
+    let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri)?;
 
     let cflags = format!("CFLAGS_{env_triple}");
     let cxxflags = format!("CFLAGS_{env_triple}");
@@ -280,15 +269,21 @@ pub fn command(options: Options) -> Result<()> {
       )
       .context("failed to compile iOS app")?;
 
-    let out_dir = interface.app_settings().out_dir(&InterfaceOptions {
-      debug: matches!(profile, Profile::Debug),
-      target: Some(rust_triple.into()),
-      ..Default::default()
-    })?;
+    let out_dir = interface.app_settings().out_dir(
+      &InterfaceOptions {
+        debug: matches!(profile, Profile::Debug),
+        target: Some(rust_triple.into()),
+        ..Default::default()
+      },
+      dirs.tauri,
+    )?;
 
     let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
     if !lib_path.exists() {
-      crate::error::bail!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display());
+      crate::error::bail!(
+        "Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`",
+        lib_path.display()
+      );
     }
 
     validate_lib(&lib_path)?;

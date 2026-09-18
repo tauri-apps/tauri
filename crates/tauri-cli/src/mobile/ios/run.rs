@@ -9,10 +9,11 @@ use clap::{ArgAction, Parser};
 
 use super::{device_prompt, env};
 use crate::{
-  error::Context,
-  interface::{DevProcess, Interface, WatcherOptions},
-  mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
+  error::Context,
+  helpers::config::{ConfigMetadata, get_config as get_tauri_config},
+  interface::{DevProcess, WatcherOptions},
+  mobile::{DevChild, TargetDevice},
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -25,7 +26,7 @@ pub struct Options {
   #[clap(short, long)]
   pub release: bool,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
@@ -73,7 +74,9 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
-  let mut built_application = super::build::command(
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+
+  let mut built_application = super::build::run(
     super::build::Options {
       debug: !options.release,
       targets: Some(vec![]), /* skips IPA build since there's no target */
@@ -85,18 +88,27 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       export_method: None,
       args: options.args,
       ignore_version_mismatches: options.ignore_version_mismatches,
+      no_sign: false,
+      archive_only: false,
       target_device: device.as_ref().map(|d| TargetDevice {
         id: d.id().to_string(),
         name: d.name().to_string(),
       }),
     },
     noise_level,
+    &dirs,
+  )?;
+
+  let mut tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Ios,
+    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
   // options.open is handled by the build command
   // so all we need to do here is run the app on the selected device
   if let Some(device) = device {
-    let runner = move || {
+    let runner = move |_tauri_config: &ConfigMetadata| {
       device
         .run(
           &built_application.config,
@@ -114,14 +126,16 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     };
 
     if options.no_watch {
-      runner()?;
+      runner(&tauri_config)?;
     } else {
       built_application.interface.watch(
+        &mut tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
+        &dirs,
       )?;
     }
   }

@@ -13,7 +13,7 @@ use tauri_utils::acl::capability::CapabilityFile;
 #[cfg(any(feature = "dynamic-acl", debug_assertions))]
 use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::{
-  APP_ACL_KEY, ExecutionContext, Value,
+  APP_ACL_KEY, ExecutionContext,
   resolved::{Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
 };
 

@@ -10,7 +10,6 @@ use crate::platform::Target;
 
 use super::{
   APP_ACL_KEY, Commands, Error, ExecutionContext, Identifier, Permission, PermissionSet, Scopes,
-  Value,
   capability::{Capability, PermissionEntry},
   has_app_manifest,
   manifest::Manifest,

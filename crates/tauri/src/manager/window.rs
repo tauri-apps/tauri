@@ -17,8 +17,8 @@ use tauri_runtime::{
 };
 
 use crate::{
-  app::GlobalWindowEventListener, event::EventName, image::Image, sealed::ManagerBase, AppHandle,
-  EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Window, WindowEvent,
+  AppHandle, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Window, WindowEvent,
+  app::GlobalWindowEventListener, event::EventName, image::Image, sealed::ManagerBase,
 };
 
 use super::EmitPayload;

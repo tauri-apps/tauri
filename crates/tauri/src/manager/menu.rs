@@ -8,8 +8,8 @@ use std::{
 };
 
 use crate::{
-  menu::{Menu, MenuEvent, MenuId},
   AppHandle, Runtime, Window,
+  menu::{Menu, MenuEvent, MenuId},
 };
 
 pub struct MenuManager<R: Runtime> {

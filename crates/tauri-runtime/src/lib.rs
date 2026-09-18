@@ -16,8 +16,8 @@
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::config::Color;
 use tauri_utils::Theme;
+use tauri_utils::config::Color;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 

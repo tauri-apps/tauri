@@ -11,6 +11,7 @@
     ".changes/cef-macos-nested-loop-wake.md",
     ".changes/cef-no-first-run.md",
     ".changes/change-pr-15952.md",
+    ".changes/cli-linux-appindicator-probe.md",
     ".changes/cli-runtime-detection.md",
     ".changes/custom-scheme-url-format.md",
     ".changes/dev-resources-runtime-resolution.md",

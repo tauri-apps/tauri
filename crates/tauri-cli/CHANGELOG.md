@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0-alpha.2]
+
+### Bug Fixes
+
+- [`747a0612d`](https://www.github.com/tauri-apps/tauri/commit/747a0612d5dba9829fb3487a3ed6cdf7b5e81dd9) Only probe for libappindicator (and add it to the deb dependencies and AppImage files) when the `linux-libappindicator` feature is enabled. The `tray-icon` feature alone now uses the D-Bus StatusNotifierItem backend, so the probe panicked with "Can't detect any appindicator library" on hosts without the GTK 3 library.
+
 ## [3.0.0-alpha.1]
 
 ### Dependencies

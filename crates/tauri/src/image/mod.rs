@@ -27,6 +27,30 @@ use windows::{
 
 use crate::{Resource, ResourceId, ResourceTable};
 
+/// Identifies an icon resource embedded in the executable.
+#[cfg(windows)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IconResource<'a> {
+  /// An integer resource identifier (`MAKEINTRESOURCE`).
+  Id(u16),
+  /// A string resource name.
+  Name(&'a str),
+}
+
+#[cfg(windows)]
+impl From<u16> for IconResource<'_> {
+  fn from(id: u16) -> Self {
+    Self::Id(id)
+  }
+}
+
+#[cfg(windows)]
+impl<'a> From<&'a str> for IconResource<'a> {
+  fn from(name: &'a str) -> Self {
+    Self::Name(name)
+  }
+}
+
 #[cfg(windows)]
 const BYTES_PER_PIXEL: usize = 4;
 
@@ -184,7 +208,7 @@ impl<'a> Image<'a> {
   #[cfg(windows)]
   pub fn from_app_icon_resource(size: u32) -> crate::Result<Self> {
     // Make sure we keep this `resource_id` in sync with the one in `tauri-build`
-    Image::from_icon_resource(PCWSTR(32512 as _), size, size)
+    Image::from_icon_resource(32512u16, size, size)
   }
 
   /// Create a new image from an icon resource embedded in this executable or library.
@@ -193,19 +217,22 @@ impl<'a> Image<'a> {
   ///
   /// ## Examples
   ///
-  /// The `resource_id` can be an `u16` wrapped as `PCWSTR(1 as _)` or a wide string like `w!("icon")`
+  /// The resource can be identified by its integer id or by its name, see [`IconResource`].
   ///
   /// ```no_run
   /// # use tauri::image::Image;
-  /// # use windows::core::{w, PCWSTR};
   /// # fn main() -> tauri::Result<()> {
-  /// let icon = Image::from_icon_resource(PCWSTR(1 as _), 32, 32)?;
-  /// let icon = Image::from_icon_resource(w!("icon"), 32, 32)?;
+  /// let icon = Image::from_icon_resource(1, 32, 32)?;
+  /// let icon = Image::from_icon_resource("icon", 32, 32)?;
   /// # Ok(())
   /// # }
   /// ```
   #[cfg(windows)]
-  pub fn from_icon_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
+  pub fn from_icon_resource<'r>(
+    resource: impl Into<IconResource<'r>>,
+    width: u32,
+    height: u32,
+  ) -> crate::Result<Self> {
     let (width_i32, height_i32) = match (i32::try_from(width), i32::try_from(height)) {
       (Ok(w), Ok(h)) if w > 0 && h > 0 => (w, h),
       _ => {
@@ -213,6 +240,17 @@ impl<'a> Image<'a> {
           ERROR_INVALID_PARAMETER,
           "width and height must be between 1 and i32::MAX",
         ));
+      }
+    };
+
+    // keeps the wide string alive for the `LoadImageW` call
+    let name: Vec<u16>;
+    let resource_id = match resource.into() {
+      // MAKEINTRESOURCE
+      IconResource::Id(id) => PCWSTR(id as usize as *const u16),
+      IconResource::Name(n) => {
+        name = n.encode_utf16().chain(std::iter::once(0)).collect();
+        PCWSTR(name.as_ptr())
       }
     };
 

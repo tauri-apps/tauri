@@ -221,12 +221,16 @@ impl<'a> Image<'a> {
 
   /// Creates a new image from the application icon embedded in the executable of the current process.
   ///
-  /// The application icon is currently the icon with `nameID 32512` we embedded through `tauri-build`,
+  /// The application icon is the one `tauri-build` embeds with the
+  /// [`WINDOWS_APP_ICON_RESOURCE_ID`](crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID) id,
   /// this could change in the future.
   #[cfg(windows)]
   pub fn from_app_icon_resource(size: u32) -> crate::Result<Self> {
-    // Make sure we keep this `resource_id` in sync with the one in `tauri-build`
-    Image::from_icon_resource(32512u16, size, size)
+    Image::from_icon_resource(
+      crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID,
+      size,
+      size,
+    )
   }
 
   /// Create a new image from an icon resource embedded in the executable of the current process.

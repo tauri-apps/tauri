@@ -19,6 +19,14 @@ mod starting_binary;
 #[cfg(target_os = "android")]
 pub const ANDROID_ASSET_PROTOCOL_URI_PREFIX: &str = "asset://localhost/";
 
+/// Resource id of the application icon that `tauri-build` embeds into Windows executables
+/// and that `tauri::image::Image::from_app_icon_resource` reads back.
+///
+/// `32512` has no special meaning here: it was picked because we misunderstood
+/// `IDI_APPLICATION` (`MAKEINTRESOURCE(32512)`) to be the id an application icon must use,
+/// which is not the case. See <https://devblogs.microsoft.com/oldnewthing/20250423-00/?p=111106>.
+pub const WINDOWS_APP_ICON_RESOURCE_ID: u16 = 32512;
+
 /// Platform target.
 #[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

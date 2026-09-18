@@ -12,7 +12,7 @@ use std::sync::Arc;
 #[cfg(windows)]
 use windows::{
   Win32::{
-    Foundation::{E_FAIL, ERROR_NOT_SUPPORTED},
+    Foundation::{E_FAIL, ERROR_INVALID_PARAMETER, ERROR_NOT_SUPPORTED, WIN32_ERROR},
     Graphics::Gdi::{
       BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC,
       GetDIBits, HBITMAP,
@@ -34,10 +34,14 @@ const BYTES_PER_PIXEL: usize = 4;
 ///
 /// # Safety
 ///
-/// `hbm` must be a valid bitmap handle.
+/// `hbm` must be a valid bitmap handle and `width` and `height` must be positive.
 #[cfg(windows)]
 unsafe fn read_bgra(hbm: HBITMAP, width: i32, height: i32) -> crate::Result<Vec<u8>> {
-  let mut bgra = vec![0u8; (width * height * BYTES_PER_PIXEL as i32) as usize];
+  let image_bytes = (width as usize)
+    .checked_mul(height as usize)
+    .and_then(|n| n.checked_mul(BYTES_PER_PIXEL))
+    .ok_or_else(|| resource_error(ERROR_INVALID_PARAMETER, "image size overflows usize"))?;
+  let mut bgra = vec![0u8; image_bytes];
 
   let mut bitmap_info = BITMAPINFO::default();
   bitmap_info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
@@ -72,6 +76,11 @@ unsafe fn read_bgra(hbm: HBITMAP, width: i32, height: i32) -> crate::Result<Vec<
   }
 
   Ok(bgra)
+}
+
+#[cfg(windows)]
+fn resource_error(code: WIN32_ERROR, message: &str) -> crate::Error {
+  crate::Error::ImageFromResource(windows::core::Error::new(code.to_hresult(), message))
 }
 
 /// Returns the calling thread's last error, or a generic `E_FAIL` with `message`
@@ -194,8 +203,15 @@ impl<'a> Image<'a> {
   /// ```
   #[cfg(windows)]
   pub fn from_icon_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
-    let width_i32 = width as i32;
-    let height_i32 = height as i32;
+    let (width_i32, height_i32) = match (i32::try_from(width), i32::try_from(height)) {
+      (Ok(w), Ok(h)) if w > 0 && h > 0 => (w, h),
+      _ => {
+        return Err(resource_error(
+          ERROR_INVALID_PARAMETER,
+          "width and height must be between 1 and i32::MAX",
+        ));
+      }
+    };
 
     let hicon = unsafe {
       Owned::new(HICON(
@@ -223,10 +239,10 @@ impl<'a> Image<'a> {
 
     // monochrome icons only have a mask bitmap (AND mask stacked on top of the XOR mask)
     if hbm_color.is_invalid() {
-      return Err(crate::Error::ImageFromResource(windows::core::Error::new(
-        ERROR_NOT_SUPPORTED.to_hresult(),
+      return Err(resource_error(
+        ERROR_NOT_SUPPORTED,
         "monochrome icons are not supported",
-      )));
+      ));
     }
 
     let mut bgra = unsafe { read_bgra(*hbm_color, width_i32, height_i32)? };

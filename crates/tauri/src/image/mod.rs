@@ -11,17 +11,17 @@ use std::sync::Arc;
 
 #[cfg(windows)]
 use windows::{
-  core::{Owned, PCWSTR},
   Win32::{
     Foundation::GetLastError,
     Graphics::Gdi::{
-      CreateCompatibleDC, DeleteDC, GetDIBits, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+      BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, GetDIBits,
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
-      GetIconInfo, LoadImageW, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR,
+      GetIconInfo, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR, LoadImageW,
     },
   },
+  core::{Owned, PCWSTR},
 };
 
 use crate::{Resource, ResourceId, ResourceTable};

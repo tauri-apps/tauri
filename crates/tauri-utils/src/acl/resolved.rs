@@ -9,10 +9,11 @@ use std::{collections::BTreeMap, fmt};
 use crate::platform::Target;
 
 use super::{
+  APP_ACL_KEY, Commands, Error, ExecutionContext, Identifier, Permission, PermissionSet, Scopes,
+  Value,
   capability::{Capability, PermissionEntry},
   has_app_manifest,
   manifest::Manifest,
-  Commands, Error, ExecutionContext, Identifier, Permission, PermissionSet, Scopes, APP_ACL_KEY,
 };
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
@@ -483,7 +484,7 @@ fn display_perm_key(prefix: &str) -> &str {
 #[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
   use std::convert::identity;
 
   use super::*;
@@ -593,7 +594,7 @@ mod build {
 #[cfg(test)]
 mod tests {
 
-  use super::{get_permissions, Identifier, Manifest, Permission, PermissionSet};
+  use super::{Identifier, Manifest, Permission, PermissionSet, get_permissions};
 
   fn manifest<const P: usize, const S: usize>(
     name: &str,

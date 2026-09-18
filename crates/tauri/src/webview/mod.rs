@@ -23,20 +23,22 @@ pub use tauri_runtime::webview::{
 };
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
+use tauri_runtime::{
+  WebviewDispatch,
+  webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
+};
 #[cfg(desktop)]
 use tauri_runtime::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
-};
-use tauri_runtime::{
-  webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
-  WebviewDispatch,
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
 };
 pub use tauri_utils::config::Color;
 use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
+  AppHandle, Emitter, Event, EventId, EventLoopMessage, EventName, Listener, Manager,
+  ResourceTable, Runtime, Window,
   app::{UriSchemeResponder, WebviewEvent},
   event::{EmitArgs, EventTarget},
   ipc::{
@@ -46,8 +48,6 @@ use crate::{
   manager::AppManager,
   path::SafePathBuf,
   sealed::{ManagerBase, RuntimeOrDispatch},
-  AppHandle, Emitter, Event, EventId, EventLoopMessage, EventName, Listener, Manager,
-  ResourceTable, Runtime, Window,
 };
 
 use std::{
@@ -1906,13 +1906,7 @@ tauri::Builder::default()
     #[cfg(mobile)]
     let app_handle = self.app_handle.clone();
 
-    let message = InvokeMessage::new(
-      self,
-      manager.state(),
-      request.cmd.to_string(),
-      request.body,
-      request.headers,
-    );
+    let message = InvokeMessage::new(self, request.cmd.to_string(), request.body, request.headers);
 
     let acl_origin = if is_local {
       Origin::Local
@@ -2563,7 +2557,7 @@ mod tests {
   /// custom commands.
   #[test]
   fn remote_origin_blocked_for_custom_commands_without_app_manifest() {
-    use crate::test::{mock_builder, mock_context, noop_assets, INVOKE_KEY};
+    use crate::test::{INVOKE_KEY, mock_builder, mock_context, noop_assets};
     use crate::webview::InvokeRequest;
 
     let app = mock_builder().build(mock_context(noop_assets())).unwrap();

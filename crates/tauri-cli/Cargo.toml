@@ -2,7 +2,7 @@
 name = "tauri-cli"
 version = "2.11.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
-edition = "2021"
+edition = "2024"
 rust-version = "1.90"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
@@ -36,7 +36,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-cargo-mobile2 = { version = "0.22.4", default-features = false }
+cargo-mobile2 = { version = "0.22.5", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.26", features = ["server"] }
@@ -70,7 +70,7 @@ toml = "1"
 jsonschema = { version = "0.49", default-features = false }
 handlebars = "6"
 include_dir = "0.7"
-dirs = "6"
+dirs = "7"
 # Careful with updating minisign, often broke our updater signatures.
 # See https://github.com/tauri-apps/tauri/pull/15022 for example.
 minisign = "0.9"
@@ -152,3 +152,6 @@ native-tls = [
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
 rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]
 platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]
+
+[lints]
+workspace = true

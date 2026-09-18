@@ -11,6 +11,9 @@ on:
   #    - '.docker/**'
   #    - '.github/workflows/docker.yml'
 
+permissions:
+  contents: read
+
 jobs:
   setup:
     runs-on: ubuntu-latest

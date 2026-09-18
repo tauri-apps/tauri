@@ -1825,6 +1825,60 @@ tauri::Builder::default()
     self.webview.dispatcher.reload().map_err(Into::into)
   }
 
+  /// Converts a file path to a URL that can be loaded by this webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  ///
+  /// The `protocol-asset` Cargo feature must be enabled and the file must be included in the
+  /// [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+  /// scope. The protocol origin must also be allowed by the relevant
+  /// [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) directive,
+  /// e.g. `img-src 'self' asset: http://asset.localhost`.
+  ///
+  /// On Windows and Android the URL is `http://{protocol}.localhost/{path}`
+  /// (or `https://` if the webview was built with [`WebviewBuilder::use_https_scheme`]);
+  /// on macOS, Linux and iOS it is `{protocol}://localhost/{path}`.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert.
+  /// * `protocol` - The custom protocol to use. Defaults to `asset`; you only need to set this
+  ///   when using a protocol registered with [`Builder::register_uri_scheme_protocol`](crate::Builder::register_uri_scheme_protocol).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::NonUtf8Path`](crate::Error::NonUtf8Path) if the path is not valid UTF-8,
+  /// since the asset protocol could not resolve such a URL back to the file.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview_window("main").unwrap();
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = webview.convert_file_src(&video_path, None)?;
+  ///     webview.eval(format!("document.querySelector('video').src = '{url}'"))?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(
+    &self,
+    path: P,
+    protocol: Option<&str>,
+  ) -> crate::Result<String> {
+    let path = dunce::simplified(path.as_ref());
+    let path = path
+      .to_str()
+      .ok_or_else(|| crate::Error::NonUtf8Path(path.to_path_buf()))?;
+    Ok(format!(
+      "{}/{}",
+      crate::protocol::origin(protocol.unwrap_or("asset"), self.use_https_scheme),
+      percent_encoding::utf8_percent_encode(path, crate::protocol::ENCODE_URI_COMPONENT)
+    ))
+  }
+
   fn is_local_url(&self, current_url: &Url) -> bool {
     let uses_https = current_url.scheme() == "https";
 
@@ -2507,6 +2561,76 @@ mod tests {
   fn webview_is_send_sync() {
     crate::test_utils::assert_send::<super::Webview>();
     crate::test_utils::assert_sync::<super::Webview>();
+  }
+
+  #[test]
+  fn convert_file_src_matches_js() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let http = crate::WebviewWindowBuilder::new(&app, "http", crate::WebviewUrl::default())
+      .build()
+      .unwrap();
+    let https = crate::WebviewWindowBuilder::new(&app, "https", crate::WebviewUrl::default())
+      .use_https_scheme(true)
+      .build()
+      .unwrap();
+
+    // `encoded` is what `encodeURIComponent(path)` returns in JS
+    #[cfg(windows)]
+    let (path, encoded) = (
+      r"C:\Users\me\my-file (1).mp4",
+      "C%3A%5CUsers%5Cme%5Cmy-file%20(1).mp4",
+    );
+    #[cfg(not(windows))]
+    let (path, encoded) = (
+      "/home/me/my-file (1).mp4",
+      "%2Fhome%2Fme%2Fmy-file%20(1).mp4",
+    );
+
+    let convert =
+      |w: &crate::WebviewWindow<_>, protocol| w.convert_file_src(path, protocol).unwrap();
+
+    #[cfg(any(windows, target_os = "android"))]
+    {
+      assert_eq!(
+        convert(&http, None),
+        format!("http://asset.localhost/{encoded}")
+      );
+      assert_eq!(
+        convert(&https, None),
+        format!("https://asset.localhost/{encoded}")
+      );
+      assert_eq!(
+        convert(&http, Some("custom")),
+        format!("http://custom.localhost/{encoded}")
+      );
+    }
+    #[cfg(not(any(windows, target_os = "android")))]
+    {
+      assert_eq!(convert(&http, None), format!("asset://localhost/{encoded}"));
+      assert_eq!(
+        convert(&https, None),
+        format!("asset://localhost/{encoded}")
+      );
+      assert_eq!(
+        convert(&http, Some("custom")),
+        format!("custom://localhost/{encoded}")
+      );
+    }
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn convert_file_src_rejects_non_utf8_path() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let webview = test_webview_window();
+    let path = std::path::Path::new(std::ffi::OsStr::from_bytes(b"/tmp/\xff.mp4"));
+    assert!(matches!(
+      webview.convert_file_src(path, None),
+      Err(crate::Error::NonUtf8Path(_))
+    ));
   }
 
   #[test]

@@ -201,7 +201,7 @@ impl<'a> Image<'a> {
     Self::from_bytes(&bytes)
   }
 
-  /// Creates a new image from the application icon embedded in this executable or library.
+  /// Creates a new image from the application icon embedded in the executable of the current process.
   ///
   /// The application icon is currently the icon with `nameID 32512` we embedded through `tauri-build`,
   /// this could change in the future.
@@ -211,7 +211,10 @@ impl<'a> Image<'a> {
     Image::from_icon_resource(32512u16, size, size)
   }
 
-  /// Create a new image from an icon resource embedded in this executable or library.
+  /// Create a new image from an icon resource embedded in the executable of the current process.
+  ///
+  /// Resources are looked up in the process executable (`GetModuleHandleW(NULL)`),
+  /// not in the DLL containing this code when tauri is built as a library.
   ///
   /// **Note**: This might take ~2ms for [`LoadImageW`] to load the image for the first time.
   ///

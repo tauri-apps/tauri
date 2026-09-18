@@ -195,11 +195,14 @@ impl<'a> Image<'a> {
   ///
   /// The `resource_id` can be an `u16` wrapped as `PCWSTR(1 as _)` or a wide string like `w!("icon")`
   ///
-  /// ```
+  /// ```no_run
   /// # use tauri::image::Image;
   /// # use windows::core::{w, PCWSTR};
-  /// Image::from_icon_resource(PCWSTR(1 as _), 32, 32);
-  /// Image::from_icon_resource(w!("icon"), 32, 32);
+  /// # fn main() -> tauri::Result<()> {
+  /// let icon = Image::from_icon_resource(PCWSTR(1 as _), 32, 32)?;
+  /// let icon = Image::from_icon_resource(w!("icon"), 32, 32)?;
+  /// # Ok(())
+  /// # }
   /// ```
   #[cfg(windows)]
   pub fn from_icon_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {

@@ -66,6 +66,7 @@
     "core:window:allow-set-icon",
     "core:window:allow-toggle-maximize",
     "core:webview:allow-create-webview-window",
-    "core:webview:allow-print"
+    "core:webview:allow-print",
+    "core:webview:allow-set-webview-zoom"
   ]
 }

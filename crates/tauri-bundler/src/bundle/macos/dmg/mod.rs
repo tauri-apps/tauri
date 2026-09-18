@@ -5,10 +5,10 @@
 
 use super::{app, icon::create_icns_file};
 use crate::{
-  bundle::{settings::Arch, Bundle},
+  PackageType, Settings,
+  bundle::{Bundle, settings::Arch},
   error::{Context, ErrorExt},
   utils::CommandExt,
-  PackageType, Settings,
 };
 
 use std::{
@@ -53,7 +53,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
       }
     }
   );
-  let dmg_name = format!("{}.dmg", &package_base_name);
+  let dmg_name = format!("{package_base_name}.dmg");
   let dmg_path = output_path.join(&dmg_name);
 
   let product_name = settings.product_name();

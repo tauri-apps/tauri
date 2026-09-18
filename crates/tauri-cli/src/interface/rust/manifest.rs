@@ -4,10 +4,7 @@
 
 use crate::{
   error::{Context, ErrorExt},
-  helpers::{
-    app_paths::tauri_dir,
-    config::{Config, PatternKind},
-  },
+  helpers::config::{Config, PatternKind},
 };
 
 use itertools::Itertools;
@@ -253,7 +250,10 @@ fn inject_features(
         .and_then(|v| v.as_bool())
         .unwrap_or_default()
       {
-        log::info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", dependency.features.iter().join(", "));
+        log::info!(
+          "`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]",
+          dependency.features.iter().join(", ")
+        );
       } else {
         let all_cli_managed_features = dependency.all_cli_managed_features.clone();
         let is_managed_feature: Box<dyn Fn(&str) -> bool> =
@@ -272,8 +272,8 @@ fn inject_features(
   Ok(persist)
 }
 
-pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
-  let manifest_path = tauri_dir().join("Cargo.toml");
+pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Manifest, bool)> {
+  let manifest_path = tauri_dir.join("Cargo.toml");
   let (mut manifest, original_manifest_str) = read_manifest(&manifest_path)?;
 
   let mut dependencies = Vec::new();
@@ -312,7 +312,7 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
 
   let new_manifest_str = serialize_manifest(&manifest);
 
-  if persist && original_manifest_str != new_manifest_str {
+  if persist && original_manifest_str.replace("\r\n", "\n") != new_manifest_str {
     std::fs::write(&manifest_path, new_manifest_str)
       .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
     Ok((
@@ -354,10 +354,7 @@ mod tests {
         } else {
           None
         };
-        if let Some(f) = item_table
-          .and_then(|t| t.get("features").cloned())
-          .and_then(|f| f.as_array().cloned())
-        {
+        if let Some(f) = item_table.and_then(|t| t.get("features")?.as_array().cloned()) {
           for feature in f.iter() {
             let feature = feature.as_str().expect("feature is not a string");
             if !dep.all_cli_managed_features.contains(&feature) {

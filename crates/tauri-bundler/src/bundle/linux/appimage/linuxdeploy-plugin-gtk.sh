@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
-# GTK3 environment variables: https://developer.gnome.org/gtk3/stable/gtk-running.html
-# GTK4 environment variables: https://developer.gnome.org/gtk4/stable/gtk-running.html
+# GTK3 environment variables: https://docs.gtk.org/gtk3/running.html
+# GTK4 environment variables: https://docs.gtk.org/gtk4/running.html
 
 # abort on all errors
 set -e
@@ -184,7 +184,7 @@ APPIMAGE_GTK_THEME="${APPIMAGE_GTK_THEME:-"Adwaita:$GTK_THEME_VARIANT"}" # Allow
 export APPDIR="${APPDIR:-"$(dirname "$(realpath "$0")")"}" # Workaround to run extracted AppImage
 export GTK_DATA_PREFIX="$APPDIR"
 export GTK_THEME="$APPIMAGE_GTK_THEME" # Custom themes are broken
-export GDK_BACKEND=x11 # Crash with Wayland backend on Wayland - We tested it without it and ended up with this: https://github.com/tauri-apps/tauri/issues/8541
+export GDK_BACKEND="${GDK_BACKEND:-x11}" # Crash with Wayland backend on Wayland - We tested it without it and ended up with this: https://github.com/tauri-apps/tauri/issues/8541
 export XDG_DATA_DIRS="$APPDIR/usr/share:/usr/share:$XDG_DATA_DIRS" # g_get_system_data_dirs() from GLib
 EOF
 
@@ -324,4 +324,3 @@ EOF
 
 #binary patch absolute paths in libwebkit files
 find "$APPDIR"/usr/lib* -name 'libwebkit*' -exec sed -i -e "s|/usr|././|g" '{}' \;
-

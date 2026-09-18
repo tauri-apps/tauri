@@ -4,7 +4,7 @@
 
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
-import { Image, transformImage } from './image'
+import { type JsImage, transformImage } from './image'
 import { PhysicalPosition, PhysicalSize } from './dpi'
 
 export type MouseButtonState = 'Up' | 'Down'
@@ -86,7 +86,7 @@ export interface TrayIconOptions {
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
-  icon?: string | Uint8Array | ArrayBuffer | number[] | Image
+  icon?: JsImage
   /** The tray icon tooltip */
   tooltip?: string
   /**
@@ -221,9 +221,7 @@ export class TrayIcon extends Resource {
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
-  async setIcon(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[] | null
-  ): Promise<void> {
+  async setIcon(icon: JsImage | null): Promise<void> {
     let trayIcon = null
     if (icon) {
       trayIcon = transformImage(icon)
@@ -292,6 +290,31 @@ export class TrayIcon extends Resource {
   async setIconAsTemplate(asTemplate: boolean): Promise<void> {
     return invoke('plugin:tray|set_icon_as_template', {
       rid: this.rid,
+      asTemplate
+    })
+  }
+
+  /**
+   * Sets a new tray icon and template status atomically. **macOS only**.
+   *
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
+   */
+  async setIconWithAsTemplate(
+    icon: JsImage | null,
+    asTemplate: boolean
+  ): Promise<void> {
+    let trayIcon = null
+    if (icon) {
+      trayIcon = transformImage(icon)
+    }
+    return invoke('plugin:tray|set_icon_with_as_template', {
+      rid: this.rid,
+      icon: trayIcon,
       asTemplate
     })
   }

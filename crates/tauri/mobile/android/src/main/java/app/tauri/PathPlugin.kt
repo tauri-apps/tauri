@@ -91,7 +91,7 @@ class PathPlugin(private val activity: Activity): Plugin(activity) {
 
     @Command
     fun getVideoDir(invoke: Invoke) {
-        resolvePath(invoke, activity.externalCacheDir?.absolutePath)
+        resolvePath(invoke, activity.getExternalFilesDir(Environment.DIRECTORY_MOVIES)?.absolutePath)
     }
 
     @Command

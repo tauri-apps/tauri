@@ -9,7 +9,7 @@ use std::{
 
 use crate::Runtime;
 
-use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de::Error as DeError};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub(crate) mod plugin;
@@ -70,6 +70,12 @@ impl FromStr for SafePathBuf {
 
   fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
     Self::new(s.into())
+  }
+}
+
+impl From<SafePathBuf> for PathBuf {
+  fn from(path: SafePathBuf) -> Self {
+    path.0
   }
 }
 

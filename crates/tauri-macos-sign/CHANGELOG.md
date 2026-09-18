@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.3.4]
+
+### Enhancements
+
+- [`eacd36a4e`](https://www.github.com/tauri-apps/tauri/commit/eacd36a4ea4d6a14a73f414981fb5a8af7dfdafe) ([#15038](https://www.github.com/tauri-apps/tauri/pull/15038)) Do not rely on system base64 CLI to decode certificates.
+
+## \[2.3.3]
+
+### Dependencies
+
+- [`268bb339f`](https://www.github.com/tauri-apps/tauri/commit/268bb339f0c512f021cc94e102573432cf2696d0) ([#14766](https://www.github.com/tauri-apps/tauri/pull/14766) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Remove once-cell-regex from direct dependencies.
+
 ## \[2.3.2]
 
 ### Dependencies

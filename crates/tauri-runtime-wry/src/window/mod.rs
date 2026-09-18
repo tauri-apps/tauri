@@ -15,6 +15,7 @@ mod macos;
 #[cfg(windows)]
 mod windows;
 
+#[cfg(desktop)]
 use crate::monitor::MonitorExt;
 
 pub trait WindowExt {
@@ -39,7 +40,7 @@ pub trait WindowExt {
   /// - **Android / iOS**: Unsupported.
   fn center(&self) {}
 
-  /// Clears the window surface. i.e make it it transparent.
+  /// Clears the window surface. i.e make it transparent.
   #[cfg(windows)]
   fn draw_surface(
     &self,
@@ -59,6 +60,7 @@ impl WindowExt for tao::window::Window {
   }
 }
 
+#[cfg(desktop)]
 pub fn calculate_window_center_position(
   window_size: tao::dpi::PhysicalSize<u32>,
   target_monitor: tao::monitor::MonitorHandle,

@@ -16,9 +16,9 @@ mod build;
 mod runtime;
 
 #[cfg(feature = "build")]
-#[cfg_attr(docsrs, doc(feature = "build"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "build")))]
 pub use build::*;
 #[cfg(feature = "runtime")]
-#[cfg_attr(docsrs, doc(feature = "runtime"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 #[allow(unused)]
 pub use runtime::*;

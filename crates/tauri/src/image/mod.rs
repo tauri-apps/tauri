@@ -12,7 +12,7 @@ use std::sync::Arc;
 #[cfg(windows)]
 use windows::{
   Win32::{
-    Foundation::GetLastError,
+    Foundation::E_FAIL,
     Graphics::Gdi::{
       BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, GetDIBits,
     },
@@ -25,6 +25,18 @@ use windows::{
 };
 
 use crate::{Resource, ResourceId, ResourceTable};
+
+/// Returns the calling thread's last error, or a generic `E_FAIL` with `message`
+/// when no error code was set (GDI functions do not always set one).
+#[cfg(windows)]
+fn last_error_or(message: &str) -> windows::core::Error {
+  let error = windows::core::Error::from_thread();
+  if error.code().is_ok() {
+    windows::core::Error::new(E_FAIL, message)
+  } else {
+    error
+  }
+}
 
 /// An RGBA Image in row-major order from top to bottom.
 #[derive(Clone)]
@@ -185,9 +197,11 @@ impl<'a> Image<'a> {
         &mut bitmap_info,
         DIB_RGB_COLORS,
       );
+      // capture the error before `DeleteDC` can overwrite it
+      let error = (result == 0).then(|| last_error_or("GetDIBits failed"));
       let _ = DeleteDC(hdc);
-      if result == 0 {
-        return Err(crate::Error::ImageFromResource(GetLastError().into()));
+      if let Some(error) = error {
+        return Err(crate::Error::ImageFromResource(error));
       }
       bgra.set_len(image_bytes);
     }

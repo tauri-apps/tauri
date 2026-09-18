@@ -1108,6 +1108,15 @@ macro_rules! shared_app_impl {
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
+        // run plugin cleanup hooks first so plugins can still use the app resources (e.g. stop sidecars)
+        // cleanup is best-effort, so a plugin store poisoned by an earlier panic must not abort it
+        self
+          .manager
+          .plugins
+          .lock()
+          .unwrap_or_else(std::sync::PoisonError::into_inner)
+          .cleanup_before_exit(self.app_handle());
+
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();

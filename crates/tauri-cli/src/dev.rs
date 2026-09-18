@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  CommandExt, ConfigValue, Error, Result,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
     command_env,
-    config::{get_config, reload_config, BeforeDevCommand, ConfigMetadata, FrontendDist},
+    config::{BeforeDevCommand, ConfigMetadata, FrontendDist, get_config, reload_config},
   },
   info::plugins::check_mismatched_packages,
   interface::{AppInterface, ExitReason},
-  CommandExt, ConfigValue, Error, Result,
 };
 
 use clap::{ArgAction, Parser};
@@ -22,10 +22,10 @@ use std::{
   env::set_current_dir,
   net::{IpAddr, Ipv4Addr},
   path::PathBuf,
-  process::{exit, Command, Stdio},
+  process::{Command, Stdio, exit},
   sync::{
-    atomic::{AtomicBool, Ordering},
     OnceLock,
+    atomic::{AtomicBool, Ordering},
   },
 };
 
@@ -302,7 +302,10 @@ pub fn setup(
         }
         i += 1;
         if i == max_attempts {
-          log::error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
+          log::error!(
+            "Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.",
+            i * sleep_interval.as_secs()
+          );
           exit(1);
         }
         std::thread::sleep(sleep_interval);

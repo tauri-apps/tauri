@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  ConfigValue, Result,
   bundle::BundleFormat,
   error::{Context, ErrorExt},
   helpers::{
     self,
     app_paths::Dirs,
-    config::{get_config, ConfigMetadata, FrontendDist},
+    config::{ConfigMetadata, FrontendDist, get_config},
   },
   info::plugins::check_mismatched_packages,
-  interface::{rust::get_cargo_target_dir, AppInterface},
-  ConfigValue, Result,
+  interface::{AppInterface, rust::get_cargo_target_dir},
 };
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
@@ -79,6 +79,14 @@ pub struct Options {
   /// Skip code signing when bundling the app
   #[clap(long)]
   pub no_sign: bool,
+  /// Skip patching the main executable with bundle type information.
+  ///
+  /// The patching rewrites the binary in place, invalidating an existing code
+  /// signature. Skipping it preserves an already-signed binary at the cost of
+  /// per-bundle-type updater support (only relevant when shipping multiple
+  /// bundle types per platform).
+  #[clap(long)]
+  pub no_binary_patching: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
@@ -107,7 +115,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   setup(&interface, &mut options, &config, &dirs, false)?;
 
   if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
-    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+    unsafe { std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version) };
   }
 
   let app_settings = interface.app_settings();
@@ -185,6 +193,12 @@ pub fn setup(
     );
   }
 
+  if config.product_name.as_deref() == Some("tauri-app") {
+    log::warn!(
+      "The `productName` is still set to the default value `tauri-app`, it must be unique across applications since it is written into install paths and platform metadata that are expected to be unique to your application, like the Windows installer upgrade code."
+    );
+  }
+
   if let Some(before_build) = config.build.before_build_command.clone() {
     helpers::run_hook(
       "beforeBuildCommand",
@@ -204,7 +218,8 @@ pub fn setup(
         .unwrap_or_else(|| std::env::current_dir().unwrap().join(web_asset_path));
       crate::error::bail!(
         "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
-        web_asset_path.display(), absolute_path.display(),
+        web_asset_path.display(),
+        absolute_path.display(),
       );
     }
     if web_asset_path
@@ -214,8 +229,8 @@ pub fn setup(
       == Some(std::ffi::OsStr::new("src-tauri"))
     {
       crate::error::bail!(
-          "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
-        );
+        "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+      );
     }
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
@@ -242,7 +257,11 @@ pub fn setup(
       crate::error::bail!(
         "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
         out_folders,
-        if out_folders.len() == 1 { "folder" } else { "folders" }
+        if out_folders.len() == 1 {
+          "folder"
+        } else {
+          "folders"
+        }
       );
     }
   }

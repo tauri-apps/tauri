@@ -12,7 +12,7 @@ use tauri_utils::{
     RpmCompression,
   },
   platform::Target as TargetPlatform,
-  resources::{external_binaries, ResourcePaths},
+  resources::{ResourcePaths, external_binaries},
 };
 
 use std::{
@@ -223,6 +223,10 @@ pub struct AppImageSettings {
   /// Whether to include gstreamer plugins for audio/media support.
   pub bundle_media_framework: bool,
   /// Whether to include the `xdg-open` binary.
+  #[deprecated(
+    since = "2.12.0",
+    note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
+  )]
   pub bundle_xdg_open: bool,
 }
 
@@ -830,10 +834,11 @@ pub struct Settings {
   target: String,
   /// Whether to disable code signing during the bundling process.
   no_sign: bool,
+  /// Whether to patch the main binary with bundle type information.
+  binary_patching: bool,
 }
 
 /// A builder for [`Settings`].
-#[derive(Default)]
 pub struct SettingsBuilder {
   log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
@@ -844,12 +849,31 @@ pub struct SettingsBuilder {
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
   no_sign: bool,
+  binary_patching: bool,
+}
+
+impl Default for SettingsBuilder {
+  fn default() -> Self {
+    Self {
+      log_level: None,
+      project_out_directory: None,
+      package_types: None,
+      package_settings: None,
+      bundle_settings: BundleSettings::default(),
+      binaries: Vec::new(),
+      target: None,
+      local_tools_directory: None,
+      no_sign: false,
+      // Binary patching is on by default; disabled via `--no-binary-patching`.
+      binary_patching: true,
+    }
+  }
 }
 
 impl SettingsBuilder {
   /// Creates the default settings builder.
   pub fn new() -> Self {
-    Default::default()
+    Self::default()
   }
 
   /// Sets the project output directory. It's used as current working directory.
@@ -920,6 +944,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets whether to patch the main binary with bundle type information. Defaults to `true`.
+  #[must_use]
+  pub fn binary_patching(mut self, binary_patching: bool) -> Self {
+    self.binary_patching = binary_patching;
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -964,6 +995,7 @@ impl SettingsBuilder {
       target_platform,
       target,
       no_sign: self.no_sign,
+      binary_patching: self.binary_patching,
     })
   }
 }
@@ -1094,7 +1126,7 @@ impl Settings {
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."
-        )))
+        )));
       }
     };
 
@@ -1323,5 +1355,15 @@ impl Settings {
   /// Set whether to skip signing.
   pub fn set_no_sign(&mut self, no_sign: bool) {
     self.no_sign = no_sign;
+  }
+
+  /// Whether the main binary is patched with bundle type information.
+  pub fn binary_patching(&self) -> bool {
+    self.binary_patching
+  }
+
+  /// Set whether to patch the main binary with bundle type information.
+  pub fn set_binary_patching(&mut self, binary_patching: bool) {
+    self.binary_patching = binary_patching;
   }
 }

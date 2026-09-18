@@ -1,5 +1,5 @@
 ---
-"tauri-macos-sign": patch:enhance
+"tauri-macos-sign": patch:deps
 ---
 
-Apple codesign update, no user facing changes.
+Updated dependency `apple-codesign` to `0.29`, no user facing changes.

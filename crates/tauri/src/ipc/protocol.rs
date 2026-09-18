@@ -5,17 +5,17 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
+  Runtime,
   ipc::InvokeResponseBody,
   manager::AppManager,
   webview::{InvokeRequest, UriSchemeProtocolHandler},
-  Runtime,
 };
 use http::{
+  HeaderValue, Method, Request, StatusCode,
   header::{
     ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
     CONTENT_TYPE,
   },
-  HeaderValue, Method, Request, StatusCode,
 };
 use url::Url;
 
@@ -328,12 +328,10 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
             js: crate::Result<String>,
             error: CallbackFn,
           ) {
-            let eval_js = match js {
-              Ok(js) => js,
-              Err(e) => crate::ipc::format_callback::format(error, &e.to_string())
-                .expect("unable to serialize response error string to json"),
-            };
-
+            let eval_js = js.unwrap_or_else(|e| {
+              crate::ipc::format_callback::format(error, &e.to_string())
+                .expect("unable to serialize response error string to json")
+            });
             let _ = webview.eval(eval_js);
           }
 
@@ -555,7 +553,7 @@ mod tests {
   use std::str::FromStr;
 
   use super::*;
-  use crate::{ipc::InvokeBody, manager::AppManager, plugin::PluginStore, StateManager, Wry};
+  use crate::{StateManager, Wry, ipc::InvokeBody, manager::AppManager, plugin::PluginStore};
   use http::header::*;
   use serde_json::json;
   use tauri_macros::generate_context;
@@ -570,6 +568,7 @@ mod tests {
       None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),
@@ -688,6 +687,7 @@ mod tests {
       None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),

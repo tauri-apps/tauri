@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{bundle::settings::Arch, error::ErrorExt, Settings};
+use crate::{Settings, bundle::settings::Arch, error::ErrorExt};
 
-use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
+use rpm::{self, Dependency, FileMode, FileOptions, signature::pgp};
 use std::{
   env,
   fs::{self, File},

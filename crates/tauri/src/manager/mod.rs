@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, atomic::AtomicBool},
 };
 
 use serde::Serialize;
@@ -19,6 +19,7 @@ use tauri_utils::{
 };
 
 use crate::{
+  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
@@ -27,8 +28,7 @@ use crate::{
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
   resources::ResourceTable,
-  utils::{config::Config, PackageInfo},
-  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
+  utils::{PackageInfo, config::Config},
 };
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -254,6 +254,7 @@ impl<R: Runtime> AppManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
+    on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
     #[cfg(any(target_os = "macos", target_os = "ios"))] on_web_content_process_terminate: Option<
       Arc<OnWebContentProcessTerminate<R>>,
     >,
@@ -290,6 +291,7 @@ impl<R: Runtime> AppManager<R> {
         webviews: Mutex::default(),
         invoke_handler,
         on_page_load,
+        on_permission_request,
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
@@ -329,25 +331,15 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  /// State managed by the application.
-  pub(crate) fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
-  }
-
   /// The `tauri` custom protocol URL we use to serve the embedded assets.
   /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
-    if cfg!(windows) || cfg!(target_os = "android") {
-      let scheme = if https { "https" } else { "http" };
-      Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
-    } else {
-      Cow::Owned(Url::parse("tauri://localhost").unwrap())
-    }
+    Cow::Owned(Url::parse(&crate::protocol::origin("tauri", https)).unwrap())
   }
 
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
   ///
-  /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exsits.
+  /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exists.
   /// * In production mode, this is the [`frontendDist`](tauri_utils::config::BuildConfig::frontend_dist) configuration value if it's a [`FrontendDist::Url`](tauri_utils::config::FrontendDist::Url).
   /// * Returns [`Self::tauri_protocol_url`] (e.g. `tauri://localhost`) otherwise.
   pub(crate) fn get_app_url(&self, https: bool) -> Cow<'_, Url> {
@@ -380,12 +372,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  // TODO: Change to return `crate::Result` here in v3
-  pub fn get_asset(
-    &self,
-    mut path: String,
-    _use_https_schema: bool,
-  ) -> Result<Asset, Box<dyn std::error::Error>> {
+  pub fn get_asset(&self, mut path: String, _use_https_schema: bool) -> crate::Result<Asset> {
     let assets = &self.assets;
     if path.ends_with('/') {
       path.pop();
@@ -429,7 +416,7 @@ impl<R: Runtime> AppManager<R> {
       .ok_or_else(|| {
         let error = crate::Error::AssetNotFound(path.clone());
         log::error!("{error}");
-        Box::new(error)
+        error
       })?;
 
     let mut csp_header = None;
@@ -472,12 +459,15 @@ impl<R: Runtime> AppManager<R> {
     (self.webview.invoke_handler)(invoke)
   }
 
-  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
+  /// Runs the plugin [`crate::plugin::Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  ///
+  /// The message is not handled when the plugin exists **and** the command does not.
+  pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(plugin, invoke)
+      .run_invoke_handler(plugin, invoke)
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
@@ -645,9 +635,9 @@ impl<R: Runtime> AppManager<R> {
     self
       .window
       .windows_lock()
-      .iter()
-      .find(|w| w.1.is_focused().unwrap_or(false))
-      .map(|w| w.1.clone())
+      .values()
+      .find(|w| w.is_focused().unwrap_or(false))
+      .cloned()
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {
@@ -655,13 +645,16 @@ impl<R: Runtime> AppManager<R> {
     if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
+        self.listeners().remove_webview_listeners(webview.label());
       }
     }
+    self.listeners().remove_window_listeners(label);
   }
 
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
+    self.listeners().remove_webview_listeners(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
@@ -729,19 +722,19 @@ mod tests {
 #[cfg(test)]
 mod test {
   use std::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
     time::Duration,
   };
 
   use crate::{
+    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
+    Window, Wry,
     event::EventTarget,
     generate_context,
     plugin::PluginStore,
-    test::{mock_app, MockRuntime},
+    test::{MockRuntime, mock_app},
     webview::WebviewBuilder,
     window::WindowBuilder,
-    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
-    Window, Wry,
   };
 
   use super::AppManager;
@@ -766,6 +759,7 @@ mod test {
       None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),

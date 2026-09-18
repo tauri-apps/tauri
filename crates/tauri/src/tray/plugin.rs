@@ -8,14 +8,13 @@ use anyhow::Context;
 use serde::Deserialize;
 
 use crate::{
-  command,
+  AppHandle, Manager, Runtime, Webview, command,
   image::JsImage,
   ipc::Channel,
-  menu::{plugin::ItemKind, Menu, Submenu},
+  menu::{Menu, Submenu, plugin::ItemKind},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
-  AppHandle, Manager, Runtime, Webview,
 };
 
 use super::{TrayIcon, TrayIconEvent};
@@ -62,7 +61,7 @@ fn new<R: Runtime>(
         let submenu = resources_table.get::<Submenu<R>>(rid)?;
         builder = builder.menu(&*submenu);
       }
-      _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+      _ => return Err(crate::Error::UnexpectedMenuKind),
     };
   }
   if let Some(icon) = options.icon {
@@ -144,7 +143,7 @@ fn set_menu<R: Runtime>(
         let submenu = webview_resources_table.get::<Submenu<R>>(rid)?;
         tray.set_menu(Some((*submenu).clone()))?;
       }
-      _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+      _ => return Err(crate::Error::UnexpectedMenuKind),
     };
   } else {
     tray.set_menu(None::<Menu<R>>)?;

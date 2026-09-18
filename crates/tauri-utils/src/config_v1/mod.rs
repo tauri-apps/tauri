@@ -12,8 +12,8 @@
 
 use semver::Version;
 use serde::{
-  de::{Deserializer, Error as DeError, Visitor},
   Deserialize, Serialize, Serializer,
+  de::{Deserializer, Error as DeError, Visitor},
 };
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
@@ -210,7 +210,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         enum_values: Some(vec!["all".into()]),
@@ -2060,11 +2060,7 @@ impl Allowlist for OsAllowlistConfig {
   }
 
   fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["os-all"]
-    } else {
-      vec![]
-    }
+    if self.all { vec!["os-all"] } else { vec![] }
   }
 }
 
@@ -2089,11 +2085,7 @@ impl Allowlist for PathAllowlistConfig {
   }
 
   fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["path-all"]
-    } else {
-      vec![]
-    }
+    if self.all { vec!["path-all"] } else { vec![] }
   }
 }
 

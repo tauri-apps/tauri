@@ -89,17 +89,12 @@ impl<'a> Image<'a> {
   #[cfg(any(feature = "image-ico", feature = "image-png"))]
   #[cfg_attr(docsrs, doc(cfg(any(feature = "image-ico", feature = "image-png"))))]
   pub fn from_bytes(bytes: &[u8]) -> crate::Result<Self> {
-    use image::GenericImageView;
-
     let img = image::load_from_memory(bytes)?;
-    let pixels = img
-      .pixels()
-      .flat_map(|(_, _, pixel)| pixel.0)
-      .collect::<Vec<_>>();
+    let (width, height) = (img.width(), img.height());
     Ok(Self {
-      rgba: Cow::Owned(pixels),
-      width: img.width(),
-      height: img.height(),
+      rgba: Cow::Owned(img.into_rgba8().into_raw()),
+      width,
+      height,
     })
   }
 
@@ -252,7 +247,7 @@ impl TryFrom<Image<'_>> for muda::Icon {
   type Error = crate::Error;
 
   fn try_from(img: Image<'_>) -> Result<Self, Self::Error> {
-    muda::Icon::from_rgba(img.rgba.to_vec(), img.width, img.height).map_err(Into::into)
+    muda::Icon::from_rgba(img.rgba.into_owned(), img.width, img.height).map_err(Into::into)
   }
 }
 
@@ -261,7 +256,7 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
   type Error = crate::Error;
 
   fn try_from(img: Image<'_>) -> Result<Self, Self::Error> {
-    tray_icon::Icon::from_rgba(img.rgba.to_vec(), img.width, img.height).map_err(Into::into)
+    tray_icon::Icon::from_rgba(img.rgba.into_owned(), img.width, img.height).map_err(Into::into)
   }
 }
 
@@ -277,10 +272,10 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
 #[serde(untagged)]
 #[non_exhaustive]
 pub enum JsImage {
-  /// A reference to a image in the filesystem.
+  /// A reference to an image in the filesystem. This requires `image-ico` or `image-png` cargo features.
   #[non_exhaustive]
   Path(std::path::PathBuf),
-  /// Image from raw bytes.
+  /// ICO or PNG image in raw bytes. This requires `image-ico` or `image-png` cargo features.
   #[non_exhaustive]
   Bytes(Vec<u8>),
   /// An image that was previously loaded with the API and is stored in the resource table.

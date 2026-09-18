@@ -26,6 +26,7 @@ Resolved {
                             ),
                         ],
                         is_recursive: false,
+                        has_metachars: false,
                     },
                 ],
                 webviews: [
@@ -52,6 +53,7 @@ Resolved {
                             ),
                         ],
                         is_recursive: false,
+                        has_metachars: false,
                     },
                     Pattern {
                         original: "child2",
@@ -76,6 +78,7 @@ Resolved {
                             ),
                         ],
                         is_recursive: false,
+                        has_metachars: false,
                     },
                 ],
                 scope_id: None,

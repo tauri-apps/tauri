@@ -1418,8 +1418,12 @@ pub(crate) fn tauri_config_to_bundle_settings(
   {
     let mut libs: Vec<String> = Vec::new();
 
-    if enabled_features.contains(&"tray-icon".into())
-      || enabled_features.contains(&"tauri/tray-icon".into())
+    // The tray talks StatusNotifierItem over D-Bus (ksni) by default; libappindicator is
+    // only linked when the app opts into the `linux-libappindicator` feature, so probing
+    // for it otherwise would fail the build on hosts without the library and declare a
+    // GTK 3 dependency the binary never loads.
+    if enabled_features.contains(&"linux-libappindicator".into())
+      || enabled_features.contains(&"tauri/linux-libappindicator".into())
     {
       let (tray_kind, path) = std::env::var_os("TAURI_LINUX_AYATANA_APPINDICATOR")
         .map(|ayatana| {

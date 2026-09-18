@@ -175,7 +175,7 @@ impl<'a> Image<'a> {
     let hbm_color = unsafe { Owned::new(icon_info.hbmColor) };
 
     let image_bytes = (width_i32 * height_i32 * color_depth_bytes as i32) as usize;
-    let mut bgra: Vec<u8> = Vec::with_capacity(image_bytes);
+    let mut bgra = vec![0u8; image_bytes];
 
     let mut bitmap_info = BITMAPINFO::default();
     bitmap_info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
@@ -188,7 +188,7 @@ impl<'a> Image<'a> {
 
     unsafe {
       let hdc = CreateCompatibleDC(None);
-      let result = GetDIBits(
+      let scan_lines = GetDIBits(
         hdc,
         *hbm_color,
         0,
@@ -198,12 +198,15 @@ impl<'a> Image<'a> {
         DIB_RGB_COLORS,
       );
       // capture the error before `DeleteDC` can overwrite it
-      let error = (result == 0).then(|| last_error_or("GetDIBits failed"));
+      let error = (scan_lines != height_i32).then(|| {
+        last_error_or(&format!(
+          "GetDIBits copied {scan_lines} of {height} scan lines"
+        ))
+      });
       let _ = DeleteDC(hdc);
       if let Some(error) = error {
         return Err(crate::Error::ImageFromResource(error));
       }
-      bgra.set_len(image_bytes);
     }
 
     let rgba = {

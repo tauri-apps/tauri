@@ -46,8 +46,8 @@ pub fn app_hide<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
 }
 
 #[command(root = "crate")]
-pub fn exit<R: Runtime>(app: AppHandle<R>, exit_code: Option<i32>) {
-  app.exit(exit_code.unwrap_or(0));
+pub fn exit<R: Runtime>(app: AppHandle<R>, code: i32) {
+  app.exit(code)
 }
 
 #[command(root = "crate")]

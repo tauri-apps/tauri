@@ -8,8 +8,10 @@ import android.app.Activity
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Plugin
+import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 
 @TauriPlugin
@@ -44,4 +46,11 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
     (activity as AppCompatActivity).onBackPressedDispatcher.addCallback(activity, callback)
   }
 
+  // Called by the Rust side when the app exits so the activity (and any other activity
+  // of the task, i.e. other windows) is closed gracefully instead of the process being killed
+  @Command
+  fun exit(invoke: Invoke) {
+    invoke.resolve()
+    activity.finishAffinity()
+  }
 }

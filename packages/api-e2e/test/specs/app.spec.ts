@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 import { expect } from '@wdio/globals'
-import { tauri, eventually, describeApi } from '../helpers/index.js'
+import {
+  tauri,
+  eventually,
+  describeApi,
+  platform,
+  isMobile
+} from '../helpers/index.js'
 
 describeApi('app', () => {
   it('getName returns the configured product name', async () => {
@@ -34,14 +40,24 @@ describeApi('app', () => {
     expect(size!.height).toBeGreaterThan(0)
   })
 
+  it('supportsMultipleWindows reports a boolean', async () => {
+    const supported = await tauri((api) => api.app.supportsMultipleWindows())
+    expect(typeof supported).toBe('boolean')
+    // Always true on desktop; on mobile it depends on the activity/scene setup.
+    if (!isMobile) {
+      expect(supported).toBe(true)
+    }
+  })
+
   it('setTheme applies a theme and can be reset to the system default', async () => {
     await tauri((api) => api.app.setTheme('dark'))
     // On Linux the app-level theme is not observable through `window.theme()`:
     // tao's event-loop `set_theme` only flips the GTK `prefer-dark` setting and
     // never updates the window's stored theme, so `theme()` keeps reporting the
     // portal/system value (and blocks on a 5s dbus timeout when no portal runs,
-    // as in headless CI). Elsewhere the change is reflected on the window.
-    if (process.platform !== 'linux') {
+    // as in headless CI). On mobile `set_theme` is a no-op and `theme()` always
+    // reports `light`. Elsewhere the change is reflected on the window.
+    if (platform !== 'linux' && !isMobile) {
       await eventually(async () => {
         const theme = await tauri((api) =>
           api.window.getCurrentWindow().theme()

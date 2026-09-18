@@ -8,6 +8,10 @@ packages:
   - examples/file-associations
 
 allowBuilds:
+  # appium's postinstall only auto-installs drivers for global installs; ours
+  # are regular devDependencies of packages/api-e2e, which appium picks up on
+  # its own, so there is nothing for it to do
+  appium: false
   # transitive deps of @wdio/utils; their postinstall downloads browser drivers
   # the Tauri suite never uses (it drives the app via tauri-driver)
   edgedriver: false

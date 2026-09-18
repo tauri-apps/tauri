@@ -2575,6 +2575,8 @@ mod tests {
       .use_https_scheme(true)
       .build()
       .unwrap();
+    assert!(!http.webview.use_https_scheme());
+    assert!(https.webview.use_https_scheme());
 
     // `encoded` is what `encodeURIComponent(path)` returns in JS
     #[cfg(windows)]

@@ -29,6 +29,7 @@ use crate::{Resource, ResourceId, ResourceTable};
 
 /// Identifies an icon resource embedded in the executable.
 #[cfg(windows)]
+#[cfg_attr(docsrs, doc(cfg(windows)))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IconResource<'a> {
   /// An integer resource identifier (`MAKEINTRESOURCE`).
@@ -225,6 +226,7 @@ impl<'a> Image<'a> {
   /// [`WINDOWS_APP_ICON_RESOURCE_ID`](crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID) id,
   /// this could change in the future.
   #[cfg(windows)]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
   pub fn from_app_icon_resource(size: u32) -> crate::Result<Self> {
     Image::from_icon_resource(
       crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID,
@@ -253,6 +255,7 @@ impl<'a> Image<'a> {
   /// # }
   /// ```
   #[cfg(windows)]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
   pub fn from_icon_resource<'r>(
     resource: impl Into<IconResource<'r>>,
     width: u32,

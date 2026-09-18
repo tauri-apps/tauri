@@ -638,7 +638,7 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     let window = event_loop
       .create_window(attrs.inner.clone())
-      .map_err(|_| Error::CreateWindow)?;
+      .map_err(|e| Error::CreateWindow(Box::new(e)))?;
 
     #[cfg(any(
       target_os = "linux",
@@ -647,8 +647,9 @@ impl<T: UserEvent> WinitCefApp<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    let cef_host =
-      crate::platform::linux::CefX11Host::new(window.as_ref()).ok_or(Error::CreateWindow)?;
+    let cef_host = crate::platform::linux::CefX11Host::new(window.as_ref()).ok_or_else(|| {
+      Error::CreateWindow("failed to create the X11 host for the CEF browser".into())
+    })?;
 
     let winit_id = window.id();
     let pending_activation = (attrs.inner.active && attrs.inner.visible)

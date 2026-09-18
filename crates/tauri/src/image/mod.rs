@@ -12,9 +12,10 @@ use std::sync::Arc;
 #[cfg(windows)]
 use windows::{
   Win32::{
-    Foundation::E_FAIL,
+    Foundation::{E_FAIL, ERROR_NOT_SUPPORTED},
     Graphics::Gdi::{
-      BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, GetDIBits,
+      BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC,
+      GetDIBits, HBITMAP,
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
@@ -25,6 +26,53 @@ use windows::{
 };
 
 use crate::{Resource, ResourceId, ResourceTable};
+
+#[cfg(windows)]
+const BYTES_PER_PIXEL: usize = 4;
+
+/// Reads `hbm` as a top-down 32bpp BGRA bitmap of the given dimensions.
+///
+/// # Safety
+///
+/// `hbm` must be a valid bitmap handle.
+#[cfg(windows)]
+unsafe fn read_bgra(hbm: HBITMAP, width: i32, height: i32) -> crate::Result<Vec<u8>> {
+  let mut bgra = vec![0u8; (width * height * BYTES_PER_PIXEL as i32) as usize];
+
+  let mut bitmap_info = BITMAPINFO::default();
+  bitmap_info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
+  bitmap_info.bmiHeader.biWidth = width;
+  // negative value for top-down
+  bitmap_info.bmiHeader.biHeight = -height;
+  bitmap_info.bmiHeader.biBitCount = (BYTES_PER_PIXEL * 8) as u16;
+  bitmap_info.bmiHeader.biPlanes = 1;
+  bitmap_info.bmiHeader.biCompression = BI_RGB.0;
+
+  unsafe {
+    let hdc = CreateCompatibleDC(None);
+    let scan_lines = GetDIBits(
+      hdc,
+      hbm,
+      0,
+      height as u32,
+      Some(bgra.as_mut_ptr() as _),
+      &mut bitmap_info,
+      DIB_RGB_COLORS,
+    );
+    // capture the error before `DeleteDC` can overwrite it
+    let error = (scan_lines != height).then(|| {
+      last_error_or(&format!(
+        "GetDIBits copied {scan_lines} of {height} scan lines"
+      ))
+    });
+    let _ = DeleteDC(hdc);
+    if let Some(error) = error {
+      return Err(crate::Error::ImageFromResource(error));
+    }
+  }
+
+  Ok(bgra)
+}
 
 /// Returns the calling thread's last error, or a generic `E_FAIL` with `message`
 /// when no error code was set (GDI functions do not always set one).
@@ -148,7 +196,6 @@ impl<'a> Image<'a> {
   pub fn from_icon_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
     let width_i32 = width as i32;
     let height_i32 = height as i32;
-    let color_depth_bytes = 4;
 
     let hicon = unsafe {
       Owned::new(HICON(
@@ -171,46 +218,41 @@ impl<'a> Image<'a> {
 
     let mut icon_info = ICONINFO::default();
     unsafe { GetIconInfo(*hicon, &mut icon_info).map_err(crate::Error::ImageFromResource)? };
-    let _hbm_mask = unsafe { Owned::new(icon_info.hbmMask) };
+    let hbm_mask = unsafe { Owned::new(icon_info.hbmMask) };
     let hbm_color = unsafe { Owned::new(icon_info.hbmColor) };
 
-    let image_bytes = (width_i32 * height_i32 * color_depth_bytes as i32) as usize;
-    let mut bgra = vec![0u8; image_bytes];
+    // monochrome icons only have a mask bitmap (AND mask stacked on top of the XOR mask)
+    if hbm_color.is_invalid() {
+      return Err(crate::Error::ImageFromResource(windows::core::Error::new(
+        ERROR_NOT_SUPPORTED.to_hresult(),
+        "monochrome icons are not supported",
+      )));
+    }
 
-    let mut bitmap_info = BITMAPINFO::default();
-    bitmap_info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
-    bitmap_info.bmiHeader.biWidth = width_i32;
-    // nagative value for top-down
-    bitmap_info.bmiHeader.biHeight = -height_i32;
-    bitmap_info.bmiHeader.biBitCount = color_depth_bytes * 8;
-    bitmap_info.bmiHeader.biPlanes = 1;
-    bitmap_info.bmiHeader.biCompression = BI_RGB.0;
+    let mut bgra = unsafe { read_bgra(*hbm_color, width_i32, height_i32)? };
 
-    unsafe {
-      let hdc = CreateCompatibleDC(None);
-      let scan_lines = GetDIBits(
-        hdc,
-        *hbm_color,
-        0,
-        height,
-        Some(bgra.as_mut_ptr() as _),
-        &mut bitmap_info,
-        DIB_RGB_COLORS,
-      );
-      // capture the error before `DeleteDC` can overwrite it
-      let error = (scan_lines != height_i32).then(|| {
-        last_error_or(&format!(
-          "GetDIBits copied {scan_lines} of {height} scan lines"
-        ))
-      });
-      let _ = DeleteDC(hdc);
-      if let Some(error) = error {
-        return Err(crate::Error::ImageFromResource(error));
+    // Color bitmaps without an alpha channel (e.g. 24bpp icons) read back with alpha = 0 on every pixel,
+    // so recover the alpha channel from the AND mask: a set bit means the pixel is transparent.
+    if bgra
+      .as_chunks::<BYTES_PER_PIXEL>()
+      .0
+      .iter()
+      .all(|px| px[3] == 0)
+    {
+      let mask = unsafe { read_bgra(*hbm_mask, width_i32, height_i32)? };
+      for (px, mask) in bgra
+        .as_chunks_mut::<BYTES_PER_PIXEL>()
+        .0
+        .iter_mut()
+        .zip(mask.as_chunks::<BYTES_PER_PIXEL>().0)
+      {
+        // the 1bpp mask expands to black (clear bit) or white (set bit)
+        px[3] = if mask[0] == 0 { 0xFF } else { 0 };
       }
     }
 
     let rgba = {
-      for px in bgra.chunks_exact_mut(color_depth_bytes as usize) {
+      for px in bgra.as_chunks_mut::<BYTES_PER_PIXEL>().0 {
         // Swap Blue and Red channels
         px.swap(0, 2);
       }

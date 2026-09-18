@@ -51,6 +51,24 @@ impl<'a> From<&'a str> for IconResource<'a> {
   }
 }
 
+/// Loads the default window icon from the application icon resource, reporting failures.
+///
+/// Used by [`crate::generate_context!`]; not public API.
+#[cfg(windows)]
+#[doc(hidden)]
+pub fn default_window_icon_from_app_icon_resource() -> Option<Image<'static>> {
+  match Image::from_app_icon_resource(64) {
+    Ok(icon) => Some(icon),
+    Err(e) => {
+      // a logger is usually not installed yet when `generate_context!` runs
+      #[cfg(debug_assertions)]
+      eprintln!("failed to load the default window icon from the application icon resource: {e}");
+      log::warn!("failed to load the default window icon from the application icon resource: {e}");
+      None
+    }
+  }
+}
+
 #[cfg(windows)]
 const BYTES_PER_PIXEL: usize = 4;
 

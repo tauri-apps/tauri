@@ -34,7 +34,10 @@ use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
 };
 pub use tauri_utils::config::Color;
-use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
+use tauri_utils::{
+  acl::resolved::ResolvedCommand,
+  config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig},
+};
 pub use url::Url;
 
 use crate::{
@@ -1548,21 +1551,8 @@ impl<R: Runtime> Webview<R> {
     plugin: &str,
     command: &str,
   ) -> crate::Result<Option<ResolvedScope<T>>> {
-    let current_url = self.url()?;
-    let is_local = self.is_local_url(&current_url);
-    let origin = if is_local {
-      Origin::Local
-    } else {
-      Origin::Remote { url: current_url }
-    };
-
     let cmd_name = format!("plugin:{plugin}|{command}");
-    let resolved_access = self
-      .manager()
-      .runtime_authority
-      .lock()
-      .unwrap()
-      .resolve_access(&cmd_name, self.window().label(), self.label(), &origin);
+    let resolved_access = self.resolve_command_access(&cmd_name)?;
 
     if let Some(access) = resolved_access {
       let scope_ids = access
@@ -1826,6 +1816,42 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.can_go_forward().map_err(Into::into)
   }
 
+  /// Resolves the ACL access of the given command (`plugin:name|command` or an app command)
+  /// for this webview on the currently loaded URL.
+  ///
+  /// Returns `Ok(None)` when the command is not allowed and an error when the current URL
+  /// cannot be determined.
+  pub(crate) fn resolve_command_access(
+    &self,
+    command: &str,
+  ) -> crate::Result<Option<Vec<ResolvedCommand>>> {
+    let current_url = self.url()?;
+    Ok(self.resolve_command_access_on(command, &current_url))
+  }
+
+  /// Resolves the ACL access of the given command for this webview as if `url` was loaded,
+  /// without asking the runtime for the current URL.
+  ///
+  /// Returns `None` when the command is not allowed.
+  pub(crate) fn resolve_command_access_on(
+    &self,
+    command: &str,
+    url: &Url,
+  ) -> Option<Vec<ResolvedCommand>> {
+    let origin = if self.is_local_url(url) {
+      Origin::Local
+    } else {
+      Origin::Remote { url: url.clone() }
+    };
+
+    self
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .resolve_access(command, self.window_ref().label(), self.label(), &origin)
+  }
+
   fn is_local_url(&self, current_url: &Url) -> bool {
     let uses_https = current_url.scheme() == "https";
 
@@ -1893,7 +1919,13 @@ impl<R: Runtime> Webview<R> {
     #[cfg(mobile)]
     let app_handle = self.app_handle.clone();
 
-    let message = InvokeMessage::new(self, request.cmd.to_string(), request.body, request.headers);
+    let message = InvokeMessage::new(
+      self,
+      request.cmd.to_string(),
+      request.body,
+      request.headers,
+      request.url.clone(),
+    );
 
     let acl_origin = if is_local {
       Origin::Local
@@ -1931,11 +1963,7 @@ impl<R: Runtime> Webview<R> {
     // or when the request comes from a non-local (remote) origin.  This
     // ensures remote content can never reach custom commands unless an
     // explicit `remote` capability has been configured for them.
-    if (plugin_command.is_some() || has_app_acl_manifest || !is_local)
-      // TODO: Remove this special check in v3
-      && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-      && invoke.acl.is_none()
-    {
+    if (plugin_command.is_some() || has_app_acl_manifest || !is_local) && invoke.acl.is_none() {
       #[cfg(debug_assertions)]
       {
         let (key, command_name) = plugin_command
@@ -1959,6 +1987,11 @@ impl<R: Runtime> Webview<R> {
       invoke
         .resolver
         .reject(format!("Command {} not allowed by ACL", request.cmd));
+      // a channel payload queued while the fetch was still allowed (the webview navigated in
+      // between) must not outlive the rejected request
+      if request.cmd == crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND {
+        crate::ipc::channel::discard_rejected_fetch(&invoke.message);
+      }
       return;
     }
 

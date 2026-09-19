@@ -3039,8 +3039,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_os = "macos")]
-  fn set_activate_ignoring_other_apps(&mut self, active: bool) {
-    self.event_loop.set_activate_ignoring_other_apps(active);
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    self.event_loop.set_activate_ignoring_other_apps(ignore);
   }
 
   #[cfg(target_os = "macos")]

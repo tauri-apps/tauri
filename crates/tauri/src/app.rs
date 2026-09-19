@@ -2169,15 +2169,19 @@ tauri::Builder::default()
   /// If `false`, the application activates only if no other application is currently active.
   /// If `true`, the application activates regardless.
   ///
+  /// This only affects the initial activation at launch. Explicitly focusing a window later
+  /// (e.g. via [`Window::set_focus`](crate::window::Window::set_focus)) still activates the
+  /// application regardless of this setting.
+  ///
   /// # Examples
   /// ```,no_run
   /// tauri::Builder::default()
-  ///   .set_activate_ignoring_other_apps(false);
+  ///   .activate_ignoring_other_apps(false);
   /// ```
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   #[must_use]
-  pub fn set_activate_ignoring_other_apps(mut self, ignore: bool) -> Self {
+  pub fn activate_ignoring_other_apps(mut self, ignore: bool) -> Self {
     self.activate_ignoring_other_apps = ignore;
     self
   }

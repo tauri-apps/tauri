@@ -4,4 +4,4 @@
 "tauri": minor:feat
 ---
 
-Expose `Builder::set_activate_ignoring_other_apps` on macOS.
+Add `Builder::activate_ignoring_other_apps` on macOS to control whether the app activates at launch when another app is already active.

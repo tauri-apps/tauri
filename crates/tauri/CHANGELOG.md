@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.11.6]
+
+### Security fixes
+
+- [`e901f1de9`](https://www.github.com/tauri-apps/tauri/commit/e901f1de9ee4dee9d0d2e1942808679a14f1f610) Bind channel data IPC queue entries to the webview they were created for and scope their ids per webview.
+    Queued channel payloads and large invoke responses can no longer be read by other webviews, and entries are purged when the owning webview is closed.
+    Fixes GHSA-w28w-mhc8-qvjv.
+
 ## \[2.11.5]
 
 ### Dependencies

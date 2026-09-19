@@ -2505,8 +2505,22 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&self, url: Url) -> crate::Result<()> {
-    self.webview.navigate(url)
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{Manager, WebviewUrl};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview_window = app.get_webview_window("main").unwrap();
+  ///     
+  ///     // Navigate back to the app after an external URL
+  ///     webview_window.navigate(WebviewUrl::App("index.html".into()))?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn navigate(&self, webview_url: WebviewUrl) -> crate::Result<()> {
+    self.webview.navigate(webview_url)
   }
 
   /// Reloads the current page.

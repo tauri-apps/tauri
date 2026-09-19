@@ -21,4 +21,10 @@ ignore = [
   "RUSTSEC-2026-0099",
   # rustls, fixed when updating to apple-codesign 0.28.0
   "RUSTSEC-2026-0104",
+  # h2 0.3 (reqwest 0.11), fixed when updating to apple-codesign 0.28.0
+  "RUSTSEC-2026-0258",
+  # quick-xml DoS, only used by plist to parse Info.plist files; plist 1.7.x pins
+  # quick-xml < 0.41 and newer plist / quick-xml 0.41 require Rust > MSRV
+  "RUSTSEC-2026-0194",
+  "RUSTSEC-2026-0195",
 ]

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.11.1]
+
+### Enhancements
+
+- [`916782601`](https://www.github.com/tauri-apps/tauri/commit/9167826011cc3d114bf12dfb301968fae479891f) ([#15520](https://www.github.com/tauri-apps/tauri/pull/15520) by [@polw1](https://www.github.com/tauri-apps/tauri/../../polw1)) Document that `Monitor.size`, `Monitor.position` and `Monitor.workArea` are in physical pixels, with examples showing how to convert them to the logical pixels expected by window creation options via `toLogical(monitor.scaleFactor)`.
+
 ## \[2.11.0]
 
 ### New Features

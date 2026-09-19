@@ -5,9 +5,9 @@
 //! The tauri plugin to create and manipulate windows from JS.
 
 use crate::{
+  Runtime, Window,
   plugin::{Builder, TauriPlugin},
   sealed::ManagerBase,
-  Runtime, Window,
 };
 
 fn get_window<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<Window<R>> {
@@ -53,9 +53,8 @@ mod commands {
 
   use super::*;
   use crate::{
-    command, sealed::ManagerBase, utils::config::WindowConfig, window::Color,
-    window::WindowBuilder, AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, Window,
+    AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme, Window, command,
+    sealed::ManagerBase, utils::config::WindowConfig, window::Color, window::WindowBuilder,
   };
 
   #[command(root = "crate")]
@@ -126,8 +125,8 @@ mod desktop_commands {
 
   use super::*;
   use crate::{
-    command, utils::config::WindowEffectsConfig, window::ProgressBarState, CursorIcon, Manager,
-    PhysicalPosition, Position, UserAttentionType, Webview,
+    CursorIcon, Manager, PhysicalPosition, Position, UserAttentionType, Webview, command,
+    utils::config::WindowEffectsConfig, window::ProgressBarState,
   };
 
   getter!(is_fullscreen, bool);
@@ -208,9 +207,10 @@ mod desktop_commands {
     label: Option<String>,
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
-    match window.is_maximized()? {
-      true => window.unmaximize()?,
-      false => window.maximize()?,
+    if window.is_maximized()? {
+      window.unmaximize()?
+    } else {
+      window.maximize()?
     };
     Ok(())
   }
@@ -222,9 +222,10 @@ mod desktop_commands {
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
     if window.is_resizable()? {
-      match window.is_maximized()? {
-        true => window.unmaximize()?,
-        false => window.maximize()?,
+      if window.is_maximized()? {
+        window.unmaximize()?
+      } else if window.is_maximizable()? {
+        window.maximize()?
       };
     }
     Ok(())
@@ -233,7 +234,7 @@ mod desktop_commands {
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+  use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 
   let mut init_script = String::new();
 

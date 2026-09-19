@@ -24,14 +24,14 @@
 
 use super::{
   icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file},
-  sign::{notarize, notarize_auth, notarize_without_stapling, sign, SignTarget},
+  sign::{SignTarget, notarize, notarize_auth, notarize_without_stapling, sign},
 };
 use crate::{
-  bundle::settings::PlistKind,
-  error::{Context, ErrorExt, NotarizeAuthError},
-  utils::{fs_utils, CommandExt},
   Error::GenericError,
   Settings,
+  bundle::settings::PlistKind,
+  error::{Context, ErrorExt, NotarizeAuthError},
+  utils::{CommandExt, fs_utils},
 };
 
 use std::{
@@ -288,7 +288,7 @@ fn create_info_plist(
   if let Some(assets_car_file) = assets_car_file {
     if let Some(icon_name) = app_icon_name_from_assets_car(&assets_car_file) {
       // only set CFBundleIconName for the Assets.car, CFBundleIconFile is the fallback icns file
-      plist.insert("CFBundleIconName".into(), icon_name.clone().into());
+      plist.insert("CFBundleIconName".into(), icon_name.into());
     } else {
       log::warn!("Failed to get icon name from Assets.car file");
     }
@@ -583,7 +583,7 @@ mod tests {
     let src_file = tmp_dir.path().join("sample.txt");
     fs::write(&src_file, b"hello tauri").expect("failed to write sample file");
 
-    let files_map = HashMap::from([(PathBuf::from("Resources/sample.txt"), src_file.clone())]);
+    let files_map = HashMap::from([(PathBuf::from("Resources/sample.txt"), src_file)]);
 
     let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
 
@@ -605,7 +605,7 @@ mod tests {
     let nested_file = src_dir.join("nested.txt");
     fs::write(&nested_file, b"nested").expect("failed to write nested file");
 
-    let files_map = HashMap::from([(PathBuf::from("MyAssets"), src_dir.clone())]);
+    let files_map = HashMap::from([(PathBuf::from("MyAssets"), src_dir)]);
 
     let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
 
@@ -654,11 +654,13 @@ mod tests {
 
     let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
     assert!(result.is_err());
-    assert!(result
-      .err()
-      .unwrap()
-      .to_string()
-      .contains("Failed to copy directory"));
+    assert!(
+      result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("Failed to copy directory")
+    );
   }
 
   #[test]
@@ -671,10 +673,12 @@ mod tests {
 
     let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
     assert!(result.is_err());
-    assert!(result
-      .err()
-      .unwrap()
-      .to_string()
-      .contains("is not a file or directory."));
+    assert!(
+      result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("is not a file or directory.")
+    );
   }
 }

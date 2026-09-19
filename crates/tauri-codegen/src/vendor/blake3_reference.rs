@@ -135,8 +135,8 @@ fn first_8_words(compression_output: [u32; 16]) -> [u32; 8] {
 
 fn words_from_little_endian_bytes(bytes: &[u8], words: &mut [u32]) {
   debug_assert_eq!(bytes.len(), 4 * words.len());
-  for (four_bytes, word) in bytes.chunks_exact(4).zip(words) {
-    *word = u32::from_le_bytes(four_bytes.try_into().unwrap());
+  for (four_bytes, word) in bytes.as_chunks::<4>().0.iter().zip(words) {
+    *word = u32::from_le_bytes(*four_bytes);
   }
 }
 

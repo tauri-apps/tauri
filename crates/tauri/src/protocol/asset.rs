@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
-use http::{header::*, status::StatusCode, Request, Response};
+use http::{Request, Response, header::*, status::StatusCode};
 use http_range::HttpRange;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
@@ -39,12 +39,12 @@ fn get_response(
   let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
 
   if let Err(e) = SafePathBuf::new(path.clone().into()) {
-    log::error!("asset protocol path \"{}\" is not valid: {}", path, e);
+    log::error!("asset protocol path \"{path}\" is not valid: {e}");
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
   if !scope.is_allowed(&path) {
-    log::error!("asset protocol not configured to allow the path: {}", path);
+    log::error!("asset protocol not configured to allow the path: {path}");
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
@@ -55,14 +55,16 @@ fn get_response(
       #[cfg(target_os = "android")]
       {
         if path.starts_with("/storage/emulated/0/Android/data/") {
-          log::error!("Failed to open Android external storage file '{}': {}. This may be due to missing storage permissions.", path, e);
+          log::error!(
+            "Failed to open Android external storage file '{path}': {e}. This may be due to missing storage permissions."
+          );
         }
       }
       return if e.kind() == std::io::ErrorKind::NotFound {
-        log::error!("File does not exist at path: {}", path);
+        log::error!("File does not exist at path: {path}");
         return resp.status(404).body(Vec::new().into()).map_err(Into::into);
       } else if e.kind() == std::io::ErrorKind::PermissionDenied {
-        log::error!("Missing OS permission to access path \"{}\": {}", path, e);
+        log::error!("Missing OS permission to access path \"{path}\": {e}");
         return resp.status(403).body(Vec::new().into()).map_err(Into::into);
       } else {
         Err(e.into())
@@ -167,12 +169,15 @@ fn get_response(
 
       let boundary = random_boundary();
       let boundary_sep = format!("\r\n--{boundary}\r\n");
-      let boundary_closer = format!("\r\n--{boundary}\r\n");
+      let boundary_closer = format!("\r\n--{boundary}--\r\n");
 
-      resp = resp.header(
-        CONTENT_TYPE,
-        format!("multipart/byteranges; boundary={boundary}"),
-      );
+      // `Builder::header` appends, we want to replace the file mime type set earlier
+      if let Some(headers) = resp.headers_mut() {
+        headers.insert(
+          CONTENT_TYPE,
+          HeaderValue::from_str(&format!("multipart/byteranges; boundary={boundary}"))?,
+        );
+      }
 
       let buf = {
         // multi-part range header
@@ -202,6 +207,8 @@ fn get_response(
 
         buf
       };
+
+      resp = resp.status(StatusCode::PARTIAL_CONTENT);
       resp.body(buf.into())
     }
   } else if request.method() == http::Method::HEAD {
@@ -235,4 +242,60 @@ fn random_boundary() -> String {
       a.push_str(x.as_str());
       a
     })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::get_response;
+  use crate::scope::fs::Scope;
+  use http::{Request, header::CONTENT_TYPE, status::StatusCode};
+  use tauri_utils::config::FsScope;
+
+  #[test]
+  fn multi_range_request() {
+    let app = crate::test::mock_app();
+
+    let path = std::env::temp_dir().join(format!(
+      "tauri-asset-protocol-multi-range-{}.bin",
+      std::process::id()
+    ));
+    std::fs::write(&path, vec![b'a'; 1000]).unwrap();
+
+    let scope = Scope::new(&app, &FsScope::default()).unwrap();
+    scope.allow_file(&path).unwrap();
+
+    let encoded_path = percent_encoding::percent_encode(
+      path.to_string_lossy().as_bytes(),
+      percent_encoding::NON_ALPHANUMERIC,
+    )
+    .to_string();
+
+    let request = Request::builder()
+      .uri(format!("asset://localhost/{encoded_path}"))
+      .header("range", "bytes=0-9, 20-29")
+      .body(Vec::new())
+      .unwrap();
+
+    let response = get_response(request, &scope, "http://tauri.localhost").unwrap();
+    std::fs::remove_file(&path).unwrap();
+
+    assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+
+    let content_types = response
+      .headers()
+      .get_all(CONTENT_TYPE)
+      .iter()
+      .map(|v| v.to_str().unwrap().to_string())
+      .collect::<Vec<_>>();
+    assert_eq!(content_types.len(), 1);
+
+    let boundary = content_types[0]
+      .strip_prefix("multipart/byteranges; boundary=")
+      .unwrap();
+    assert!(
+      response
+        .body()
+        .ends_with(format!("\r\n--{boundary}--\r\n").as_bytes())
+    );
+  }
 }

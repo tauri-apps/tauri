@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.9.4]
+
+### Bug Fixes
+
+- [`67ffa192a`](https://www.github.com/tauri-apps/tauri/commit/67ffa192a499131e7e750f164fe61a40ca0fb2e7) ([#15596](https://www.github.com/tauri-apps/tauri/pull/15596) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue in the AppImage bundler that caused the `/.desktop` and `.DirIcon` files to be absolute symlinks instead of relative symlinks which caused problems with AppImage installers like `AppManager`.
+
+## \[2.9.3]
+
+### Enhancements
+
+- [`413f01c06`](https://www.github.com/tauri-apps/tauri/commit/413f01c065506b81059f452123c71c552ccaa7e4) ([#15403](https://www.github.com/tauri-apps/tauri/pull/15403) by [@Sean-Kenneth-Doherty](https://www.github.com/tauri-apps/tauri/../../Sean-Kenneth-Doherty)) Improve NSIS configuration path errors so missing installer icons and images include the related config key and path.
+
+### Bug Fixes
+
+- [`2857c01c6`](https://www.github.com/tauri-apps/tauri/commit/2857c01c69459dc8e6c92192afd36420249b7b16) ([#15422](https://www.github.com/tauri-apps/tauri/pull/15422) by [@koki-develop](https://www.github.com/tauri-apps/tauri/../../koki-develop)) Fix NSIS stock plugins (`NSISdl.dll`, `StartMenu.dll`, `System.dll`, `nsDialogs.dll`) being embedded in the final installer as unsigned despite the signing step succeeding. The signed local copies under `<output>/Plugins/x86-unicode/` were not on makensis' plugin search path, so makensis fell back to the unsigned DLLs from the NSIS toolset directory. The fix adds `!addplugindir` for the signed plugin directory before any plugin command is parsed in the script.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+
 ## \[2.9.2]
 
 ### Dependencies

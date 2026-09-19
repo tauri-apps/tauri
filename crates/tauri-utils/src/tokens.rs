@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use serde_json::Value as JsonValue;
 use url::Url;
 

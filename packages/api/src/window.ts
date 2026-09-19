@@ -37,7 +37,7 @@ import {
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
 import type { DragDropEvent } from './webview'
-import { Image, transformImage } from './image'
+import { type JsImage, transformImage } from './image'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -47,16 +47,46 @@ import { Image, transformImage } from './image'
 export interface Monitor {
   /** Human-readable name of the monitor */
   name: string | null
-  /** The monitor's resolution. */
+  /**
+   * The monitor's resolution in physical pixels.
+   *
+   * Use {@linkcode Monitor.scaleFactor} to convert to logical pixels:
+   * ```typescript
+   * const logicalSize = monitor.size.toLogical(monitor.scaleFactor);
+   * ```
+   */
   size: PhysicalSize
-  /** the Top-left corner position of the monitor relative to the larger full screen area. */
+  /**
+   * the Top-left corner position of the monitor relative to the larger full screen area, in physical pixels.
+   *
+   * Note that window creation options such as `x`, `y`, `width` and `height` expect
+   * logical pixels, so convert with {@linkcode Monitor.scaleFactor} first:
+   * ```typescript
+   * import { currentMonitor } from '@tauri-apps/api/window';
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+   *
+   * const monitor = await currentMonitor();
+   * if (monitor) {
+   *   const position = monitor.position.toLogical(monitor.scaleFactor);
+   *   const webview = new WebviewWindow('my-label', { x: position.x, y: position.y });
+   * }
+   * ```
+   */
   position: PhysicalPosition
-  /** The monitor's work area. */
+  /**
+   * The monitor's work area (the monitor area excluding taskbars and docks) in physical pixels.
+   *
+   * Use {@linkcode Monitor.scaleFactor} to convert to logical pixels as shown in
+   * {@linkcode Monitor.position}.
+   */
   workArea: {
     position: PhysicalPosition
     size: PhysicalSize
   }
-  /** The scale factor that can be used to map physical pixels to logical pixels. */
+  /**
+   * The scale factor that can be used to map physical pixels to logical pixels,
+   * e.g. `monitor.position.toLogical(monitor.scaleFactor)`.
+   */
   scaleFactor: number
 }
 
@@ -1491,9 +1521,7 @@ class Window {
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[]
-  ): Promise<void> {
+  async setIcon(icon: JsImage): Promise<void> {
     return invoke('plugin:window|set_icon', {
       label: this.label,
       value: transformImage(icon)
@@ -1742,9 +1770,7 @@ class Window {
    * @param icon Icon bytes or path to the icon file. Use `undefined` to remove the overlay icon.
    * @return A promise indicating the success or failure of the operation.
    */
-  async setOverlayIcon(
-    icon?: string | Image | Uint8Array | ArrayBuffer | number[]
-  ): Promise<void> {
+  async setOverlayIcon(icon?: JsImage): Promise<void> {
     return invoke('plugin:window|set_overlay_icon', {
       label: this.label,
       value: icon ? transformImage(icon) : undefined
@@ -2362,6 +2388,8 @@ interface WindowOptions {
    * Whether the window is transparent or not.
    * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.
    * WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+   *
+   * On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
    */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
@@ -2378,6 +2406,13 @@ interface WindowOptions {
   contentProtected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   * This sets `WS_EX_NOREDIRECTIONBITMAP`.
+   *
+   * This can avoid the white flash that may appear before the webview content is rendered
+   * when using a transparent window. **Windows only**.
+   */
+  noRedirectionBitmap?: boolean
   /**
    *  Whether or not the window has shadow.
    *

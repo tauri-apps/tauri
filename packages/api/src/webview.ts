@@ -593,7 +593,7 @@ class Webview {
   /**
    * Specify the webview background color.
    *
-   * #### Platfrom-specific:
+   * #### Platform-specific:
    *
    * - **macOS / iOS**: Not implemented.
    * - **Windows**:

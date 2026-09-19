@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// The benchmark can't use this or we can't measure the command time
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::fs::read;
-use tauri::{command, ipc::Response, path::BaseDirectory, AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Manager, Runtime, command, ipc::Response, path::BaseDirectory};
 
 #[command]
 fn app_should_close(exit_code: i32) {

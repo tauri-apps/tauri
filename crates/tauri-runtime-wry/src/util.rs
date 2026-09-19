@@ -14,13 +14,13 @@ mod imp {
 
   use once_cell::sync::Lazy;
   use windows::{
-    core::{HRESULT, PCSTR, PCWSTR},
     Win32::{
       Foundation::*,
       Graphics::Gdi::*,
       System::LibraryLoader::{GetProcAddress, LoadLibraryW},
       UI::{HiDpi::*, WindowsAndMessaging::*},
     },
+    core::{HRESULT, PCSTR, PCWSTR},
   };
 
   pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
@@ -68,51 +68,57 @@ mod imp {
 
   #[allow(non_snake_case)]
   pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
-    let hdc = GetDC(Some(hwnd));
-    if hdc.is_invalid() {
-      return USER_DEFAULT_SCREEN_DPI;
-    }
-    if let Some(GetDpiForWindow) = *GET_DPI_FOR_WINDOW {
-      // We are on Windows 10 Anniversary Update (1607) or later.
-      match GetDpiForWindow(hwnd) {
-        0 => USER_DEFAULT_SCREEN_DPI, // 0 is returned if hwnd is invalid
-        dpi => dpi,
-      }
-    } else if let Some(GetDpiForMonitor) = *GET_DPI_FOR_MONITOR {
-      // We are on Windows 8.1 or later.
-      let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-      if monitor.is_invalid() {
-        return USER_DEFAULT_SCREEN_DPI;
-      }
+    unsafe {
+      if let Some(GetDpiForWindow) = *GET_DPI_FOR_WINDOW {
+        // We are on Windows 10 Anniversary Update (1607) or later.
+        match GetDpiForWindow(hwnd) {
+          0 => USER_DEFAULT_SCREEN_DPI, // 0 is returned if hwnd is invalid
+          dpi => dpi,
+        }
+      } else if let Some(GetDpiForMonitor) = *GET_DPI_FOR_MONITOR {
+        // We are on Windows 8.1 or later.
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if monitor.is_invalid() {
+          return USER_DEFAULT_SCREEN_DPI;
+        }
 
-      let mut dpi_x = 0;
-      let mut dpi_y = 0;
-      if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok() {
-        dpi_x
+        let mut dpi_x = 0;
+        let mut dpi_y = 0;
+        if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok() {
+          dpi_x
+        } else {
+          USER_DEFAULT_SCREEN_DPI
+        }
       } else {
-        USER_DEFAULT_SCREEN_DPI
-      }
-    } else {
-      // We are on Vista or later.
-      if IsProcessDPIAware().as_bool() {
-        // If the process is DPI aware, then scaling must be handled by the application using
-        // this DPI value.
-        GetDeviceCaps(Some(hdc), LOGPIXELSX) as u32
-      } else {
-        // If the process is DPI unaware, then scaling is performed by the OS; we thus return
-        // 96 (scale factor 1.0) to prevent the window from being re-scaled by both the
-        // application and the WM.
-        USER_DEFAULT_SCREEN_DPI
+        // We are on Vista or later.
+        if IsProcessDPIAware().as_bool() {
+          let hdc = GetDC(Some(hwnd));
+          if hdc.is_invalid() {
+            return USER_DEFAULT_SCREEN_DPI;
+          }
+          // If the process is DPI aware, then scaling must be handled by the application using
+          // this DPI value.
+          let dpi = GetDeviceCaps(Some(hdc), LOGPIXELSX) as u32;
+          ReleaseDC(Some(hwnd), hdc);
+          dpi
+        } else {
+          // If the process is DPI unaware, then scaling is performed by the OS; we thus return
+          // 96 (scale factor 1.0) to prevent the window from being re-scaled by both the
+          // application and the WM.
+          USER_DEFAULT_SCREEN_DPI
+        }
       }
     }
   }
 
   #[allow(non_snake_case)]
   pub unsafe fn get_system_metrics_for_dpi(nindex: SYSTEM_METRICS_INDEX, dpi: u32) -> i32 {
-    if let Some(GetSystemMetricsForDpi) = *GET_SYSTEM_METRICS_FOR_DPI {
-      GetSystemMetricsForDpi(nindex, dpi)
-    } else {
-      GetSystemMetrics(nindex)
+    unsafe {
+      if let Some(GetSystemMetricsForDpi) = *GET_SYSTEM_METRICS_FOR_DPI {
+        GetSystemMetricsForDpi(nindex, dpi)
+      } else {
+        GetSystemMetrics(nindex)
+      }
     }
   }
 }

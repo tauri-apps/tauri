@@ -21,9 +21,9 @@ use notify::RecursiveMode;
 use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
-  AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
-  WindowsSettings,
+  AppCategory, AppImageSettings, AssetGstPluginSettings, BundleBinary, BundleSettings,
+  DebianSettings, DmgSettings, IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings,
+  Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
 
@@ -1587,6 +1587,10 @@ fn tauri_config_to_bundle_settings(
       pre_remove_script: config.linux.rpm.pre_remove_script,
       post_remove_script: config.linux.rpm.post_remove_script,
       compression: config.linux.rpm.compression,
+    },
+    asset_gst_plugin: AssetGstPluginSettings {
+      active: config.linux.asset_gst_plugin.active,
+      path: config.linux.asset_gst_plugin.path,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

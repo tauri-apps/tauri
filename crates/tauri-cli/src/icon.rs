@@ -1146,7 +1146,9 @@ mod tests {
     let count = u16::from_le_bytes([bytes[4], bytes[5]]) as usize;
     let dimension = |b: u8| if b == 0 { 256 } else { u32::from(b) };
     let sizes: Vec<_> = bytes[6..]
-      .chunks_exact(16)
+      .as_chunks::<16>()
+      .0
+      .iter()
       .take(count)
       .map(|entry| (dimension(entry[0]), dimension(entry[1])))
       .collect();

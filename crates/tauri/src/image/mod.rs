@@ -556,6 +556,21 @@ mod tests {
     assert_eq!(largest(&directory(&[(32, 32)])), Some((32, 32)));
     assert_eq!(largest(&directory(&[])), None);
 
+    // the largest entry is picked by area, 0 stands for 256 on either axis
+    assert_eq!(
+      largest(&directory(&[(255, 255), (0, 0), (128, 0)])),
+      Some((256, 256))
+    );
+    assert_eq!(
+      largest(&directory(&[(64, 64), (32, 0), (0, 16)])),
+      Some((32, 256))
+    );
+
+    // idCount smaller than the data only considers the first `idCount` entries
+    let mut undersized = full.clone();
+    undersized[4] = 2;
+    assert_eq!(largest(&undersized), Some((32, 32)));
+
     // idCount larger than the data and truncated input must not panic
     let mut oversized = full.clone();
     oversized[4] = 200;
@@ -564,5 +579,26 @@ mod tests {
     assert_eq!(largest(&full[..6]), None);
     assert_eq!(largest(&full[..3]), None);
     assert_eq!(largest(&[]), None);
+  }
+
+  /// The test executable has no icon resources, so every lookup must fail with an error
+  /// (instead of panicking or returning a stretched placeholder).
+  #[cfg(windows)]
+  #[test]
+  fn from_icon_resource_missing_resource_is_an_error() {
+    use super::{Image, default_window_icon_from_app_icon_resource};
+
+    for resource in [
+      super::IconResource::Id(u16::MAX),
+      super::IconResource::Name("tauri-image-test-missing-icon"),
+    ] {
+      let error = Image::from_icon_resource(resource).unwrap_err();
+      assert!(
+        matches!(error, crate::Error::ImageFromResource(_)),
+        "{resource:?}: {error:?}"
+      );
+    }
+
+    assert!(default_window_icon_from_app_icon_resource().is_none());
   }
 }

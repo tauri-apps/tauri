@@ -1133,4 +1133,26 @@ mod tests {
     assert_eq!(image.get_pixel(32, 2)[3], 0);
     assert_eq!(image.get_pixel(32, 32)[3], 255);
   }
+
+  #[test]
+  fn ico_stores_entries_smallest_first() {
+    let out_dir = tempfile::tempdir().unwrap();
+    ico(&landscape(64, 64), out_dir.path()).unwrap();
+    let bytes = std::fs::read(out_dir.path().join("icon.ico")).unwrap();
+
+    // ICONDIR: idReserved, idType and idCount (u16 each) followed by `idCount` 16-byte
+    // ICONDIRENTRY records starting with bWidth and bHeight, where 0 means 256
+    assert_eq!(&bytes[..4], &[0, 0, 1, 0]);
+    let count = u16::from_le_bytes([bytes[4], bytes[5]]) as usize;
+    let dimension = |b: u8| if b == 0 { 256 } else { u32::from(b) };
+    let sizes: Vec<_> = bytes[6..]
+      .chunks_exact(16)
+      .take(count)
+      .map(|entry| (dimension(entry[0]), dimension(entry[1])))
+      .collect();
+    assert_eq!(
+      sizes,
+      [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (256, 256)]
+    );
+  }
 }

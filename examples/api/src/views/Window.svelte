@@ -102,8 +102,6 @@
 
   const progressBarStatusOptions = Object.values(ProgressBarStatus)
 
-  const mainEl = document.querySelector('main')!
-
   let newWebviewLabel = $state<string>()
 
   let resizable = $state(true)
@@ -304,8 +302,8 @@
       payload.color = [effectR!, effectG!, effectB!, effectA!]
     }
 
-    mainEl.classList.remove('bg-primary')
-    mainEl.classList.remove('dark:bg-darkPrimary')
+    // see `:root.window-effects` in app.css
+    document.documentElement.classList.add('window-effects')
     await selectedWebview.clearEffects()
     await selectedWebview.setEffects(payload)
   }
@@ -313,8 +311,7 @@
   async function clearEffects() {
     effects = []
     await selectedWebview.clearEffects()
-    mainEl.classList.add('bg-primary')
-    mainEl.classList.add('dark:bg-darkPrimary')
+    document.documentElement.classList.remove('window-effects')
   }
 
   async function updatePosition() {

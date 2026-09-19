@@ -54,7 +54,13 @@ impl CachedIcon {
     let icon_dir = ico::IconDir::read(Cursor::new(&buf))
       .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", icon.display(), e));
 
-    let entry = icon_dir.entries().iter().max_by_key(|e| e.width()).unwrap();
+    // ICO files conventionally store entries smallest-first, so pick the largest
+    // (and, for equal sizes, the deepest) entry to give the OS a high-resolution source to downscale
+    let entry = icon_dir
+      .entries()
+      .iter()
+      .max_by_key(|e| (e.width() * e.height(), e.bits_per_pixel()))
+      .unwrap_or_else(|| panic!("icon {} has no entries", icon.display()));
     let rgba = entry
       .decode()
       .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", icon.display(), e))

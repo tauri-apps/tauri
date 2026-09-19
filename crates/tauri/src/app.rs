@@ -1611,6 +1611,10 @@ pub struct Builder<R: Runtime> {
   #[allow(unused)]
   enable_macos_default_menu: bool,
 
+  /// Whether to activate the application when launched while another application is active.
+  #[cfg(target_os = "macos")]
+  activate_ignoring_other_apps: bool,
+
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
 
@@ -1685,6 +1689,8 @@ impl<R: Runtime> Builder<R> {
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray_icon_event_listeners: Vec::new(),
       enable_macos_default_menu: true,
+      #[cfg(target_os = "macos")]
+      activate_ignoring_other_apps: true,
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
@@ -2155,6 +2161,31 @@ tauri::Builder::default()
     self
   }
 
+  /// Configures whether the application should activate when launched while another application
+  /// is active.
+  ///
+  /// By default, the application ignores other applications and activates when launched.
+  ///
+  /// If `false`, the application activates only if no other application is currently active.
+  /// If `true`, the application activates regardless.
+  ///
+  /// This only affects the initial activation at launch. Explicitly focusing a window later
+  /// (e.g. via [`Window::set_focus`](crate::window::Window::set_focus)) still activates the
+  /// application regardless of this setting.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .activate_ignoring_other_apps(false);
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  #[must_use]
+  pub fn activate_ignoring_other_apps(mut self, ignore: bool) -> Self {
+    self.activate_ignoring_other_apps = ignore;
+    self
+  }
+
   /// Registers a window event handler for all windows.
   ///
   /// # Examples
@@ -2458,6 +2489,9 @@ tauri::Builder::default()
     };
     #[cfg(not(any(windows, target_os = "linux")))]
     let mut runtime = R::new(runtime_args)?;
+
+    #[cfg(target_os = "macos")]
+    runtime.set_activate_ignoring_other_apps(self.activate_ignoring_other_apps);
 
     #[cfg(desktop)]
     {

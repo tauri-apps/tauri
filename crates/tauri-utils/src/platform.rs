@@ -251,16 +251,36 @@ fn is_cargo_output_directory(path: &std::path::Path) -> bool {
 /// ## Platform-specific
 ///
 /// - **Windows:** Resolves to the directory that contains the main executable.
-/// - **Linux:** When running in an AppImage, the `APPDIR` variable will be set to
-///   the mounted location of the app, and the resource dir will be `${APPDIR}/usr/lib/${exe_name}`.
-///   If not running in an AppImage, the path is `/usr/lib/${exe_name}`.
-///   When running the app from `src-tauri/target/(debug|release)/`, the path is `${exe_dir}/../lib/${exe_name}`.
+/// - **Linux:** When running from a Cargo output directory, resolves to the directory containing the
+///   executable. Otherwise, resolves to `${exe_dir}/../lib/${package_info.name}` when that directory
+///   exists, `${APPDIR}/usr/lib/${package_info.name}` inside an AppImage, or
+///   `/usr/lib/${package_info.name}` for an installed package.
 /// - **macOS:** Resolves to `${exe_dir}/../Resources` (inside .app).
 /// - **iOS:** Resolves to `${exe_dir}/assets`.
 /// - **Android:** Currently the resources are stored in the APK as assets so it's not a normal file system path,
 ///   we return a special URI prefix `asset://localhost/` here that can be used with the [file system plugin](https://tauri.app/plugin/file-system/),
 ///   with that, you can read the files through [`FsExt::fs`](https://docs.rs/tauri-plugin-fs/latest/tauri_plugin_fs/trait.FsExt.html#tymethod.fs)
 ///   like this: `app.fs().read_to_string(app.path().resource_dir().unwrap().join("resource"));`
+///
+/// For applications packaged with `tauri-bundler`, `package_info.name` must match
+/// [`tauri_bundler::PackageSettings::product_name`](https://docs.rs/tauri-bundler/latest/tauri_bundler/struct.PackageSettings.html#structfield.product_name).
+///
+/// ## Example
+///
+/// ```no_run
+/// use tauri_utils::{platform::resource_dir, Env, PackageInfo};
+///
+/// let package_info = PackageInfo {
+///   name: "Your Awesome App".into(),
+///   version: "1.0.0".parse().unwrap(),
+///   authors: "",
+///   description: "",
+///   crate_name: "your-awesome-app",
+/// };
+///
+/// let _index_html = resource_dir(&package_info, &Env::default())?.join("assets/index.html");
+/// # Ok::<(), tauri_utils::Error>(())
+/// ```
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
   #[cfg(target_os = "android")]
   return resource_dir_android(package_info, env);

@@ -4097,6 +4097,10 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Resumed);
     }
 
+    Event::Resumed => {
+      callback(RunEvent::Resumed);
+    }
+
     Event::MainEventsCleared => {
       callback(RunEvent::MainEventsCleared);
     }

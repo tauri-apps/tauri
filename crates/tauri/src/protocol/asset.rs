@@ -5,32 +5,36 @@
 use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
 use http::{Request, Response, header::*, status::StatusCode};
 use http_range::HttpRange;
-use std::fs::File;
-use std::io::{Read, Seek, Write};
 use std::{borrow::Cow, io::SeekFrom};
 use tauri_utils::mime_type::MimeType;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
-  Box::new(
-    move |_, request, responder| match get_response(request, &scope, &window_origin) {
-      Ok(response) => responder.respond(response),
-      Err(e) => responder.respond(
-        http::Response::builder()
-          .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-          .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-          .header("Access-Control-Allow-Origin", &window_origin)
-          .body(e.to_string().into_bytes())
-          .unwrap(),
-      ),
-    },
-  )
+  Box::new(move |_, request, responder| {
+    let scope = scope.clone();
+    let window_origin = window_origin.clone();
+    crate::async_runtime::spawn(async move {
+      match get_response(request, &scope, &window_origin).await {
+        Ok(response) => responder.respond(response),
+        Err(e) => responder.respond(
+          http::Response::builder()
+            .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+            .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+            .header("Access-Control-Allow-Origin", &window_origin)
+            .body(e.to_string().into_bytes())
+            .unwrap(),
+        ),
+      }
+    });
+  })
 }
 
-fn get_response(
+async fn get_response(
   request: Request<Vec<u8>>,
   scope: &scope::fs::Scope,
   window_origin: &str,
-) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
+) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error + Send + Sync>> {
   // skip leading `/`
   let path = percent_encoding::percent_decode(&request.uri().path().as_bytes()[1..])
     .decode_utf8_lossy()
@@ -49,7 +53,7 @@ fn get_response(
   }
 
   // Separate block for easier error handling
-  let mut file = match File::open(path.clone()) {
+  let mut file = match File::open(path.clone()).await {
     Ok(file) => file,
     Err(e) => {
       #[cfg(target_os = "android")]
@@ -72,13 +76,13 @@ fn get_response(
     }
   };
 
-  let len = file.metadata()?.len();
+  let len = file.metadata().await?.len();
   let (mime_type, read_bytes) = {
     // get file mime type
     let nbytes = len.min(8192);
     let mut magic_buf = Vec::with_capacity(nbytes as usize);
-    (&mut file).take(nbytes).read_to_end(&mut magic_buf)?;
-    file.rewind()?;
+    (&mut file).take(nbytes).read_to_end(&mut magic_buf).await?;
+    file.rewind().await?;
     (
       MimeType::parse(&magic_buf, &path),
       // return the `magic_bytes` if we read the whole file
@@ -140,8 +144,8 @@ fn get_response(
 
       let buf = {
         let mut buf = Vec::with_capacity(nbytes as usize);
-        file.seek(SeekFrom::Start(start))?;
-        file.take(nbytes).read_to_end(&mut buf)?;
+        file.seek(SeekFrom::Start(start)).await?;
+        file.take(nbytes).read_to_end(&mut buf).await?;
         buf
       };
 
@@ -185,25 +189,29 @@ fn get_response(
 
         for (start, end) in ranges {
           // a new range is being written, write the range boundary
-          buf.write_all(boundary_sep.as_bytes())?;
+          buf.write_all(boundary_sep.as_bytes()).await?;
 
           // write the needed headers `Content-Type` and `Content-Range`
-          buf.write_all(format!("{CONTENT_TYPE}: {mime_type}\r\n").as_bytes())?;
-          buf.write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())?;
+          buf
+            .write_all(format!("{CONTENT_TYPE}: {mime_type}\r\n").as_bytes())
+            .await?;
+          buf
+            .write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())
+            .await?;
 
           // write the separator to indicate the start of the range body
-          buf.write_all("\r\n".as_bytes())?;
+          buf.write_all("\r\n".as_bytes()).await?;
 
           // calculate number of bytes needed to be read
           let nbytes = end + 1 - start;
 
           let mut local_buf = Vec::with_capacity(nbytes as usize);
-          file.seek(SeekFrom::Start(start))?;
-          (&mut file).take(nbytes).read_to_end(&mut local_buf)?;
+          file.seek(SeekFrom::Start(start)).await?;
+          (&mut file).take(nbytes).read_to_end(&mut local_buf).await?;
           buf.extend_from_slice(&local_buf);
         }
         // all ranges have been written, write the closing boundary
-        buf.write_all(boundary_closer.as_bytes())?;
+        buf.write_all(boundary_closer.as_bytes()).await?;
 
         buf
       };
@@ -222,7 +230,7 @@ fn get_response(
       b
     } else {
       let mut local_buf = Vec::with_capacity(len as usize);
-      file.read_to_end(&mut local_buf)?;
+      file.read_to_end(&mut local_buf).await?;
       local_buf
     };
     resp = resp.header(CONTENT_LENGTH, len);
@@ -276,7 +284,9 @@ mod tests {
       .body(Vec::new())
       .unwrap();
 
-    let response = get_response(request, &scope, "http://tauri.localhost").unwrap();
+    let response =
+      crate::async_runtime::block_on(get_response(request, &scope, "http://tauri.localhost"))
+        .unwrap();
     std::fs::remove_file(&path).unwrap();
 
     assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);

@@ -66,6 +66,7 @@ mod window_effects {
   #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
   #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
   #[serde(rename_all = "camelCase")]
+  #[non_exhaustive]
   /// Platform-specific window effects
   pub enum WindowEffect {
     /// A default material appropriate for the view's effectiveAppearance. **macOS 10.14-**

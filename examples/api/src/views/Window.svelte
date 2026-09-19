@@ -154,6 +154,7 @@
   let selectedEffect = $state<Effect>()
   let effectState = $state<EffectState>()
   let effectRadius = $state<number>()
+  let effectInteractive = $state(false)
   let effectR = $state<number>(),
     effectG = $state<number>(),
     effectB = $state<number>(),
@@ -291,7 +292,8 @@
     const payload: Effects = {
       effects,
       state: effectState,
-      radius: effectRadius
+      radius: effectRadius,
+      interactive: effectInteractive
     }
     if (
       Number.isInteger(effectR)
@@ -941,6 +943,15 @@
           <label>
             Radius
             <input class="input" type="number" bind:value={effectRadius} />
+          </label>
+
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              class="checkbox"
+              bind:checked={effectInteractive}
+            />
+            Interactive
           </label>
         </div>
 

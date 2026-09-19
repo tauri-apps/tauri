@@ -6,8 +6,12 @@
 
 use crate::utils::config::WindowEffectsConfig;
 use crate::window::{Effect, EffectState};
-use raw_window_handle::HasWindowHandle;
-use window_vibrancy::{NSGlassEffectViewStyle, NSVisualEffectMaterial, NSVisualEffectState};
+use objc2::{msg_send, runtime::NSObjectProtocol, sel};
+use objc2_app_kit::NSView;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+use window_vibrancy::{
+  NSGlassEffectViewStyle, NSGlassEffectViewTagged, NSVisualEffectMaterial, NSVisualEffectState,
+};
 
 pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig) {
   let WindowEffectsConfig {
@@ -15,6 +19,7 @@ pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig)
     radius,
     state,
     color,
+    interactive,
   } = effects;
 
   // window-vibrancy inserts a new subview on every call, so drop the previous effect first
@@ -34,7 +39,12 @@ pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig)
       color.map(Into::into),
       radius,
     ) {
-      Ok(()) => return,
+      Ok(()) => {
+        if interactive {
+          set_glass_interactive(&window, true);
+        }
+        return;
+      }
       // macOS 15 and below: fall back to the Visual Effect material, if any
       Err(window_vibrancy::Error::UnsupportedPlatformVersion(_)) => {}
       Err(e) => {
@@ -109,4 +119,28 @@ pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig)
 pub fn clear_effects(window: impl HasWindowHandle) {
   let _ = window_vibrancy::clear_vibrancy(&window);
   let _ = window_vibrancy::clear_liquid_glass(&window);
+}
+
+/// Sets `NSGlassEffectView.effectIsInteractive` on the glass view window-vibrancy inserted.
+///
+/// The property is macOS 27.0+, so it is a no-op on older systems.
+fn set_glass_interactive(window: &impl HasWindowHandle, interactive: bool) {
+  let Ok(handle) = window.window_handle() else {
+    return;
+  };
+  let RawWindowHandle::AppKit(handle) = handle.as_raw() else {
+    return;
+  };
+
+  // SAFETY: `ns_view` is the window's content view, valid for as long as the window is alive,
+  // and window effects are only ever applied on the main thread.
+  let view: &NSView = unsafe { handle.ns_view.cast().as_ref() };
+  for subview in view.subviews().iter() {
+    if let Some(glass) = subview.downcast_ref::<NSGlassEffectViewTagged>() {
+      if glass.respondsToSelector(sel!(setEffectIsInteractive:)) {
+        // SAFETY: the selector is `@property BOOL effectIsInteractive` from the macOS 27 SDK
+        let _: () = unsafe { msg_send![glass, setEffectIsInteractive: interactive] };
+      }
+    }
+  }
 }

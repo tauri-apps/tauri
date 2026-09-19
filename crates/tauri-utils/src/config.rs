@@ -1884,6 +1884,11 @@ pub struct WindowEffectsConfig {
   /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
   /// - **macOS**: Only affects Liquid Glass effects.
   pub color: Option<Color>,
+  /// Enables interactive glass behavior, which adds a visual response to user interactions.
+  ///
+  /// **macOS 27.0+**. Only affects Liquid Glass effects.
+  #[serde(default)]
+  pub interactive: bool,
 }
 
 /// Enable prevent overflow with a margin
@@ -3916,6 +3921,7 @@ mod build {
       let state = opt_lit(self.state.as_ref());
       let radius = opt_lit(self.radius.as_ref());
       let color = opt_lit(self.color.as_ref());
+      let interactive = self.interactive;
 
       literal_struct!(
         tokens,
@@ -3923,7 +3929,8 @@ mod build {
         effects,
         state,
         radius,
-        color
+        color,
+        interactive
       )
     }
   }

@@ -816,6 +816,11 @@
               "type": "null"
             }
           ]
+        },
+        "interactive": {
+          "description": "Enables interactive glass behavior, which adds a visual response to user interactions.\n\n **macOS 27.0+**. Only affects Liquid Glass effects.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

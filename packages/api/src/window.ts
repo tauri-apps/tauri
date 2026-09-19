@@ -2366,6 +2366,12 @@ interface Effects {
    * - **macOS**: Only affects Liquid Glass effects.
    */
   color?: Color
+  /**
+   * Enables interactive glass behavior, which adds a visual response to user interactions.
+   *
+   * **macOS 27.0+**. Only affects Liquid Glass effects.
+   */
+  interactive?: boolean
 }
 
 /**

@@ -655,6 +655,10 @@ impl<R: Runtime> AppManager<R> {
     if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
+        self
+          .state
+          .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+          .remove_webview_entries(webview.label());
       }
     }
   }
@@ -662,6 +666,10 @@ impl<R: Runtime> AppManager<R> {
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
+    self
+      .state
+      .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+      .remove_webview_entries(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

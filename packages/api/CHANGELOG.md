@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.12.0]
+
+### New Features
+
+- [`d8d02ba60`](https://www.github.com/tauri-apps/tauri/commit/d8d02ba60c041fb0ab4f5631e8ea21ce7231a95a) ([#14767](https://www.github.com/tauri-apps/tauri/pull/14767)) Added the `exit` function to `@tauri-apps/api/app`, backed by the new `plugin:app|exit` command (`core:app:allow-exit` permission), to exit the app without requiring the `@tauri-apps/plugin-process` plugin.
+- [`990f77eb2`](https://www.github.com/tauri-apps/tauri/commit/990f77eb2f16b431dd5fd8b1059e6112647cca7a) ([#15961](https://www.github.com/tauri-apps/tauri/pull/15961)) Added `JsImage` type alias and documented its relationship to the Rust `JsImage`
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410)) Added `noRedirectionBitmap` option to the `Window` and `WebviewWindow` constructors on Windows.
+- [`6edc2f4d4`](https://www.github.com/tauri-apps/tauri/commit/6edc2f4d49d2477649bf170aa2867276c25573da) ([#14926](https://www.github.com/tauri-apps/tauri/pull/14926)) Added `Window::set_fullscreen_on_monitor`, `WebviewWindow::set_fullscreen_on_monitor` and the `setFullscreenOnMonitor` JavaScript API to make a window fullscreen on the monitor containing a given physical position, along with the `core:window:allow-set-fullscreen-on-monitor` permission.
+
+### Enhancements
+
+- [`be019795a`](https://www.github.com/tauri-apps/tauri/commit/be019795abc0316aa53f2519bfbf3e7624b9af2e) ([#14103](https://www.github.com/tauri-apps/tauri/pull/14103)) Add ECMAScript Explicit Resource Management to Resource. You can now use the `using` syntax in supported browsers or with polyfills:
+    
+    ```javascript
+    import { create, BaseDirectory } from "@tauri-apps/plugin-fs"
+    ...
+    {
+      await using file = await create("foo/bar.txt", { baseDir: BaseDirectory.AppConfig });
+      await file.write(new TextEncoder().encode("Hello world"));
+      // Before `file` goes out of scope, it is disposed by calling `file[Symbol.asyncDispose]()` and awaited.
+    }
+    ```
+
+### Bug Fixes
+
+- [`32efd0232`](https://www.github.com/tauri-apps/tauri/commit/32efd0232d868984ac8de9efebae19e464c7c536) ([#15957](https://www.github.com/tauri-apps/tauri/pull/15957)) `Image.rgba` now returns a more specific type `Promise<Uint8Array<ArrayBuffer>>` instead of the default `Promise<Uint8Array<ArrayBufferLike>`
+
 ## \[2.11.1]
 
 ### Enhancements

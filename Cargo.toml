@@ -34,7 +34,7 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 authors = ["Tauri Programme within The Commons Conservancy"]
@@ -42,7 +42,7 @@ homepage = "https://tauri.app/"
 repository = "https://github.com/tauri-apps/tauri"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
-edition = "2021"
+edition = "2024"
 rust-version = "1.90"
 
 [workspace.dependencies]
@@ -83,3 +83,7 @@ opt-level = "s"
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
+
+[workspace.lints.clippy]
+# TODO: Update in next PR to keep changes small, see https://github.com/tauri-apps/tauri/pull/16029
+collapsible_if = "allow"

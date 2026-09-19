@@ -210,22 +210,22 @@ pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RunEvent,
-    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent, RESTART_EXIT_CODE,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
+    RunEvent, UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
   },
   self::manager::Asset,
   self::runtime::{
+    DeviceEventFilter, UserAttentionType,
     dpi::{
       LogicalPosition, LogicalRect, LogicalSize, LogicalUnit, PhysicalPosition, PhysicalRect,
       PhysicalSize, PhysicalUnit, Pixel, PixelUnit, Position, Rect, Size,
     },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
-    DeviceEventFilter, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
-    config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
+    config::{Config, WebviewUrl},
   },
   self::webview::{Webview, WebviewWindow, WebviewWindowBuilder},
   self::window::{Monitor, Window},
@@ -689,7 +689,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().set(state)
+    self.manager().state.set(state)
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
@@ -717,7 +717,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     T: Send + Sync + 'static,
   {
     // The caller decides to break the safety here, then OK, just let it go.
-    unsafe { self.manager().state().unmanage() }
+    unsafe { self.manager().state.unmanage() }
   }
 
   /// Retrieves the managed state for the type `T`.
@@ -1105,7 +1105,7 @@ pub mod test;
 
 #[cfg(feature = "specta")]
 const _: () = {
-  use specta::{datatype::DataType, function::FunctionArg, TypeMap};
+  use specta::{TypeMap, datatype::DataType, function::FunctionArg};
 
   impl<T: Send + Sync + 'static> FunctionArg for crate::State<'_, T> {
     fn to_datatype(_: &mut TypeMap) -> Option<DataType> {

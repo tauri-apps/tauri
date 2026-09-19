@@ -9,7 +9,7 @@ use std::{ffi::OsStr, str::FromStr};
 
 use crate::{
   embedded_assets::{
-    ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
+    AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult, ensure_out_dir,
   },
   image::CachedIcon,
 };
@@ -20,12 +20,12 @@ use sha2::{Digest, Sha256};
 use syn::Expr;
 use tauri_utils::{
   acl::{
-    get_capabilities, manifest::Manifest, resolved::Resolved, ACL_MANIFESTS_FILE_NAME,
-    CAPABILITIES_FILE_NAME,
+    ACL_MANIFESTS_FILE_NAME, CAPABILITIES_FILE_NAME, get_capabilities, manifest::Manifest,
+    resolved::Resolved,
   },
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
-  html2::{inject_nonce_token, parse_doc, serialize_doc, Document},
+  html2::{Document, inject_nonce_token, parse_doc, serialize_doc},
   platform::Target,
   tokens::{map_lit, str_lit},
 };
@@ -67,7 +67,7 @@ fn inject_script_hashes(document: &Document, key: &AssetKey, csp_hashes: &mut Cs
 
 fn map_core_assets(
   options: &AssetOptions,
-) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> {
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> + use<> {
   let csp = options.csp;
   let dangerous_disable_asset_csp_modification =
     options.dangerous_disable_asset_csp_modification.clone();
@@ -94,7 +94,7 @@ fn map_core_assets(
 fn map_isolation(
   _options: &AssetOptions,
   dir: PathBuf,
-) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> {
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> + use<> {
   // create the csp for the isolation iframe styling now, to make the runtime less complex
   let mut hasher = Sha256::new();
   hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
@@ -376,7 +376,9 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       })?;
 
       if !sets_isolation_hook {
-        panic!("The isolation application does not contain a file setting the `window.__TAURI_ISOLATION_HOOK__` value.");
+        panic!(
+          "The isolation application does not contain a file setting the `window.__TAURI_ISOLATION_HOOK__` value."
+        );
       }
 
       let schema = options.isolation_schema;

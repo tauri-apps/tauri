@@ -3,23 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
+  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
-    InvokeHandler, InvokeResponseBody,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler, InvokeResponseBody,
+    channel::ChannelDataIpcQueue,
   },
-  manager::{webview::UriSchemeProtocol, AppManager, Asset},
+  manager::{AppManager, Asset, webview::UriSchemeProtocol},
   plugin::{Plugin, PluginStore},
   resources::ResourceTable,
   runtime::{
-    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
+    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::{config::Config, Env},
+  utils::{Env, config::Config},
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
-  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]
@@ -27,27 +27,27 @@ use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
-use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
+  RuntimeInitArgs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
-  RuntimeInitArgs,
 };
-use tauri_utils::{assets::AssetsIter, PackageInfo};
+use tauri_utils::{PackageInfo, assets::AssetsIter};
 
 use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic, mpsc::Sender, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, atomic, mpsc::Sender},
   thread::ThreadId,
   time::Duration,
 };
 
-use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
+use crate::{Event, EventTarget, event::EventId, runtime::RuntimeHandle};
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
@@ -1108,6 +1108,15 @@ macro_rules! shared_app_impl {
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
+        // run plugin cleanup hooks first so plugins can still use the app resources (e.g. stop sidecars)
+        // cleanup is best-effort, so a plugin store poisoned by an earlier panic must not abort it
+        self
+          .manager
+          .plugins
+          .lock()
+          .unwrap_or_else(std::sync::PoisonError::into_inner)
+          .cleanup_before_exit(self.app_handle());
+
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
@@ -2345,7 +2354,7 @@ tauri::Builder::default()
       msg_hook: {
         let menus = manager.menu.menus.clone();
         Some(Box::new(move |msg| {
-          use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
+          use windows::Win32::UI::WindowsAndMessaging::{HACCEL, MSG, TranslateAcceleratorW};
           unsafe {
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {
@@ -2372,7 +2381,8 @@ tauri::Builder::default()
           .ok()
           .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         {
-          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path));
+          // SAFETY: Always safe on Windows
+          unsafe { std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path)) };
         } else {
           #[cfg(debug_assertions)]
           eprintln!(

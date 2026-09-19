@@ -122,6 +122,9 @@ pub enum Error {
   /// Path does not have a basename.
   #[error("path does not have a basename")]
   NoBasename,
+  /// Path is not valid UTF-8 and cannot be represented in a URL.
+  #[error("path is not valid UTF-8: {}", .0.display())]
+  NonUtf8Path(std::path::PathBuf),
   /// Cannot resolve current directory.
   #[error("failed to read current dir: {0}")]
   CurrentDir(std::io::Error),

@@ -3,7 +3,6 @@ name = "tauri-runtime"
 version = "2.11.3"
 description = "Runtime for Tauri applications"
 exclude = ["CHANGELOG.md", "/target"]
-readme = "README.md"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -36,11 +35,11 @@ dpi = { version = "0.1", features = ["serde"] }
 cookie = "0.18"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.61"
+version = "0.62"
 features = ["Win32_Foundation", "Win32_System_WinRT"]
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.38"
+webview2-com = "0.39"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
@@ -70,3 +69,6 @@ objc2-web-kit = { version = "0.3.2", default-features = false, features = [
 [features]
 devtools = []
 macos-private-api = []
+
+[lints]
+workspace = true

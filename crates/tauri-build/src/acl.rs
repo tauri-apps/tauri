@@ -11,10 +11,10 @@ use std::{
 use anyhow::{Context, Result};
 use tauri_utils::{
   acl::{
+    ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME,
     capability::Capability,
     manifest::{Manifest, PermissionFile},
     schema::CAPABILITIES_SCHEMA_FOLDER_PATH,
-    ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME,
   },
   platform::Target,
   write_if_changed,

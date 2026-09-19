@@ -6,11 +6,8 @@
 
 use crate::utils::config::WindowEffectsConfig;
 use crate::window::{Effect, EffectState};
-use objc2_app_kit::NSAppKitVersionNumber;
 use raw_window_handle::HasWindowHandle;
-use window_vibrancy::{
-  clear_liquid_glass, NSGlassEffectViewStyle, NSVisualEffectMaterial, NSVisualEffectState,
-};
+use window_vibrancy::{NSGlassEffectViewStyle, NSVisualEffectMaterial, NSVisualEffectState};
 
 pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig) {
   let WindowEffectsConfig {
@@ -20,22 +17,30 @@ pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig)
     color,
   } = effects;
 
-  if unsafe { NSAppKitVersionNumber } >= 2685.0 {
-    if let Some(effect) = effects
-      .iter()
-      .find(|e| matches!(e, Effect::LiquidGlassRegular | Effect::LiquidGlassClear))
-    {
-      window_vibrancy::apply_liquid_glass(
-        window,
-        match effect {
-          Effect::LiquidGlassRegular => NSGlassEffectViewStyle::Regular,
-          Effect::LiquidGlassClear => NSGlassEffectViewStyle::Clear,
-          _ => unreachable!(),
-        },
-        color.map(|c| (c.0, c.1, c.2, c.3)),
-        radius,
-      );
-      return;
+  // window-vibrancy inserts a new subview on every call, so drop the previous effect first
+  clear_effects(&window);
+
+  if let Some(effect) = effects
+    .iter()
+    .find(|e| matches!(e, Effect::LiquidGlassRegular | Effect::LiquidGlassClear))
+  {
+    match window_vibrancy::apply_liquid_glass(
+      &window,
+      match effect {
+        Effect::LiquidGlassRegular => NSGlassEffectViewStyle::Regular,
+        Effect::LiquidGlassClear => NSGlassEffectViewStyle::Clear,
+        _ => unreachable!(),
+      },
+      color.map(Into::into),
+      radius,
+    ) {
+      Ok(()) => return,
+      // macOS 15 and below: fall back to the Visual Effect material, if any
+      Err(window_vibrancy::Error::UnsupportedPlatformVersion(_)) => {}
+      Err(e) => {
+        log::error!("failed to apply liquid glass effect: {e}");
+        return;
+      }
     }
   }
 
@@ -102,5 +107,6 @@ pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig)
 }
 
 pub fn clear_effects(window: impl HasWindowHandle) {
-  let _ = clear_liquid_glass(&window);
+  let _ = window_vibrancy::clear_vibrancy(&window);
+  let _ = window_vibrancy::clear_liquid_glass(&window);
 }

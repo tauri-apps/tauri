@@ -788,7 +788,7 @@
           }
         },
         "state": {
-          "description": "Window effect state **macOS Only**",
+          "description": "Window effect state **macOS Only**. Ignored for Liquid Glass Effects.",
           "anyOf": [
             {
               "$ref": "#/definitions/WindowEffectState"
@@ -962,14 +962,14 @@
           ]
         },
         {
-          "description": "*macOS 26.0+**",
+          "description": "**macOS 26.0+**",
           "type": "string",
           "enum": [
             "liquidGlassRegular"
           ]
         },
         {
-          "description": "*macOS 26.0+**",
+          "description": "**macOS 26.0+**",
           "type": "string",
           "enum": [
             "liquidGlassClear"

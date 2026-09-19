@@ -1872,7 +1872,7 @@ pub struct WindowEffectsConfig {
   /// on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time
   /// to make Tauri fallback to the latter on macOS 15 and below.
   pub effects: Vec<WindowEffect>,
-  /// Window effect state **macOS Only**
+  /// Window effect state **macOS Only**. Ignored for Liquid Glass Effects.
   pub state: Option<WindowEffectState>,
   /// Window effect corner radius **macOS Only**
   pub radius: Option<f64>,

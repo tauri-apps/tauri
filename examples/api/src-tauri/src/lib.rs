@@ -90,7 +90,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
-          .transparent(true)
           .menu(tauri::menu::Menu::default(app.handle())?)
           .on_new_window(move |url, features| {
             println!("new window requested: {url:?} {features:?}");
@@ -111,6 +110,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
             let window = builder.build().unwrap();
             tauri::webview::NewWindowResponse::Create { window }
           });
+
+        // Liquid Glass effects need a transparent window to show through
+        #[cfg(target_os = "macos")]
+        {
+          window_builder = window_builder.transparent(true);
+        }
       }
 
       let _webview = window_builder.build()?;

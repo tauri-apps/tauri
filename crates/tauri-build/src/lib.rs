@@ -275,9 +275,9 @@ impl WindowsAttributes {
   /// Creates the default attribute set.
   pub fn new() -> Self {
     Self {
-      window_icon_path: Default::default(),
       static_vc_runtime: None,
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
+      window_icon_path: None,
       append_rc_content: Vec::new(),
     }
   }
@@ -287,14 +287,16 @@ impl WindowsAttributes {
   pub fn new_without_app_manifest() -> Self {
     Self {
       app_manifest: None,
-      window_icon_path: Default::default(),
+      window_icon_path: None,
       static_vc_runtime: None,
       append_rc_content: Vec::new(),
     }
   }
 
-  /// Sets the icon to use on the window. Currently only used on Windows.
-  /// It must be in `ico` format. Defaults to `icons/icon.ico`.
+  /// Sets the icon to use as the application icon and default window icon.
+  /// It must be in `ico` format.
+  ///
+  /// If not set, we will search for a `.ico` from the `bundle > icon` in your tauri config file, then `icons/icon.ico`.
   #[must_use]
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
     self
@@ -658,14 +660,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       .windows_attributes
       .window_icon_path
       .unwrap_or_else(|| {
-        config
-          .bundle
-          .icon
-          .iter()
-          .find(|i| i.ends_with(".ico"))
-          .map(AsRef::as_ref)
-          .unwrap_or("icons/icon.ico")
-          .into()
+        // icon paths in the config are relative to the config file
+        config_root.join(
+          config
+            .bundle
+            .icon
+            .iter()
+            .find(|i| i.ends_with(".ico"))
+            .map(AsRef::as_ref)
+            .unwrap_or("icons/icon.ico"),
+        )
       });
 
     let mut res = WindowsResource::new();
@@ -715,7 +719,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
 
     if window_icon_path.exists() {
-      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
+      res.set_icon_with_id(
+        &window_icon_path.display().to_string(),
+        &tauri_utils::platform::WINDOWS_APP_ICON_RESOURCE_ID.to_string(),
+      );
     } else {
       return Err(anyhow!(format!(
         "`{}` not found; required for generating a Windows Resource file during tauri-build",

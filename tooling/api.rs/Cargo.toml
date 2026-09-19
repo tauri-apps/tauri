@@ -1,0 +1,16 @@
+[package]
+name = "tauri_bench"
+version = "0.1.0"
+authors = [ "Tauri Programme within The Commons Conservancy" ]
+edition = "2018"
+license = "Apache-2.0 OR MIT"
+description = "Cross-platform WebView rendering library"
+repository = "https://github.com/tauri-apps/tauri"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+js-sys = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+wasm-bindgen-futures = "0.4"

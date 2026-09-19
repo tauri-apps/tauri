@@ -18,8 +18,10 @@
   ${EndIf}
 !macroend
 
+!define /ifndef ERROR_MORE_DATA 234
+
 ; Checks whether app is running or not and prompts to kill it.
-!macro CheckIfAppIsRunning executableName productName
+!macro CheckIfAppIsRunning executablePath productName
   !define UniqueID ${__LINE__}
 
   ; Replace {{product_name}} placeholder in the messages with the passed product name
@@ -30,44 +32,46 @@
   nsis_tauri_utils::StrReplace "$(failedToKillApp)" "{{product_name}}" "${productName}"
   Pop $R3
 
-  !if "${INSTALLMODE}" == "currentUser"
-    nsis_tauri_utils::FindProcessCurrentUser "${executableName}"
-  !else
-    nsis_tauri_utils::FindProcess "${executableName}"
-  !endif
-  Pop $R0
-  ${If} $R0 = 0
-      IfSilent kill_${UniqueID} 0
-      ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL $R2 IDOK kill_${UniqueID} IDCANCEL cancel_${UniqueID} ${|}
-      kill_${UniqueID}:
-        !if "${INSTALLMODE}" == "currentUser"
-          nsis_tauri_utils::KillProcessCurrentUser "${executableName}"
-        !else
-          nsis_tauri_utils::KillProcess "${executableName}"
-        !endif
-        Pop $R0
-        Sleep 500
-        ${If} $R0 = 0
-        ${OrIf} $R0 = 2
-          Goto app_check_done_${UniqueID}
-        ${Else}
-          IfSilent silent_${UniqueID} ui_${UniqueID}
-          silent_${UniqueID}:
-            System::Call 'kernel32::AttachConsole(i -1)i.r0'
-            ${If} $0 != 0
-              System::Call 'kernel32::GetStdHandle(i -11)i.r0'
-              System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-              FileWrite $0 "$R1$\n"
-            ${EndIf}
-            Abort
-          ui_${UniqueID}:
-            Abort $R3
-        ${EndIf}
-      cancel_${UniqueID}:
-        Abort $R1
+  !insertmacro RestartManager_StartSession $R0
+  ${If} $R0 != ""
+    !insertmacro RestartManager_RegisterFile $R0 "${executablePath}"
+    ${If} $0 = 0
+      System::Call 'RSTRTMGR::RmGetList(p R0, *i .r1, *i .r2, p 0, *i .r3) i .r0'
+      ; ERROR_SUCCESS means no running processes, ERROR_MORE_DATA means there're some
+      ${If} $0 = ${ERROR_MORE_DATA}
+        IfSilent kill_${UniqueID} 0
+        ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL $R2 IDOK kill_${UniqueID} IDCANCEL cancel_${UniqueID} ${|}
+        kill_${UniqueID}:
+          ; Call manually here to get the result
+          ; !insertmacro RestartManager_Shutdown $R0
+          System::Call 'RSTRTMGR::RmShutdown(p R0, i ${RmForceShutdown}, p 0) i .r0'
+          ${If} $0 = 0
+            Goto app_check_done_${UniqueID}
+          ${Else}
+            IfSilent silent_${UniqueID} ui_${UniqueID}
+            silent_${UniqueID}:
+              System::Call 'kernel32::AttachConsole(i -1)i.r0'
+              ${If} $0 != 0
+                System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+                System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
+                FileWrite $0 "$R1$\n"
+              ${EndIf}
+              !insertmacro RestartManager_EndSession $R0
+              Abort
+            ui_${UniqueID}:
+              !insertmacro RestartManager_EndSession $R0
+              Abort $R3
+          ${EndIf}
+        cancel_${UniqueID}:
+          !insertmacro RestartManager_EndSession $R0
+          Abort $R1
+        app_check_done_${UniqueID}:
+      ${EndIf}
+    ${EndIf}
+    !insertmacro RestartManager_EndSession $R0
   ${EndIf}
-  app_check_done_${UniqueID}:
-    !undef UniqueID
+
+  !undef UniqueID
 !macroend
 
 ; Sets AppUserModelId on a shortcut

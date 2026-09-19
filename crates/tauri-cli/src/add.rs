@@ -7,14 +7,13 @@ use colored::Colorize;
 use regex::Regex;
 
 use crate::{
-  acl,
+  Result, acl,
   error::ErrorExt,
   helpers::{
-    app_paths::{resolve_frontend_dir, Dirs},
+    app_paths::{Dirs, resolve_frontend_dir},
     cargo,
     npm::PackageManager,
   },
-  Result,
 };
 
 use std::process::Command;
@@ -116,7 +115,7 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
         (None, None, None, None) => npm_name,
         _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
-      manager.install(&[npm_spec], dirs.tauri)?;
+      manager.install(&[npm_spec], dirs.frontend)?;
     }
 
     let _ = acl::permission::add::command(acl::permission::add::Options {

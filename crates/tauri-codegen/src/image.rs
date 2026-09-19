@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  embedded_assets::{EmbeddedAssetsError, EmbeddedAssetsResult},
   Cached,
+  embedded_assets::{EmbeddedAssetsError, EmbeddedAssetsResult},
 };
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use std::{ffi::OsStr, io::Cursor, path::Path};
 
 /// The format the Icon is consumed as.
@@ -83,7 +83,7 @@ impl CachedIcon {
       panic!("icon {} is not RGBA", icon.display());
     }
 
-    let mut rgba = Vec::with_capacity(reader.output_buffer_size());
+    let mut rgba = Vec::with_capacity(reader.output_buffer_size().unwrap());
     while let Ok(Some(row)) = reader.next_row() {
       rgba.extend(row.data());
     }

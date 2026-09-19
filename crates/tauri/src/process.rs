@@ -72,7 +72,7 @@ pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
 ///   });
 /// ```
 pub fn restart(env: &Env) -> ! {
-  use std::process::{exit, Command};
+  use std::process::{Command, exit};
 
   if let Ok(path) = current_binary(env) {
     // on macOS on updates the binary name might have changed
@@ -90,7 +90,7 @@ pub fn restart(env: &Env) -> ! {
 
 #[cfg(target_os = "macos")]
 fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
-  use std::process::{exit, Command};
+  use std::process::{Command, exit};
 
   if let Some(macos_directory) = current_binary.parent() {
     if macos_directory.components().next_back()

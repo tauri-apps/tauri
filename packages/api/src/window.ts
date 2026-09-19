@@ -37,7 +37,7 @@ import {
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
 import type { DragDropEvent } from './webview'
-import { Image, transformImage } from './image'
+import { type JsImage, transformImage } from './image'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -1448,7 +1448,32 @@ class Window {
   }
 
   /**
-   * On macOS, Toggles a fullscreen mode that doesn't require a new macOS space. Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
+   * Sets the window as fullscreen on the monitor that contains the given physical position.
+   *
+   * Does nothing if no monitor contains the position.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow, availableMonitors } from '@tauri-apps/api/window';
+   * const monitors = await availableMonitors();
+   * if (monitors.length > 1) {
+   *   await getCurrentWindow().setFullscreenOnMonitor(monitors[1].position);
+   * }
+   * ```
+   *
+   * @param position A physical position inside the target monitor, such as {@linkcode Monitor.position}.
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.12.0
+   */
+  async setFullscreenOnMonitor(position: PhysicalPosition): Promise<void> {
+    return invoke('plugin:window|set_fullscreen_on_monitor', {
+      label: this.label,
+      value: position
+    })
+  }
+
+  /**
+   * On macOS, Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
    * This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
    *
    * On other platforms, this is the same as {@link Window.setFullscreen}.
@@ -1521,9 +1546,7 @@ class Window {
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[]
-  ): Promise<void> {
+  async setIcon(icon: JsImage): Promise<void> {
     return invoke('plugin:window|set_icon', {
       label: this.label,
       value: transformImage(icon)
@@ -1772,9 +1795,7 @@ class Window {
    * @param icon Icon bytes or path to the icon file. Use `undefined` to remove the overlay icon.
    * @return A promise indicating the success or failure of the operation.
    */
-  async setOverlayIcon(
-    icon?: string | Image | Uint8Array | ArrayBuffer | number[]
-  ): Promise<void> {
+  async setOverlayIcon(icon?: JsImage): Promise<void> {
     return invoke('plugin:window|set_overlay_icon', {
       label: this.label,
       value: icon ? transformImage(icon) : undefined
@@ -2363,9 +2384,13 @@ interface PreventOverflowMargin {
 interface WindowOptions {
   /** Show window in the center of the screen.. */
   center?: boolean
-  /** The initial vertical position in logical pixels. Only applies if `y` is also set. */
+  /**
+   * The initial vertical position in logical pixels. Only applies if `y` is also set.
+   */
   x?: number
-  /** The initial horizontal position in logical pixels. Only applies if `x` is also set. */
+  /**
+   * The initial horizontal position in logical pixels. Only applies if `x` is also set.
+   */
   y?: number
   /** The initial width in logical pixels. */
   width?: number

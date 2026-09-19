@@ -4,8 +4,8 @@
 
 use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
 use crate::{
-  error::{Context, ErrorExt},
   CommandExt, Error,
+  error::{Context, ErrorExt},
 };
 
 use shared_child::SharedChild;
@@ -15,8 +15,8 @@ use std::{
   path::{Path, PathBuf},
   process::{Command, ExitStatus, Stdio},
   sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
   },
 };
 use tauri_utils::platform::Target as TargetPlatform;
@@ -28,6 +28,42 @@ pub struct DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
+    let pid = self.dev_child.id();
+
+    #[cfg(windows)]
+    {
+      // `/T` terminates the whole process tree, `/F` forces it
+      let pid = pid.to_string();
+      let _ = Command::new("taskkill")
+        .args(["/T", "/F", "/PID", pid.as_str()])
+        .status();
+    }
+
+    #[cfg(not(windows))]
+    {
+      // collect the whole tree first, then kill the root before its descendants
+      // so it cannot respawn them in the meantime
+      const KILL_TREE: &str = r#"
+descendants() {
+  for child in $(pgrep -P "$1" 2>/dev/null); do
+    echo "$child"
+    descendants "$child"
+  done
+}
+tree=$(descendants "$1")
+kill -9 "$1" 2>/dev/null
+for p in $tree; do
+  kill -9 "$p" 2>/dev/null
+done
+true
+"#;
+
+      let pid = pid.to_string();
+      let _ = Command::new("sh")
+        .args(["-c", KILL_TREE, "sh", pid.as_str()])
+        .status();
+    }
+
     self.dev_child.kill()?;
     self.manually_killed_app.store(true, Ordering::SeqCst);
     Ok(())
@@ -79,7 +115,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
 
-  log::info!(action = "Running"; "DevCommand (`{} {}`)", &dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+  log::info!(action = "Running"; "DevCommand (`{} {}`)", dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
   let dev_child = match SharedChild::spawn(&mut dev_cmd) {
     Ok(c) => Ok(c),
@@ -301,14 +337,22 @@ fn validate_target(
     if let Some(target) = available_targets.iter().find(|t| t.name == target) {
       if !target.installed {
         crate::error::bail!(
-            "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
-            target = target.name,
-            installed = available_targets.iter().filter(|t| t.installed).map(|t| t.name.as_str()).collect::<Vec<&str>>().join(", ")
-          );
+          "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
+          target = target.name,
+          installed = available_targets
+            .iter()
+            .filter(|t| t.installed)
+            .map(|t| t.name.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ")
+        );
       }
     }
     if !available_targets.iter().any(|t| t.name == target) {
-      crate::error::bail!("Target {target} does not exist. Please run `rustup target list` to see the available targets.", target = target);
+      crate::error::bail!(
+        "Target {target} does not exist. Please run `rustup target list` to see the available targets.",
+        target = target
+      );
     }
   }
   Ok(())
@@ -362,14 +406,14 @@ mod terminal {
   use std::{cmp, mem, ptr};
 
   use windows_sys::{
-    core::PCSTR,
     Win32::{
       Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE},
       Storage::FileSystem::{CreateFileA, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
       System::Console::{
-        GetConsoleScreenBufferInfo, GetStdHandle, CONSOLE_SCREEN_BUFFER_INFO, STD_ERROR_HANDLE,
+        CONSOLE_SCREEN_BUFFER_INFO, GetConsoleScreenBufferInfo, GetStdHandle, STD_ERROR_HANDLE,
       },
     },
+    core::PCSTR,
   };
 
   pub fn stderr_width() -> Option<usize> {

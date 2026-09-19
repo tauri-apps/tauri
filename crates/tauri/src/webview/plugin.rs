@@ -5,11 +5,10 @@
 //! The tauri plugin to create and manipulate windows from JS.
 
 use crate::{
-  command,
+  AppHandle, Runtime, WebviewWindowBuilder, command,
   plugin::{Builder, TauriPlugin},
   sealed::ManagerBase,
   utils::config::WindowConfig,
-  AppHandle, Runtime, WebviewWindowBuilder,
 };
 
 #[derive(serde::Serialize)]
@@ -44,10 +43,9 @@ async fn create_webview_window<R: Runtime>(
 mod desktop_commands {
   use super::*;
   use crate::{
-    command,
+    Webview, command,
     runtime::dpi::{Position, Size},
     utils::config::Color,
-    Webview,
   };
 
   fn get_webview<R: Runtime>(
@@ -205,7 +203,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
-    use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+    use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 
     #[derive(Template)]
     #[default_template("./scripts/toggle-devtools.js")]

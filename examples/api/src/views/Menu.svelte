@@ -1,86 +1,126 @@
-<script>
+<script lang="ts">
   import { Menu, Submenu, NativeIcon } from '@tauri-apps/api/menu'
-  import MenuBuilder from '../components/MenuBuilder.svelte'
-  import { defaultWindowIcon } from '@tauri-apps/api/app';
+  import MenuBuilder, {
+    reorderMenuItems,
+    type Item,
+    type MenuItemClickDetail,
+    type MenuItems
+  } from '../components/MenuBuilder.svelte'
+  import { defaultWindowIcon } from '@tauri-apps/api/app'
+  import type { ViewProps } from '../App.svelte'
+  import { onDestroy } from 'svelte'
+  import type { Image } from '@tauri-apps/api/image'
 
-  let { onMessage } = $props()
-  let items = $state([])
-  let menu = null
-  let submenu = null
-  let menuItemCount = 0
+  let { onMessage }: ViewProps = $props()
+  let items = $state<Item[]>([])
+
+  let menu: Menu | undefined
+  let popupMenu: Menu | undefined
+  let submenu: Submenu | undefined
 
   const macOS = navigator.userAgent.includes('Macintosh')
 
-  async function createSubmenu() {
-    submenu = await Submenu.new({
+  async function createSubmenu(): Promise<Submenu> {
+    return await Submenu.new({
       text: 'app',
-      items: items.map((i) => i.item)
+      items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
   }
 
-  async function createSubmenuWithNativeIcon() {
-    submenu = await Submenu.new({
+  async function createSubmenuWithNativeIcon(): Promise<Submenu> {
+    return await Submenu.new({
       text: 'Submenu with NativeIcon',
       icon: NativeIcon.Folder,
-      items: items.map((i) => i.item)
+      items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
   }
 
-  async function createSubmenuWithImageIcon() {
-    submenu = await Submenu.new({
-      text: 'Submenu with Image',
-      icon: await defaultWindowIcon(),
-      items: items.map((i) => i.item)
-    });
+  async function createSubmenuWithImageIcon(): Promise<Submenu> {
+    let icon: Image | undefined
+    try {
+      icon = (await defaultWindowIcon())!
+      return await Submenu.new({
+        text: 'Submenu with Image',
+        icon,
+        items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
+      })
+    } finally {
+      icon?.close()
+    }
+  }
+
+  async function setMenu(newSubmenu: Submenu) {
+    menu?.close()
+    menu = undefined
+    submenu?.close()
+    submenu = newSubmenu
+
+    menu = await Menu.new({
+      items: [submenu]
+    })
+    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
   }
 
   async function create() {
-    await createSubmenu()
-    menuItemCount = items.length
-    menu = await Menu.new({
-      items: [submenu]
-    })
-    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
+    await setMenu(await createSubmenu())
   }
 
   async function createWithNativeIcon() {
-    await createSubmenuWithNativeIcon()
-    menuItemCount = items.length
-    menu = await Menu.new({
-      items: [submenu]
-    })
-    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
+    await setMenu(await createSubmenuWithNativeIcon())
   }
 
   async function createWithImageIcon() {
-    await createSubmenuWithImageIcon()
-    menuItemCount = items.length
-    menu = await Menu.new({
-      items: [submenu]
-    })
-    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
+    await setMenu(await createSubmenuWithImageIcon())
   }
 
   async function popup() {
-    if (!submenu || menuItemCount !== items.length) {
-      await createSubmenu()
-    }
-    // we can't popup the same menu because it's the app menu (it crashes on macOS)
-    const m = await Menu.new({ items: [submenu] })
-    m.popup()
+    popupMenu?.close()
+    popupMenu = undefined
+    popupMenu = await Menu.new({
+      items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
+    })
+    await popupMenu.popup()
   }
 
-  function onItemClick(detail) {
+  function onItemClick(detail: MenuItemClickDetail) {
     onMessage(`Item ${detail.text} clicked`)
   }
+
+  onDestroy(() => {
+    menu?.close()
+    submenu?.close()
+    popupMenu?.close()
+  })
 </script>
 
-<div class="grid gap-4">
-  <MenuBuilder bind:items itemClick={onItemClick} />
-  <div>
+<div class="grid gap-8 mb-4">
+  <MenuBuilder
+    bind:items
+    itemClick={onItemClick}
+    onItemAdded={async (item) => {
+      if (item.menu) {
+        await submenu?.append(item.menu)
+      }
+    }}
+    onItemRemoved={async (item) => {
+      if (item.menu) {
+        await submenu?.remove(item.menu)
+      }
+    }}
+    onItemMoved={(item, toIndex) => {
+      if (submenu) {
+        reorderMenuItems(submenu, item, toIndex)
+      }
+    }}
+  />
+  <div class="flex gap-2">
     <button class="btn" onclick={create}>Create menu</button>
+    <button class="btn" onclick={createWithNativeIcon}
+      >Create menu with NativeIcon</button
+    >
+    <button class="btn" onclick={createWithImageIcon}
+      >Create menu with Image icon</button
+    >
     <button class="btn" onclick={popup}>Popup</button>
-    <button class="btn" onclick={createWithNativeIcon}>Create menu with NativeIcon</button>
-    <button class="btn" onclick={createWithImageIcon}>Create menu with Image icon</button>
   </div>
 </div>

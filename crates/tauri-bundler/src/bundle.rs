@@ -16,6 +16,7 @@ mod windows;
 
 use crate::error::ErrorExt;
 use anyhow::Context;
+use bytesize::ByteSize;
 use std::{
   fmt::Write,
   io::{Seek, SeekFrom},
@@ -48,7 +49,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Linux".to_owned(),
-      ))
+      ));
     }
   };
   #[cfg(target_os = "windows")]
@@ -59,7 +60,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Windows".to_owned(),
-      ))
+      ));
     }
   };
   #[cfg(target_os = "macos")]
@@ -74,7 +75,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "macOS".to_owned(),
-      ))
+      ));
     }
   };
 
@@ -117,7 +118,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let target_os = settings.target_platform();
 
   if *target_os != TargetPlatform::current() {
-    log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+    log::warn!(
+      "Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility."
+    );
   }
 
   // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
@@ -146,8 +149,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    if let Err(e) = patch_binary(&main_binary_path, package_type) {
-      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+    if settings.binary_patching() {
+      if let Err(e) = patch_binary(&main_binary_path, package_type) {
+        log::warn!(
+          "Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues"
+        );
+      }
+    } else {
+      log::warn!(
+        "Skipping binary patching for {} due to --no-binary-patching flag.",
+        main_binary_path.display()
+      );
     }
 
     // sign main binary for every package type after patch
@@ -233,10 +245,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         )
       })
     {
-      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
+      log::warn!(
+        "The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis"
+      );
     }
     if updater.v1_compatible {
-      log::warn!("Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin");
+      log::warn!(
+        "Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin"
+      );
     }
   }
 
@@ -290,13 +306,30 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         ""
       };
       let path_display = display_path(path);
-      writeln!(printable_paths, "        {path_display}{note}").unwrap();
+      let size = bundle_size(path)
+        .map(|bytes| format!(" ({:.2})", ByteSize::b(bytes).display()))
+        .unwrap_or_default();
+      writeln!(printable_paths, "        {path_display}{note}{size}").unwrap();
     }
   }
 
   log::info!(action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
 
   Ok(bundles)
+}
+
+/// Total size in bytes of a bundle path, recursing into directories (e.g. macOS `.app`).
+fn bundle_size(path: &std::path::Path) -> crate::Result<u64> {
+  let metadata = std::fs::symlink_metadata(path)?;
+  if metadata.is_dir() {
+    let mut total = 0;
+    for entry in walkdir::WalkDir::new(path) {
+      total += entry?.metadata()?.len();
+    }
+    Ok(total)
+  } else {
+    Ok(metadata.len())
+  }
 }
 
 fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> crate::Result<()> {
@@ -337,7 +370,9 @@ fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> c
       }
     } else {
       #[cfg(not(target_os = "windows"))]
-      log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+      log::warn!(
+        "Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer..."
+      );
     }
   }
 

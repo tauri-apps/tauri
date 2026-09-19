@@ -13,14 +13,14 @@ use tauri_utils::acl::capability::CapabilityFile;
 #[cfg(any(feature = "dynamic-acl", debug_assertions))]
 use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::{
+  APP_ACL_KEY, ExecutionContext, Value,
   resolved::{Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
-  ExecutionContext, Value, APP_ACL_KEY,
 };
 
 use url::Url;
 
-use crate::{ipc::InvokeError, sealed::ManagerBase, Runtime};
 use crate::{AppHandle, Manager, StateManager, Webview};
+use crate::{Runtime, ipc::InvokeError, sealed::ManagerBase};
 
 use super::{CommandArg, CommandItem};
 
@@ -353,10 +353,11 @@ impl RuntimeAuthority {
         {
           "allowed".to_string()
         } else {
-          format!("{command_pretty_name} not allowed on window \"{window}\", webview \"{webview}\", URL: {}\n\n{}\n\nreferenced by: {}",
+          format!(
+            "{command_pretty_name} not allowed on window \"{window}\", webview \"{webview}\", URL: {}\n\n{}\n\nreferenced by: {}",
             match origin {
               Origin::Local => "local",
-              Origin::Remote { url } => url.as_str()
+              Origin::Remote { url } => url.as_str(),
             },
             print_allowed_on(resolved),
             print_references(resolved)
@@ -421,8 +422,7 @@ impl RuntimeAuthority {
                 };
                 format!(
                   "- context: {context}, referenced by: capability: {}, permission: {}",
-                  resolved.referenced_by.capability,
-                  resolved.referenced_by.permission
+                  resolved.referenced_by.capability, resolved.referenced_by.permission
                 )
               })
               .collect::<Vec<_>>()
@@ -609,13 +609,11 @@ impl<T: ScopeObjectMatch> CommandScope<T> {
 impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
-    let scope_ids = command.acl.as_ref().map(|resolved| {
-      resolved
+    if let Some(resolved) = &command.acl {
+      let scope_ids = resolved
         .iter()
         .filter_map(|cmd| cmd.scope_id)
-        .collect::<Vec<_>>()
-    });
-    if let Some(scope_ids) = scope_ids {
+        .collect::<Vec<_>>();
       CommandScope::resolve(&command.message.webview, scope_ids).map_err(Into::into)
     } else {
       Ok(CommandScope {
@@ -818,8 +816,8 @@ impl ScopeManager {
 mod tests {
   use glob::Pattern;
   use tauri_utils::acl::{
-    resolved::{Resolved, ResolvedCommand},
     ExecutionContext,
+    resolved::{Resolved, ResolvedCommand},
   };
 
   use crate::ipc::Origin;
@@ -991,16 +989,18 @@ mod tests {
       },
     );
 
-    assert!(authority
-      .resolve_access(
-        command,
-        window,
-        webview,
-        &Origin::Remote {
-          url: "https://tauri.app".parse().unwrap()
-        }
-      )
-      .is_none());
+    assert!(
+      authority
+        .resolve_access(
+          command,
+          window,
+          webview,
+          &Origin::Remote {
+            url: "https://tauri.app".parse().unwrap()
+          }
+        )
+        .is_none()
+    );
   }
 
   #[test]
@@ -1037,9 +1037,11 @@ mod tests {
       },
     );
 
-    assert!(authority
-      .resolve_access(command, window, webview, &Origin::Local)
-      .is_none());
+    assert!(
+      authority
+        .resolve_access(command, window, webview, &Origin::Local)
+        .is_none()
+    );
   }
 
   #[cfg(debug_assertions)]

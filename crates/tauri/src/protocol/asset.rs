@@ -12,18 +12,43 @@ use tauri_utils::mime_type::MimeType;
 
 pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
   Box::new(
-    move |_, request, responder| match get_response(request, &scope, &window_origin) {
-      Ok(response) => responder.respond(response),
-      Err(e) => responder.respond(
-        http::Response::builder()
-          .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-          .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-          .header("Access-Control-Allow-Origin", &window_origin)
-          .body(e.to_string().into_bytes())
-          .unwrap(),
-      ),
+    move |_, request, responder| {
+      // Dynamically determine the CORS origin from the request's Origin header
+      // to support windows without a URL. Fall back to window_origin if not present.
+      let cors_origin = get_cors_origin(&request, &window_origin);
+      match get_response(request, &scope, &cors_origin) {
+        Ok(response) => responder.respond(response),
+        Err(e) => responder.respond(
+          http::Response::builder()
+            .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+            .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+            .header("Access-Control-Allow-Origin", &cors_origin)
+            .body(e.to_string().into_bytes())
+            .unwrap(),
+        ),
+      }
     },
   )
+}
+
+/// Determines the appropriate CORS origin for the response.
+/// Uses the request's Origin header if present, otherwise falls back to the window_origin.
+/// If both are empty, returns "*" to allow all origins (for windows without URL).
+fn get_cors_origin(request: &Request<Vec<u8>>, window_origin: &str) -> String {
+  // First, try to get the Origin header from the request
+  if let Some(origin) = request.headers().get(ORIGIN).and_then(|h| h.to_str().ok()) {
+    if !origin.is_empty() {
+      return origin.to_string();
+    }
+  }
+  
+  // Fall back to window_origin if it's not empty
+  if !window_origin.is_empty() {
+    return window_origin.to_string();
+  }
+  
+  // Last resort: allow all origins (for windows without URL)
+  "*".to_string()
 }
 
 fn get_response(

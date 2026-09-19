@@ -131,7 +131,7 @@ pub fn generate_desktop_file(
     icon: &'a str,
     name: &'a str,
     mime_type: Option<String>,
-    exec_arg: &'a str,
+    exec_arg: Option<&'a str>,
     long_description: String,
   }
 
@@ -145,34 +145,21 @@ pub fn generate_desktop_file(
     );
   }
 
-  let has_deep_link_schemes = settings
+  let schemes: Vec<String> = settings
     .deep_link_protocols()
-    .is_some_and(|protocols| protocols.iter().any(|protocol| !protocol.schemes.is_empty()));
+    .into_iter()
+    .flatten()
+    .flat_map(|protocol| &protocol.schemes)
+    .map(|s| format!("x-scheme-handler/{s}"))
+    .collect();
 
-  if let Some(protocols) = settings.deep_link_protocols() {
-    mime_type.extend(
-      protocols
-        .iter()
-        .flat_map(|protocol| &protocol.schemes)
-        .map(|s| format!("x-scheme-handler/{s}")),
-    );
-  }
+  // Launchers fall back to `%f` when Exec has no field code, which passes
+  // local files but drops URLs without a local path, such as deep links.
+  let exec_arg = (!schemes.is_empty()).then_some("%u");
+
+  mime_type.extend(schemes);
 
   let mime_type = (!mime_type.is_empty()).then_some(mime_type.join(";"));
-
-  // A desktop entry that declares MimeType associations must carry an Exec
-  // field code, otherwise the launcher drops the URL or file paths the entry
-  // was asked to open (Desktop Entry specification, "The Exec key"). Deep
-  // links arrive as a single URL (%u); file associations receive file paths
-  // (%F). Without this, x-scheme-handler activation launches the app with no
-  // arguments and the deep link is silently lost.
-  let exec_arg = if has_deep_link_schemes {
-    "%u"
-  } else if mime_type.is_some() {
-    "%F"
-  } else {
-    ""
-  };
 
   let bin_name_exec = if bin_name.contains(' ') {
     format!("\"{bin_name}\"")

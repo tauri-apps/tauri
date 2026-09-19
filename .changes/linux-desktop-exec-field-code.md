@@ -2,4 +2,4 @@
 "tauri-bundler": "patch:bug"
 ---
 
-The generated Linux desktop entry now carries an `Exec` field code when it declares `MimeType` associations: `%u` when deep-link schemes are configured, `%F` for file associations. Previously `Exec` had no field code, so `x-scheme-handler` activation launched the app without the URL and deep links were silently dropped.
+Fixed deep links being dropped on Linux when the app is launched through the bundled desktop entry. `Exec` now ends with `%u` when deep-link schemes are configured. If the app also has file associations, launchers may now pass opened files as `file://` URLs instead of paths.

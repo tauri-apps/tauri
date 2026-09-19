@@ -13,7 +13,7 @@ use tauri_utils::acl::capability::CapabilityFile;
 #[cfg(any(feature = "dynamic-acl", debug_assertions))]
 use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::{
-  APP_ACL_KEY, ExecutionContext, Value,
+  APP_ACL_KEY, ExecutionContext,
   resolved::{Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
 };
 
@@ -678,13 +678,19 @@ pub trait ScopeObject: Sized + Send + Sync + Debug + 'static {
   /// The error type.
   type Error: std::error::Error + Send + Sync;
   /// Deserialize the raw scope value.
-  fn deserialize<R: Runtime>(app: &AppHandle<R>, raw: Value) -> Result<Self, Self::Error>;
+  fn deserialize<R: Runtime>(
+    app: &AppHandle<R>,
+    raw: serde_json::Value,
+  ) -> Result<Self, Self::Error>;
 }
 
 impl<T: Send + Sync + Debug + DeserializeOwned + 'static> ScopeObject for T {
   type Error = serde_json::Error;
-  fn deserialize<R: Runtime>(_app: &AppHandle<R>, raw: Value) -> Result<Self, Self::Error> {
-    serde_json::from_value(raw.into())
+  fn deserialize<R: Runtime>(
+    _app: &AppHandle<R>,
+    raw: serde_json::Value,
+  ) -> Result<Self, Self::Error> {
+    serde_json::from_value(raw)
   }
 }
 

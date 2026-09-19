@@ -3,7 +3,6 @@ name = "tauri-build"
 version = "2.6.3"
 description = "build time code to pair with https://crates.io/crates/tauri"
 exclude = ["CHANGELOG.md", "/target"]
-readme = "README.md"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -26,11 +25,8 @@ targets = [
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "2.6.3", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
-  "build-2",
-  "resources",
-] }
+tauri-codegen = { workspace = true, optional = true }
+tauri-utils = { workspace = true, features = ["build-2", "resources"] }
 cargo_toml = "1.0"
 serde = "1"
 serde_json = "1"
@@ -39,10 +35,10 @@ json-patch = "4"
 walkdir = "2"
 tauri-winres = "0.3"
 semver = "1"
-dirs = "6"
+dirs = "7"
 glob = "0.3"
-# Our code requires at least 0.8.21 so don't simplify this to 0.8
-schemars = { version = "0.8.21", features = ["preserve_order"] }
+# Our code requires at least 0.8.22 so don't simplify this to 0.8
+schemars = { version = "0.8.22", features = ["preserve_order"] }
 
 [features]
 default = ["config-json"]
@@ -51,3 +47,6 @@ isolation = ["tauri-codegen/isolation", "tauri-utils/isolation"]
 config-json = []
 config-json5 = ["tauri-utils/config-json5"]
 config-toml = ["tauri-utils/config-toml"]
+
+[lints]
+workspace = true

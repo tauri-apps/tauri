@@ -16,7 +16,7 @@ use cargo_toml::Manifest;
 
 use tauri_utils::{
   config::{BundleResources, Config, WebviewInstallMode},
-  resources::{external_binaries, ResourcePaths},
+  resources::{ResourcePaths, external_binaries},
 };
 
 use std::{
@@ -275,9 +275,9 @@ impl WindowsAttributes {
   /// Creates the default attribute set.
   pub fn new() -> Self {
     Self {
-      window_icon_path: Default::default(),
       static_vc_runtime: None,
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
+      window_icon_path: None,
       append_rc_content: Vec::new(),
     }
   }
@@ -287,14 +287,16 @@ impl WindowsAttributes {
   pub fn new_without_app_manifest() -> Self {
     Self {
       app_manifest: None,
-      window_icon_path: Default::default(),
+      window_icon_path: None,
       static_vc_runtime: None,
       append_rc_content: Vec::new(),
     }
   }
 
-  /// Sets the icon to use on the window. Currently only used on Windows.
-  /// It must be in `ico` format. Defaults to `icons/icon.ico`.
+  /// Sets the icon to use as the application icon and default window icon.
+  /// It must be in `ico` format.
+  ///
+  /// If not set, we will search for a `.ico` from the `bundle > icon` in your tauri config file, then `icons/icon.ico`.
   #[must_use]
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
     self
@@ -496,7 +498,9 @@ pub fn build() {
     let error = format!("{error:#}");
     println!("{error}");
     if error.starts_with("unknown field") {
-      print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
+      print!(
+        "found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. "
+      );
       println!(
         "Please try updating the Rust crates by running `cargo update` in the Tauri app folder."
       );
@@ -584,7 +588,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
   // when running codegen in this build script, we need to access the env var directly
-  env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
+  // FIXME: This can be accessed from multiple threads
+  unsafe { env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple) };
 
   let target_dir = target_dir_from_out_dir(&out_dir)
     .with_context(|| format!("failed to resolve the target directory from {out_dir:?}"))?;
@@ -655,14 +660,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       .windows_attributes
       .window_icon_path
       .unwrap_or_else(|| {
-        config
-          .bundle
-          .icon
-          .iter()
-          .find(|i| i.ends_with(".ico"))
-          .map(AsRef::as_ref)
-          .unwrap_or("icons/icon.ico")
-          .into()
+        // icon paths in the config are relative to the config file
+        config_root.join(
+          config
+            .bundle
+            .icon
+            .iter()
+            .find(|i| i.ends_with(".ico"))
+            .map(AsRef::as_ref)
+            .unwrap_or("icons/icon.ico"),
+        )
       });
 
     let mut res = WindowsResource::new();
@@ -712,7 +719,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
 
     if window_icon_path.exists() {
-      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
+      res.set_icon_with_id(
+        &window_icon_path.display().to_string(),
+        &tauri_utils::platform::WINDOWS_APP_ICON_RESOURCE_ID.to_string(),
+      );
     } else {
       return Err(anyhow!(format!(
         "`{}` not found; required for generating a Windows Resource file during tauri-build",
@@ -873,18 +883,18 @@ mod tests {
     assert!(crate::should_static_link_vc_runtime(&config, &attributes));
 
     // 2. Set to anything but "false" in env, should be true
-    std::env::set_var("STATIC_VCRUNTIME", "qweqe");
+    unsafe { std::env::set_var("STATIC_VCRUNTIME", "qweqe") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new();
     assert!(crate::should_static_link_vc_runtime(&config, &attributes));
-    std::env::remove_var("STATIC_VCRUNTIME");
+    unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
 
     // 3. Set to "false" in env, should be false
-    std::env::set_var("STATIC_VCRUNTIME", "false");
+    unsafe { std::env::set_var("STATIC_VCRUNTIME", "false") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new();
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
-    std::env::remove_var("STATIC_VCRUNTIME");
+    unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
 
     // 4. Set to true in attributes, should be true
     let config = tauri_utils::config::Config::default();
@@ -939,11 +949,11 @@ mod tests {
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
 
     // 9. Set to false in env and true in attributes, should be false because env takes precedence over attributes
-    std::env::set_var("STATIC_VCRUNTIME", "false");
+    unsafe { std::env::set_var("STATIC_VCRUNTIME", "false") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new()
       .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(true));
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
-    std::env::remove_var("STATIC_VCRUNTIME");
+    unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
   }
 }

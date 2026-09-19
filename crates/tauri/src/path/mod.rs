@@ -9,7 +9,7 @@ use std::{
 
 use crate::Runtime;
 
-use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de::Error as DeError};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub(crate) mod plugin;

@@ -1,7 +1,7 @@
 ---
 tauri: minor:deps
 tauri-cli: minor:deps
-"tauri-apps/cli": minor:deps
+"@tauri-apps/cli": minor:deps
 ---
 
 On Android, fix missing `consumer-rules.pro` file in the template.

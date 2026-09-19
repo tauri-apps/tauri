@@ -3,23 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
+  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
-    InvokeHandler, InvokeResponseBody,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler, InvokeResponseBody,
+    channel::ChannelDataIpcQueue,
   },
-  manager::{webview::UriSchemeProtocol, AppManager, Asset},
+  manager::{AppManager, Asset, webview::UriSchemeProtocol},
   plugin::{Plugin, PluginStore},
   resources::ResourceTable,
   runtime::{
-    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
+    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::{config::Config, Env},
+  utils::{Env, config::Config},
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
-  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]
@@ -27,27 +27,27 @@ use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
-use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
+  RuntimeInitArgs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
-  RuntimeInitArgs,
 };
-use tauri_utils::{assets::AssetsIter, PackageInfo};
+use tauri_utils::{PackageInfo, assets::AssetsIter};
 
 use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic, mpsc::Sender, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, atomic, mpsc::Sender},
   thread::ThreadId,
   time::Duration,
 };
 
-use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
+use crate::{Event, EventTarget, event::EventId, runtime::RuntimeHandle};
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
@@ -571,12 +571,29 @@ impl<R: Runtime> AppHandle<R> {
   }
 
   /// Exits the app by triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`].
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unless the exit is prevented, the activity is finished instead of the process being exited directly,
+  ///   so the app closes with the system transition and the activity lifecycle callbacks run.
+  ///   [`RunEvent::Exit`] is triggered once the activity is destroyed, and `exit_code` is not used as the process exit code.
   pub fn exit(&self, exit_code: i32) {
     if let Err(e) = self.runtime_handle.request_exit(exit_code) {
       log::error!("failed to exit: {}", e);
       self.cleanup_before_exit();
       std::process::exit(exit_code);
     }
+  }
+
+  /// Finishes the Android activity, and any other activity of its task, so the app closes gracefully.
+  #[cfg(target_os = "android")]
+  pub(crate) fn finish_activity(&self) -> crate::Result<()> {
+    // the app plugin is a core plugin, so its Android handle is always managed
+    self
+      .state::<crate::app::plugin::AppPlugin<R>>()
+      .0
+      .run_mobile_plugin::<()>("exit", ())?;
+    Ok(())
   }
 
   /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`](crate::RESTART_EXIT_CODE) and [`RunEvent::Exit`].
@@ -870,7 +887,7 @@ macro_rules! shared_app_impl {
       pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.primary_monitor().map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor()?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -879,7 +896,7 @@ macro_rules! shared_app_impl {
       pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.monitor_from_point(x, y).map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y).map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y)?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -890,9 +907,11 @@ macro_rules! shared_app_impl {
           RuntimeOrDispatch::Runtime(h) => {
             h.available_monitors().into_iter().map(Into::into).collect()
           }
-          RuntimeOrDispatch::RuntimeHandle(h) => {
-            h.available_monitors().into_iter().map(Into::into).collect()
-          }
+          RuntimeOrDispatch::RuntimeHandle(h) => h
+            .available_monitors()?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
           _ => unreachable!(),
         })
       }
@@ -1106,6 +1125,15 @@ macro_rules! shared_app_impl {
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
+        // run plugin cleanup hooks first so plugins can still use the app resources (e.g. stop sidecars)
+        // cleanup is best-effort, so a plugin store poisoned by an earlier panic must not abort it
+        self
+          .manager
+          .plugins
+          .lock()
+          .unwrap_or_else(std::sync::PoisonError::into_inner)
+          .cleanup_before_exit(self.app_handle());
+
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
@@ -1414,6 +1442,10 @@ impl<R: Runtime> App<R> {
     mut self,
     mut callback: F,
   ) -> impl FnMut(RuntimeRunEvent<EventLoopMessage>) {
+    // whether the activity is being finished to fulfill an exit request the app accepted
+    #[cfg(target_os = "android")]
+    let mut finishing_activity = false;
+
     move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
@@ -1429,6 +1461,43 @@ impl<R: Runtime> App<R> {
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
+      }
+      // On Android, exiting the process while the activity is still on screen skips the close transition
+      // and flashes a blank screen, so a programmatic exit finishes the activity instead and the event loop
+      // exits through the regular window destroyed path.
+      #[cfg(target_os = "android")]
+      RuntimeRunEvent::ExitRequested {
+        code: Some(code),
+        tx,
+      } if code != RESTART_EXIT_CODE && !self.manager.windows().is_empty() => {
+        let (app_tx, app_rx) = std::sync::mpsc::channel();
+        let event = on_event_loop_event(
+          self.handle(),
+          RuntimeRunEvent::ExitRequested {
+            code: Some(code),
+            tx: app_tx,
+          },
+          self.manager(),
+        );
+        callback(self.handle(), event);
+
+        if matches!(app_rx.try_recv(), Ok(ExitRequestedEventAction::Prevent)) {
+          let _ = tx.send(ExitRequestedEventAction::Prevent);
+        } else {
+          match self.handle().finish_activity() {
+            Ok(()) => {
+              finishing_activity = true;
+              // keep the event loop running until the activity is destroyed
+              let _ = tx.send(ExitRequestedEventAction::Prevent);
+            }
+            // fall back to exiting the process directly
+            Err(e) => log::error!("failed to finish the activity: {e}"),
+          }
+        }
+      }
+      #[cfg(target_os = "android")]
+      RuntimeRunEvent::ExitRequested { code: None, .. } if finishing_activity => {
+        // the app already accepted this exit when it was requested
       }
       _ => {
         let event = on_event_loop_event(self.handle(), event, self.manager());
@@ -2370,7 +2439,7 @@ tauri::Builder::default()
       msg_hook: {
         let menus = manager.menu.menus.clone();
         Some(Box::new(move |msg| {
-          use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
+          use windows::Win32::UI::WindowsAndMessaging::{HACCEL, MSG, TranslateAcceleratorW};
           unsafe {
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {
@@ -2397,7 +2466,8 @@ tauri::Builder::default()
           .ok()
           .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         {
-          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path));
+          // SAFETY: Always safe on Windows
+          unsafe { std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path)) };
         } else {
           #[cfg(debug_assertions)]
           eprintln!(

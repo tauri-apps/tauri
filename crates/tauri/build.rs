@@ -9,10 +9,8 @@ use std::{
   collections::BTreeMap,
   env, fs,
   path::{Path, PathBuf},
-  sync::{Mutex, OnceLock},
 };
 
-static CHECKED_FEATURES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 const PLUGINS: &[(&str, &[(&str, bool)])] = &[
   // (plugin_name, &[(command, enabled-by_default)])
   // TODO: Enable this in v3
@@ -101,6 +99,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_max_size", false),
       ("set_position", false),
       ("set_fullscreen", false),
+      ("set_fullscreen_on_monitor", false),
       ("set_simple_fullscreen", false),
       ("set_focus", false),
       ("set_focusable", false),
@@ -160,6 +159,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("identifier", true),
       ("app_show", false),
       ("app_hide", false),
+      ("exit", false),
       ("fetch_data_store_identifiers", false),
       ("remove_data_store", false),
       ("default_window_icon", false),
@@ -229,16 +229,11 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
 ];
 
 // checks if the given Cargo feature is enabled.
-fn has_feature(feature: &str) -> bool {
-  CHECKED_FEATURES
-    .get_or_init(Default::default)
-    .lock()
-    .unwrap()
-    .push(feature.to_string());
-
+fn has_feature(checked_features: &mut Vec<&'static str>, feature: &'static str) -> bool {
+  checked_features.push(feature);
   // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name>` env var to 1
   // <https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts>
-  std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
+  std::env::var_os(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
     .map(|x| x == "1")
     .unwrap_or(false)
 }
@@ -253,32 +248,31 @@ fn alias(alias: &str, has_feature: bool) {
 }
 
 fn main() {
-  let custom_protocol = has_feature("custom-protocol");
+  let mut checked_features = Vec::new();
+  let custom_protocol = has_feature(&mut checked_features, "custom-protocol");
   let dev = !custom_protocol;
   alias("custom_protocol", custom_protocol);
   alias("dev", dev);
 
   println!("cargo:dev={dev}");
 
-  let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let target_os = std::env::var_os("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
   alias("desktop", !mobile);
   alias("mobile", mobile);
 
-  let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+  let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
   let checked_features_out_path = out_dir.join("checked_features");
-  std::fs::write(
-    checked_features_out_path,
-    CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
-  )
-  .expect("failed to write checked_features file");
+  // file is used by a unit test in src/lib.rs to check that the features checked do exist in the Cargo.toml
+  std::fs::write(checked_features_out_path, checked_features.join(","))
+    .expect("failed to write checked_features file");
 
   // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error in tests
   // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
-  let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
-  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").is_ok_and(|v| v == "true");
-  if is_tauri_workspace && target_os == "windows" && Ok("msvc") == target_env.as_deref() {
+  let target_env = std::env::var_os("CARGO_CFG_TARGET_ENV");
+  let is_tauri_workspace = std::env::var_os("__TAURI_WORKSPACE__").is_some_and(|v| v == "true");
+  if is_tauri_workspace && target_os == "windows" && target_env.is_some_and(|trgt| trgt == "msvc") {
     embed_manifest_for_tests();
   }
 
@@ -289,14 +283,16 @@ fn main() {
       })
     }
 
-    if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
+    if let Some(kotlin_out_dir) = std::env::var_os("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
       let package = env_var("WRY_ANDROID_PACKAGE");
       let library = env_var("WRY_ANDROID_LIBRARY");
 
       let kotlin_out_dir = PathBuf::from(&kotlin_out_dir)
         .canonicalize()
         .unwrap_or_else(move |_| {
-          panic!("Failed to canonicalize `WRY_ANDROID_KOTLIN_FILES_OUT_DIR` path {kotlin_out_dir}")
+          panic!(
+            "Failed to canonicalize `WRY_ANDROID_KOTLIN_FILES_OUT_DIR` path {kotlin_out_dir:?}"
+          )
         });
 
       let kotlin_files_path =

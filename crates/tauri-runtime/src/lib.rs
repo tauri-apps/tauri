@@ -16,8 +16,8 @@
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::config::Color;
 use tauri_utils::Theme;
+use tauri_utils::config::Color;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
@@ -315,13 +315,13 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
-  fn primary_monitor(&self) -> Option<Monitor>;
+  fn primary_monitor(&self) -> Result<Option<Monitor>>;
 
   /// Returns the monitor that contains the given point.
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>>;
 
   /// Returns the list of all the monitors available on the system.
-  fn available_monitors(&self) -> Vec<Monitor>;
+  fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
   /// Get the cursor position relative to the top-left hand corner of the desktop.
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
@@ -920,6 +920,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window fullscreen state.
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
+
+  /// Sets the window as fullscreen on the monitor that contains the given physical position.
+  ///
+  /// Does nothing if no monitor contains the position.
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()>;
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()>;

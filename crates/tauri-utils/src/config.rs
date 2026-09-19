@@ -25,13 +25,13 @@
 
 use http::response::Builder;
 #[cfg(feature = "schema")]
-use schemars::schema::Schema;
-#[cfg(feature = "schema")]
 use schemars::JsonSchema;
+#[cfg(feature = "schema")]
+use schemars::schema::Schema;
 use semver::Version;
 use serde::{
-  de::{Deserializer, Error as DeError, Visitor},
   Deserialize, Serialize, Serializer,
+  de::{Deserializer, Error as DeError, Visitor},
 };
 use serde_json::Value as JsonValue;
 use serde_untagged::UntaggedEnumVisitor;
@@ -61,7 +61,7 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
+use crate::{TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability};
 
 pub use self::parse::parse;
 
@@ -225,7 +225,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         const_value: Some("all".into()),
@@ -237,10 +237,13 @@ impl schemars::JsonSchema for BundleTarget {
       }
       .into(),
       add_description(
-        gen.subschema_for::<Vec<BundleType>>(),
+        generator.subschema_for::<Vec<BundleType>>(),
         "A list of bundle targets.",
       ),
-      add_description(gen.subschema_for::<BundleType>(), "A single bundle target."),
+      add_description(
+        generator.subschema_for::<BundleType>(),
+        "A single bundle target.",
+      ),
     ];
 
     schemars::schema::SchemaObject {
@@ -693,7 +696,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "14.0".into()
+  "15.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -1829,7 +1832,7 @@ impl schemars::JsonSchema for Color {
     "Color".to_string()
   }
 
-  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(_generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let mut schema = schemars::schema_for!(InnerColor).schema;
     schema.metadata = None; // Remove `title: InnerColor` from schema
 
@@ -3304,7 +3307,7 @@ pub struct IosConfig {
   /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
-  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
+  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `15.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
   #[serde(
@@ -3744,6 +3747,22 @@ pub struct Config {
   #[serde(rename = "$schema")]
   pub schema: Option<String>,
   /// App name.
+  ///
+  /// This is the name your app is known by on the user's system, so it must be changed from the
+  /// default before publishing. Besides naming the generated bundles, it is written into platform
+  /// metadata and install paths that are expected to be unique to your application.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Names the `.app` bundle and the `.dmg`, and sets the bundle's
+  ///    `CFBundleDisplayName` and `CFBundleName` properties. `CFBundleName` can be overridden with
+  ///    [`bundle > macOS > bundleName`](MacConfig::bundle_name).
+  /// - **Linux**: Kebab-cased for the Debian and RPM package names, used as the `Name` entry of
+  ///    the desktop file and as the resource directory name under `/usr/lib`.
+  /// - **Windows**: Names the installers, the installation directory, the Start Menu folder and
+  ///    the `HKCU\Software\<publisher>\<product name>` registry key. It also derives the default
+  ///    WiX upgrade code, which must be unique across applications and can be set explicitly with
+  ///    [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code).
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
@@ -3784,6 +3803,8 @@ pub struct Config {
   /// the bundle ID and path to the webview data directory.
   /// This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),
   /// and periods (.).
+  /// The default value `com.tauri.dev` is rejected by `tauri build` and must be changed before
+  /// building your application.
   pub identifier: String,
   /// The App configuration.
   #[serde(default)]
@@ -3829,7 +3850,7 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
   use std::convert::identity;
 
   impl ToTokens for WebviewUrl {

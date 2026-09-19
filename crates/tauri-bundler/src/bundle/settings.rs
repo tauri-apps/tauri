@@ -12,7 +12,7 @@ use tauri_utils::{
     RpmCompression,
   },
   platform::Target as TargetPlatform,
-  resources::{external_binaries, ResourcePaths},
+  resources::{ResourcePaths, external_binaries},
 };
 
 use std::{
@@ -1126,7 +1126,7 @@ impl Settings {
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."
-        )))
+        )));
       }
     };
 

@@ -7,9 +7,9 @@ use std::path::Path;
 use clap::Parser;
 
 use crate::{
+  Result,
   error::{Context, ErrorExt},
   helpers::{app_paths::resolve_tauri_dir, prompts},
-  Result,
 };
 
 #[derive(Clone)]

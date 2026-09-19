@@ -5067,8 +5067,12 @@ You may have it installed on another user account, but it is not available for t
     }
   }
 
+  #[cfg(windows)]
+  let window_id_for_ipc = window_id.clone();
+  #[cfg(not(windows))]
+  let window_id_for_ipc = window_id;
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-    window_id.clone(),
+    window_id_for_ipc,
     id,
     context.clone(),
     label.clone(),

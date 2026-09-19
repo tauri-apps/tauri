@@ -7,10 +7,16 @@
     PhysicalPosition,
     Effect,
     EffectState,
-    ProgressBarStatus
+    ProgressBarStatus,
+    availableMonitors
   } from '@tauri-apps/api/window'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
-  import type { CursorIcon, Effects, Theme } from '@tauri-apps/api/window'
+  import type {
+    CursorIcon,
+    Effects,
+    Monitor,
+    Theme
+  } from '@tauri-apps/api/window'
   import type { UnlistenFn } from '@tauri-apps/api/event'
   import type { ViewProps } from '../App.svelte'
 
@@ -23,6 +29,15 @@
   })
   let selectedWebviewLabel = $state(webview.label)
   let selectedWebview = $derived(webviewMap[selectedWebviewLabel])
+
+  let monitorMap = $state<Record<string, Monitor>>({})
+  let selectedMonitor = $state('')
+
+  availableMonitors().then((monitors) => {
+    monitorMap = Object.fromEntries(
+      monitors.map((m, i) => [m.name ?? `Monitor ${i + 1}`, m])
+    )
+  })
 
   let focusable = $state(true)
 
@@ -115,6 +130,16 @@
   let outerPosition = $state(new PhysicalPosition(0, 0))
   let innerSize = $state(new PhysicalSize(0, 0))
   let outerSize = $state(new PhysicalSize(0, 0))
+  // name of the monitor containing the selected window's top-left corner
+  let monitor = $derived(
+    Object.entries(monitorMap).find(
+      ([, m]) =>
+        outerPosition.x >= m.position.x
+        && outerPosition.x < m.position.x + m.size.width
+        && outerPosition.y >= m.position.y
+        && outerPosition.y < m.position.y + m.size.height
+    )?.[0] ?? ''
+  )
   let resizeEventUnlisten: UnlistenFn | undefined
   let moveEventUnlisten: UnlistenFn | undefined
   let cursorGrab = $state(false)
@@ -353,6 +378,13 @@
     selectedWebview.setSimpleFullscreen(simpleFullscreen)
   }
 
+  async function setFullscreenOnMonitor() {
+    const target = monitorMap[selectedMonitor]
+    if (!target) return
+    await selectedWebview.setFullscreenOnMonitor(target.position)
+    fullscreen = true
+  }
+
   function updateMinSize() {
     minWidth && minHeight
       ? selectedWebview.setMinSize(new LogicalSize(minWidth, minHeight))
@@ -512,6 +544,24 @@
       >
         Set focusable to {!focusable}
       </button>
+
+      <form
+        class="flex gap-2"
+        onsubmit={(ev) => {
+          setFullscreenOnMonitor()
+          ev.preventDefault()
+        }}
+      >
+        <button class="btn" type="submit" disabled={!selectedMonitor}>
+          Set Fullscreen on Monitor
+        </button>
+        <select class="input" bind:value={selectedMonitor}>
+          <option value="" disabled>Choose a monitor...</option>
+          {#each Object.keys(monitorMap) as label}
+            <option value={label}>{label}</option>
+          {/each}
+        </select>
+      </form>
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))] *:flex *:gap-2">
       <label>
@@ -760,6 +810,12 @@
         </div>
         <span>x: {outerPosition.toLogical(scaleFactor).x.toFixed(3)}</span>
         <span>y: {outerPosition.toLogical(scaleFactor).y.toFixed(3)}</span>
+      </div>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-1">
+          Current Monitor
+        </div>
+        <span>{monitor}</span>
       </div>
     </div>
     <div class="grid gap-2">

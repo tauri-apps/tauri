@@ -250,8 +250,7 @@ impl<R: Runtime> WebviewManager<R> {
       && window_url.scheme() != "http"
       && window_url.scheme() != "https"
     {
-      let https = if use_https_scheme { "https" } else { "http" };
-      format!("{https}://{}.localhost", window_url.scheme())
+      crate::protocol::origin(window_url.scheme(), use_https_scheme)
     } else if let Some(host) = window_url.host() {
       format!(
         "{}://{}{}",

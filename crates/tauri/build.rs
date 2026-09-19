@@ -99,6 +99,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_max_size", false),
       ("set_position", false),
       ("set_fullscreen", false),
+      ("set_fullscreen_on_monitor", false),
       ("set_simple_fullscreen", false),
       ("set_focus", false),
       ("set_focusable", false),

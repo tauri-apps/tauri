@@ -54,8 +54,8 @@ impl CachedIcon {
     let icon_dir = ico::IconDir::read(Cursor::new(&buf))
       .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", icon.display(), e));
 
-    let entry =
-      largest_ico_entry(&icon_dir).unwrap_or_else(|| panic!("icon {} has no entries", icon.display()));
+    let entry = largest_ico_entry(&icon_dir)
+      .unwrap_or_else(|| panic!("icon {} has no entries", icon.display()));
     let rgba = entry
       .decode()
       .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", icon.display(), e))

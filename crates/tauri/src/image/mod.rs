@@ -12,19 +12,15 @@ use std::sync::Arc;
 #[cfg(windows)]
 use windows::{
   Win32::{
-    Foundation::{
-      E_FAIL, ERROR_INVALID_DATA, ERROR_INVALID_PARAMETER, ERROR_NOT_SUPPORTED, HMODULE,
-      WIN32_ERROR,
-    },
+    Foundation::{E_FAIL, ERROR_INVALID_PARAMETER, ERROR_NOT_SUPPORTED, WIN32_ERROR},
     Graphics::Gdi::{
       BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC,
       GetDIBits, HBITMAP,
     },
-    System::LibraryLoader::{
-      FindResourceW, GetModuleHandleW, LoadResource, LockResource, SizeofResource,
-    },
+    System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
-      GetIconInfo, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR, LoadImageW, RT_GROUP_ICON,
+      GetIconInfo, GetSystemMetrics, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR, LoadImageW,
+      SM_CXICON, SM_CYICON,
     },
   },
   core::{Owned, PCWSTR},
@@ -63,7 +59,20 @@ impl<'a> From<&'a str> for IconResource<'a> {
 #[cfg(windows)]
 #[doc(hidden)]
 pub fn default_window_icon_from_app_icon_resource() -> Option<Image<'static>> {
-  match Image::from_app_icon_resource() {
+  // the window icon is drawn in the title bar and, as a fallback for the taskbar icon,
+  // at the system's large icon size (32x32 at 96 DPI, scaled with the system DPI),
+  // so pick the entry Windows would use for the taskbar instead of a larger one it has to shrink
+  // `GetSystemMetrics` returns 0 on failure
+  let metric = |index| match unsafe { GetSystemMetrics(index) } {
+    n if n > 0 => n as u32,
+    _ => 32,
+  };
+  let (width, height) = (metric(SM_CXICON), metric(SM_CYICON));
+  match Image::from_icon_resource(
+    crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID,
+    width,
+    height,
+  ) {
     Ok(icon) => Some(icon),
     Err(e) => {
       // a logger is usually not installed yet when `generate_context!` runs
@@ -124,62 +133,6 @@ unsafe fn read_bgra(hbm: HBITMAP, width: i32, height: i32) -> crate::Result<Vec<
   }
 
   Ok(bgra)
-}
-
-/// Reads the `RT_GROUP_ICON` directory of an icon resource and returns the dimensions of
-/// its largest image.
-///
-/// # Safety
-///
-/// `resource_id` must be a valid resource name or `MAKEINTRESOURCE` id.
-#[cfg(windows)]
-unsafe fn largest_icon_size(module: HMODULE, resource_id: PCWSTR) -> crate::Result<(u32, u32)> {
-  let directory = unsafe {
-    let info = FindResourceW(Some(module), resource_id, RT_GROUP_ICON);
-    if info.is_invalid() {
-      return Err(crate::Error::ImageFromResource(
-        windows::core::Error::from_thread(),
-      ));
-    }
-    let data = LoadResource(Some(module), info).map_err(crate::Error::ImageFromResource)?;
-    let ptr = LockResource(data);
-    let len = SizeofResource(Some(module), info);
-    if ptr.is_null() || len == 0 {
-      return Err(crate::Error::ImageFromResource(last_error_or(
-        "LockResource failed",
-      )));
-    }
-    // resources are mapped for the lifetime of the module and never need to be freed
-    std::slice::from_raw_parts(ptr.cast::<u8>(), len as usize)
-  };
-
-  largest_group_icon_entry(directory)
-    .ok_or_else(|| resource_error(ERROR_INVALID_DATA, "the icon resource has no images"))
-}
-
-/// Returns the dimensions of the largest image listed in a `GRPICONDIR`
-/// (the payload of a `RT_GROUP_ICON` resource).
-#[cfg(any(windows, test))]
-fn largest_group_icon_entry(directory: &[u8]) -> Option<(u32, u32)> {
-  // GRPICONDIR: idReserved, idType and idCount (u16 each), followed by `idCount` packed
-  // GRPICONDIRENTRY records: bWidth, bHeight, bColorCount, bReserved, wPlanes, wBitCount,
-  // dwBytesInRes, nID
-  const HEADER_LEN: usize = 6;
-  const ENTRY_LEN: usize = 14;
-
-  let count = u16::from_le_bytes([*directory.get(4)?, *directory.get(5)?]) as usize;
-  directory
-    .get(HEADER_LEN..)?
-    .as_chunks::<ENTRY_LEN>()
-    .0
-    .iter()
-    .take(count)
-    .map(|entry| {
-      // a width or height of 0 means 256
-      let dimension = |b: u8| if b == 0 { 256 } else { u32::from(b) };
-      (dimension(entry[0]), dimension(entry[1]))
-    })
-    .max_by_key(|&(width, height)| width * height)
 }
 
 #[cfg(windows)]
@@ -283,22 +236,20 @@ impl<'a> Image<'a> {
 
   /// Creates a new image from the application icon embedded in the executable of the current process.
   ///
-  /// Loads the largest image of the icon, see [`Self::from_icon_resource`].
-  ///
   /// The application icon is the one `tauri-build` embeds with the
   /// [`WINDOWS_APP_ICON_RESOURCE_ID`](crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID) id,
   /// this could change in the future.
   #[cfg(windows)]
   #[cfg_attr(docsrs, doc(cfg(windows)))]
-  pub fn from_app_icon_resource() -> crate::Result<Self> {
-    Image::from_icon_resource(crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID)
+  pub fn from_app_icon_resource(size: u32) -> crate::Result<Self> {
+    Image::from_icon_resource(
+      crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID,
+      size,
+      size,
+    )
   }
 
   /// Create a new image from an icon resource embedded in the executable of the current process.
-  ///
-  /// An icon resource usually contains several images of different sizes, this loads the largest one
-  /// (typically 256x256 for icons generated by `tauri icon`) so consumers can scale it down as needed
-  /// without ever upscaling; check [`Self::width`] and [`Self::height`] for the size that was loaded.
   ///
   /// Resources are looked up in the process executable (`GetModuleHandleW(NULL)`),
   /// not in the DLL containing this code when tauri is built as a library.
@@ -312,15 +263,29 @@ impl<'a> Image<'a> {
   /// ```no_run
   /// # use tauri::image::Image;
   /// # fn main() -> tauri::Result<()> {
-  /// let icon = Image::from_icon_resource(1)?;
-  /// let icon = Image::from_icon_resource("icon")?;
+  /// let icon = Image::from_icon_resource(1, 32, 32)?;
+  /// let icon = Image::from_icon_resource("icon", 32, 32)?;
   /// # Ok(())
   /// # }
   /// ```
   #[cfg(windows)]
   #[cfg_attr(docsrs, doc(cfg(windows)))]
-  pub fn from_icon_resource<'r>(resource: impl Into<IconResource<'r>>) -> crate::Result<Self> {
-    // keeps the wide string alive for the resource lookups
+  pub fn from_icon_resource<'r>(
+    resource: impl Into<IconResource<'r>>,
+    width: u32,
+    height: u32,
+  ) -> crate::Result<Self> {
+    let (width_i32, height_i32) = match (i32::try_from(width), i32::try_from(height)) {
+      (Ok(w), Ok(h)) if w > 0 && h > 0 => (w, h),
+      _ => {
+        return Err(resource_error(
+          ERROR_INVALID_PARAMETER,
+          "width and height must be between 1 and i32::MAX",
+        ));
+      }
+    };
+
+    // keeps the wide string alive for the `LoadImageW` call
     let name: Vec<u16>;
     let resource_id = match resource.into() {
       // MAKEINTRESOURCE
@@ -331,19 +296,14 @@ impl<'a> Image<'a> {
       }
     };
 
-    let module =
-      unsafe { GetModuleHandleW(PCWSTR::null()) }.map_err(crate::Error::ImageFromResource)?;
-
-    // `LoadImageW` stretches the closest image to the requested size,
-    // so ask for the exact size of the largest one
-    let (width, height) = unsafe { largest_icon_size(module, resource_id)? };
-    // directory entries are at most 256 pixels wide
-    let (width_i32, height_i32) = (width as i32, height as i32);
-
     let hicon = unsafe {
       Owned::new(HICON(
         LoadImageW(
-          Some(module.into()),
+          Some(
+            GetModuleHandleW(PCWSTR::null())
+              .map_err(crate::Error::ImageFromResource)?
+              .into(),
+          ),
           resource_id,
           IMAGE_ICON,
           width_i32,
@@ -532,67 +492,19 @@ impl JsImage {
   }
 }
 
-#[cfg(test)]
+#[cfg(all(test, windows))]
 mod tests {
-  use super::largest_group_icon_entry as largest;
-
-  fn directory(sizes: &[(u8, u8)]) -> Vec<u8> {
-    let mut directory = vec![0, 0, 1, 0, sizes.len() as u8, 0];
-    for (i, (w, h)) in sizes.iter().enumerate() {
-      directory.extend_from_slice(&[*w, *h, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, i as u8 + 1, 0]);
-    }
-    directory
-  }
-
-  #[test]
-  fn largest_group_icon_entry() {
-    // the entry order `tauri icon` used to generate, with a PNG-compressed 256 entry (0 = 256)
-    let full = directory(&[(32, 32), (16, 16), (24, 24), (48, 48), (64, 64), (0, 0)]);
-    assert_eq!(largest(&full), Some((256, 256)));
-    assert_eq!(
-      largest(&directory(&[(16, 16), (48, 48), (32, 32)])),
-      Some((48, 48))
-    );
-    assert_eq!(largest(&directory(&[(32, 32)])), Some((32, 32)));
-    assert_eq!(largest(&directory(&[])), None);
-
-    // the largest entry is picked by area, 0 stands for 256 on either axis
-    assert_eq!(
-      largest(&directory(&[(255, 255), (0, 0), (128, 0)])),
-      Some((256, 256))
-    );
-    assert_eq!(
-      largest(&directory(&[(64, 64), (32, 0), (0, 16)])),
-      Some((32, 256))
-    );
-
-    // idCount smaller than the data only considers the first `idCount` entries
-    let mut undersized = full.clone();
-    undersized[4] = 2;
-    assert_eq!(largest(&undersized), Some((32, 32)));
-
-    // idCount larger than the data and truncated input must not panic
-    let mut oversized = full.clone();
-    oversized[4] = 200;
-    assert_eq!(largest(&oversized), Some((256, 256)));
-    assert_eq!(largest(&full[..20]), Some((32, 32)));
-    assert_eq!(largest(&full[..6]), None);
-    assert_eq!(largest(&full[..3]), None);
-    assert_eq!(largest(&[]), None);
-  }
+  use super::{IconResource, Image, default_window_icon_from_app_icon_resource};
 
   /// The test executable has no icon resources, so every lookup must fail with an error
   /// (instead of panicking or returning a stretched placeholder).
-  #[cfg(windows)]
   #[test]
   fn from_icon_resource_missing_resource_is_an_error() {
-    use super::{Image, default_window_icon_from_app_icon_resource};
-
     for resource in [
-      super::IconResource::Id(u16::MAX),
-      super::IconResource::Name("tauri-image-test-missing-icon"),
+      IconResource::Id(u16::MAX),
+      IconResource::Name("tauri-image-test-missing-icon"),
     ] {
-      let error = Image::from_icon_resource(resource).unwrap_err();
+      let error = Image::from_icon_resource(resource, 32, 32).unwrap_err();
       assert!(
         matches!(error, crate::Error::ImageFromResource(_)),
         "{resource:?}: {error:?}"
@@ -600,5 +512,16 @@ mod tests {
     }
 
     assert!(default_window_icon_from_app_icon_resource().is_none());
+  }
+
+  #[test]
+  fn from_icon_resource_rejects_invalid_sizes() {
+    for (width, height) in [(0, 32), (32, 0), (u32::MAX, 32), (32, i32::MAX as u32 + 1)] {
+      let error = Image::from_icon_resource(1, width, height).unwrap_err();
+      assert!(
+        matches!(error, crate::Error::ImageFromResource(_)),
+        "{width}x{height}: {error:?}"
+      );
+    }
   }
 }

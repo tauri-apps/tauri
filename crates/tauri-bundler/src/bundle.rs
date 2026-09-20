@@ -241,12 +241,21 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         // Self contained updater, no need to zip
         matches!(
           package_type,
-          PackageType::AppImage | PackageType::Nsis | PackageType::WindowsMsi | PackageType::Deb
+          PackageType::AppImage
+            | PackageType::Nsis
+            | PackageType::WindowsMsi
+            | PackageType::Deb
+            | PackageType::Rpm
         )
       })
     {
+      let updater_enabled_targets = if updater.v1_compatible {
+        "app, appimage, deb, msi, nsis"
+      } else {
+        "app, appimage, deb, rpm, msi, nsis"
+      };
       log::warn!(
-        "The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis"
+        "The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: {updater_enabled_targets}"
       );
     }
     if updater.v1_compatible {

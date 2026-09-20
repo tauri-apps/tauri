@@ -408,6 +408,51 @@ impl WebRtcIpHandling {
   }
 }
 
+/// What to do with the profile on disk when a newer Chromium milestone than the one this
+/// binary embeds last used it: the application was rolled back to a release on an older
+/// CEF.
+///
+/// Defaults to [`DowngradePolicy::KeepProfile`].
+///
+/// # What a rollback does to the profile
+///
+/// Chromium migrates its profile forward only, and Chrome calls a launch on a profile from
+/// a higher milestone an unsupported downgrade (`chrome/browser/downgrade/`). In practice a
+/// rollback to the previous milestone usually just works; what can go wrong is bounded by
+/// the stores whose format changed in between. A SQLite database whose schema is newer
+/// than the older Chromium can read — cookies, autofill, history — is left on disk and
+/// unused, so cookies stop persisting until the application is upgraded again, and for
+/// some of them Chromium shows its own "profile is from a newer version" dialog; an
+/// IndexedDB store whose data format is newer may be discarded as corrupt.
+///
+/// Chrome keeps a `Last Version` breadcrumb in its user data directory to recognize a
+/// downgrade. CEF does not write it, so the runtime does, in [`Cef::root_cache_path`], and
+/// applies this policy when the breadcrumb names a higher milestone. A downgrade within a
+/// milestone, `152.0.7977.83` to `152.0.7977.50`, is left alone either way, as Chrome
+/// leaves it, and a profile another running instance of the application holds is never
+/// touched.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum DowngradePolicy {
+  /// Keep the profile and let Chromium open it, logging a warning that names both
+  /// versions.
+  ///
+  /// Nothing is deleted: whatever the older Chromium cannot read stays on disk and is back
+  /// once the application is upgraded again. This is what Chrome does for a downgrade
+  /// nobody administered.
+  #[default]
+  KeepProfile,
+  /// Move the root cache path aside and start on an empty profile, deleting the old one in
+  /// the background.
+  ///
+  /// The application starts as if freshly installed, on every platform and whatever
+  /// changed between the two versions: cookies and sessions, local storage, IndexedDB,
+  /// caches and granted permissions are gone, and a warning naming both versions is
+  /// logged. For an application whose state lives on a server, or that would rather have
+  /// every user start clean than some run on a half-readable profile.
+  ResetProfile,
+}
+
 /// Selects and configures the CEF runtime.
 ///
 /// Pass it to `tauri::Builder::runtime` to run the application with CEF:
@@ -445,6 +490,7 @@ pub struct Cef {
   debug_environment: DebugEnvironment,
   certificate_errors: CertificateErrorPolicy,
   sandbox: SandboxPolicy,
+  downgrade: DowngradePolicy,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
@@ -482,6 +528,7 @@ impl fmt::Debug for Cef {
       .field("debug_environment", &self.debug_environment)
       .field("certificate_errors", &self.certificate_errors)
       .field("sandbox", &self.sandbox)
+      .field("downgrade", &self.downgrade)
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -546,12 +593,29 @@ impl Cef {
     self
   }
 
-  /// Directory used for CEF disk cache (`Settings::cache_path`).
+  /// Directory used for CEF disk cache (`Settings::cache_path`): Chromium's user data
+  /// directory, holding `Local State`, every profile and the caches.
   ///
   /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
+  ///
+  /// Give CEF a directory of its own. The runtime keeps a `Last Version` file in it naming
+  /// the Chromium that ran last, and [`DowngradePolicy::ResetProfile`] moves the whole
+  /// directory aside when a newer Chromium milestone last used it — see [`Self::downgrade`].
   #[must_use]
   pub fn root_cache_path<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
     self.cache_path = Some(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// What to do with the profile on disk when a newer Chromium milestone last used it,
+  /// which is what a release rolled back to an older CEF finds.
+  ///
+  /// Defaults to [`DowngradePolicy::KeepProfile`]: the profile is opened as is and a
+  /// warning is logged, as Chrome does. [`DowngradePolicy::ResetProfile`] moves it aside
+  /// and starts clean instead. See [`DowngradePolicy`] for what each one costs.
+  #[must_use]
+  pub fn downgrade(mut self, policy: DowngradePolicy) -> Self {
+    self.downgrade = policy;
     self
   }
 
@@ -2892,6 +2956,7 @@ impl<T: UserEvent> CefRuntime<T> {
       debug_environment,
       certificate_errors,
       sandbox: sandbox_policy,
+      downgrade: downgrade_policy,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
@@ -3080,6 +3145,11 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_base.join(&runtime_args.identifier).join("cef")
     });
     let _ = create_dir_all(&cache_path);
+    // Chromium migrates its profile forward only, so a release rolled back to an older CEF
+    // milestone finds a profile a newer Chromium wrote. Recording which one ran, and what
+    // becomes of such a profile, is the `downgrade` module; it must run before the first
+    // CEF call that opens anything in the directory, which is `cef::initialize` below.
+    crate::downgrade::prepare_root_cache_path(&cache_path, downgrade_policy);
 
     // Force X11 usage on Linux.
     //
@@ -3577,6 +3647,11 @@ mod configuration_tests {
     assert_eq!(cef.devtools, DevToolsPolicy::Auto);
     assert_eq!(cef.debug_environment, DebugEnvironment::Auto);
     assert_eq!(cef.sandbox, SandboxPolicy::Auto);
+    assert_eq!(
+      cef.downgrade,
+      DowngradePolicy::KeepProfile,
+      "a rollback keeps the user's data on disk, as Chrome does; wiping it is opted into"
+    );
     assert!(
       !cef.allow_chromium_command_line_args,
       "a shipped application must ignore Chromium switches on its command line"

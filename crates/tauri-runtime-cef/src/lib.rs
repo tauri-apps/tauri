@@ -8,6 +8,9 @@
 mod cef_impl;
 mod devtools;
 mod dialog;
+/// The `Last Version` breadcrumb in the root cache path, and what a rollback to an older CEF
+/// does with the profile a newer one left there.
+mod downgrade;
 /// The diagnostic environment variables Chromium and CEF read, and the policy over them.
 mod environment;
 mod external_message_pump;

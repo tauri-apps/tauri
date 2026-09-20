@@ -133,13 +133,7 @@ impl Webview {
 }
 
 pub fn webview_version() -> tauri_runtime::Result<String> {
-  Ok(format!(
-    "{}.{}.{}.{}",
-    cef::sys::CHROME_VERSION_MAJOR,
-    cef::sys::CHROME_VERSION_MINOR,
-    cef::sys::CHROME_VERSION_PATCH,
-    cef::sys::CHROME_VERSION_BUILD
-  ))
+  Ok(crate::downgrade::ChromiumVersion::embedded().to_string())
 }
 
 #[inline]

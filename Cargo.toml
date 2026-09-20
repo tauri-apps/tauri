@@ -23,6 +23,7 @@ members = [
   # integration tests
   "crates/tests/restart",
   "crates/tests/acl",
+  "crates/tauri/test/cef-rollback",
 
   # bench
   "bench",

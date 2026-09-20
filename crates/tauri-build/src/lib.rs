@@ -582,7 +582,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   manifest::check(&config, &mut manifest)?;
 
-  acl::build(&out_dir, target, &attributes)?;
+  acl::build(&out_dir, target, &config, &attributes)?;
 
   tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
 

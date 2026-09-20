@@ -2811,9 +2811,9 @@ impl HeaderAddition for Builder {
         self = self.header("Cross-Origin-Resource-Policy", value.to_string());
       };
 
-      // Add the header Permission-Policy, if we find a value for it
+      // Add the header Permissions-Policy, if we find a value for it
       if let Some(value) = &headers.permissions_policy {
-        self = self.header("Permission-Policy", value.to_string());
+        self = self.header("Permissions-Policy", value.to_string());
       };
 
       if let Some(value) = &headers.service_worker_allowed {
@@ -4941,6 +4941,23 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
+  }
+
+  #[test]
+  fn permissions_policy_header_name() {
+    let config: HeaderConfig =
+      serde_json::from_str(r#"{"Permissions-Policy": "geolocation=()"}"#).unwrap();
+
+    let response = Builder::new()
+      .add_configured_headers(Some(&config))
+      .body(())
+      .unwrap();
+
+    assert_eq!(
+      response.headers().get("Permissions-Policy").unwrap(),
+      "geolocation=()"
+    );
+    assert!(response.headers().get("Permission-Policy").is_none());
   }
 
   #[test]

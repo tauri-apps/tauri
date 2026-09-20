@@ -3578,7 +3578,11 @@ pub struct BuildConfig {
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
   /// Additional paths to watch for changes when running `tauri dev`.
-  #[serde(alias = "additional-watch-directories", default)]
+  #[serde(
+    alias = "additional-watch-folders",
+    alias = "additional-watch-directories",
+    default
+  )]
   pub additional_watch_folders: Vec<PathBuf>,
   /// Windows-specific build configuration.
   #[serde(default)]
@@ -4941,6 +4945,23 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
+  }
+
+  #[test]
+  fn additional_watch_folders_aliases() {
+    for key in [
+      "additionalWatchFolders",
+      "additional-watch-folders",
+      "additional-watch-directories",
+    ] {
+      let config: BuildConfig =
+        serde_json::from_str(&format!(r#"{{"{key}": ["../shared"]}}"#)).unwrap();
+      assert_eq!(
+        config.additional_watch_folders,
+        vec![PathBuf::from("../shared")],
+        "failed to deserialize `{key}`"
+      );
+    }
   }
 
   #[test]

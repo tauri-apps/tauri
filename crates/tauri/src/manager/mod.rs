@@ -334,12 +334,7 @@ impl<R: Runtime> AppManager<R> {
   /// The `tauri` custom protocol URL we use to serve the embedded assets.
   /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
-    if cfg!(windows) || cfg!(target_os = "android") {
-      let scheme = if https { "https" } else { "http" };
-      Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
-    } else {
-      Cow::Owned(Url::parse("tauri://localhost").unwrap())
-    }
+    Cow::Owned(Url::parse(&crate::protocol::origin("tauri", https)).unwrap())
   }
 
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
@@ -651,6 +646,10 @@ impl<R: Runtime> AppManager<R> {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
         self.listeners().remove_webview_listeners(webview.label());
+        self
+          .state
+          .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+          .remove_webview_entries(webview.label());
       }
     }
     self.listeners().remove_window_listeners(label);
@@ -660,6 +659,10 @@ impl<R: Runtime> AppManager<R> {
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_listeners(label);
+    self
+      .state
+      .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+      .remove_webview_entries(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

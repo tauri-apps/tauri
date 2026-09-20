@@ -2146,6 +2146,14 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_fullscreen(fullscreen)
   }
 
+  /// Sets the window as fullscreen on the monitor that contains the given physical position,
+  /// such as a [`Monitor::position`](crate::Monitor::position).
+  ///
+  /// Does nothing if no monitor contains the position.
+  pub fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> crate::Result<()> {
+    self.window.set_fullscreen_on_monitor(position)
+  }
+
   /// Toggles a fullscreen mode that doesn't require a new macOS space.
   /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
   ///
@@ -2504,6 +2512,53 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Checks whether the webview can navigate forward.
   pub fn can_go_forward(&self) -> crate::Result<bool> {
     self.webview.can_go_forward()
+  }
+
+  /// Converts a file path to a URL that can be loaded by this webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  ///
+  /// The `protocol-asset` Cargo feature must be enabled and the file must be included in the
+  /// [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+  /// scope. The protocol origin must also be allowed by the relevant
+  /// [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) directive,
+  /// e.g. `img-src 'self' asset: http://asset.localhost`.
+  ///
+  /// The URL origin is defined by the runtime (see [`tauri_runtime::RuntimeHandle::custom_scheme_url`]).
+  /// With `tauri-runtime-wry`, on Windows and Android the URL is `http://{protocol}.localhost/{path}`
+  /// (or `https://` if the webview was built with [`WebviewWindowBuilder::use_https_scheme`]);
+  /// on macOS, Linux and iOS it is `{protocol}://localhost/{path}`.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert.
+  /// * `protocol` - The custom protocol to use. Defaults to `asset`; you only need to set this
+  ///   when using a protocol registered with [`Builder::register_uri_scheme_protocol`](crate::Builder::register_uri_scheme_protocol).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::NonUtf8Path`](crate::Error::NonUtf8Path) if the path is not valid UTF-8,
+  /// since the asset protocol could not resolve such a URL back to the file.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview_window("main").unwrap();
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = webview.convert_file_src(&video_path, None)?;
+  ///     webview.eval(format!("document.querySelector('video').src = '{url}'"))?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(
+    &self,
+    path: P,
+    protocol: Option<&str>,
+  ) -> crate::Result<String> {
+    self.webview.convert_file_src(path, protocol)
   }
 
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].

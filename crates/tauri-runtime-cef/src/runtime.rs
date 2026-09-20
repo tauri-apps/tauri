@@ -3507,6 +3507,18 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    // TODO: honor this flag. The winit event loop is already built by the time tauri calls this
+    // (see `Self::init`), and launch-time activation is driven by the CEF application delegate
+    // rather than winit's `with_activate_ignoring_other_apps`.
+    if !ignore {
+      log::warn!(
+        "`Builder::activate_ignoring_other_apps(false)` is not supported by the CEF runtime yet"
+      );
+    }
+  }
+
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool) {
     let message = Message::EventLoop(EventLoopMessage::SetDockVisibility(visible));
     let _ = self.context.send_message(message);

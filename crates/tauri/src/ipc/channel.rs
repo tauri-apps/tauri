@@ -38,11 +38,55 @@ const MAX_JSON_DIRECT_EXECUTE_THRESHOLD: usize = 8192;
 const MAX_RAW_DIRECT_EXECUTE_THRESHOLD: usize = 1024;
 
 static CHANNEL_COUNTER: AtomicU32 = AtomicU32::new(0);
-static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 
-/// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
+/// Maps channel ids to pending data that must be sent to the JavaScript side via the IPC.
+///
+/// Scoped per webview: each webview has its own id sequence and lookups only
+/// ever touch the calling webview's entries.
 #[derive(Default, Clone)]
-pub struct ChannelDataIpcQueue(Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
+pub struct ChannelDataIpcQueue(Arc<Mutex<HashMap<String, WebviewChannelDataQueue>>>);
+
+/// Pending channel data of one webview.
+#[derive(Default)]
+struct WebviewChannelDataQueue {
+  next_id: u32,
+  entries: HashMap<u32, InvokeResponseBody>,
+}
+
+impl ChannelDataIpcQueue {
+  /// Stores the body for the given webview and returns its id.
+  ///
+  /// Ids are sequential per webview and only address that webview's entries.
+  fn insert(&self, webview_label: &str, body: InvokeResponseBody) -> u32 {
+    let mut cache = self.0.lock().unwrap();
+    let queue = cache.entry(webview_label.to_string()).or_default();
+    let data_id = loop {
+      let candidate = queue.next_id;
+      queue.next_id = queue.next_id.wrapping_add(1);
+      if !queue.entries.contains_key(&candidate) {
+        break candidate;
+      }
+    };
+    queue.entries.insert(data_id, body);
+    data_id
+  }
+
+  /// Removes and returns the entry with the given id from the given webview's queue.
+  fn remove(&self, webview_label: &str, data_id: u32) -> Option<InvokeResponseBody> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .get_mut(webview_label)?
+      .entries
+      .remove(&data_id)
+  }
+
+  /// Drops all entries of the given webview.
+  pub(crate) fn remove_webview_entries(&self, webview_label: &str) {
+    self.0.lock().unwrap().remove(webview_label);
+  }
+}
 
 /// An IPC channel.
 pub struct Channel<TSend = InvokeResponseBody> {
@@ -165,14 +209,9 @@ impl JavaScriptChannelId {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
-
-            webview
+            let data_id = webview
               .state::<ChannelDataIpcQueue>()
-              .0
-              .lock()
-              .unwrap()
-              .insert(data_id, body);
+              .insert(webview.label(), body);
 
             webview.eval(format!(
               "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, {{ message: response, index: {current_index} }})).catch(console.error)",
@@ -261,14 +300,9 @@ impl<TSend> Channel<TSend> {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
-
-            webview
+            let data_id = webview
               .state::<ChannelDataIpcQueue>()
-              .0
-              .lock()
-              .unwrap()
-              .insert(data_id, body);
+              .insert(webview.label(), body);
 
             webview.eval(format!(
               "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, response)).catch(console.error)",
@@ -315,7 +349,8 @@ impl<'de, R: Runtime, TSend> CommandArg<'de, R> for Channel<TSend> {
 }
 
 #[command(root = "crate")]
-fn fetch(
+fn fetch<R: Runtime>(
+  webview: Webview<R>,
   request: Request<'_>,
   cache: State<'_, ChannelDataIpcQueue>,
 ) -> Result<Response, &'static str> {
@@ -325,7 +360,7 @@ fn fetch(
     .and_then(|v| v.to_str().ok())
     .and_then(|id| id.parse().ok())
   {
-    if let Some(data) = cache.0.lock().unwrap().remove(&id) {
+    if let Some(data) = cache.remove(webview.label(), id) {
       Ok(Response::new(data))
     } else {
       Err("data not found")
@@ -342,4 +377,50 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
       fetch
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn json_body(s: &str) -> InvokeResponseBody {
+    InvokeResponseBody::Json(s.to_string())
+  }
+
+  #[test]
+  fn queue_entries_are_scoped_to_the_owning_webview() {
+    let queue = ChannelDataIpcQueue::default();
+    let id = queue.insert("main", json_body("{}"));
+
+    // foreign webviews cannot fetch the entry
+    assert!(queue.remove("settings", id).is_none());
+    // the owner can, once
+    assert!(queue.remove("main", id).is_some());
+    assert!(queue.remove("main", id).is_none());
+  }
+
+  #[test]
+  fn ids_are_scoped_per_webview() {
+    let queue = ChannelDataIpcQueue::default();
+    let a = queue.insert("a", json_body("1"));
+    let b = queue.insert("b", json_body("2"));
+
+    // each webview has its own id sequence, so the same id exists twice
+    // without the entries being visible across webviews
+    assert_eq!(a, b);
+    assert!(queue.remove("b", a).is_some());
+    assert!(queue.remove("a", a).is_some());
+  }
+
+  #[test]
+  fn purge_removes_only_the_closed_webview_entries() {
+    let queue = ChannelDataIpcQueue::default();
+    let a = queue.insert("a", json_body("1"));
+    let b = queue.insert("b", json_body("2"));
+
+    queue.remove_webview_entries("a");
+
+    assert!(queue.remove("a", a).is_none());
+    assert!(queue.remove("b", b).is_some());
+  }
 }

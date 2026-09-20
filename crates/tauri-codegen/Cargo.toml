@@ -3,7 +3,6 @@ name = "tauri-codegen"
 version = "3.0.0-alpha.0"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
 exclude = ["CHANGELOG.md", "/target"]
-readme = "README.md"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -42,3 +41,6 @@ compression = ["brotli", "tauri-utils/compression"]
 isolation = ["tauri-utils/isolation"]
 config-json5 = ["tauri-utils/config-json5"]
 config-toml = ["tauri-utils/config-toml"]
+
+[lints]
+workspace = true

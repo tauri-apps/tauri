@@ -267,7 +267,7 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner = config.build.runner.clone();
+    options.runner.clone_from(&config.build.runner);
   }
 
   options

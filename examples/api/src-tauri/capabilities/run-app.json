@@ -24,6 +24,7 @@
     "core:app:allow-set-app-theme",
     "core:app:allow-set-dock-visibility",
     "core:app:allow-default-window-icon",
+    "core:app:allow-exit",
     "core:window:allow-set-theme",
     "core:window:allow-center",
     "core:window:allow-request-user-attention",
@@ -50,6 +51,7 @@
     "core:window:allow-set-max-size",
     "core:window:allow-set-position",
     "core:window:allow-set-fullscreen",
+    "core:window:allow-set-fullscreen-on-monitor",
     "core:window:allow-set-simple-fullscreen",
     "core:window:allow-set-focus",
     "core:window:allow-set-focusable",
@@ -64,6 +66,7 @@
     "core:window:allow-set-icon",
     "core:window:allow-toggle-maximize",
     "core:webview:allow-create-webview-window",
-    "core:webview:allow-print"
+    "core:webview:allow-print",
+    "core:webview:allow-set-webview-zoom"
   ]
 }

@@ -388,12 +388,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  // TODO: Change to return `crate::Result` here in v3
-  pub fn get_asset(
-    &self,
-    mut path: String,
-    _use_https_schema: bool,
-  ) -> Result<Asset, Box<dyn std::error::Error>> {
+  pub fn get_asset(&self, mut path: String, _use_https_schema: bool) -> crate::Result<Asset> {
     let assets = &self.assets;
     if path.ends_with('/') {
       path.pop();
@@ -437,7 +432,7 @@ impl<R: Runtime> AppManager<R> {
       .ok_or_else(|| {
         let error = crate::Error::AssetNotFound(path.clone());
         log::error!("{error}");
-        Box::new(error)
+        error
       })?;
 
     let mut csp_header = None;
@@ -664,6 +659,10 @@ impl<R: Runtime> AppManager<R> {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
         self.listeners().remove_webview_listeners(webview.label());
+        self
+          .state
+          .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+          .remove_webview_entries(webview.label());
       }
     }
     self.listeners().remove_window_listeners(label);
@@ -673,6 +672,10 @@ impl<R: Runtime> AppManager<R> {
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_listeners(label);
+    self
+      .state
+      .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+      .remove_webview_entries(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

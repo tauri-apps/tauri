@@ -228,8 +228,8 @@ pub fn command(mut options: Options) -> Result<()> {
         (
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
           format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
-          r#"{{ version = "2" }}"#.to_string(),
-          r#"{{ version = "2" }}"#.to_string(),
+          r#"{ version = "2" }"#.to_string(),
+          r#"{ version = "2" }"#.to_string(),
         )
       };
 

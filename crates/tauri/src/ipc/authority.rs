@@ -331,10 +331,22 @@ impl RuntimeAuthority {
       format!("{key}.{command_name}")
     };
 
-    if let Some(resolved) = self.denied_commands.get(&command) {
+    let denied_on_origin = self
+      .denied_commands
+      .get(&command)
+      .map(|resolved| {
+        resolved
+          .iter()
+          .filter(|cmd| origin.matches(&cmd.context))
+          .cloned()
+          .collect::<Vec<_>>()
+      })
+      .unwrap_or_default();
+
+    if !denied_on_origin.is_empty() {
       format!(
         "{command_pretty_name} explicitly denied on origin {origin}\n\nreferenced by: {}",
-        print_references(resolved)
+        print_references(&denied_on_origin)
       )
     } else {
       let command_matches = self.allowed_commands.get(&command);
@@ -435,7 +447,22 @@ impl RuntimeAuthority {
     }
   }
 
+  /// Checks if the given command is explicitly denied for the given origin.
+  ///
+  /// Deny entries carry the [`ExecutionContext`] of the capability that defined them,
+  /// so a command denied by a remote capability is not denied for the local app and vice-versa.
+  fn is_denied(&self, command: &str, origin: &Origin) -> bool {
+    self
+      .denied_commands
+      .get(command)
+      .map(|resolved| resolved.iter().any(|cmd| origin.matches(&cmd.context)))
+      .unwrap_or(false)
+  }
+
   /// Checks if the given IPC execution is allowed and returns the [`ResolvedCommand`] if it is.
+  ///
+  /// A command is denied when a capability that denies it matches the given origin
+  /// (execution context), window and webview labels are not taken into account for denial.
   pub fn resolve_access(
     &self,
     command: &str,
@@ -443,12 +470,7 @@ impl RuntimeAuthority {
     webview: &str,
     origin: &Origin,
   ) -> Option<Vec<ResolvedCommand>> {
-    if self
-      .denied_commands
-      .get(command)
-      .map(|resolved| resolved.iter().any(|cmd| origin.matches(&cmd.context)))
-      .is_some()
-    {
+    if self.is_denied(command, origin) {
       None
     } else {
       self.allowed_commands.get(command).and_then(|resolved| {
@@ -1035,6 +1057,139 @@ mod tests {
         denied_commands,
         ..Default::default()
       },
+    );
+
+    assert!(
+      authority
+        .resolve_access(command, window, webview, &Origin::Local)
+        .is_none()
+    );
+  }
+
+  #[test]
+  fn denied_command_is_scoped_to_the_execution_context() {
+    let url = "https://tauri.app";
+    let command = "my-command";
+    let window = "main";
+    let webview = "main";
+    let windows = vec![Pattern::new(window).unwrap()];
+
+    // the command is allowed on both the local app and the remote URL
+    let allowed_commands = [(
+      command.to_string(),
+      vec![
+        ResolvedCommand {
+          windows: windows.clone(),
+          ..Default::default()
+        },
+        ResolvedCommand {
+          windows: windows.clone(),
+          context: ExecutionContext::Remote {
+            url: url.parse().unwrap(),
+          },
+          ..Default::default()
+        },
+      ],
+    )]
+    .into_iter()
+    .collect();
+
+    // but it is only denied on the remote URL
+    let denied_commands = [(
+      command.to_string(),
+      vec![ResolvedCommand {
+        windows,
+        context: ExecutionContext::Remote {
+          url: url.parse().unwrap(),
+        },
+        ..Default::default()
+      }],
+    )]
+    .into_iter()
+    .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        denied_commands,
+        ..Default::default()
+      },
+    );
+
+    // the remote origin the deny entry was defined for is denied
+    assert!(
+      authority
+        .resolve_access(
+          command,
+          window,
+          webview,
+          &Origin::Remote {
+            url: url.parse().unwrap()
+          }
+        )
+        .is_none()
+    );
+
+    // the local app must not be affected by a deny entry of a remote capability
+    let resolved = authority
+      .resolve_access(command, window, webview, &Origin::Local)
+      .expect("local origin must not be denied by a remote capability");
+    assert_eq!(resolved.len(), 1);
+    assert_eq!(resolved[0].context, ExecutionContext::Local);
+  }
+
+  #[test]
+  fn denied_command_on_local_context_does_not_deny_remote() {
+    let url = "https://tauri.app";
+    let command = "my-command";
+    let window = "main";
+    let webview = "main";
+    let windows = vec![Pattern::new(window).unwrap()];
+
+    let allowed_commands = [(
+      command.to_string(),
+      vec![ResolvedCommand {
+        windows: windows.clone(),
+        context: ExecutionContext::Remote {
+          url: url.parse().unwrap(),
+        },
+        ..Default::default()
+      }],
+    )]
+    .into_iter()
+    .collect();
+
+    let denied_commands = [(
+      command.to_string(),
+      vec![ResolvedCommand {
+        windows,
+        ..Default::default()
+      }],
+    )]
+    .into_iter()
+    .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        denied_commands,
+        ..Default::default()
+      },
+    );
+
+    assert!(
+      authority
+        .resolve_access(
+          command,
+          window,
+          webview,
+          &Origin::Remote {
+            url: url.parse().unwrap()
+          }
+        )
+        .is_some()
     );
 
     assert!(

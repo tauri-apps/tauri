@@ -21,7 +21,11 @@ use tauri_runtime::{
   },
   window::{WebviewEvent, WindowId},
 };
-use tauri_utils::{Theme, config::Color, html::normalize_script_for_csp};
+use tauri_utils::{
+  Theme,
+  config::{BackgroundThrottlingPolicy, Color},
+  html::normalize_script_for_csp,
+};
 use url::Url;
 
 use crate::cef_impl::{client as browser_client, cookie, request_context, request_handler};
@@ -146,17 +150,29 @@ fn color_to_argb(color: Color) -> u32 {
 /// supports.
 ///
 /// The following Tauri webview attributes have no per-webview equivalent in CEF
-/// and are intentionally ignored here:
+/// and are intentionally ignored here; [`warn_about_unsupported_attributes`] says
+/// so when a webview sets one to something the runtime cannot honour:
 /// - `additional_browser_args`: a WebView2 environment option. Chromium's command
-///   line is per process, so `Cef::command_line_arg` is the API for it; a webview
-///   that sets this attribute is warned about below.
-/// - `scroll_bar_style`, `general_autofill_enabled`: WebView2 (Windows)-only
-///   concepts.
-/// - `allow_link_preview`, `accept_first_mouse`: WKWebView (macOS/iOS)-only.
-/// - `browser_extensions_enabled`, `extensions_path`: CEF dropped extension
-///   support in the Chrome runtime.
-/// - `data_store_identifier`: a WKWebView data-store concept with no CEF analog
-///   (per-webview isolation is done through the request context cache path).
+///   line is per process, so `Cef::command_line_arg` is the API for it.
+/// - `scroll_bar_style`: Chromium's overlay scrollbars are a process-wide
+///   feature (`OverlayScrollbar`), reachable through `Cef::enable_features`.
+/// - `background_throttling`: Chromium throttles hidden pages process-wide;
+///   `--disable-background-timer-throttling` turns that off for every webview.
+/// - `transparent`: a windowed browser whose background alpha is 0 falls back
+///   to `CefSettings.background_color`; transparent painting exists only in
+///   off-screen rendering, which this runtime does not use.
+/// - `accept_first_mouse`: Chromium's own view decides whether the click that
+///   activates a window reaches the page.
+/// - `browser_extensions_enabled`, `extensions_path`: CEF removed its extension
+///   loading API along with the Alloy runtime.
+/// - `general_autofill_enabled`: already `false` in effect. The runtime turns
+///   `autofill.profile_enabled` off on every profile (see `preferences`), and
+///   `Cef::profile_preference` is how an application turns it back on.
+/// - `allow_link_preview`: Chromium has no link previews, so there is nothing
+///   to allow or forbid.
+///
+/// `data_store_identifier` *is* served, as its own request context cache path,
+/// the same way `data_directory` is (see `request_context`).
 ///
 /// `proxy_url` is handled separately via the request context preference,
 /// `zoom_hotkeys_enabled` through the client's command handler, because zoom
@@ -190,6 +206,64 @@ fn browser_settings_from_webview_attributes(
     chrome_status_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
     chrome_zoom_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
     ..Default::default()
+  }
+}
+
+/// Warns about the attributes of a webview that the CEF runtime cannot honour.
+///
+/// Only a value the runtime would have to act on is reported, so a configuration that
+/// leaves an attribute at its default stays quiet. Each message names the runtime-wide
+/// API that does the same thing where one exists: an application ported from WebView2 or
+/// WKWebView may rely on the attribute, and silently dropping it is the worst outcome.
+fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes) {
+  if attributes.additional_browser_args.is_some() {
+    log::warn!(
+      "webview {label:?} sets additional_browser_args, which the CEF runtime does not support: \
+       Chromium's command line is per process, not per webview. Use `Cef::command_line_arg` \
+       to pass switches to the browser process."
+    );
+  }
+  if attributes.transparent {
+    log::warn!(
+      "webview {label:?} asks to be transparent, which the CEF runtime does not support: a \
+       windowed Chromium browser paints an opaque background, and transparent painting exists \
+       only in off-screen rendering."
+    );
+  }
+  if attributes.accept_first_mouse {
+    log::warn!(
+      "webview {label:?} sets accept_first_mouse, which the CEF runtime does not support: \
+       Chromium's own view decides whether the click that activates a window reaches the page."
+    );
+  }
+  if attributes.browser_extensions_enabled || attributes.extensions_path.is_some() {
+    log::warn!(
+      "webview {label:?} asks for browser extensions, which the CEF runtime does not support: \
+       CEF removed its extension loading API."
+    );
+  }
+  if let Some(policy) = &attributes.background_throttling
+    && !matches!(policy, BackgroundThrottlingPolicy::Throttle)
+  {
+    log::warn!(
+      "webview {label:?} sets a background throttling policy, which the CEF runtime cannot \
+       apply per webview: Chromium throttles hidden pages process-wide (its default is the \
+       `throttle` policy). Pass `--disable-background-timer-throttling` through \
+       `Cef::command_line_arg` to turn it off for every webview."
+    );
+  }
+  // The overlay variant only exists on Windows; elsewhere the configuration maps to
+  // `Default` before it reaches the runtime.
+  #[cfg(windows)]
+  if !matches!(
+    attributes.scroll_bar_style,
+    tauri_runtime::webview::ScrollBarStyle::Default
+  ) {
+    log::warn!(
+      "webview {label:?} asks for overlay scrollbars, which the CEF runtime cannot apply per \
+       webview: Chromium's overlay scrollbars are a process-wide feature. Enable it for every \
+       webview with `Cef::enable_features([\"OverlayScrollbar\"])`."
+    );
   }
 }
 
@@ -717,17 +791,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // `navigator.userAgent` for this one target.
     let user_agent = pending.webview_attributes.user_agent.clone();
 
-    // Nor a per-browser command line: Chromium reads it once per process, before any
-    // browser exists, so this attribute cannot be honoured. Say so rather than dropping
-    // the switches silently — an application ported from WebView2 may rely on them.
-    if pending.webview_attributes.additional_browser_args.is_some() {
-      log::warn!(
-        "webview {:?} sets additional_browser_args, which the CEF runtime does not support: \
-         Chromium's command line is per process, not per webview. Use `Cef::command_line_arg` \
-         to pass switches to the browser process.",
-        pending.label
-      );
-    }
+    warn_about_unsupported_attributes(&pending.label, &pending.webview_attributes);
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {
       "https"

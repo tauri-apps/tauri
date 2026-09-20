@@ -381,7 +381,7 @@
           "default": true
         },
         "transparent": {
-          "description": "Whether the window is transparent or not.\n\nNote that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.\nWARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.\n\nOn Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.",
+          "description": "Whether the window is transparent or not.\n\nNote that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.\nWARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.\n\nOn Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.\n\n## Platform-specific\n\n- **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.",
           "type": "boolean",
           "default": false
         },
@@ -534,7 +534,7 @@
           "default": false
         },
         "browserExtensionsEnabled": {
-          "description": "Whether browser extensions can be installed for the webview process\n\n## Platform-specific:\n\n- **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)\n- **MacOS / Linux / iOS / Android** - Unsupported.",
+          "description": "Whether browser extensions can be installed for the webview process\n\n## Platform-specific:\n\n- **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)\n- **MacOS / Linux / iOS / Android** - Unsupported.\n- **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.",
           "type": "boolean",
           "default": false
         },
@@ -562,7 +562,7 @@
           ]
         },
         "backgroundThrottling": {
-          "description": "Change the default background throttling behaviour.\n\nBy default, browsers use a suspend policy that will throttle timers and even unload\nthe whole tab (view) to free resources after roughly 5 minutes when a view became\nminimized or hidden. This will pause all tasks until the documents visibility state\nchanges back from hidden to visible by bringing the view back to the foreground.\n\n## Platform-specific\n\n- **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.\n- **iOS**: Supported since version 17.0+.\n- **macOS**: Supported since version 14.0+.\n\nsee <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>",
+          "description": "Change the default background throttling behaviour.\n\nBy default, browsers use a suspend policy that will throttle timers and even unload\nthe whole tab (view) to free resources after roughly 5 minutes when a view became\nminimized or hidden. This will pause all tasks until the documents visibility state\nchanges back from hidden to visible by bringing the view back to the foreground.\n\n## Platform-specific\n\n- **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.\n- **iOS**: Supported since version 17.0+.\n- **macOS**: Supported since version 14.0+.\n- **CEF runtime**: Unsupported per webview. Chromium throttles hidden pages process-wide; pass `--disable-background-timer-throttling` through `Cef::command_line_arg` to turn that off for every webview.\n\nsee <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>",
           "anyOf": [
             {
               "$ref": "#/definitions/BackgroundThrottlingPolicy"
@@ -578,7 +578,7 @@
           "default": false
         },
         "allowLinkPreview": {
-          "description": "on macOS and iOS there is a link preview on long pressing links, this is enabled by default.\nsee https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview",
+          "description": "on macOS and iOS there is a link preview on long pressing links, this is enabled by default.\nsee https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview\n\nNot applicable on the CEF runtime, Chromium has no link previews.",
           "type": "boolean",
           "default": true
         },
@@ -595,7 +595,7 @@
           ]
         },
         "dataStoreIdentifier": {
-          "description": "Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\nSee https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc\n\nThe array must contain 16 u8 numbers.\n\n#### Platform-specific:\n\n- **iOS**: Supported since version 17.0+.\n- **macOS**: Supported since version 14.0+.\n- **Windows / Linux / Android**: Unsupported.",
+          "description": "Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\nSee https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc\n\nThe array must contain 16 u8 numbers.\n\n#### Platform-specific:\n\n- **iOS**: Supported since version 17.0+.\n- **macOS**: Supported since version 14.0+.\n- **Windows / Linux / Android**: Unsupported.\n- **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation `dataDirectory` gives; `dataDirectory` wins when both are set.",
           "type": [
             "array",
             "null"
@@ -610,7 +610,7 @@
           "maxItems": 16
         },
         "scrollBarStyle": {
-          "description": "Specifies the native scrollbar style to use with the webview.\nCSS styles that modify the scrollbar are applied on top of the native appearance configured here.\n\nDefaults to `default`, which is the browser default.\n\n## Platform-specific\n\n- **Windows**:\n  - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,\n    and does nothing on older versions.\n  - This option must be given the same value for all webviews that target the same data directory.\n- **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.",
+          "description": "Specifies the native scrollbar style to use with the webview.\nCSS styles that modify the scrollbar are applied on top of the native appearance configured here.\n\nDefaults to `default`, which is the browser default.\n\n## Platform-specific\n\n- **Windows**:\n  - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,\n    and does nothing on older versions.\n  - This option must be given the same value for all webviews that target the same data directory.\n- **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.\n- **CEF runtime**: Unsupported per webview. Overlay scrollbars are a process-wide Chromium feature; enable them for every webview with `Cef::enable_features([\"OverlayScrollbar\"])`.",
           "default": "default",
           "allOf": [
             {
@@ -645,7 +645,7 @@
           ]
         },
         "generalAutofillEnabled": {
-          "description": "Controls the WebView's browser-level general autofill behavior.\n\n**This option does not disable password or credit card autofill.**\n\nWhen set to `false`, the WebView will not automatically populate\ngeneral form fields using previously stored data such as addresses\nor contact information.\n\nIf not specified, this is `true` by default.\n\n## Platform-specific\n\n- **Windows**: Supported. WebView2's autofill feature (called\n  \"Suggestions\") may not honor `autocomplete=\"off\"` on input\n  elements in some cases.\n- **Linux / Android / iOS / macOS**: Unsupported and performs no\n  operation.",
+          "description": "Controls the WebView's browser-level general autofill behavior.\n\n**This option does not disable password or credit card autofill.**\n\nWhen set to `false`, the WebView will not automatically populate\ngeneral form fields using previously stored data such as addresses\nor contact information.\n\nIf not specified, this is `true` by default.\n\n## Platform-specific\n\n- **Windows**: Supported. WebView2's autofill feature (called\n  \"Suggestions\") may not honor `autocomplete=\"off\"` on input\n  elements in some cases.\n- **Linux / Android / iOS / macOS**: Unsupported and performs no\n  operation.\n- **CEF runtime**: Autofill is already off on this runtime (it disables `autofill.profile_enabled` on every profile), so `false` is the state you get; turn it on with `Cef::profile_preference(\"autofill.profile_enabled\", true)`.",
           "type": "boolean",
           "default": true
         }

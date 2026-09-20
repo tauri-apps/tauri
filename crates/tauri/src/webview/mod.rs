@@ -1140,6 +1140,7 @@ fn main() {
   ///
   /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes.browser_extensions_enabled = enabled;
@@ -1152,6 +1153,7 @@ fn main() {
   ///
   /// - **Windows**: Browser extensions must first be enabled. See [`browser_extensions_enabled`](Self::browser_extensions_enabled)
   /// - **MacOS / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[must_use]
   pub fn extensions_path(mut self, path: impl AsRef<Path>) -> Self {
     self.webview_attributes.extensions_path = Some(path.as_ref().to_path_buf());
@@ -1163,6 +1165,7 @@ fn main() {
   ///
   /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17
   /// - **Windows / Linux / Android**: Unsupported.
+  /// - **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation [`data_directory`](Self::data_directory) gives; `data_directory` wins when both are set.
   ///
   /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
@@ -1226,6 +1229,7 @@ fn main() {
   /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
+  /// - **CEF runtime**: Unsupported per webview. Chromium throttles hidden pages process-wide; pass `--disable-background-timer-throttling` through `Cef::command_line_arg` to turn that off for every webview.
   ///
   /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
@@ -1254,6 +1258,7 @@ fn main() {
   ///   - This option must be given the same value for all webviews that target the same data directory. Use
   ///     [`WebviewBuilder::data_directory`] to change data directories if needed.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  /// - **CEF runtime**: Unsupported per webview. Overlay scrollbars are a process-wide Chromium feature; enable them for every webview with `Cef::enable_features(["OverlayScrollbar"])`.
   #[must_use]
   pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
     self.webview_attributes = self.webview_attributes.scroll_bar_style(style);
@@ -1277,6 +1282,7 @@ fn main() {
   ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
+  /// - **CEF runtime**: Autofill is already off on this runtime (it disables `autofill.profile_enabled` on every profile), so `false` is the state you get; turn it on with `Cef::profile_preference("autofill.profile_enabled", true)`.
   #[must_use]
   pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes = self.webview_attributes.general_autofill_enabled(enabled);
@@ -1292,6 +1298,7 @@ fn main() {
   /// ## Platform-specific
   ///
   /// - **Linux / Windows / Android:** Unsupported.
+  /// - **CEF runtime:** Not applicable, Chromium has no link previews.
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {

@@ -29,6 +29,7 @@ streaming_example_test_video.mp4
 
 # examples /gen directory
 /examples/**/src-tauri/gen/
+/crates/tauri/test/cef-rollback/gen/
 /bench/**/src-tauri/gen/
 
 # logs

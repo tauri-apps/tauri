@@ -206,6 +206,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
 fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<PathBuf> {
+  const LINUXDEPLOY_COMMIT_HASH: &str = "07333c6";
+
   let apprun = tools_path.join(format!("AppRun-{arch}"));
   if !apprun.exists() {
     let data = download(&format!(
@@ -215,10 +217,12 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
   }
 
   let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
-  let linuxdeploy = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}.AppImage"));
+  let linuxdeploy = tools_path.join(format!(
+    "linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}-{linuxdeploy_arch}.AppImage"
+  ));
   if !linuxdeploy.exists() {
     let data = download(&format!(
-      "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"
+      "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}/linuxdeploy-{linuxdeploy_arch}.AppImage"
     ))?;
     write_and_make_executable(&linuxdeploy, data)?;
   }
@@ -242,6 +246,7 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
   let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");
   if !appimage.exists() {
     // This is optional, linuxdeploy will fall back to its built-in version if the download failed.
+    // Since switchting to linuxdeploy-07333c6 this shouldn't be necessary anymore, but we keep it here for now just for fun.
     let data = download(&format!(
       "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"
     ));

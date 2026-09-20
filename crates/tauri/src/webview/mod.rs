@@ -1021,6 +1021,9 @@ fn main() {
   /// ## Platform-specific
   ///
   /// - **macOS / Linux / Android / iOS**: Unsupported.
+  /// - **CEF runtime**: Unsupported. Chromium's command line is per process, not per webview,
+  ///   so pass switches through `Cef::command_line_arg` instead; the runtime logs a warning
+  ///   when a webview sets this.
   ///
   /// ## Warning
   ///

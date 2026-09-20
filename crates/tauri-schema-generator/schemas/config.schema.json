@@ -486,7 +486,7 @@
           ]
         },
         "additionalBrowserArgs": {
-          "description": "Defines additional browser arguments on Windows.\n\n## Warning\n\nWebview instances with different browser arguments must also have different [data directories](Self::data_directory).\n\nBy default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`\nso if you set this, you also need to disable these components by yourself if you want.",
+          "description": "Defines additional browser arguments on Windows.\n\n## Platform-specific\n\n- **CEF runtime**: Unsupported. Chromium's command line is per process, not per webview;\n  pass switches through `Cef::command_line_arg` in Rust instead.\n\n## Warning\n\nWebview instances with different browser arguments must also have different [data directories](Self::data_directory).\n\nBy default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`\nso if you set this, you also need to disable these components by yourself if you want.",
           "type": [
             "string",
             "null"

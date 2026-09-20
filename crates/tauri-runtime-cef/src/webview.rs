@@ -153,8 +153,11 @@ fn color_to_argb(color: Color) -> u32 {
 ///
 /// The following Tauri webview attributes have no per-webview equivalent in CEF
 /// and are intentionally ignored here:
-/// - `additional_browser_args`, `scroll_bar_style`, `general_autofill_enabled`:
-///   WebView2 (Windows)-only concepts.
+/// - `additional_browser_args`: a WebView2 environment option. Chromium's command
+///   line is per process, so `Cef::command_line_arg` is the API for it; a webview
+///   that sets this attribute is warned about below.
+/// - `scroll_bar_style`, `general_autofill_enabled`: WebView2 (Windows)-only
+///   concepts.
 /// - `allow_link_preview`, `accept_first_mouse`: WKWebView (macOS/iOS)-only.
 /// - `browser_extensions_enabled`, `extensions_path`: CEF dropped extension
 ///   support in the Chrome runtime.
@@ -719,6 +722,18 @@ impl<T: UserEvent> WinitCefApp<T> {
     // the DevTools protocol instead, which overrides both the header and
     // `navigator.userAgent` for this one target.
     let user_agent = pending.webview_attributes.user_agent.clone();
+
+    // Nor a per-browser command line: Chromium reads it once per process, before any
+    // browser exists, so this attribute cannot be honoured. Say so rather than dropping
+    // the switches silently — an application ported from WebView2 may rely on them.
+    if pending.webview_attributes.additional_browser_args.is_some() {
+      log::warn!(
+        "webview {:?} sets additional_browser_args, which the CEF runtime does not support: \
+         Chromium's command line is per process, not per webview. Use `Cef::command_line_arg` \
+         to pass switches to the browser process.",
+        pending.label
+      );
+    }
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {
       "https"

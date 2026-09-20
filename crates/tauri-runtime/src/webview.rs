@@ -673,7 +673,13 @@ impl WebviewAttributes {
     self
   }
 
-  /// Sets additional browser arguments. **Windows Only**
+  /// Sets additional browser arguments.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Wry runtime:** Windows only.
+  /// - **CEF runtime:** Unsupported. Chromium's command line is per process, not per webview;
+  ///   pass switches through `Cef::command_line_arg` instead.
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.additional_browser_args = Some(additional_args.to_string());

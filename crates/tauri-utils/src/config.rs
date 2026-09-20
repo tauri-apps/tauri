@@ -2083,6 +2083,11 @@ pub struct WindowConfig {
   pub tabbing_identifier: Option<String>,
   /// Defines additional browser arguments on Windows.
   ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime**: Unsupported. Chromium's command line is per process, not per webview;
+  ///   pass switches through `Cef::command_line_arg` in Rust instead.
+  ///
   /// ## Warning
   ///
   /// Webview instances with different browser arguments must also have different [data directories](Self::data_directory).

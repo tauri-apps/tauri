@@ -33,15 +33,15 @@ use crate::ActivationPolicy;
 use crate::{
   Cookie, DeviceEventFilter, Error, EventLoopProxy, Icon, ProgressBarState, ResizeDirection,
   Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, RuntimeInitAttrs, UserAttentionType,
-  UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
+  UserEvent, WebviewDispatch, WindowDispatch,
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,
   webview::{
     DetachedWebview, NewWindowFeatures, NewWindowHandler, PendingWebview, WebviewIpcHandler,
   },
   window::{
-    CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WebviewEvent,
-    WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
+    CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WindowBuilder,
+    WindowBuilderBase, WindowId, WindowSizeConstraints,
   },
 };
 
@@ -1200,7 +1200,6 @@ impl<T: UserEvent> RuntimeHandle<T> for DynRuntimeHandle<T> {
 trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
   fn box_clone(&self) -> Box<dyn ErasedWindowDispatch<T>>;
   fn run_on_main_thread(&self, f: MainThreadTask) -> Result<()>;
-  fn on_window_event(&self, f: Box<dyn Fn(&WindowEvent) + Send>) -> WindowEventId;
   fn scale_factor(&self) -> Result<f64>;
   fn inner_position(&self) -> Result<PhysicalPosition<i32>>;
   fn outer_position(&self) -> Result<PhysicalPosition<i32>>;
@@ -1313,10 +1312,6 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
 
   fn run_on_main_thread(&self, f: MainThreadTask) -> Result<()> {
     WindowDispatch::run_on_main_thread(self, f)
-  }
-
-  fn on_window_event(&self, f: Box<dyn Fn(&WindowEvent) + Send>) -> WindowEventId {
-    WindowDispatch::on_window_event(self, f)
   }
 
   fn scale_factor(&self) -> Result<f64> {
@@ -1704,10 +1699,6 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
     self.inner.run_on_main_thread(Box::new(f))
   }
 
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
-    self.inner.on_window_event(Box::new(f))
-  }
-
   fn scale_factor(&self) -> Result<f64> {
     self.inner.scale_factor()
   }
@@ -2057,7 +2048,6 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
 trait ErasedWebviewDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
   fn box_clone(&self) -> Box<dyn ErasedWebviewDispatch<T>>;
   fn run_on_main_thread(&self, f: MainThreadTask) -> Result<()>;
-  fn on_webview_event(&self, f: Box<dyn Fn(&WebviewEvent) + Send>) -> WebviewEventId;
   fn with_webview(&self, f: Box<dyn FnOnce(DynWebview) + Send>) -> Result<()>;
   #[cfg(target_os = "ios")]
   fn with_ios_webview(
@@ -2110,10 +2100,6 @@ impl<T: UserEvent, D: WebviewDispatch<T>> ErasedWebviewDispatch<T> for D {
 
   fn run_on_main_thread(&self, f: MainThreadTask) -> Result<()> {
     WebviewDispatch::run_on_main_thread(self, f)
-  }
-
-  fn on_webview_event(&self, f: Box<dyn Fn(&WebviewEvent) + Send>) -> WebviewEventId {
-    WebviewDispatch::on_webview_event(self, f)
   }
 
   fn with_webview(&self, f: Box<dyn FnOnce(DynWebview) + Send>) -> Result<()> {
@@ -2303,10 +2289,6 @@ impl<T: UserEvent> WebviewDispatch<T> for DynWebviewDispatcher<T> {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.inner.run_on_main_thread(Box::new(f))
-  }
-
-  fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId {
-    self.inner.on_webview_event(Box::new(f))
   }
 
   fn with_webview<F: FnOnce(DynWebview) + Send + 'static>(&self, f: F) -> Result<()> {

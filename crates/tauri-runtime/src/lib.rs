@@ -55,9 +55,6 @@ use http::{
 /// Cookie extraction
 pub use cookie::Cookie;
 
-pub type WindowEventId = u32;
-pub type WebviewEventId = u32;
-
 /// Progress bar status.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -649,9 +646,6 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
-  /// Registers a webview event handler.
-  fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId;
-
   /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(<Self::Runtime as Runtime<T>>::Webview) + Send + 'static>(
     &self,
@@ -804,9 +798,6 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
-
-  /// Registers a window event handler.
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId;
 
   // GETTERS
 

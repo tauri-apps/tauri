@@ -2747,6 +2747,26 @@ fn on_event_loop_event<R: Runtime>(
     .expect("poisoned plugin store")
     .on_event(app_handle, &event);
 
+  // hand the event to the listeners registered for this specific window or webview
+  // through `Window::on_window_event` / `Webview::on_webview_event`
+  match &event {
+    RunEvent::WindowEvent { label, event } => {
+      manager.window.scoped_event_listeners.dispatch(label, event);
+      // the window is gone for good, so nothing else can arrive for it. Doing this
+      // before the application's own run event handler matters: a handler that
+      // recreates a window under the same label gets a clean slot to register into,
+      // rather than one this sweeps out from under it.
+      if matches!(event, WindowEvent::Destroyed) {
+        manager.window.scoped_event_listeners.remove(label);
+      }
+    }
+    RunEvent::WebviewEvent { label, event } => manager
+      .webview
+      .scoped_event_listeners
+      .dispatch(label, event),
+    _ => {}
+  }
+
   event
 }
 

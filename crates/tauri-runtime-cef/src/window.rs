@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::HashMap,
   sync::{
     Arc, Mutex,
     mpsc::{self, Receiver, Sender},
@@ -15,13 +14,12 @@ use cef::ImplBrowserHost;
 use raw_window_handle::HasWindowHandle;
 use tauri_runtime::{
   Error, Icon, ProgressBarState, Result, UserAttentionType, UserEvent, WindowDispatch,
-  WindowEventId,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
   window::{
-    CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WindowEvent,
-    WindowId, WindowSizeConstraints,
+    CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WindowId,
+    WindowSizeConstraints,
   },
 };
 use tauri_utils::{Theme, config::Color};
@@ -59,9 +57,6 @@ use crate::{
   window_builder::WindowBuilderWrapper,
   window_handle::SendRawWindowHandle,
 };
-
-type WindowEventListener = Box<dyn Fn(&WindowEvent) + Send>;
-type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventListener>>>;
 
 #[cfg(any(
   target_os = "linux",
@@ -309,7 +304,6 @@ pub(crate) fn max_size_constraint(
 }
 
 pub(crate) enum WindowMessage {
-  AddEventListener(WindowEventId, WindowEventListener),
   Close,
   Destroy,
   ScaleFactor(Sender<Result<f64>>),
@@ -463,7 +457,6 @@ pub(crate) struct AppWindow {
   pub(crate) window: Box<dyn WinitWindow>,
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
-  pub(crate) listeners: WindowEventListeners,
   pub(crate) native_drag_drop: Option<WinitDragDropState>,
   #[cfg(any(
     target_os = "linux",
@@ -662,7 +655,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       window,
       attrs,
       children: Vec::new(),
-      listeners: Default::default(),
       native_drag_drop: None,
       #[cfg(any(
         target_os = "linux",
@@ -845,9 +837,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     let window = &appwindow.window;
 
     match message {
-      WindowMessage::AddEventListener(id, listener) => {
-        appwindow.listeners.lock().unwrap().insert(id, listener);
-      }
       WindowMessage::Close | WindowMessage::Destroy => unreachable!("handled before borrowing"),
       WindowMessage::ScaleFactor(tx) => _ = tx.send(Ok(window.scale_factor())),
       WindowMessage::InnerSize(tx) => _ = tx.send(Ok(window.surface_size())),
@@ -1169,15 +1158,6 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.run_on_main_thread(f)
-  }
-
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
-    let id = self.context.next_window_event_id();
-    let _ = self.context.send_message(Message::Window {
-      window_id: self.window_id,
-      message: WindowMessage::AddEventListener(id, Box::new(f)),
-    });
-    id
   }
 
   fn scale_factor(&self) -> Result<f64> {

@@ -7,6 +7,7 @@
 pub(crate) mod plugin;
 mod webview_window;
 
+use tauri_runtime::dpi::Rect;
 pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 
 /// Cookie crate used for [`Webview::set_cookie`] and [`Webview::delete_cookie`].

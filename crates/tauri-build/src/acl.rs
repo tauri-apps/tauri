@@ -13,12 +13,16 @@ use tauri_utils::{
   acl::{
     ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME,
     capability::Capability,
+    get_capabilities,
     manifest::{Manifest, PermissionFile},
     schema::CAPABILITIES_SCHEMA_FOLDER_PATH,
   },
+  config::Config,
   platform::Target,
   write_if_changed,
 };
+
+use crate::ContextAttributes;
 
 /// Definition of a plugin that is part of the Tauri application instead of having its own crate.
 ///
@@ -419,13 +423,16 @@ fn validate_capabilities(
 pub fn build(
   out_dir: &Path,
   target: Target,
-  app_manifest: AppManifest,
-  inlined_plugins: &HashMap<&'static str, InlinedPlugin>,
-  capabilities_path_pattern: Option<&'static str>,
+  config: &Config,
+  attributes: &ContextAttributes,
 ) -> super::Result<()> {
   let mut acl_manifests = read_plugins_manifests()?;
 
-  let app_acl = app_manifest_permissions(out_dir, app_manifest, inlined_plugins)?;
+  let app_acl = app_manifest_permissions(
+    out_dir,
+    attributes.app_manifest,
+    &attributes.inlined_plugins,
+  )?;
   let has_app_manifest = app_acl.manifest.default_permission.is_some()
     || !app_acl.manifest.permission_sets.is_empty()
     || !app_acl.manifest.permissions.is_empty()
@@ -434,7 +441,7 @@ pub fn build(
     acl_manifests.insert(APP_ACL_KEY.into(), app_acl.manifest);
   }
 
-  let inline_plugins_acl = inline_plugins(out_dir, inlined_plugins.clone())?;
+  let inline_plugins_acl = inline_plugins(out_dir, attributes.inlined_plugins.clone())?;
 
   acl_manifests.extend(inline_plugins_acl.manifests);
 
@@ -443,7 +450,7 @@ pub fn build(
 
   tauri_utils::acl::schema::generate_capability_schema(&acl_manifests, target)?;
 
-  let capabilities = if let Some(pattern) = capabilities_path_pattern {
+  let capabilities = if let Some(pattern) = &attributes.capabilities_path_pattern {
     tauri_utils::acl::build::parse_capabilities(pattern)?
   } else {
     // Emit an absolute watch path: cargo resolves a relative
@@ -461,6 +468,15 @@ pub fn build(
     println!("cargo:rerun-if-changed={}", capabilities_dir.display());
     tauri_utils::acl::build::parse_capabilities("./capabilities/**/*")?
   };
+  // the capabilities that are actually resolved at compile time are the ones returned by
+  // `get_capabilities`: when the configuration file defines `app > security > capabilities`,
+  // the capabilities parsed from the filesystem are only used to resolve the entries that
+  // reference them by identifier, and the inlined ones are never seen by this build script
+  // otherwise. we must validate that same set so a typo in an inlined permission identifier
+  // is reported here instead of panicking later on tauri-codegen's ACL resolution
+  let capabilities = get_capabilities(config, capabilities.clone(), None)
+    .context("failed to resolve the capabilities from the Tauri configuration file")?;
+
   validate_capabilities(&acl_manifests, &capabilities)?;
 
   let capabilities_path = save_capabilities(&capabilities)?;
@@ -471,6 +487,8 @@ pub fn build(
     permissions_map.insert(APP_ACL_KEY.to_string(), app_acl.permission_files);
   }
 
+  // note: `generate_allowed_commands` merges the configuration capabilities itself
+  // so it must receive the capabilities parsed from the filesystem
   tauri_utils::acl::build::generate_allowed_commands(out_dir, Some(capabilities), permissions_map)?;
 
   Ok(())

@@ -118,6 +118,7 @@ rayon = "1.10"
 download-cef = "3"
 
 [dev-dependencies]
+serial_test = "3.5"
 insta = "1"
 pretty_assertions = "1"
 

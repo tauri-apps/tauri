@@ -494,7 +494,6 @@ fn ensure_init(
         .join("app/src/main/java")
         .join(tauri_config.identifier.replace('.', "/").replace('-', "_"));
       if java_folder.exists() {
-        #[cfg(unix)]
         ensure_gradlew(&project_dir)?;
       } else {
         project_outdated_reasons
@@ -587,26 +586,47 @@ fn ensure_init(
   Ok(())
 }
 
-#[cfg(unix)]
 fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
-  use std::os::unix::fs::PermissionsExt;
-
   let gradlew_path = project_dir.join("gradlew");
-  if let Ok(metadata) = gradlew_path.metadata() {
-    let mut permissions = metadata.permissions();
-    let is_executable = permissions.mode() & 0o111 != 0;
-    if !is_executable {
-      permissions.set_mode(permissions.mode() | 0o111);
-      std::fs::set_permissions(&gradlew_path, permissions)
-        .fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
+
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+
+    if let Ok(metadata) = gradlew_path.metadata() {
+      let mut permissions = metadata.permissions();
+      let is_executable = permissions.mode() & 0o111 != 0;
+      if !is_executable {
+        permissions.set_mode(permissions.mode() | 0o111);
+        std::fs::set_permissions(&gradlew_path, permissions)
+          .fs_context("failed to mark gradlew as executable", &gradlew_path)?;
+      }
     }
-    std::fs::write(
-      &gradlew_path,
-      std::fs::read_to_string(&gradlew_path)
-        .fs_context("failed to read gradlew", gradlew_path.clone())?
-        .replace("\r\n", "\n"),
-    )
-    .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
+  }
+
+  // A gradlew with CRLF line endings cannot run: sh fails with
+  // "/usr/bin/env: 'sh\r': No such file or directory" or similar, which
+  // also happens under Git Bash on Windows, so the rewrite runs on all
+  // platforms (https://github.com/tauri-apps/tauri/pull/16017). Windows
+  // builds invoke gradlew.bat, so there a gradlew that cannot be
+  // rewritten only draws a warning; on unix the error is returned.
+  if gradlew_path.exists() {
+    let result = std::fs::read_to_string(&gradlew_path)
+      .fs_context("failed to read gradlew", &gradlew_path)
+      .and_then(|contents| {
+        if contents.contains("\r\n") {
+          std::fs::write(&gradlew_path, contents.replace("\r\n", "\n"))
+            .fs_context("failed to replace gradlew CRLF with LF", &gradlew_path)
+        } else {
+          Ok(())
+        }
+      });
+    #[cfg(unix)]
+    result?;
+    #[cfg(not(unix))]
+    if let Err(error) = result {
+      log::warn!("failed to normalize gradlew line endings: {error}");
+    }
   }
 
   Ok(())

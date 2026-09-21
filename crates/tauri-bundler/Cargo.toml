@@ -88,3 +88,6 @@ platform-certs = ["ureq/platform-verifier"]
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+serial_test = "3.5"

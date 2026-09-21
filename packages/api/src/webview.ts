@@ -605,7 +605,10 @@ class Webview {
    * @since 2.1.0
    */
   async setBackgroundColor(color: Color | null): Promise<void> {
-    return invoke('plugin:webview|set_webview_background_color', { color })
+    return invoke('plugin:webview|set_webview_background_color', {
+      label: this.label,
+      value: color
+    })
   }
 
   // Listeners

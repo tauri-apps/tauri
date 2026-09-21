@@ -1932,6 +1932,7 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn parse_target_dir_from_opts() {
     let dirs = crate::helpers::app_paths::resolve_dirs();
     let current_dir = std::env::current_dir().unwrap();

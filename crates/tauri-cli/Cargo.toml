@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "3.0.0-alpha.1"
+version = "3.0.0-alpha.2"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2024"
 rust-version = "1.95"
@@ -118,6 +118,7 @@ rayon = "1.10"
 download-cef = "3"
 
 [dev-dependencies]
+serial_test = "3.5"
 insta = "1"
 pretty_assertions = "1"
 

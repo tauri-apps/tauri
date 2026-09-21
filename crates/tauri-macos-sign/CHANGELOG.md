@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0-alpha.1]
+
+### What's Changed
+
+- [`d42c0d62b`](https://www.github.com/tauri-apps/tauri/commit/d42c0d62ba18e741a449bfb507dc8dcd2a8ca4ee) Pull latest v2 changes.
+
 ## [3.0.0-alpha.0]
 
 ### What's Changed

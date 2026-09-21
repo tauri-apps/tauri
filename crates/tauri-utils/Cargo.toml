@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "3.0.0-alpha.0"
+version = "3.0.0-alpha.1"
 description = "Utilities for Tauri"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
@@ -17,7 +17,7 @@ serde_json = "1"
 anyhow = "1"
 thiserror = "2"
 phf = { version = "0.13", features = ["macros"] }
-brotli = { version = "8", optional = true, default-features = false, features = [
+brotli = { version = "9", optional = true, default-features = false, features = [
   "std",
 ] }
 url = { version = "2", features = ["serde"] }

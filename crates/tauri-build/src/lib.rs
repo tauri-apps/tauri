@@ -502,6 +502,19 @@ impl Attributes {
     self.codegen.replace(codegen);
     self
   }
+
+  /// The subset of these attributes that shapes the generated context and its
+  /// Access Control List; the executable-specific ones (Windows resources,
+  /// config path, codegen) stay behind.
+  fn context_attributes(&self) -> ContextAttributes {
+    ContextAttributes {
+      capabilities_path_pattern: self.capabilities_path_pattern,
+      #[cfg(feature = "codegen")]
+      codegen: None,
+      inlined_plugins: self.inlined_plugins.clone(),
+      app_manifest: self.app_manifest,
+    }
+  }
 }
 
 /// The attributes used by [`try_build_context`].
@@ -696,13 +709,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   manifest::check(&config, &mut manifest)?;
 
-  acl::build(
-    &out_dir,
-    target,
-    attributes.app_manifest,
-    &attributes.inlined_plugins,
-    attributes.capabilities_path_pattern,
-  )?;
+  acl::build(&out_dir, target, &config, &attributes.context_attributes())?;
 
   tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
 
@@ -952,20 +959,11 @@ pub fn try_build_context(attributes: ContextAttributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  // Parsed only to declare each config file as a build script input and to
-  // fail fast on invalid configuration; the value itself is read again by the
-  // `generate_context!` expansion.
-  parse_tauri_config(target, &env::current_dir().unwrap())?;
+  let config = parse_tauri_config(target, &env::current_dir().unwrap())?;
 
   let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
-  acl::build(
-    &out_dir,
-    target,
-    attributes.app_manifest,
-    &attributes.inlined_plugins,
-    attributes.capabilities_path_pattern,
-  )?;
+  acl::build(&out_dir, target, &config, &attributes)?;
 
   tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
 
@@ -1089,6 +1087,7 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn static_vc_runtime_chain() {
     // 1. Nothing is set, should default to true
     let config = tauri_utils::config::Config::default();

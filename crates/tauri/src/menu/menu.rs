@@ -91,7 +91,7 @@ impl<R: Runtime> Menu<R> {
     let handle = manager.app_handle();
     let app_handle = handle.clone();
 
-    let menu = handle.run_on_main_thread_return(move || {
+    let menu = handle.run_on_main_thread_blocking(move || {
       let menu = muda::Menu::new();
       MenuInner::new(app_handle, menu)
     })?;
@@ -105,7 +105,7 @@ impl<R: Runtime> Menu<R> {
     let app_handle = handle.clone();
 
     let id = id.into();
-    let menu = handle.run_on_main_thread_return(move || {
+    let menu = handle.run_on_main_thread_blocking(move || {
       let menu = muda::Menu::with_id(id.clone());
       MenuInner::new(app_handle, menu)
     })?;

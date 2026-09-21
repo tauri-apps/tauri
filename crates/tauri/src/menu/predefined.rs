@@ -15,7 +15,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     let handle = manager.app_handle();
     let app_handle = handle.clone();
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::separator();
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -30,7 +30,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::copy(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -45,7 +45,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::cut(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -60,7 +60,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::paste(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -75,7 +75,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::select_all(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -94,7 +94,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::undo(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -112,7 +112,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::redo(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -131,7 +131,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::minimize(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -150,7 +150,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::maximize(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -169,7 +169,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::fullscreen(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -188,7 +188,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::hide(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -207,7 +207,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::hide_others(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -226,7 +226,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::show_all(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -245,7 +245,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::close_window(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -264,7 +264,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::quit(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -288,7 +288,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
       None => None,
     };
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::about(text.as_deref(), metadata);
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -307,7 +307,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::services(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;

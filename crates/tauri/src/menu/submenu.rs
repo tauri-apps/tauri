@@ -91,7 +91,7 @@ impl<R: Runtime> Submenu<R> {
 
     let text = text.as_ref().to_owned();
 
-    let submenu = handle.run_on_main_thread_return(move || {
+    let submenu = handle.run_on_main_thread_blocking(move || {
       let submenu = muda::Submenu::new(text, enabled);
       SubmenuInner::new(app_handle, submenu)
     })?;
@@ -153,7 +153,7 @@ impl<R: Runtime> Submenu<R> {
     let id = id.into();
     let text = text.as_ref().to_owned();
 
-    let submenu = handle.run_on_main_thread_return(move || {
+    let submenu = handle.run_on_main_thread_blocking(move || {
       let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
       SubmenuInner::new(app_handle, submenu)
     })?;

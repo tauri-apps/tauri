@@ -33,7 +33,7 @@ impl<R: Runtime> CheckMenuItem<R> {
     let text = text.as_ref().to_owned();
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::CheckMenuItem::new(text, enabled, checked, accelerator);
       CheckMenuItemInner::new(app_handle, item)
     })?;
@@ -66,7 +66,7 @@ impl<R: Runtime> CheckMenuItem<R> {
     let text = text.as_ref().to_owned();
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
 
-    let item = handle.run_on_main_thread_return(move || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::CheckMenuItem::with_id(id.clone(), text, enabled, checked, accelerator);
       CheckMenuItemInner::new(app_handle, item)
     })?;

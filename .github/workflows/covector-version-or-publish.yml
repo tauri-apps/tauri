@@ -15,6 +15,8 @@ permissions:
 jobs:
   run-integration-tests:
     runs-on: ${{ matrix.platform }}
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0 # no debuginfo: faster builds and a much smaller target dir
 
     strategy:
       fail-fast: false
@@ -40,8 +42,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
 
-      - uses: Swatinem/rust-cache@v2
-
+      # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
+      # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
+      # evicted before the next push only costs upload time.
       - name: build CLI
         run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 

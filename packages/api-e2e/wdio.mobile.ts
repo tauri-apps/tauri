@@ -317,6 +317,11 @@ function iosCapabilities(app: string): WebdriverIO.Capabilities {
       `process-${path.basename(app, '.app')}`
     ],
     'appium:udid': iosSimulator(),
+    // No Simulator.app window. Besides not needing one, the driver otherwise
+    // shuts a simulator that is booted without a visible UI down to relaunch it
+    // with one, on every session — and that shutdown regularly outlasts the
+    // driver's 15s limit on it.
+    'appium:isHeadless': true,
     // WebDriverAgent is compiled on the first session, which takes minutes on
     // a CI runner.
     'appium:wdaLaunchTimeout': 240_000,

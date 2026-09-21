@@ -58,6 +58,11 @@ export async function tauri<R, A extends unknown[]>(
   // our own — the driver injects this script itself, which is exempt from the
   // app's CSP. `executeAsync` is used because promise support in `execute` is not
   // uniform across the platform drivers tauri-driver proxies to.
+  //
+  // The outcome crosses the driver as a JSON string rather than an object so no
+  // driver gets to interpret its shape: the Selenium atoms that Appium runs
+  // scripts through on iOS turn any object with a numeric `length` property
+  // into an array.
   const script = `
     var done = arguments[arguments.length - 1];
     var args = Array.prototype.slice.call(arguments, 0, arguments.length - 1);
@@ -65,19 +70,27 @@ export async function tauri<R, A extends unknown[]>(
     Promise.resolve()
       .then(function () { return fn.apply(null, [window.__TAURI__].concat(args)); })
       .then(
-        function (value) { done({ ok: true, value: value === undefined ? null : value }); },
+        function (value) { return { ok: true, value: value === undefined ? null : value }; },
         function (error) {
-          done({
+          return {
             ok: false,
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined
-          });
+          };
         }
-      );
+      )
+      .then(function (outcome) {
+        try {
+          done(JSON.stringify(outcome));
+        } catch (error) {
+          done(JSON.stringify({ ok: false, error: 'result is not JSON-serializable: ' + error }));
+        }
+      });
   `
-  const outcome = (await browser.executeAsync(script, ...args)) as PageOutcome<
-    Awaited<R>
-  > | null
+  const raw = await browser.executeAsync(script, ...args)
+  const outcome = (
+    typeof raw === 'string' ? JSON.parse(raw) : raw
+  ) as PageOutcome<Awaited<R>> | null
   if (!outcome || typeof outcome !== 'object' || !('ok' in outcome)) {
     throw new Error(
       `tauri() bridge returned an unexpected value: ${JSON.stringify(outcome)}`

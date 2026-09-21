@@ -94,6 +94,8 @@ fn exec(
               "npm".into()
             } else if manager_stem == "npx-cli" {
               "npx".into()
+            } else if manager_stem.to_string_lossy().starts_with("pnpm") {
+              "pnpm".into()
             } else {
               manager_stem
             };

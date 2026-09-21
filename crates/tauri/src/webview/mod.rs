@@ -19,14 +19,14 @@ use http::HeaderMap;
 use serde::Serialize;
 
 pub use tauri_runtime::webview::{
-  NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse, ScrollBarStyle,
-  WebContentProcessTermination, WebContentProcessTerminationReason,
+  InitializationScript, NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse,
+  ScrollBarStyle, WebContentProcessTermination, WebContentProcessTerminationReason,
 };
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
 use tauri_runtime::{
   WebviewDispatch,
-  webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
 };
 #[cfg(desktop)]
 use tauri_runtime::{

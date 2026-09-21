@@ -255,7 +255,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   );
 
   Builder::new("window")
-    .js_init_script(init_script)
+    .initialization_script(init_script)
     .invoke_handler(crate::generate_handler![
       #![plugin(window)]
       commands::create,

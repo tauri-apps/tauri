@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.0.0-alpha.2]
+
+### New Features
+
+- [`e2af2c298`](https://www.github.com/tauri-apps/tauri/commit/e2af2c29824e675382ca9601ea5f1ec630504811) Added `Cef::downgrade` and `DowngradePolicy`, for an application whose release is rolled back to an older CEF. The runtime now records the Chromium version in the root cache path (`Last Version`, the breadcrumb Chrome's own downgrade manager keeps and CEF does not write) and, when a newer Chromium milestone last used the profile, either keeps it and logs a warning (`DowngradePolicy::KeepProfile`, the default and what Chrome does) or moves it aside so Chromium starts on an empty profile and deletes the old one in the background (`DowngradePolicy::ResetProfile`). A downgrade within a milestone, and a profile another running instance of the application holds, are left alone.
+- [`9c3bb4d28`](https://www.github.com/tauri-apps/tauri/commit/9c3bb4d28b58d4ede705a04fe0c8cf96f6730ea3) `data_store_identifier` is now supported on the CEF runtime: the identifier names a profile directory under the runtime's cache path, giving the same isolation `data_directory` does (`data_directory` wins when both are set). The runtime also logs a warning when a webview sets an attribute it cannot honour — `transparent`, `accept_first_mouse`, `browser_extensions_enabled` / `extensions_path`, a `background_throttling` policy or an overlay `scroll_bar_style` — naming the runtime-wide `Cef` API that does the same thing where one exists. The attributes' documentation on `tauri` and `tauri-utils` now describes each one's CEF behaviour.
+
+### Enhancements
+
+- [`8d0e40b45`](https://www.github.com/tauri-apps/tauri/commit/8d0e40b45213afe90c98f624617974391f75da70) Log a warning when a webview sets `additional_browser_args`, which the CEF runtime does not support: Chromium's command line is per process, so switches go through `Cef::command_line_arg` instead. The attribute's documentation on `tauri`, `tauri-runtime` and `tauri-utils` now says so.
+- [`e2af2c298`](https://www.github.com/tauri-apps/tauri/commit/e2af2c29824e675382ca9601ea5f1ec630504811) The build script now passes the CEF binary distribution `cef-dll-sys` resolved on to the build scripts of dependents, as `DEP_TAURI_RUNTIME_CEF_CEF_DIR`.
+
+### Bug Fixes
+
+- [`e2af2c298`](https://www.github.com/tauri-apps/tauri/commit/e2af2c29824e675382ca9601ea5f1ec630504811) `webview_version` now reports Chromium's version as `MAJOR.MINOR.BUILD.PATCH`; the last two components were swapped.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.1`
+- Upgraded to `tauri-runtime@3.0.0-alpha.1`
+- Upgraded to `tauri-macros@3.0.0-alpha.1`
+- Upgraded to `tauri@3.0.0-alpha.2`
+- [`dfa2f0a5c`](https://www.github.com/tauri-apps/tauri/commit/dfa2f0a5c0516852ee6a7631dc2f4ed63bc4814f) Bump the `windows` crate to 0.62 to match `tauri-runtime`, fixing the Windows build (`HWND` type mismatch in the `WindowBuilder::owner`/`parent` implementations).
+
+### Breaking Changes
+
+- [`4e03a1bb2`](https://www.github.com/tauri-apps/tauri/commit/4e03a1bb298d95526b4c97fde0a367cde9b544c2) ([#16043](https://www.github.com/tauri-apps/tauri/pull/16043)) `tauri_runtime::Error::CreateWindow` now carries the underlying error (`CreateWindow(Box<dyn std::error::Error + Send + Sync>)`), like `CreateWebview`.
+
 ## [3.0.0-alpha.1]
 
 ### Bug Fixes

@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.0.0-alpha.1]
+
+### What's Changed
+
+- [`d42c0d62b`](https://www.github.com/tauri-apps/tauri/commit/d42c0d62ba18e741a449bfb507dc8dcd2a8ca4ee) Pull latest v2 changes.
+
+### Breaking Changes
+
+- [`287d6785d`](https://www.github.com/tauri-apps/tauri/commit/287d6785d53be4e3d15efe9637072fe00251a0d1) ([#16038](https://www.github.com/tauri-apps/tauri/pull/16038)) The kebab-case alias of `bundle > windows > nsis > installerIcon` is now `installer-icon` instead of the mismatched `install-icon`.
+
 ## [3.0.0-alpha.0]
 
 ### New Features

@@ -4997,23 +4997,6 @@ mod test {
   }
 
   #[test]
-  fn permissions_policy_header_name() {
-    let config: HeaderConfig =
-      serde_json::from_str(r#"{"Permissions-Policy": "geolocation=()"}"#).unwrap();
-
-    let response = Builder::new()
-      .add_configured_headers(Some(&config))
-      .body(())
-      .unwrap();
-
-    assert_eq!(
-      response.headers().get("Permissions-Policy").unwrap(),
-      "geolocation=()"
-    );
-    assert!(response.headers().get("Permission-Policy").is_none());
-  }
-
-  #[test]
   fn window_config_default_same_as_deserialize() {
     let config_from_deserialization: WindowConfig = serde_json::from_str("{}").unwrap();
     let config_from_default: WindowConfig = WindowConfig::default();

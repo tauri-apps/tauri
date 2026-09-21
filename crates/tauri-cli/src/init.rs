@@ -312,7 +312,10 @@ fn tauri_dependencies_data(
     };
     data.insert("tauri_dep", path_dep("crates/tauri"));
     data.insert("tauri_build_dep", path_dep("crates/tauri-build"));
-    data.insert("tauri_runtime_wry_dep", path_dep("crates/tauri-runtime-wry"));
+    data.insert(
+      "tauri_runtime_wry_dep",
+      path_dep("crates/tauri-runtime-wry"),
+    );
     data.insert("patch_tauri_dep", to_json(true));
     data.insert("tauri_utils_dep", path_dep("crates/tauri-utils"));
     data.insert("tauri_plugin_dep", path_dep("crates/tauri-plugin"));

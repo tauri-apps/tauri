@@ -30,7 +30,13 @@ normally just dropping in one more spec.
     chromedriver matching the device's WebView is downloaded on demand (see `E2E_CHROMEDRIVER`).
   - **iOS** — the XCUITest driver on a simulator, attaching to the WKWebView through the
     WebKit remote inspector. Debug builds mark the webview `isInspectable`, so the suite
-    builds an unsigned debug simulator app.
+    builds an unsigned debug simulator app. The inspector identifies an app by the
+    `application-identifier` entitlement that Xcode embeds when it code signs a simulator
+    build; an unsigned one has none and is listed as `process-<executable name>` instead of
+    its bundle identifier, so the config has the driver match that name too
+    (`appium:additionalWebviewBundleIds`). The driver also starts with a script timeout of
+    0, which the config raises to the 30s the other drivers default to, or every
+    `executeAsync` would time out at once.
 - Specs never `eval` in the page. They pass a function to the [`tauri()`](test/helpers/index.ts)
   helper, which serializes it and runs it via the driver's own (CSP-exempt) script injection,
   handing it `window.__TAURI__` as the first argument and returning its JSON result.

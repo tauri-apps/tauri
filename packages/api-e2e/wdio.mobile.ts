@@ -89,6 +89,11 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
       timeout: 120000
     },
     connectionRetryCount: 0,
+    // The first session boots the simulator/emulator, installs the app and, on
+    // iOS, compiles WebDriverAgent — well over the 120s default that the
+    // request to create the session would otherwise be cut at (the driver
+    // timeouts in the capabilities below are what actually bound it).
+    connectionRetryTimeout: 600_000,
     specFileRetries: Number(process.env.E2E_SPEC_RETRIES ?? 0),
     // Tells the specs (which run in worker processes) what the app runs on;
     // `process.platform` there is the host. See `platform` in test/helpers.
@@ -129,7 +134,8 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
                 '--debug',
                 '--target',
                 ios.name,
-                // Simulator builds are not code signed.
+                // Simulator builds are not code signed (see
+                // `additionalWebviewBundleIds` in `iosCapabilities`).
                 '--no-sign'
               ]
             : [
@@ -184,6 +190,10 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
         }
       )
       await browser.switchAppiumContext(webview!)
+      // The specs run the page through `executeAsync`, and the XCUITest driver
+      // starts with a script timeout of 0 (every async script times out at
+      // once) rather than the 30s the other drivers default to.
+      await browser.setTimeout({ script: 30_000 })
 
       await browser.waitUntil(
         async () => {
@@ -297,6 +307,15 @@ function iosCapabilities(app: string): WebdriverIO.Capabilities {
     'appium:automationName': 'XCUITest',
     'appium:app': app,
     'appium:bundleId': appId,
+    // The driver looks the app up in the simulator's Web Inspector listing by
+    // bundle identifier. The inspector identifies an app by the
+    // `application-identifier` entitlement Xcode embeds when it code signs a
+    // simulator build (`__TEXT,__entitlements`); `--no-sign` skips signing
+    // altogether (`CODE_SIGNING_ALLOWED=NO`), so the entitlement is missing and
+    // the inspector falls back to `process-<executable name>`. Match that too.
+    'appium:additionalWebviewBundleIds': [
+      `process-${path.basename(app, '.app')}`
+    ],
     'appium:udid': iosSimulator(),
     // WebDriverAgent is compiled on the first session, which takes minutes on
     // a CI runner.

@@ -1392,13 +1392,17 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
             if let Some(label) = label {
               let (tx, rx) = channel();
               callback(RunEvent::WindowEvent {
-                label,
+                label: label.clone(),
                 event: WindowEvent::CloseRequested { signal_tx: tx },
               });
 
               let should_prevent = matches!(rx.try_recv(), Ok(true));
               if !should_prevent {
                 self.context.windows.borrow_mut().remove(&id);
+                callback(RunEvent::WindowEvent {
+                  label,
+                  event: WindowEvent::Destroyed,
+                });
 
                 let is_empty = self.context.windows.borrow().is_empty();
                 if is_empty {
@@ -1416,8 +1420,19 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
             }
           }
           Message::DestroyWindow(id) => {
-            let removed = self.context.windows.borrow_mut().remove(&id).is_some();
-            if removed {
+            let label = self
+              .context
+              .windows
+              .borrow()
+              .get(&id)
+              .map(|w| w.label.clone());
+            if let Some(label) = label {
+              self.context.windows.borrow_mut().remove(&id);
+              callback(RunEvent::WindowEvent {
+                label,
+                event: WindowEvent::Destroyed,
+              });
+
               let is_empty = self.context.windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();

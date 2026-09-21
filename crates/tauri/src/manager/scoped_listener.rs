@@ -83,3 +83,98 @@ impl<E> ScopedEventListeners<E> {
     listeners.remove(label);
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::ScopedEventListeners;
+  use std::sync::{Arc, Mutex};
+
+  #[test]
+  fn dispatches_in_registration_order_to_the_matching_label_only() {
+    let listeners = ScopedEventListeners::<u32>::default();
+    let seen = Arc::new(Mutex::new(Vec::new()));
+
+    for tag in ["a1", "a2"] {
+      let seen = seen.clone();
+      listeners.add("a", Box::new(move |e| seen.lock().unwrap().push((tag, *e))));
+    }
+    let seen_b = seen.clone();
+    listeners.add(
+      "b",
+      Box::new(move |e| seen_b.lock().unwrap().push(("b1", *e))),
+    );
+
+    listeners.dispatch("a", &7);
+
+    assert_eq!(*seen.lock().unwrap(), vec![("a1", 7), ("a2", 7)]);
+  }
+
+  /// Creating a window from another window's event handler does exactly this.
+  #[test]
+  fn registering_for_another_label_while_dispatching() {
+    let listeners = Arc::new(ScopedEventListeners::<u32>::default());
+    let seen = Arc::new(Mutex::new(Vec::new()));
+
+    let listeners_ = listeners.clone();
+    let seen_ = seen.clone();
+    listeners.add(
+      "a",
+      Box::new(move |_| {
+        let seen = seen_.clone();
+        listeners_.add("b", Box::new(move |e| seen.lock().unwrap().push(*e)));
+      }),
+    );
+
+    listeners.dispatch("a", &1);
+    listeners.dispatch("b", &2);
+
+    assert_eq!(*seen.lock().unwrap(), vec![2]);
+  }
+
+  #[test]
+  fn registering_for_the_dispatching_label_parks_until_dispatch_is_done() {
+    let listeners = Arc::new(ScopedEventListeners::<u32>::default());
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let registered = Arc::new(Mutex::new(false));
+
+    let listeners_ = listeners.clone();
+    let seen_ = seen.clone();
+    listeners.add(
+      "a",
+      Box::new(move |_| {
+        if std::mem::replace(&mut *registered.lock().unwrap(), true) {
+          return;
+        }
+        let seen = seen_.clone();
+        listeners_.add("a", Box::new(move |e| seen.lock().unwrap().push(*e)));
+      }),
+    );
+
+    listeners.dispatch("a", &1);
+    // the handler registered mid-dispatch must not run for the event that spawned it
+    assert!(seen.lock().unwrap().is_empty());
+
+    listeners.dispatch("a", &2);
+    assert_eq!(*seen.lock().unwrap(), vec![2]);
+  }
+
+  #[test]
+  fn remove_during_dispatch_is_not_undone_by_it() {
+    let listeners = Arc::new(ScopedEventListeners::<u32>::default());
+    let count = Arc::new(Mutex::new(0));
+
+    let listeners_ = listeners.clone();
+    let count_ = count.clone();
+    listeners.add(
+      "a",
+      Box::new(move |_| {
+        *count_.lock().unwrap() += 1;
+        listeners_.remove("a");
+      }),
+    );
+
+    listeners.dispatch("a", &1);
+    listeners.dispatch("a", &2);
+    assert_eq!(*count.lock().unwrap(), 1);
+  }
+}

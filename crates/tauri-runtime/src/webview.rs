@@ -135,11 +135,11 @@ pub struct CreationContext<'a, 'b> {
 #[derive(Debug, Clone, Copy)]
 pub struct IosWebviewHandle {
   /// The [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview) pointer.
-  pub webview: *mut std::ffi::c_void,
+  pub webview: *const std::ffi::c_void,
   /// The [WKUserContentController](https://developer.apple.com/documentation/webkit/wkusercontentcontroller) pointer.
-  pub manager: *mut std::ffi::c_void,
+  pub manager: *const std::ffi::c_void,
   /// The [UIViewController](https://developer.apple.com/documentation/uikit/uiviewcontroller) hosting the webview.
-  pub view_controller: *mut std::ffi::c_void,
+  pub view_controller: *const std::ffi::c_void,
 }
 
 // SAFETY: the pointers are only dereferenced on the main thread by the consumer.
@@ -673,7 +673,13 @@ impl WebviewAttributes {
     self
   }
 
-  /// Sets additional browser arguments. **Windows Only**
+  /// Sets additional browser arguments.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Wry runtime:** Windows only.
+  /// - **CEF runtime:** Unsupported. Chromium's command line is per process, not per webview;
+  ///   pass switches through `Cef::command_line_arg` instead.
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.additional_browser_args = Some(additional_args.to_string());

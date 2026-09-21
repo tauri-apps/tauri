@@ -378,6 +378,7 @@ pub(crate) enum WindowMessage {
   SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFullscreenOnMonitor(PhysicalPosition<f64>),
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
@@ -638,7 +639,7 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     let window = event_loop
       .create_window(attrs.inner.clone())
-      .map_err(|_| Error::CreateWindow)?;
+      .map_err(|e| Error::CreateWindow(Box::new(e)))?;
 
     #[cfg(any(
       target_os = "linux",
@@ -647,8 +648,9 @@ impl<T: UserEvent> WinitCefApp<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    let cef_host =
-      crate::platform::linux::CefX11Host::new(window.as_ref()).ok_or(Error::CreateWindow)?;
+    let cef_host = crate::platform::linux::CefX11Host::new(window.as_ref()).ok_or_else(|| {
+      Error::CreateWindow("failed to create the X11 host for the CEF browser".into())
+    })?;
 
     let winit_id = window.id();
     let pending_activation = (attrs.inner.active && attrs.inner.visible)
@@ -990,6 +992,21 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
       WindowMessage::SetFullscreen(value) => {
         window.set_fullscreen(value.then_some(Fullscreen::Borderless(None)))
+      }
+      WindowMessage::SetFullscreenOnMonitor(position) => {
+        // same physical-coordinate lookup as `MonitorFromPoint`; a position outside every monitor is a no-op
+        let monitor = window.available_monitors().find(|m| {
+          let pos = m.position().unwrap_or_default();
+          let vm = m.current_video_mode();
+          let size = vm.map(|v| v.size()).unwrap_or_default();
+          position.x >= pos.x as f64
+            && position.x < pos.x as f64 + size.width as f64
+            && position.y >= pos.y as f64
+            && position.y < pos.y as f64 + size.height as f64
+        });
+        if let Some(monitor) = monitor {
+          window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
+        }
       }
       #[cfg(target_os = "macos")]
       WindowMessage::SetSimpleFullscreen(value) => {
@@ -1518,6 +1535,13 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     self.context.send_message(Message::Window {
       window_id: self.window_id,
       message: WindowMessage::SetFullscreen(fullscreen),
+    })
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    self.context.send_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetFullscreenOnMonitor(position),
     })
   }
 

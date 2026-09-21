@@ -810,9 +810,8 @@ pub struct NsisConfig {
   /// The recommended dimensions are 164px x 314px.
   #[serde(alias = "sidebar-image")]
   pub sidebar_image: Option<PathBuf>,
-  // TODO: Change the alias to installer-icon in v3
   /// The path to an icon file used as the installer icon.
-  #[serde(alias = "install-icon")]
+  #[serde(alias = "installer-icon")]
   pub installer_icon: Option<PathBuf>,
   /// The path to an icon file used as the uninstaller icon.
   #[serde(alias = "uninstaller-icon")]
@@ -2013,6 +2012,10 @@ pub struct WindowConfig {
   /// WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
   ///
   /// On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.
   #[serde(default)]
   pub transparent: bool,
   /// Whether the window is maximized or not.
@@ -2082,6 +2085,11 @@ pub struct WindowConfig {
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
   /// Defines additional browser arguments on Windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime**: Unsupported. Chromium's command line is per process, not per webview;
+  ///   pass switches through `Cef::command_line_arg` in Rust instead.
   ///
   /// ## Warning
   ///
@@ -2157,6 +2165,7 @@ pub struct WindowConfig {
   ///
   /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[serde(default, alias = "browser-extensions-enabled")]
   pub browser_extensions_enabled: bool,
 
@@ -2204,6 +2213,7 @@ pub struct WindowConfig {
   /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
+  /// - **CEF runtime**: Unsupported per webview. Chromium throttles hidden pages process-wide; pass `--disable-background-timer-throttling` through `Cef::command_line_arg` to turn that off for every webview.
   ///
   /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[serde(default, alias = "background-throttling")]
@@ -2213,6 +2223,8 @@ pub struct WindowConfig {
   pub javascript_disabled: bool,
   /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// Not applicable on the CEF runtime, Chromium has no link previews.
   #[serde(default = "default_true", alias = "allow-link-preview")]
   pub allow_link_preview: bool,
   /// Allows disabling the input accessory view on iOS.
@@ -2248,6 +2260,7 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   /// - **Windows / Linux / Android**: Unsupported.
+  /// - **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation `dataDirectory` gives; `dataDirectory` wins when both are set.
   #[serde(default, alias = "data-store-identifier")]
   pub data_store_identifier: Option<[u8; 16]>,
 
@@ -2263,6 +2276,7 @@ pub struct WindowConfig {
   ///     and does nothing on older versions.
   ///   - This option must be given the same value for all webviews that target the same data directory.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  /// - **CEF runtime**: Unsupported per webview. Overlay scrollbars are a process-wide Chromium feature; enable them for every webview with `Cef::enable_features(["OverlayScrollbar"])`.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
 
@@ -2349,6 +2363,7 @@ pub struct WindowConfig {
   ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
+  /// - **CEF runtime**: Autofill is already off on this runtime (it disables `autofill.profile_enabled` on every profile), so `false` is the state you get; turn it on with `Cef::profile_preference("autofill.profile_enabled", true)`.
   #[serde(default = "default_true", alias = "general-autofill-enabled")]
   pub general_autofill_enabled: bool,
 }

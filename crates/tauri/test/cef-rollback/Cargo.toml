@@ -1,0 +1,21 @@
+[package]
+name = "cef-rollback"
+version = "0.1.0"
+description = "Integration test: rolling a CEF application back to an older Chromium on an existing profile"
+authors = ["Tauri Programme within The Commons Conservancy"]
+license = "Apache-2.0 OR MIT"
+edition = "2024"
+publish = false
+
+[build-dependencies]
+tauri-build = { workspace = true, default-features = true }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { workspace = true, default-features = true }
+# Depending on the crate is what selects the CEF runtime; see `examples/cef`.
+tauri-runtime-cef = { workspace = true, default-features = true }
+
+[dev-dependencies]
+tempfile = "3"

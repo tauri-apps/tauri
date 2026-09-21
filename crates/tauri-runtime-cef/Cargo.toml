@@ -55,6 +55,8 @@ windows = { version = "0.61", features = [
 ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
+# `kill(pid, 0)` and `gethostname`, to read Chromium's process singleton lock.
+libc = "0.2"
 objc2 = "0.6"
 objc2-application-services = { version = "0.3", default-features = false, features = [
   "HIServices",

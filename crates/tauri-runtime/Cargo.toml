@@ -3,7 +3,6 @@ name = "tauri-runtime"
 version = "3.0.0-alpha.0"
 description = "Runtime for Tauri applications"
 exclude = ["CHANGELOG.md", "/target"]
-readme = "README.md"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -36,7 +35,7 @@ dpi = { version = "0.1", features = ["serde"] }
 cookie = "0.18"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.61"
+version = "0.62"
 features = ["Win32_Foundation", "Win32_System_WinRT"]
 
 [target."cfg(target_os = \"android\")".dependencies]
@@ -58,3 +57,6 @@ objc2 = "0.6"
 default = []
 devtools = []
 macos-private-api = []
+
+[lints]
+workspace = true

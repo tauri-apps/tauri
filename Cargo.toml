@@ -23,6 +23,7 @@ members = [
   # integration tests
   "crates/tests/restart",
   "crates/tests/acl",
+  "crates/tauri/test/cef-rollback",
 
   # bench
   "bench",
@@ -37,7 +38,7 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 authors = ["Tauri Programme within The Commons Conservancy"]
@@ -85,3 +86,10 @@ opt-level = "s"
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
+
+[workspace.lints.clippy]
+# TODO: Update in next PR to keep changes small, see https://github.com/tauri-apps/tauri/pull/16029
+collapsible_if = "allow"
+
+redundant_clone = "warn"
+assigning_clones = "warn"

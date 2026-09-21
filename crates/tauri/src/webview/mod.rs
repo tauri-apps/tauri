@@ -1021,6 +1021,9 @@ fn main() {
   /// ## Platform-specific
   ///
   /// - **macOS / Linux / Android / iOS**: Unsupported.
+  /// - **CEF runtime**: Unsupported. Chromium's command line is per process, not per webview,
+  ///   so pass switches through `Cef::command_line_arg` instead; the runtime logs a warning
+  ///   when a webview sets this.
   ///
   /// ## Warning
   ///
@@ -1137,6 +1140,7 @@ fn main() {
   ///
   /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes.browser_extensions_enabled = enabled;
@@ -1149,6 +1153,7 @@ fn main() {
   ///
   /// - **Windows**: Browser extensions must first be enabled. See [`browser_extensions_enabled`](Self::browser_extensions_enabled)
   /// - **MacOS / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[must_use]
   pub fn extensions_path(mut self, path: impl AsRef<Path>) -> Self {
     self.webview_attributes.extensions_path = Some(path.as_ref().to_path_buf());
@@ -1160,6 +1165,7 @@ fn main() {
   ///
   /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17
   /// - **Windows / Linux / Android**: Unsupported.
+  /// - **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation [`data_directory`](Self::data_directory) gives; `data_directory` wins when both are set.
   ///
   /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
@@ -1223,6 +1229,7 @@ fn main() {
   /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
+  /// - **CEF runtime**: Unsupported per webview. Chromium throttles hidden pages process-wide; pass `--disable-background-timer-throttling` through `Cef::command_line_arg` to turn that off for every webview.
   ///
   /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
@@ -1251,6 +1258,7 @@ fn main() {
   ///   - This option must be given the same value for all webviews that target the same data directory. Use
   ///     [`WebviewBuilder::data_directory`] to change data directories if needed.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  /// - **CEF runtime**: Unsupported per webview. Overlay scrollbars are a process-wide Chromium feature; enable them for every webview with `Cef::enable_features(["OverlayScrollbar"])`.
   #[must_use]
   pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
     self.webview_attributes = self.webview_attributes.scroll_bar_style(style);
@@ -1274,6 +1282,7 @@ fn main() {
   ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
+  /// - **CEF runtime**: Autofill is already off on this runtime (it disables `autofill.profile_enabled` on every profile), so `false` is the state you get; turn it on with `Cef::profile_preference("autofill.profile_enabled", true)`.
   #[must_use]
   pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes = self.webview_attributes.general_autofill_enabled(enabled);
@@ -1289,6 +1298,7 @@ fn main() {
   /// ## Platform-specific
   ///
   /// - **Linux / Windows / Android:** Unsupported.
+  /// - **CEF runtime:** Not applicable, Chromium has no link previews.
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
@@ -1824,6 +1834,63 @@ impl<R: Runtime> Webview<R> {
   /// Checks whether the webview can navigate forward.
   pub fn can_go_forward(&self) -> crate::Result<bool> {
     self.webview.dispatcher.can_go_forward().map_err(Into::into)
+  }
+
+  /// Converts a file path to a URL that can be loaded by this webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  ///
+  /// The `protocol-asset` Cargo feature must be enabled and the file must be included in the
+  /// [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+  /// scope. The protocol origin must also be allowed by the relevant
+  /// [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) directive,
+  /// e.g. `img-src 'self' asset: http://asset.localhost`.
+  ///
+  /// The URL origin is defined by the runtime (see [`tauri_runtime::RuntimeHandle::custom_scheme_url`]).
+  /// With `tauri-runtime-wry`, on Windows and Android the URL is `http://{protocol}.localhost/{path}`
+  /// (or `https://` if the webview was built with [`WebviewBuilder::use_https_scheme`]);
+  /// on macOS, Linux and iOS it is `{protocol}://localhost/{path}`.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert.
+  /// * `protocol` - The custom protocol to use. Defaults to `asset`; you only need to set this
+  ///   when using a protocol registered with [`Builder::register_uri_scheme_protocol`](crate::Builder::register_uri_scheme_protocol).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::NonUtf8Path`](crate::Error::NonUtf8Path) if the path is not valid UTF-8,
+  /// since the asset protocol could not resolve such a URL back to the file.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview_window("main").unwrap();
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = webview.convert_file_src(&video_path, None)?;
+  ///     webview.eval(format!("document.querySelector('video').src = '{url}'"))?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(
+    &self,
+    path: P,
+    protocol: Option<&str>,
+  ) -> crate::Result<String> {
+    let path = dunce::simplified(path.as_ref());
+    let path = path
+      .to_str()
+      .ok_or_else(|| crate::Error::NonUtf8Path(path.to_path_buf()))?;
+    Ok(format!(
+      "{}/{}",
+      self
+        .manager()
+        .custom_scheme_url(protocol.unwrap_or("asset"), self.use_https_scheme),
+      percent_encoding::utf8_percent_encode(path, crate::protocol::ENCODE_URI_COMPONENT)
+    ))
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
@@ -2503,6 +2570,62 @@ mod tests {
   fn webview_is_send_sync() {
     crate::test_utils::assert_send::<super::Webview>();
     crate::test_utils::assert_sync::<super::Webview>();
+  }
+
+  #[test]
+  fn convert_file_src_matches_js() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let http = crate::WebviewWindowBuilder::new(&app, "http", crate::WebviewUrl::default())
+      .build()
+      .unwrap();
+    let https = crate::WebviewWindowBuilder::new(&app, "https", crate::WebviewUrl::default())
+      .use_https_scheme(true)
+      .build()
+      .unwrap();
+    assert!(!http.webview.use_https_scheme());
+    assert!(https.webview.use_https_scheme());
+
+    // `encoded` is what `encodeURIComponent(path)` returns in JS
+    #[cfg(windows)]
+    let (path, encoded) = (
+      r"C:\Users\me\my-file (1).mp4",
+      "C%3A%5CUsers%5Cme%5Cmy-file%20(1).mp4",
+    );
+    #[cfg(not(windows))]
+    let (path, encoded) = (
+      "/home/me/my-file (1).mp4",
+      "%2Fhome%2Fme%2Fmy-file%20(1).mp4",
+    );
+
+    let convert =
+      |w: &crate::WebviewWindow<_>, protocol| w.convert_file_src(path, protocol).unwrap();
+
+    // the origin comes from the runtime; the mock runtime serves every custom scheme
+    // as `{scheme}://localhost` on all platforms and ignores `use_https_scheme`
+    assert_eq!(convert(&http, None), format!("asset://localhost/{encoded}"));
+    assert_eq!(
+      convert(&https, None),
+      format!("asset://localhost/{encoded}")
+    );
+    assert_eq!(
+      convert(&http, Some("custom")),
+      format!("custom://localhost/{encoded}")
+    );
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn convert_file_src_rejects_non_utf8_path() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let webview = test_webview_window();
+    let path = std::path::Path::new(std::ffi::OsStr::from_bytes(b"/tmp/\xff.mp4"));
+    assert!(matches!(
+      webview.convert_file_src(path, None),
+      Err(crate::Error::NonUtf8Path(_))
+    ));
   }
 
   #[test]

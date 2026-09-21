@@ -6,6 +6,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { SevereServiceError } from 'webdriverio'
 import { waitTauriDriverReady } from '@crabnebula/tauri-driver'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -13,11 +14,25 @@ const repoRoot = path.resolve(dirname, '..', '..')
 const appDir = path.join(repoRoot, 'examples', 'api')
 const targetDir = process.env.CARGO_TARGET_DIR ?? path.join(repoRoot, 'target')
 
+// The webview runtime the app is built with: `wry` (the system webview, the
+// example's default) or `cef` (Chromium Embedded Framework, the example's `cef`
+// feature). Both builds land at the same output path, so a binary reused through
+// E2E_SKIP_BUILD must have been built for the selected runtime.
+const runtime = process.env.E2E_RUNTIME ?? 'wry'
+if (runtime !== 'wry' && runtime !== 'cef') {
+  throw new Error(`E2E_RUNTIME must be "wry" or "cef", got "${runtime}"`)
+}
+
 // macOS has no native WebDriver for WKWebView, so the CrabNebula Webdriver
 // (backed by tauri-plugin-automation + the test-runner-backend) is required there.
-// It can be opted into on the other platforms via E2E_CN_WEBDRIVER for parity.
+// The native drivers tauri-driver spawns elsewhere (WebKitWebDriver, msedgedriver)
+// only speak to the system webview, so a CEF app needs it on every platform: the
+// automation plugin drives the app through Tauri's own IPC and is runtime-agnostic.
+// It can be opted into for wry on Linux/Windows via E2E_CN_WEBDRIVER for parity.
 const useCrabNebulaWebdriver =
-  process.platform === 'darwin' || !!process.env.E2E_CN_WEBDRIVER
+  process.platform === 'darwin'
+  || runtime === 'cef'
+  || !!process.env.E2E_CN_WEBDRIVER
 
 // Path passed to the driver as `tauri:options.application`.
 const application =
@@ -56,13 +71,17 @@ export const config: WebdriverIO.Config = {
   connectionRetryCount: 0,
   specFileRetries: Number(process.env.E2E_SPEC_RETRIES ?? 0),
 
+  // Every failure here is a `SevereServiceError`: wdio merely logs a plain error
+  // thrown by a launcher hook and starts the workers anyway, which would then
+  // drive whatever binary happens to sit at the output path (or time out on a
+  // missing one) instead of failing on the actual cause.
   onPrepare: async () => {
     // The example resolves `@tauri-apps/api` from `packages/api/dist`, and its
     // frontend build (vite) needs it too. Fail early with a clear message.
     if (
       !fs.existsSync(path.join(repoRoot, 'packages', 'api', 'dist', 'index.js'))
     ) {
-      throw new Error(
+      throw new SevereServiceError(
         'packages/api/dist is missing — run `pnpm build:api` at the repo root before the e2e suite.'
       )
     }
@@ -91,7 +110,16 @@ export const config: WebdriverIO.Config = {
         overrideConfig,
         ...(process.platform === 'darwin'
           ? ['--bundles', 'app'] // the .app bundle is needed for tauri:options
-          : ['--no-bundle'])
+          : ['--no-bundle']),
+        // The example picks its runtime through Cargo features and defaults to
+        // `wry`, so CEF needs the default set off as well. `--no-default-features`
+        // is a cargo flag, which the CLI forwards from after `--`. The CLI detects
+        // the runtime from the enabled features and ships the CEF framework and
+        // helper apps in the macOS bundle; on Linux/Windows the cef build script
+        // lays the distribution out next to the bare binary in the target dir.
+        ...(runtime === 'cef'
+          ? ['--features', 'cef', '--', '--no-default-features']
+          : [])
       ]
       const build = spawnSync('pnpm', buildArgs, {
         cwd: appDir,
@@ -99,22 +127,43 @@ export const config: WebdriverIO.Config = {
         shell: true
       })
       if (build.status !== 0) {
-        throw new Error(
+        throw new SevereServiceError(
           `\`pnpm ${buildArgs.join(' ')}\` failed with status ${build.status}`
         )
       }
     }
 
     if (!fs.existsSync(application)) {
-      throw new Error(
+      throw new SevereServiceError(
         `app not found at ${application} — build it (unset E2E_SKIP_BUILD) or point E2E_APP_PATH at an existing build.`
+      )
+    }
+
+    // A CEF app on macOS only runs from a bundle that carries the framework: the
+    // executable aborts loading it otherwise. A stale CLI build (one predating the
+    // bundler's runtime detection) produces exactly such a bundle without failing,
+    // so catch it here rather than as an opaque driver timeout.
+    if (
+      runtime === 'cef'
+      && process.platform === 'darwin'
+      && !fs.existsSync(
+        path.join(
+          application,
+          'Contents',
+          'Frameworks',
+          'Chromium Embedded Framework.framework'
+        )
+      )
+    ) {
+      throw new SevereServiceError(
+        `${application} does not bundle the CEF framework — it was not built for the CEF runtime (or by a CLI that predates it: run \`pnpm build:cli\` and rebuild).`
       )
     }
 
     if (useCrabNebulaWebdriver) {
       if (!process.env.CN_API_KEY) {
-        throw new Error(
-          'CN_API_KEY is required for the CrabNebula Webdriver (mandatory on macOS, or when E2E_CN_WEBDRIVER=1).'
+        throw new SevereServiceError(
+          'CN_API_KEY is required for the CrabNebula Webdriver (mandatory on macOS and for E2E_RUNTIME=cef, or when E2E_CN_WEBDRIVER=1).'
         )
       }
       testRunnerBackend = spawn('pnpm', ['exec', 'test-runner-backend'], {

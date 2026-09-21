@@ -8,6 +8,8 @@
   "scripts": {
     "e2e": "wdio run ./wdio.conf.ts",
     "e2e:skip-build": "cross-env E2E_SKIP_BUILD=true wdio run ./wdio.conf.ts",
+    "e2e:cef": "cross-env E2E_RUNTIME=cef wdio run ./wdio.conf.ts",
+    "e2e:cef:skip-build": "cross-env E2E_RUNTIME=cef E2E_SKIP_BUILD=true wdio run ./wdio.conf.ts",
     "ts:check": "tsc --noEmit"
   },
   "devDependencies": {

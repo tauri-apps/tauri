@@ -2,7 +2,17 @@
   "name": "cef-example",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "tauri": "node ../../packages/cli/tauri.js"
+    "tauri": "node ../../packages/cli/tauri.js",
+    "e2e": "playwright test",
+    "e2e:skip-build": "cross-env CEF_E2E_SKIP_BUILD=1 playwright test",
+    "ts:check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.10.0",
+    "cross-env": "^10.1.0",
+    "typescript": "^6.0.3"
   }
 }

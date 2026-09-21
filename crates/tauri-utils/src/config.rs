@@ -3580,7 +3580,11 @@ pub struct BuildConfig {
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
   /// Additional paths to watch for changes when running `tauri dev`.
-  #[serde(alias = "additional-watch-directories", default)]
+  #[serde(
+    alias = "additional-watch-folders",
+    alias = "additional-watch-directories",
+    default
+  )]
   pub additional_watch_folders: Vec<PathBuf>,
   /// Windows-specific build configuration.
   #[serde(default)]

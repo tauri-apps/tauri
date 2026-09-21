@@ -3194,7 +3194,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let event_loop = event_loop_builder
       .build()
-      .map_err(|_| Error::CreateWindow)?;
+      .map_err(|e| Error::CreateWindow(Box::new(e)))?;
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));

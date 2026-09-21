@@ -10547,7 +10547,7 @@ dependencies = [
  "tauri-utils",
  "tauri-winit",
  "url",
- "windows 0.61.3",
+ "windows 0.62.2",
  "x11-dl",
 ]
 

@@ -42,7 +42,7 @@ winit = { version = "0.31.0-beta.3", package = "tauri-winit", default-features =
 
 [target."cfg(windows)".dependencies]
 softbuffer = { version = "0.4", default-features = false }
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",

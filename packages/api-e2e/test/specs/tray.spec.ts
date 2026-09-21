@@ -5,8 +5,9 @@
 import { expect } from '@wdio/globals'
 import { tauri, describeApi } from '../helpers/index.js'
 
-// Tray commands are allowed by default, but a tray host is not always available
-// in headless environments — set `E2E_SKIP=tray` there.
+// Tray commands are allowed by default. A tray host has to be available anyway,
+// since the app registers its own tray icon at startup (see the README for
+// headless Linux sessions); `E2E_SKIP=tray` still skips this spec if needed.
 describeApi('tray', () => {
   it('creates a tray icon, looks it up and removes it', async () => {
     const created = await tauri(async (api) => {

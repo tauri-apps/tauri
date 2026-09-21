@@ -46,12 +46,19 @@ pnpm build:cli    # examples/api's `tauri` script uses the local native CLI
 
 Platform driver dependencies:
 
-| Platform      | Requirement                                                                                                  |
-| ------------- | ------------------------------------------------------------------------------------------------------------ |
-| macOS         | `CN_API_KEY` env var (CrabNebula Cloud). The automation plugin and test-runner-backend are wired up already. |
-| Linux (wry)   | `webkit2gtk-driver` package (provides `WebKitWebDriver`).                                                    |
-| Windows (wry) | `msedgedriver.exe` matching your Edge version, on `PATH`. Run the suite unelevated.                          |
-| CEF (any OS)  | `CN_API_KEY` env var. Nothing else: the `cef` crate downloads the CEF binary distribution on first build.    |
+| Platform      | Requirement                                                                                                               |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| macOS         | `CN_API_KEY` env var (CrabNebula Cloud). The automation plugin and test-runner-backend are wired up already.              |
+| Linux (wry)   | `webkit2gtk-driver` package (provides `WebKitWebDriver`).                                                                 |
+| Windows (wry) | `msedgedriver.exe` matching your Edge version, on `PATH`. Run the suite unelevated.                                       |
+| CEF (any OS)  | `CN_API_KEY` env var, and `libpipewire-0.3` on Linux (the driver links it). The `cef` crate downloads CEF on first build. |
+
+On Linux the app also needs a tray host: it registers a tray icon at startup, which is a
+StatusNotifierItem on the session bus, and fails to start when nothing owns
+`org.kde.StatusNotifierWatcher` there. Any desktop with a tray provides one; in a headless X
+session (Xvfb with a bare window manager, as in CI) run
+[`.scripts/ci/sni-watcher.py`](../../.scripts/ci/sni-watcher.py) (needs `python3-gi`) on the
+session bus the app will use — see the workflow for the `dbus-run-session` incantation.
 
 For CEF, the first build also downloads CEF (~150 MB) into the CLI's cache dir (or `CEF_PATH`)
 and, on macOS, compiles the helper apps the bundler ships in the `.app` (a few minutes, cached

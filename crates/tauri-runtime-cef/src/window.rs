@@ -308,6 +308,16 @@ pub(crate) fn max_size_constraint(
   paired_size_constraint(width, height, u32::MAX)
 }
 
+/// The monitor a fullscreen request targets. Kept as the request came in, rather than as a
+/// resolved `MonitorHandle`, so the request can be re-issued later (see [`request_fullscreen`]).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum FullscreenTarget {
+  /// The monitor the window is on (`set_fullscreen(true)`).
+  CurrentMonitor,
+  /// The monitor containing this physical position (`set_fullscreen_on_monitor`).
+  MonitorAt(PhysicalPosition<f64>),
+}
+
 pub(crate) enum WindowMessage {
   AddEventListener(WindowEventId, WindowEventListener),
   Close,
@@ -379,6 +389,15 @@ pub(crate) enum WindowMessage {
   SetPosition(Position),
   SetFullscreen(bool),
   SetFullscreenOnMonitor(PhysicalPosition<f64>),
+  /// Re-applies a fullscreen request the platform refused, scheduled by
+  /// [`request_fullscreen`]. Only ever sent on macOS.
+  #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+  RetryFullscreen {
+    target: FullscreenTarget,
+    /// [`AppWindow::fullscreen_generation`] when the request was made.
+    generation: u64,
+    attempt: u8,
+  },
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
@@ -480,6 +499,10 @@ pub(crate) struct AppWindow {
   /// [`WinitCefApp::apply_pending_activations`]. `None` once it has been
   /// raised or given up on.
   pub(crate) pending_activation: Option<Instant>,
+  /// Bumped by every fullscreen request, so that a retry scheduled for an
+  /// earlier one is dropped once a newer request came in. See
+  /// [`request_fullscreen`].
+  pub(crate) fullscreen_generation: u64,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -675,6 +698,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       ))]
       cef_host,
       pending_activation,
+      fullscreen_generation: 0,
     };
 
     #[cfg(target_os = "macos")]
@@ -990,26 +1014,34 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetDecorations(value) => window.set_decorations(value),
       WindowMessage::SetSize(size) => _ = window.request_surface_size(size),
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
-      WindowMessage::SetFullscreen(value) => {
-        window.set_fullscreen(value.then_some(Fullscreen::Borderless(None)))
-      }
-      WindowMessage::SetFullscreenOnMonitor(position) => {
-        // same physical-coordinate lookup as `MonitorFromPoint`; a position outside every monitor is a no-op
-        let monitor = window.available_monitors().find(|m| {
-          let pos = m.position().unwrap_or_default();
-          let vm = m.current_video_mode();
-          let size = vm.map(|v| v.size()).unwrap_or_default();
-          position.x >= pos.x as f64
-            && position.x < pos.x as f64 + size.width as f64
-            && position.y >= pos.y as f64
-            && position.y < pos.y as f64 + size.height as f64
-        });
-        if let Some(monitor) = monitor {
-          window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
+      WindowMessage::SetFullscreen(value) => request_fullscreen(
+        &self.context,
+        window_id,
+        appwindow,
+        value.then_some(FullscreenTarget::CurrentMonitor),
+        0,
+      ),
+      WindowMessage::SetFullscreenOnMonitor(position) => request_fullscreen(
+        &self.context,
+        window_id,
+        appwindow,
+        Some(FullscreenTarget::MonitorAt(position)),
+        0,
+      ),
+      WindowMessage::RetryFullscreen {
+        target,
+        generation,
+        attempt,
+      } => {
+        // Dropped once a newer request superseded it, or once the window did go fullscreen.
+        if appwindow.fullscreen_generation == generation && window.fullscreen().is_none() {
+          request_fullscreen(&self.context, window_id, appwindow, Some(target), attempt);
         }
       }
       #[cfg(target_os = "macos")]
       WindowMessage::SetSimpleFullscreen(value) => {
+        // Supersedes any pending native fullscreen retry.
+        appwindow.fullscreen_generation += 1;
         window.set_simple_fullscreen(value);
       }
       WindowMessage::SetFocus => appwindow.activate(),
@@ -1155,6 +1187,111 @@ impl<T: UserEvent> WinitCefApp<T> {
 pub struct CefWindowDispatcher<T: UserEvent> {
   pub(crate) window_id: WindowId,
   pub(crate) context: RuntimeContext<T>,
+}
+
+/// How many times a fullscreen request AppKit refused is re-applied, and how long to wait
+/// between attempts. The refusal lasts for the tail of the previous transition's animation,
+/// well under a second; winit's own retry of an initial fullscreen waits 0.5 s.
+const FULLSCREEN_RETRY_ATTEMPTS: u8 = 5;
+#[cfg(target_os = "macos")]
+const FULLSCREEN_RETRY_DELAY: Duration = Duration::from_millis(400);
+
+/// Applies a fullscreen request, and on macOS re-applies it when AppKit refused it.
+///
+/// AppKit refuses `toggleFullScreen:` while it is "in the midst of handling some other
+/// animation", and the exit of the previous fullscreen session still counts as one for a moment
+/// after `windowDidExitFullScreen:`: a request sent right after leaving fullscreen (winit reports
+/// the window as not fullscreen as soon as the exit starts) is dropped. winit hears about it
+/// through `windowDidFailToEnterFullScreen:`, where it only reverts its state to not fullscreen,
+/// and emits no event the runtime could react to. So an enter request is checked again after
+/// `FULLSCREEN_RETRY_DELAY` and re-applied as long as the window is still not fullscreen,
+/// [`FULLSCREEN_RETRY_ATTEMPTS`] times at most. Re-applying is harmless while winit is holding
+/// the request back behind a transition of its own (it replaces the queued request with the same
+/// one), and a newer fullscreen request drops the pending retries through
+/// [`AppWindow::fullscreen_generation`].
+///
+/// Leaving fullscreen is not retried.
+fn request_fullscreen<T: UserEvent>(
+  context: &RuntimeContext<T>,
+  window_id: WindowId,
+  appwindow: &mut AppWindow,
+  target: Option<FullscreenTarget>,
+  attempt: u8,
+) {
+  let window = &appwindow.window;
+  let fullscreen = match target {
+    None => None,
+    Some(FullscreenTarget::CurrentMonitor) => Some(Fullscreen::Borderless(None)),
+    Some(FullscreenTarget::MonitorAt(position)) => {
+      // same physical-coordinate lookup as `MonitorFromPoint`; a position outside every monitor is a no-op
+      let monitor = window.available_monitors().find(|m| {
+        let pos = m.position().unwrap_or_default();
+        let vm = m.current_video_mode();
+        let size = vm.map(|v| v.size()).unwrap_or_default();
+        position.x >= pos.x as f64
+          && position.x < pos.x as f64 + size.width as f64
+          && position.y >= pos.y as f64
+          && position.y < pos.y as f64 + size.height as f64
+      });
+      let Some(monitor) = monitor else {
+        return;
+      };
+      Some(Fullscreen::Borderless(Some(monitor)))
+    }
+  };
+  window.set_fullscreen(fullscreen);
+
+  if attempt == 0 {
+    appwindow.fullscreen_generation += 1;
+  }
+  let Some(target) = target else {
+    return;
+  };
+  if attempt < FULLSCREEN_RETRY_ATTEMPTS {
+    schedule_fullscreen_retry(
+      context,
+      window_id,
+      target,
+      appwindow.fullscreen_generation,
+      attempt + 1,
+    );
+  }
+}
+
+/// Has [`WindowMessage::RetryFullscreen`] delivered after `FULLSCREEN_RETRY_DELAY`. It goes
+/// through the message channel like any request from another thread, so it lands in
+/// [`WinitCefApp::handle_window_message`] outside of any winit callback.
+#[cfg(target_os = "macos")]
+fn schedule_fullscreen_retry<T: UserEvent>(
+  context: &RuntimeContext<T>,
+  window_id: WindowId,
+  target: FullscreenTarget,
+  generation: u64,
+  attempt: u8,
+) {
+  let context = context.clone();
+  std::thread::spawn(move || {
+    std::thread::sleep(FULLSCREEN_RETRY_DELAY);
+    let _ = context.send_message(Message::Window {
+      window_id,
+      message: WindowMessage::RetryFullscreen {
+        target,
+        generation,
+        attempt,
+      },
+    });
+  });
+}
+
+/// Only AppKit refuses fullscreen requests, see [`request_fullscreen`].
+#[cfg(not(target_os = "macos"))]
+fn schedule_fullscreen_retry<T: UserEvent>(
+  _context: &RuntimeContext<T>,
+  _window_id: WindowId,
+  _target: FullscreenTarget,
+  _generation: u64,
+  _attempt: u8,
+) {
 }
 
 fn getter<T: UserEvent, R>(

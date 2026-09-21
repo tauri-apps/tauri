@@ -69,7 +69,9 @@ jobs:
           cache: 'pnpm'
 
       # wry links webkit2gtk (GTK 3) and is driven by WebKitWebDriver; the CEF
-      # runtime links GTK 4 and ships its own Chromium.
+      # runtime links GTK 4 and ships its own Chromium, and the CrabNebula Webdriver
+      # that drives it links libpipewire. `dbus` and `python3-gi` are for the session
+      # bus and the StatusNotifierWatcher the test step runs (see there).
       - name: install Linux dependencies
         if: runner.os == 'Linux'
         run: |
@@ -80,7 +82,9 @@ jobs:
             librsvg2-dev \
             xvfb \
             fluxbox \
-            ${{ matrix.runtime == 'cef' && 'libgtk-4-dev' || 'libwebkit2gtk-4.1-dev webkit2gtk-driver' }}
+            dbus \
+            python3-gi \
+            ${{ matrix.runtime == 'cef' && 'libgtk-4-dev libpipewire-0.3-0t64' || 'libwebkit2gtk-4.1-dev webkit2gtk-driver' }}
 
       # install a matching Microsoft Edge Driver version using msedgedriver-tool
       - name: install msedgedriver (Windows)
@@ -142,11 +146,17 @@ jobs:
         if: runner.os == 'Linux' && (matrix.runtime == 'wry' || env.CN_API_KEY != '')
         timeout-minutes: 45
         # A real window manager (fluxbox) is started so that window-state tests
-        # (minimize/maximize/fullscreen/position) behave.
+        # (minimize/maximize/fullscreen/position) behave, and a StatusNotifierWatcher
+        # so that the tray icon the app registers at startup (a StatusNotifierItem
+        # on the session bus) has something to register with: without one the app
+        # fails to start. `dbus-run-session` gives the watcher and the app the same
+        # private session bus.
         run: |
-          xvfb-run --auto-servernum -- bash -c '
+          xvfb-run --auto-servernum -- dbus-run-session -- bash -c '
             fluxbox >/dev/null 2>&1 &
+            python3 .scripts/ci/sni-watcher.py &
             sleep 1
+            gdbus wait --session --timeout 10 org.kde.StatusNotifierWatcher
             pnpm $E2E_SCRIPT
           '
 

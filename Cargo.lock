@@ -10343,7 +10343,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-driver"
-version = "2.1.0-alpha.1"
+version = "3.0.0-alpha.0"
 dependencies = [
  "anyhow",
  "futures",

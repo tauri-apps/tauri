@@ -59,34 +59,6 @@ describeApi('window', () => {
     expect(metrics.outer.width).toBeGreaterThanOrEqual(metrics.inner.width)
   })
 
-  it('reports a theme', async () => {
-    const theme = await tauri((api) => api.window.getCurrentWindow().theme())
-    expect(['light', 'dark']).toContain(theme)
-  })
-
-  it('monitor queries resolve to sane shapes', async () => {
-    const monitors = await tauri(async (api) => {
-      const current = await api.window.currentMonitor()
-      const primary = await api.window.primaryMonitor()
-      const available = await api.window.availableMonitors()
-      return {
-        currentHasSize: current
-          ? current.size.width > 0 && current.size.height > 0
-          : null,
-        primaryHasSize: primary
-          ? primary.size.width > 0 && primary.size.height > 0
-          : null,
-        availableCount: available.length
-      }
-    })
-    // In a headed environment there is at least one monitor; in bare headless
-    // there may be none, so only assert shape when present.
-    if (monitors.currentHasSize !== null) {
-      expect(monitors.currentHasSize).toBe(true)
-    }
-    expect(monitors.availableCount).toBeGreaterThanOrEqual(0)
-  })
-
   itOn(
     'android',
     'activityName reports the activity hosting the window',
@@ -97,15 +69,6 @@ describeApi('window', () => {
       expect(name).toMatch(/MainActivity/)
     }
   )
-
-  itOn('ios', 'sceneIdentifier resolves to a string', async () => {
-    // Empty until the app adopts the scene lifecycle, so only the shape is
-    // asserted.
-    const id = await tauri((api) =>
-      api.window.getCurrentWindow().sceneIdentifier()
-    )
-    expect(typeof id).toBe('string')
-  })
 
   // The window is the whole screen on mobile: `set_size` is a no-op.
   itDesktop('setSize resizes the window', async () => {

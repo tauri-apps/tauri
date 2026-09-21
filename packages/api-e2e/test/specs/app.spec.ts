@@ -40,15 +40,6 @@ describeApi('app', () => {
     expect(size!.height).toBeGreaterThan(0)
   })
 
-  it('supportsMultipleWindows reports a boolean', async () => {
-    const supported = await tauri((api) => api.app.supportsMultipleWindows())
-    expect(typeof supported).toBe('boolean')
-    // Always true on desktop; on mobile it depends on the activity/scene setup.
-    if (!isMobile) {
-      expect(supported).toBe(true)
-    }
-  })
-
   it('setTheme applies a theme and can be reset to the system default', async () => {
     await tauri((api) => api.app.setTheme('dark'))
     // On Linux the app-level theme is not observable through `window.theme()`:

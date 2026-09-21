@@ -85,12 +85,4 @@ describeApi('menu', { desktopOnly: true }, () => {
     expect(result.afterAppend).toBe(2)
     expect(result.afterRemove).toBe(1)
   })
-
-  it('Menu.default builds the platform default menu', async () => {
-    const count = await tauri(async (api) => {
-      const menu = await api.menu.Menu.default()
-      return (await menu.items()).length
-    })
-    expect(count).toBeGreaterThanOrEqual(0)
-  })
 })

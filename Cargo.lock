@@ -10450,12 +10450,13 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-automation"
-version = "3.0.0-alpha.1"
+version = "3.0.0-alpha.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c525416b72d30f8cebd7e83c38dae1df46191961f86822b2c67badb3db46aec"
+checksum = "da5c599a6e27903f61b1078b0c614070e3a906aaac5acff37cbcb86fac3e3040"
 dependencies = [
  "libloading 0.8.9",
  "objc2-app-kit",
+ "serde",
  "serde_json",
  "tauri",
  "tauri-plugin",

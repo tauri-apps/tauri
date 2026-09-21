@@ -196,7 +196,7 @@ mod tests {
   const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
 
   #[test]
-  #[serial_test::serial(mirror_url)]
+  #[serial_test::serial]
   fn test_generate_mirror_url_no_env_var() {
     unsafe { env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE") };
 
@@ -204,7 +204,7 @@ mod tests {
   }
 
   #[test]
-  #[serial_test::serial(mirror_url)]
+  #[serial_test::serial]
   fn test_generate_mirror_url_non_github_url() {
     unsafe {
       env::set_var(
@@ -222,7 +222,7 @@ mod tests {
   }
 
   #[test]
-  #[serial_test::serial(mirror_url)]
+  #[serial_test::serial]
   fn test_generate_mirror_url_correctly() {
     let test_cases = vec![
       TestCase {

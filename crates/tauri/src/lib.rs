@@ -33,10 +33,10 @@
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
-//! - **image-ico**: Adds support to parse `.ico` image, see [`Image`].
-//! - **image-png**: Adds support to parse `.png` image, see [`Image`].
+//! - **image-ico**: Adds support to parse `.ico` image, see [`image::Image`].
+//! - **image-png**: Adds support to parse `.png` image, see [`image::Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
-//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`](crate::State), [`Window`](crate::Window) and [`AppHandle`](crate::AppHandle)
+//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`], [`Window`] and [`AppHandle`]
 //! - **dynamic-acl** *(enabled by default)*: Enables you to add ACLs at runtime, notably it enables the [`Manager::add_capability`] function.
 //!
 //! ## Cargo allowlist features
@@ -210,22 +210,22 @@ pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RunEvent,
-    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent, RESTART_EXIT_CODE,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
+    RunEvent, UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
   },
   self::manager::Asset,
   self::runtime::{
+    DeviceEventFilter, UserAttentionType,
     dpi::{
       LogicalPosition, LogicalRect, LogicalSize, LogicalUnit, PhysicalPosition, PhysicalRect,
       PhysicalSize, PhysicalUnit, Pixel, PixelUnit, Position, Rect, Size,
     },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
-    DeviceEventFilter, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
-    config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
+    config::{Config, WebviewUrl},
   },
   self::webview::{Webview, WebviewWindow, WebviewWindowBuilder},
   self::window::{Monitor, Window},
@@ -663,7 +663,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// #[tauri::command]
   /// fn string_command<'r>(state: State<'r, MyString>) {
-  ///     println!("state: {}", state.inner().0);
+  ///     println!("state: {}", state.0);
   /// }
   ///
   /// tauri::Builder::default()
@@ -689,7 +689,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().set(state)
+    self.manager().state.set(state)
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
@@ -717,7 +717,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     T: Send + Sync + 'static,
   {
     // The caller decides to break the safety here, then OK, just let it go.
-    unsafe { self.manager().state().unmanage() }
+    unsafe { self.manager().state.unmanage() }
   }
 
   /// Retrieves the managed state for the type `T`.
@@ -753,13 +753,14 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {
-    self.state::<Env>().inner().clone()
+    use std::ops::Deref;
+    self.state::<Env>().deref().clone()
   }
 
   /// Gets the scope for the asset protocol.
   #[cfg(feature = "protocol-asset")]
   fn asset_protocol_scope(&self) -> scope::fs::Scope {
-    self.state::<Scopes>().inner().asset_protocol.clone()
+    self.state::<Scopes>().asset_protocol.clone()
   }
 
   /// The path resolver.
@@ -1068,16 +1069,19 @@ pub(crate) mod sealed {
   }
 }
 
+#[cfg(desktop)]
 struct UnsafeSend<T>(T);
+#[cfg(desktop)]
 unsafe impl<T> Send for UnsafeSend<T> {}
 
+#[cfg(desktop)]
 impl<T> UnsafeSend<T> {
   fn take(self) -> T {
     self.0
   }
 }
 
-#[allow(unused)]
+#[cfg(desktop)]
 macro_rules! run_main_thread {
   ($handle:ident, $ex:expr) => {{
     use std::sync::mpsc::channel;
@@ -1092,7 +1096,7 @@ macro_rules! run_main_thread {
   }};
 }
 
-#[allow(unused)]
+#[cfg(desktop)]
 pub(crate) use run_main_thread;
 
 #[cfg(any(test, feature = "test"))]
@@ -1101,7 +1105,7 @@ pub mod test;
 
 #[cfg(feature = "specta")]
 const _: () = {
-  use specta::{datatype::DataType, function::FunctionArg, TypeMap};
+  use specta::{TypeMap, datatype::DataType, function::FunctionArg};
 
   impl<T: Send + Sync + 'static> FunctionArg for crate::State<'_, T> {
     fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
@@ -1218,9 +1222,9 @@ mod z85 {
     assert_eq!(bytes.len() % 4, 0);
 
     let mut buf = String::with_capacity(bytes.len() * 5 / 4);
-    for chunk in bytes.chunks_exact(4) {
+    for chunk in bytes.as_chunks::<4>().0 {
       let mut chars = [0u8; 5];
-      let mut chunk = u32::from_be_bytes(chunk.try_into().unwrap()) as usize;
+      let mut chunk = u32::from_be_bytes(*chunk) as usize;
       for byte in chars.iter_mut().rev() {
         *byte = TABLE[chunk % 85];
         chunk /= 85;

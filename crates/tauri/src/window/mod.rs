@@ -10,34 +10,34 @@ use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalRect, PhysicalSize},
   webview::PendingWebview,
 };
-pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
+pub use tauri_utils::{WindowEffect as Effect, WindowEffectState as EffectState, config::Color};
 
 #[cfg(desktop)]
 pub use crate::runtime::ProgressBarStatus;
 
+#[cfg(desktop)]
 use crate::{
+  CursorIcon,
+  image::Image,
+  menu::{ContextMenu, Menu, MenuId},
+  runtime::UserAttentionType,
+};
+use crate::{
+  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
+  WindowEvent,
   app::AppHandle,
   event::{Event, EventId, EventTarget},
   ipc::{CommandArg, CommandItem, InvokeError},
   manager::{AppManager, EmitPayload},
   runtime::{
+    RuntimeHandle, WindowDispatch,
     dpi::{Position, Size},
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
-    RuntimeHandle, WindowDispatch,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
-  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
-  WindowEvent,
-};
-#[cfg(desktop)]
-use crate::{
-  image::Image,
-  menu::{ContextMenu, Menu, MenuId},
-  runtime::UserAttentionType,
-  CursorIcon,
 };
 
 use serde::Serialize;
@@ -355,7 +355,7 @@ tauri::Builder::default()
 
   /// Creates a new window with an optional webview.
   fn build_internal(
-    // mutable on Android
+    // mutable on mobile
     #[allow(unused_mut)] mut self,
     webview: Option<PendingWebview<EventLoopMessage, R>>,
   ) -> crate::Result<Window<R>> {
@@ -608,6 +608,16 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   #[must_use]
   pub fn window_classname<S: Into<String>>(mut self, classname: S) -> Self {
     self.window_builder = self.window_builder.window_classname(classname);
+    self
+  }
+
+  /// This sets `WS_EX_NOREDIRECTIONBITMAP`.
+  ///
+  /// This can avoid the white flash that may appear before the webview content is rendered
+  /// when using a transparent window. **Windows only**.
+  #[must_use]
+  pub fn no_redirection_bitmap(mut self, enable: bool) -> Self {
+    self.window_builder = self.window_builder.no_redirection_bitmap(enable);
     self
   }
 
@@ -906,6 +916,9 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
 
   /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
+  ///
+  /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
+  /// creating a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
     docsrs,
@@ -1322,7 +1335,7 @@ tauri::Builder::default()
     let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
     // remove from the window
-    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    #[cfg(not(target_os = "macos"))]
     if let Some(menu) = &prev_menu {
       let window = self.clone();
       let menu = menu.clone();
@@ -1352,9 +1365,13 @@ tauri::Builder::default()
   }
 
   /// Hides the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn hide_menu(&self) -> crate::Result<()> {
     // remove from the window
-    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    #[cfg(not(target_os = "macos"))]
     if let Some(window_menu) = &*self.menu_lock() {
       let window = self.clone();
       let menu_ = window_menu.menu.clone();
@@ -1380,9 +1397,13 @@ tauri::Builder::default()
   }
 
   /// Shows the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn show_menu(&self) -> crate::Result<()> {
     // remove from the window
-    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    #[cfg(not(target_os = "macos"))]
     if let Some(window_menu) = &*self.menu_lock() {
       let window = self.clone();
       let menu_ = window_menu.menu.clone();
@@ -1408,9 +1429,13 @@ tauri::Builder::default()
   }
 
   /// Shows the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     // remove from the window
-    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    #[cfg(not(target_os = "macos"))]
     if let Some(window_menu) = &*self.menu_lock() {
       let (tx, rx) = std::sync::mpsc::channel();
       let window = self.clone();
@@ -1778,7 +1803,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.hide().map_err(Into::into)
   }
 
-  /// Closes this window. It emits [`crate::RunEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
+  /// Closes this window. It emits [`crate::WindowEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
   pub fn close(&self) -> crate::Result<()> {
     self.window.dispatcher.close().map_err(Into::into)
   }
@@ -2109,6 +2134,41 @@ tauri::Builder::default()
       .window
       .dispatcher
       .set_fullscreen(fullscreen)
+      .map_err(Into::into)
+  }
+
+  /// Sets the window as fullscreen on the monitor that contains the given physical position,
+  /// such as a [`Monitor::position`](crate::Monitor::position).
+  ///
+  /// Does nothing if no monitor contains the position.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::Manager;
+tauri::Builder::default()
+  .setup(|app| {
+    let window = app.get_window("main").unwrap();
+    if let Some(monitor) = window.available_monitors()?.into_iter().nth(1) {
+      let position = monitor.position();
+      window.set_fullscreen_on_monitor(tauri::PhysicalPosition::new(
+        position.x as f64,
+        position.y as f64,
+      ))?;
+    }
+    Ok(())
+  });
+```
+  "####
+  )]
+  pub fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_fullscreen_on_monitor(position)
       .map_err(Into::into)
   }
 

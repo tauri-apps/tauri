@@ -9,11 +9,11 @@ use clap::{ArgAction, Parser};
 
 use super::{device_prompt, env};
 use crate::{
+  ConfigValue, Result,
   error::Context,
-  helpers::config::{get_config as get_tauri_config, ConfigMetadata},
+  helpers::config::{ConfigMetadata, get_config as get_tauri_config},
   interface::{DevProcess, WatcherOptions},
   mobile::{DevChild, TargetDevice},
-  ConfigValue, Result,
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -88,6 +88,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       export_method: None,
       args: options.args,
       ignore_version_mismatches: options.ignore_version_mismatches,
+      no_sign: false,
+      archive_only: false,
       target_device: device.as_ref().map(|d| TargetDevice {
         id: d.id().to_string(),
         name: d.name().to_string(),

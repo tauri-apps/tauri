@@ -1,5 +1,33 @@
 # Changelog
 
+## \[2.6.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+
+## \[2.6.0]
+
+### New Features
+
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Implement file association for Android and iOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+
 ## \[2.5.4]
 
 ### Dependencies

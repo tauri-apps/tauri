@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.3.4]
+
+### Enhancements
+
+- [`eacd36a4e`](https://www.github.com/tauri-apps/tauri/commit/eacd36a4ea4d6a14a73f414981fb5a8af7dfdafe) ([#15038](https://www.github.com/tauri-apps/tauri/pull/15038)) Do not rely on system base64 CLI to decode certificates.
+
 ## \[2.3.3]
 
 ### Dependencies

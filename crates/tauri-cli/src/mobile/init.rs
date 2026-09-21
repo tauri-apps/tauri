@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_app, Target};
+use super::{Target, get_app};
 use crate::{
+  ConfigValue, Result,
   helpers::app_paths::Dirs,
   helpers::{config::get_config as get_tauri_config, template::JsonMap},
   interface::AppInterface,
-  ConfigValue, Result,
 };
 use cargo_mobile2::{
   config::app::App,
@@ -140,7 +140,14 @@ fn exec(
       let (config, metadata) =
         super::android::get_config(&app, &tauri_config, &[], &Default::default());
       map.insert("android", &config);
-      super::android::project::gen(
+
+      // Add application_id_suffix to the map for template access
+      // The template will access it via a helper or we'll modify template to use root context
+      if let Some(suffix) = &tauri_config.bundle.android.debug_application_id_suffix {
+        map.insert("android-debug-application-id-suffix", suffix);
+      }
+
+      super::android::project::generate(
         &config,
         &metadata,
         (handlebars, map),
@@ -155,7 +162,7 @@ fn exec(
       let (config, metadata) =
         super::ios::get_config(&app, &tauri_config, &[], &Default::default(), dirs.tauri)?;
       map.insert("apple", &config);
-      super::ios::project::gen(
+      super::ios::project::generate(
         &tauri_config,
         &config,
         &metadata,

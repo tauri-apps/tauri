@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::bundle::Settings;
-use crate::utils::{self, fs_utils, CommandExt};
+use crate::utils::{self, CommandExt, fs_utils};
 use std::{
   cmp::min,
   ffi::OsStr,
@@ -65,7 +65,7 @@ pub fn create_icns_file(out_dir: &Path, settings: &Settings) -> crate::Result<Op
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
 
-    if icon_path.extension().map_or(false, |ext| ext == "car") {
+    if icon_path.extension().is_some_and(|ext| ext == "car") {
       continue;
     }
 
@@ -156,7 +156,9 @@ pub fn create_assets_car_file(
 
     if let Some(major) = major_version {
       if major < 26 {
-        log::error!("actool version is less than 26, skipping Assets.car file creation. Please update Xcode to 26 or above and try again.");
+        log::error!(
+          "actool version is less than 26, skipping Assets.car file creation. Please update Xcode to 26 or above and try again."
+        );
         return Ok(None);
       }
     } else {

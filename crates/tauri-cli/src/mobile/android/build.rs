@@ -3,20 +3,20 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_resources,
-  log_finished, open_and_wait, MobileTarget, OptionsHandle,
+  MobileTarget, OptionsHandle, configure_cargo, delete_codegen_vars, ensure_init, env, get_app,
+  get_config, inject_resources, log_finished, open_and_wait, sync_debug_application_id_suffix,
 };
 use crate::{
+  ConfigValue, Error, Result,
   build::Options as BuildOptions,
   error::Context,
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
   },
   interface::{AppInterface, Options as InterfaceOptions},
-  mobile::{android::generate_tauri_properties, write_options, CliOptions, TargetDevice},
-  ConfigValue, Error, Result,
+  mobile::{CliOptions, TargetDevice, android::generate_tauri_properties, write_options},
 };
 use clap::{ArgAction, Parser};
 
@@ -106,6 +106,7 @@ impl From<Options> for BuildOptions {
       skip_stapling: false,
       ignore_version_mismatches: options.ignore_version_mismatches,
       no_sign: false,
+      no_binary_patching: false,
     }
   }
 }
@@ -192,6 +193,7 @@ pub fn run(
   configure_cargo(&mut env, &config)?;
 
   generate_tauri_properties(&config, tauri_config, false)?;
+  sync_debug_application_id_suffix(&config, tauri_config)?;
 
   crate::build::setup(&interface, &mut build_options, tauri_config, dirs, true)?;
 

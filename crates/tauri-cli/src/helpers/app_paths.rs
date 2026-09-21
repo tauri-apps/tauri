@@ -13,7 +13,7 @@ use std::{
 use ignore::WalkBuilder;
 
 use tauri_utils::{
-  config::parse::{folder_has_configuration_file, is_configuration_file, ConfigFormat},
+  config::parse::{ConfigFormat, folder_has_configuration_file, is_configuration_file},
   platform::Target,
 };
 

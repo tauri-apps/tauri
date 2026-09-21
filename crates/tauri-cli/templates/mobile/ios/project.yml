@@ -33,7 +33,12 @@ targets:
     sources:
       - path: Sources
       - path: Assets.xcassets
+      # Exclude built static libs: regenerating with xcodegen after a build
+      # otherwise turns the per-configuration libapp.a copies into colliding
+      # resources ("Multiple commands produce …/libapp.a"). They are linked
+      # via LIBRARY_SEARCH_PATHS, never bundled as resources.
       - path: Externals
+        excludes: ["**/*.a"]
       - path: {{app.name}}_iOS
       - path: {{app.asset-dir}}
         buildPhase: resources

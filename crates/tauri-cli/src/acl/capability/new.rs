@@ -7,10 +7,10 @@ use std::{collections::HashSet, path::PathBuf};
 use clap::Parser;
 use tauri_utils::acl::capability::{Capability, PermissionEntry};
 
-use crate::{acl::FileFormat, error::ErrorExt, helpers::prompts, Result};
+use crate::{Result, acl::FileFormat, error::ErrorExt, helpers::prompts};
 
 #[derive(Debug, Parser)]
-#[clap(about = "Create a new permission file")]
+#[clap(about = "Create a new capability file")]
 pub struct Options {
   /// Capability identifier.
   identifier: Option<String>,
@@ -42,7 +42,7 @@ pub fn command(options: Options) -> Result<()> {
   let description = match options.description {
     Some(d) => Some(d),
     None => prompts::input::<String>("What's the capability description?", None, false, true)?
-      .and_then(|d| if d.is_empty() { None } else { Some(d) }),
+      .filter(|d| !d.is_empty()),
   };
 
   let windows = match options.windows.map(FromIterator::from_iter) {

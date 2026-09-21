@@ -25,12 +25,12 @@
 
 use super::freedesktop;
 use crate::{
+  Settings,
   bundle::settings::Arch,
   error::{Context, ErrorExt},
   utils::fs_utils,
-  Settings,
 };
-use flate2::{write::GzEncoder, Compression};
+use flate2::{Compression, write::GzEncoder};
 use tar::HeaderMode;
 use walkdir::WalkDir;
 

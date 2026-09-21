@@ -63,13 +63,14 @@ open class RustPlugin : Plugin<Project> {
                     val targetName = targetPair.value
                     val targetArch = archList[targetPair.index]
                     val targetArchCapitalized = targetArch.replaceFirstChar { it.uppercase() }
-                    val targetBuildTask = project.tasks.maybeCreate(
+                    val targetBuildTask = project.tasks.register(
                         "rustBuild$targetArchCapitalized$profileCapitalized",
                         BuildTask::class.java
-                    ).apply {
+                    ) {
                         group = TASK_GROUP
                         description = "Build dynamic library in $profile mode for $targetArch"
                         rootDirRel = config.rootDirRel
+                        projectDir = project.projectDir.path
                         target = targetName
                         release = profile == "release"
                     }

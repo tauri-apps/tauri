@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">{{app.stylized-name}}</string>
-    <string name="main_activity_title">{{app.stylized-name}}</string>
+    <string name="app_name">"{{html-escape app.stylized-name}}"</string>
+    <string name="main_activity_title">"{{html-escape app.stylized-name}}"</string>
 </resources>

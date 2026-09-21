@@ -3,23 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
+  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
-    InvokeHandler, InvokeResponseBody,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler, InvokeResponseBody,
+    channel::ChannelDataIpcQueue,
   },
-  manager::{webview::UriSchemeProtocol, AppManager, Asset},
+  manager::{AppManager, Asset, webview::UriSchemeProtocol},
   plugin::{Plugin, PluginStore},
   resources::ResourceTable,
   runtime::{
-    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
+    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::{config::Config, Env},
+  utils::{Env, config::Config},
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
-  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]
@@ -27,27 +27,27 @@ use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
-use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
+  RuntimeInitArgs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
-  RuntimeInitArgs,
 };
-use tauri_utils::{assets::AssetsIter, PackageInfo};
+use tauri_utils::{PackageInfo, assets::AssetsIter};
 
 use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic, mpsc::Sender, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, atomic, mpsc::Sender},
   thread::ThreadId,
   time::Duration,
 };
 
-use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
+use crate::{Event, EventTarget, event::EventId, runtime::RuntimeHandle};
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
@@ -149,6 +149,24 @@ pub enum WindowEvent {
   ///
   /// - **Linux**: Not supported.
   ThemeChanged(Theme),
+  /// Emitted when the application has been suspended.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onPause` method of the Activity.
+  /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  #[cfg(mobile)]
+  Suspended,
+  /// Emitted when the application has been resumed.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onResume` method of the Activity. The first onResume() is ignored to match the iOS implementation, since that is called on activity creation.
+  /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  #[cfg(mobile)]
+  Resumed,
 }
 
 impl From<RuntimeWindowEvent> for WindowEvent {
@@ -170,6 +188,10 @@ impl From<RuntimeWindowEvent> for WindowEvent {
       },
       RuntimeWindowEvent::DragDrop(event) => Self::DragDrop(event),
       RuntimeWindowEvent::ThemeChanged(theme) => Self::ThemeChanged(theme),
+      #[cfg(mobile)]
+      RuntimeWindowEvent::Suspended => Self::Suspended,
+      #[cfg(mobile)]
+      RuntimeWindowEvent::Resumed => Self::Resumed,
     }
   }
 }
@@ -285,7 +307,7 @@ impl From<EventLoopMessage> for RunEvent {
   }
 }
 
-/// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
+/// The asset resolver is a helper to access the [`crate::Assets`] interface.
 #[derive(Debug, Clone)]
 pub struct AssetResolver<R: Runtime> {
   manager: Arc<AppManager<R>>,
@@ -549,12 +571,29 @@ impl<R: Runtime> AppHandle<R> {
   }
 
   /// Exits the app by triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`].
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unless the exit is prevented, the activity is finished instead of the process being exited directly,
+  ///   so the app closes with the system transition and the activity lifecycle callbacks run.
+  ///   [`RunEvent::Exit`] is triggered once the activity is destroyed, and `exit_code` is not used as the process exit code.
   pub fn exit(&self, exit_code: i32) {
     if let Err(e) = self.runtime_handle.request_exit(exit_code) {
       log::error!("failed to exit: {}", e);
       self.cleanup_before_exit();
       std::process::exit(exit_code);
     }
+  }
+
+  /// Finishes the Android activity, and any other activity of its task, so the app closes gracefully.
+  #[cfg(target_os = "android")]
+  pub(crate) fn finish_activity(&self) -> crate::Result<()> {
+    // the app plugin is a core plugin, so its Android handle is always managed
+    self
+      .state::<crate::app::plugin::AppPlugin<R>>()
+      .0
+      .run_mobile_plugin::<()>("exit", ())?;
+    Ok(())
   }
 
   /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`](crate::RESTART_EXIT_CODE) and [`RunEvent::Exit`].
@@ -657,7 +696,7 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    self.run_on_main_thread(move || unsafe {
+    let _ = self.run_on_main_thread(move || {
       let mtm = objc2::MainThreadMarker::new().unwrap();
       let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
       tx.send(ui_application.supportsMultipleScenes()).unwrap();
@@ -848,7 +887,7 @@ macro_rules! shared_app_impl {
       pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.primary_monitor().map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor()?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -857,7 +896,7 @@ macro_rules! shared_app_impl {
       pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.monitor_from_point(x, y).map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y).map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y)?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -868,9 +907,11 @@ macro_rules! shared_app_impl {
           RuntimeOrDispatch::Runtime(h) => {
             h.available_monitors().into_iter().map(Into::into).collect()
           }
-          RuntimeOrDispatch::RuntimeHandle(h) => {
-            h.available_monitors().into_iter().map(Into::into).collect()
-          }
+          RuntimeOrDispatch::RuntimeHandle(h) => h
+            .available_monitors()?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
           _ => unreachable!(),
         })
       }
@@ -1013,6 +1054,10 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will hide the menu from it.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** Unsupported.
       #[cfg(desktop)]
       pub fn hide_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
@@ -1034,6 +1079,10 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will show the menu for it.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** Unsupported.
       #[cfg(desktop)]
       pub fn show_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
@@ -1076,6 +1125,15 @@ macro_rules! shared_app_impl {
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
+        // run plugin cleanup hooks first so plugins can still use the app resources (e.g. stop sidecars)
+        // cleanup is best-effort, so a plugin store poisoned by an earlier panic must not abort it
+        self
+          .manager
+          .plugins
+          .lock()
+          .unwrap_or_else(std::sync::PoisonError::into_inner)
+          .cleanup_before_exit(self.app_handle());
+
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
@@ -1233,11 +1291,9 @@ impl<R: Runtime> App<R> {
   /// Whether the application supports multiple windows.
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
-    unsafe {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      ui_application.supportsMultipleScenes()
-    }
+    let mtm = objc2::MainThreadMarker::new().unwrap();
+    let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+    ui_application.supportsMultipleScenes()
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -1386,28 +1442,66 @@ impl<R: Runtime> App<R> {
     mut self,
     mut callback: F,
   ) -> impl FnMut(RuntimeRunEvent<EventLoopMessage>) {
-    let app_handle = self.handle().clone();
-    let manager = self.manager.clone();
+    // whether the activity is being finished to fulfill an exit request the app accepted
+    #[cfg(target_os = "android")]
+    let mut finishing_activity = false;
 
     move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Ready, self.manager());
+        callback(self.handle(), event);
       }
       RuntimeRunEvent::Exit => {
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-        callback(&app_handle, event);
-        app_handle.cleanup_before_exit();
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Exit, self.manager());
+        callback(self.handle(), event);
+        self.cleanup_before_exit();
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
       }
+      // On Android, exiting the process while the activity is still on screen skips the close transition
+      // and flashes a blank screen, so a programmatic exit finishes the activity instead and the event loop
+      // exits through the regular window destroyed path.
+      #[cfg(target_os = "android")]
+      RuntimeRunEvent::ExitRequested {
+        code: Some(code),
+        tx,
+      } if code != RESTART_EXIT_CODE && !self.manager.windows().is_empty() => {
+        let (app_tx, app_rx) = std::sync::mpsc::channel();
+        let event = on_event_loop_event(
+          self.handle(),
+          RuntimeRunEvent::ExitRequested {
+            code: Some(code),
+            tx: app_tx,
+          },
+          self.manager(),
+        );
+        callback(self.handle(), event);
+
+        if matches!(app_rx.try_recv(), Ok(ExitRequestedEventAction::Prevent)) {
+          let _ = tx.send(ExitRequestedEventAction::Prevent);
+        } else {
+          match self.handle().finish_activity() {
+            Ok(()) => {
+              finishing_activity = true;
+              // keep the event loop running until the activity is destroyed
+              let _ = tx.send(ExitRequestedEventAction::Prevent);
+            }
+            // fall back to exiting the process directly
+            Err(e) => log::error!("failed to finish the activity: {e}"),
+          }
+        }
+      }
+      #[cfg(target_os = "android")]
+      RuntimeRunEvent::ExitRequested { code: None, .. } if finishing_activity => {
+        // the app already accepted this exit when it was requested
+      }
       _ => {
-        let event = on_event_loop_event(&app_handle, event, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), event, self.manager());
+        callback(self.handle(), event);
       }
     }
   }
@@ -1439,19 +1533,18 @@ impl<R: Runtime> App<R> {
     note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
   )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
-    let manager = self.manager.clone();
-    let app_handle = self.handle().clone();
-
     if !self.ran_setup {
       if let Err(e) = setup(self) {
         panic!("Failed to setup app: {e}");
       }
     }
 
+    let app_handle = self.handle().clone();
+
     app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
-      let event = on_event_loop_event(&app_handle, event, &manager);
+      let event = on_event_loop_event(&app_handle, event, app_handle.manager());
       callback(&app_handle, event);
     })
   }
@@ -1486,6 +1579,9 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
+  /// Permission request hook.
+  on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
+
   /// Web content process termination hook.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
@@ -1514,6 +1610,10 @@ pub struct Builder<R: Runtime> {
   /// Enable macOS default menu creation.
   #[allow(unused)]
   enable_macos_default_menu: bool,
+
+  /// Whether to activate the application when launched while another application is active.
+  #[cfg(target_os = "macos")]
+  activate_ignoring_other_apps: bool,
 
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
@@ -1576,6 +1676,7 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
+      on_permission_request: None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
@@ -1588,6 +1689,8 @@ impl<R: Runtime> Builder<R> {
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray_icon_event_listeners: Vec::new(),
       enable_macos_default_menu: true,
+      #[cfg(target_os = "macos")]
+      activate_ignoring_other_apps: true,
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
@@ -1755,6 +1858,53 @@ tauri::Builder::default()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Defines a closure to be executed when a permission is requested.
+  ///
+  /// The handler receives the [`crate::webview::PermissionKind`] and should return
+  /// the desired [`crate::webview::PermissionResponse`].
+  ///
+  /// This is not called if a [`crate::webview::WebviewBuilder::on_permission_request`]
+  /// is set on the webview and returned a response other than [`crate::webview::PermissionResponse::Default`].
+  ///
+  /// > [!NOTE]
+  /// > This handler only triggers for new permission requests. If the user has already
+  /// > allowed or denied a permission persistently within the webview, the browser
+  /// > will use the saved preference instead of calling this handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
+  /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
+  /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
+  /// - **Android**: Supported via JNI bridge for geolocation, microphone, camera,
+  ///   protected media, and MIDI requests. Android runtime permissions may still
+  ///   trigger native OS prompts before access is granted.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::webview::{PermissionKind, PermissionResponse};
+  /// tauri::Builder::default()
+  ///   .on_permission_request(|_, kind| match kind {
+  ///     PermissionKind::Geolocation => PermissionResponse::Allow,
+  ///     PermissionKind::Notifications => PermissionResponse::Allow,
+  ///     _ => PermissionResponse::Default,
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn on_permission_request<F>(mut self, on_permission_request: F) -> Self
+  where
+    F: Fn(Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
+      + Send
+      + Sync
+      + 'static,
+  {
+    self
+      .on_permission_request
+      .replace(Arc::new(on_permission_request));
     self
   }
 
@@ -2011,6 +2161,31 @@ tauri::Builder::default()
     self
   }
 
+  /// Configures whether the application should activate when launched while another application
+  /// is active.
+  ///
+  /// By default, the application ignores other applications and activates when launched.
+  ///
+  /// If `false`, the application activates only if no other application is currently active.
+  /// If `true`, the application activates regardless.
+  ///
+  /// This only affects the initial activation at launch. Explicitly focusing a window later
+  /// (e.g. via [`Window::set_focus`](crate::window::Window::set_focus)) still activates the
+  /// application regardless of this setting.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .activate_ignoring_other_apps(false);
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  #[must_use]
+  pub fn activate_ignoring_other_apps(mut self, ignore: bool) -> Self {
+    self.activate_ignoring_other_apps = ignore;
+    self
+  }
+
   /// Registers a window event handler for all windows.
   ///
   /// # Examples
@@ -2223,6 +2398,7 @@ tauri::Builder::default()
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      self.on_permission_request,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
@@ -2267,7 +2443,7 @@ tauri::Builder::default()
       msg_hook: {
         let menus = manager.menu.menus.clone();
         Some(Box::new(move |msg| {
-          use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
+          use windows::Win32::UI::WindowsAndMessaging::{HACCEL, MSG, TranslateAcceleratorW};
           unsafe {
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {
@@ -2294,7 +2470,8 @@ tauri::Builder::default()
           .ok()
           .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         {
-          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path));
+          // SAFETY: Always safe on Windows
+          unsafe { std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path)) };
         } else {
           #[cfg(debug_assertions)]
           eprintln!(
@@ -2312,6 +2489,9 @@ tauri::Builder::default()
     };
     #[cfg(not(any(windows, target_os = "linux")))]
     let mut runtime = R::new(runtime_args)?;
+
+    #[cfg(target_os = "macos")]
+    runtime.set_activate_ignoring_other_apps(self.activate_ignoring_other_apps);
 
     #[cfg(desktop)]
     {
@@ -2335,8 +2515,7 @@ tauri::Builder::default()
 
     let runtime_handle = runtime.handle();
 
-    #[allow(unused_mut)]
-    let mut app = App {
+    let app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
       manager: manager.clone(),
@@ -2349,6 +2528,8 @@ tauri::Builder::default()
       },
       ran_setup: false,
     };
+
+    app.register_core_plugins()?;
 
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
@@ -2364,8 +2545,6 @@ tauri::Builder::default()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
-    app.register_core_plugins()?;
 
     let env = Env::default();
     app.manage(env);
@@ -2388,11 +2567,9 @@ tauri::Builder::default()
     {
       let config = app.config();
       if let Some(tray_config) = &config.app.tray_icon {
-        #[allow(deprecated)]
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
             .icon_as_template(tray_config.icon_as_template)
-            .menu_on_left_click(tray_config.menu_on_left_click)
             .show_menu_on_left_click(tray_config.show_menu_on_left_click);
         if let Some(icon) = &app.manager.tray.icon {
           tray = tray.icon(icon.clone());

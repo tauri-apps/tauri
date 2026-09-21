@@ -25,13 +25,13 @@
 
 use http::response::Builder;
 #[cfg(feature = "schema")]
-use schemars::schema::Schema;
-#[cfg(feature = "schema")]
 use schemars::JsonSchema;
+#[cfg(feature = "schema")]
+use schemars::schema::Schema;
 use semver::Version;
 use serde::{
-  de::{Deserializer, Error as DeError, Visitor},
   Deserialize, Serialize, Serializer,
+  de::{Deserializer, Error as DeError, Visitor},
 };
 use serde_json::Value as JsonValue;
 use serde_untagged::UntaggedEnumVisitor;
@@ -39,7 +39,7 @@ use serde_with::skip_serializing_none;
 use url::Url;
 
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
@@ -61,7 +61,7 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
+use crate::{TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability};
 
 pub use self::parse::parse;
 
@@ -225,7 +225,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         const_value: Some("all".into()),
@@ -237,10 +237,13 @@ impl schemars::JsonSchema for BundleTarget {
       }
       .into(),
       add_description(
-        gen.subschema_for::<Vec<BundleType>>(),
+        generator.subschema_for::<Vec<BundleType>>(),
         "A list of bundle targets.",
       ),
-      add_description(gen.subschema_for::<BundleType>(), "A single bundle target."),
+      add_description(
+        generator.subschema_for::<BundleType>(),
+        "A single bundle target.",
+      ),
     ];
 
     schemars::schema::SchemaObject {
@@ -693,7 +696,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "14.0".into()
+  "15.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -873,7 +876,8 @@ pub struct NsisConfig {
   /// Whether the installation will be for all users or just the current user.
   #[serde(default, alias = "install-mode")]
   pub install_mode: NSISInstallerMode,
-  /// A list of installer languages.
+  /// A list of installer languages. Default to `["English"]` if not set.
+  ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
   /// To allow the user to select the language, set `display_language_selector` to `true`.
   ///
@@ -884,7 +888,7 @@ pub struct NsisConfig {
   ///
   /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsh` file.
   ///
-  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
+  /// **Note**: the key must be a valid NSIS language and it must be added to the [`Self::languages`] array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
@@ -1077,6 +1081,19 @@ pub struct WindowsConfig {
   /// need to use another tool like `osslsigncode`.
   #[serde(alias = "sign-command")]
   pub sign_command: Option<CustomSignCommandConfig>,
+  /// Whether to bundle the Visual C++ runtime DLLs alongside the application.
+  ///
+  /// This can be particularly useful when your application includes sidecars or DLLs that do
+  /// not statically link the Visual C++ runtime and require the runtime DLLs at runtime, and
+  /// you do not want to require users to install the Visual C++ Redistributable. This can also
+  /// be useful when `build > windows > staticVCRuntime` is set to `false`.
+  #[serde(
+    default,
+    rename = "bundleVCRuntime",
+    alias = "bundle-vc-runtime",
+    alias = "bundleVcRuntime"
+  )]
+  pub bundle_vc_runtime: bool,
 }
 
 impl Default for WindowsConfig {
@@ -1092,6 +1109,7 @@ impl Default for WindowsConfig {
       wix: None,
       nsis: None,
       sign_command: None,
+      bundle_vc_runtime: false,
     }
   }
 }
@@ -1197,7 +1215,13 @@ pub struct FileAssociation {
   /// The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
-  /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
+  /// The mime-type of the association, e.g. `'image/png'` or `'text/plain'`.
+  ///
+  /// - **Linux**: written as `MimeType=` in the `.desktop` file.
+  /// - **macOS / iOS**: added as `public.mime-type` in the `UTTypeTagSpecification` dictionary of
+  ///   the `UTExportedTypeDeclarations` entry in `Info.plist`.
+  /// - **Android**: used as `android:mimeType` in the `<data>` element of an `<intent-filter>`
+  ///   in `AndroidManifest.xml`.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<String>,
   /// The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.
@@ -1738,10 +1762,9 @@ impl FromStr for Color {
   fn from_str(mut color: &str) -> Result<Self, Self::Err> {
     color = color.trim().strip_prefix('#').unwrap_or(color);
     let color = match color.len() {
-      // TODO: use repeat_n once our MSRV is bumped to 1.82
       3 => color.chars()
-            .flat_map(|c| std::iter::repeat(c).take(2))
-            .chain(std::iter::repeat('f').take(2))
+            .flat_map(|c| std::iter::repeat_n(c, 2))
+            .chain(std::iter::repeat_n('f', 2))
             .collect(),
       6 => format!("{color}FF"),
       8 => color.to_string(),
@@ -1809,7 +1832,7 @@ impl schemars::JsonSchema for Color {
     "Color".to_string()
   }
 
-  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(_generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let mut schema = schemars::schema_for!(InnerColor).schema;
     schema.metadata = None; // Remove `title: InnerColor` from schema
 
@@ -1896,7 +1919,7 @@ pub enum ScrollBarStyle {
   /// Fluent UI style overlay scrollbars. **Windows Only**
   ///
   /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
-  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  /// see <https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541>
   FluentOverlay,
 }
 
@@ -1933,9 +1956,15 @@ pub struct WindowConfig {
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
-  /// Whether the drag and drop is enabled or not on the webview. By default it is enabled.
+  /// Whether the drag and drop handlers used internally to generate [`DragDropEvent`]s are enabled on the webview. By default it is enabled.
   ///
-  /// Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
+  /// Disabling it is required to use HTML5 drag and drop on the frontend on Windows since we replace the drag drop handler of WebView2.
+  ///
+  /// Note: this setting maps to [`WebviewBuilder::disable_drag_drop_handler`], not [`WindowBuilder::drag_and_drop`].
+  ///
+  /// [`DragDropEvent`]: https://docs.rs/tauri/latest/tauri/enum.DragDropEvent.html
+  /// [`WebviewBuilder::disable_drag_drop_handler`]: https://docs.rs/tauri/latest/tauri/webview/struct.WebviewBuilder.html#method.disable_drag_drop_handler
+  /// [`WindowBuilder::drag_and_drop`]: https://docs.rs/tauri/latest/x86_64-pc-windows-msvc/tauri/window/struct.WindowBuilder.html#method.drag_and_drop
   #[serde(default = "default_true", alias = "drag-drop-enabled")]
   pub drag_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
@@ -2014,6 +2043,8 @@ pub struct WindowConfig {
   ///
   /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.
   /// WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+  ///
+  /// On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
   #[serde(default)]
   pub transparent: bool,
   /// Whether the window is maximized or not.
@@ -2046,6 +2077,12 @@ pub struct WindowConfig {
   pub skip_taskbar: bool,
   /// The name of the window class created on Windows to create the window. **Windows only**.
   pub window_classname: Option<String>,
+  /// This sets `WS_EX_NOREDIRECTIONBITMAP`.
+  ///
+  /// This can avoid the white flash that may appear before the webview content is rendered
+  /// when using a transparent window. **Windows only**.
+  #[serde(default, alias = "no-redirection-bitmap")]
+  pub no_redirection_bitmap: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
   /// The style of the macOS title bar.
@@ -2070,8 +2107,14 @@ pub struct WindowConfig {
   /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
-  /// Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
-  /// so if you use this method, you also need to disable these components by yourself if you want.
+  /// Defines additional browser arguments on Windows.
+  ///
+  /// ## Warning
+  ///
+  /// Webview instances with different browser arguments must also have different [data directories](Self::data_directory).
+  ///
+  /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you set this, you also need to disable these components by yourself if you want.
   #[serde(default, alias = "additional-browser-args")]
   pub additional_browser_args: Option<String>,
   /// Whether or not the window has shadow.
@@ -2188,7 +2231,7 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[serde(default, alias = "background-throttling")]
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
   /// Whether we should disable JavaScript code execution on the webview or not.
@@ -2248,6 +2291,58 @@ pub struct WindowConfig {
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
+
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  ///
+  /// Default is false.
+  ///
+  /// Note: If you set this to `true` make sure to add localhost and any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to tauri-src/Info.ios.plist:
+  ///
+  /// ```xml
+  /// <plist>
+  /// <dict>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
+  ///     </array>
+  /// </dict>
+  /// </plist>
+  /// ```
+  ///
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  ///
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  ///
+  /// See https://webkit.org/blog/10882/app-bound-domains/ and
+  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: Supported since version 14.0+.
+  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  #[serde(default, alias = "limit-navigations-to-app-bound-domains")]
+  pub limit_navigations_to_app_bound_domains: bool,
   /// The name of the Android activity to create for this window.
   #[serde(default, alias = "activity-name")]
   pub activity_name: Option<String>,
@@ -2263,6 +2358,25 @@ pub struct WindowConfig {
   /// By default the system uses the foreground scene.
   #[serde(default, alias = "requested-by-scene-identifier")]
   pub requested_by_scene_identifier: Option<String>,
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// If not specified, this is `true` by default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[serde(default = "default_true", alias = "general-autofill-enabled")]
+  pub general_autofill_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -2301,6 +2415,7 @@ impl Default for WindowConfig {
       content_protected: false,
       skip_taskbar: false,
       window_classname: None,
+      no_redirection_bitmap: false,
       theme: None,
       title_bar_style: Default::default(),
       traffic_light_position: None,
@@ -2325,9 +2440,11 @@ impl Default for WindowConfig {
       data_directory: None,
       data_store_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
+      limit_navigations_to_app_bound_domains: false,
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
+      general_autofill_enabled: true,
     }
   }
 }
@@ -2407,7 +2524,7 @@ impl CspDirectiveSources {
 
 /// A Content-Security-Policy definition.
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum Csp {
@@ -2415,6 +2532,24 @@ pub enum Csp {
   Policy(String),
   /// An object mapping a directive with its sources values as a list of strings.
   DirectiveMap(HashMap<String, CspDirectiveSources>),
+}
+
+impl Serialize for Csp {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      Self::Policy(policy) => serializer.serialize_str(policy),
+      Self::DirectiveMap(map) => {
+        // Serialize through `BTreeMap` so the output is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let btree_map: BTreeMap<_, _> = map.iter().collect();
+        btree_map.serialize(serializer)
+      }
+    }
+  }
 }
 
 impl From<HashMap<String, CspDirectiveSources>> for Csp {
@@ -2570,7 +2705,7 @@ pub struct AssetProtocolConfig {
 /// definition of a header source
 ///
 /// The header value to a header name
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum HeaderSource {
@@ -2582,18 +2717,39 @@ pub enum HeaderSource {
   Map(HashMap<String, String>),
 }
 
+impl Serialize for HeaderSource {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      Self::Inline(s) => serializer.serialize_str(s),
+      Self::List(l) => l.serialize(serializer),
+      Self::Map(m) => {
+        // Serialize through `BTreeMap` so the output is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let btree_map: BTreeMap<_, _> = m.iter().collect();
+        btree_map.serialize(serializer)
+      }
+    }
+  }
+}
+
 impl Display for HeaderSource {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::Inline(s) => write!(f, "{s}"),
       Self::List(l) => write!(f, "{}", l.join(", ")),
       Self::Map(m) => {
-        let len = m.len();
-        let mut i = 0;
-        for (key, value) in m {
+        // Format through `BTreeMap` so the resulting header value is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let map: BTreeMap<_, _> = m.iter().collect();
+        let len = map.len();
+        for (i, (key, value)) in map.into_iter().enumerate() {
           write!(f, "{key} {value}")?;
-          i += 1;
-          if i != len {
+          if i + 1 != len {
             write!(f, "; ")?;
           }
         }
@@ -2657,9 +2813,9 @@ impl HeaderAddition for Builder {
         self = self.header("Cross-Origin-Resource-Policy", value.to_string());
       };
 
-      // Add the header Permission-Policy, if we find a value for it
+      // Add the header Permissions-Policy, if we find a value for it
       if let Some(value) = &headers.permissions_policy {
-        self = self.header("Permission-Policy", value.to_string());
+        self = self.header("Permissions-Policy", value.to_string());
       };
 
       if let Some(value) = &headers.service_worker_allowed {
@@ -3104,13 +3260,18 @@ pub struct TrayIconConfig {
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
   #[serde(default, alias = "icon-as-template")]
   pub icon_as_template: bool,
+  /// **No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**
+  ///
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
   ///
   /// ## Platform-specific:
   ///
   /// - **Linux**: Unsupported.
   #[serde(default = "default_true", alias = "menu-on-left-click")]
-  #[deprecated(since = "2.2.0", note = "Use `show_menu_on_left_click` instead.")]
+  #[deprecated(
+    since = "2.2.0",
+    note = "No longer works, use `show_menu_on_left_click` instead."
+  )]
   pub menu_on_left_click: bool,
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
   ///
@@ -3148,7 +3309,7 @@ pub struct IosConfig {
   /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
-  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
+  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `15.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
   #[serde(
@@ -3376,6 +3537,12 @@ pub struct AndroidConfig {
   #[serde(alias = "auto-increment-version-code", default)]
   pub auto_increment_version_code: bool,
 
+  /// Application ID suffix to append for debug builds.
+  /// This allows installing debug and release versions side-by-side on the same device.
+  /// Example: ".debug" will make debug builds use "com.example.app.debug" as the application ID.
+  #[serde(alias = "debug-application-id-suffix")]
+  pub debug_application_id_suffix: Option<String>,
+
   /// Activity embedding for large screens (tablets, foldables).
   ///
   /// When set and enabled, Tauri generates the Gradle dependencies, Android manifest entries,
@@ -3390,6 +3557,7 @@ impl Default for AndroidConfig {
       min_sdk_version: default_min_sdk_version(),
       version_code: None,
       auto_increment_version_code: false,
+      debug_application_id_suffix: None,
       activity_embedding: None,
     }
   }
@@ -3590,8 +3758,38 @@ pub struct BuildConfig {
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
   /// Additional paths to watch for changes when running `tauri dev`.
-  #[serde(alias = "additional-watch-directories", default)]
+  #[serde(
+    alias = "additional-watch-folders",
+    alias = "additional-watch-directories",
+    default
+  )]
   pub additional_watch_folders: Vec<PathBuf>,
+  /// Windows-specific build configuration.
+  #[serde(default)]
+  pub windows: WindowsBuildConfig,
+}
+
+/// Windows-specific build configuration.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowsBuildConfig {
+  /// Whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets.
+  #[serde(
+    default = "default_true",
+    rename = "staticVCRuntime",
+    alias = "static-vc-runtime",
+    alias = "staticVcRuntime"
+  )]
+  pub static_vc_runtime: bool,
+}
+
+impl Default for WindowsBuildConfig {
+  fn default() -> Self {
+    Self {
+      static_vc_runtime: true,
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -3733,6 +3931,22 @@ pub struct Config {
   #[serde(rename = "$schema")]
   pub schema: Option<String>,
   /// App name.
+  ///
+  /// This is the name your app is known by on the user's system, so it must be changed from the
+  /// default before publishing. Besides naming the generated bundles, it is written into platform
+  /// metadata and install paths that are expected to be unique to your application.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Names the `.app` bundle and the `.dmg`, and sets the bundle's
+  ///    `CFBundleDisplayName` and `CFBundleName` properties. `CFBundleName` can be overridden with
+  ///    [`bundle > macOS > bundleName`](MacConfig::bundle_name).
+  /// - **Linux**: Kebab-cased for the Debian and RPM package names, used as the `Name` entry of
+  ///    the desktop file and as the resource directory name under `/usr/lib`.
+  /// - **Windows**: Names the installers, the installation directory, the Start Menu folder and
+  ///    the `HKCU\Software\<publisher>\<product name>` registry key. It also derives the default
+  ///    WiX upgrade code, which must be unique across applications and can be set explicitly with
+  ///    [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code).
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
@@ -3773,6 +3987,8 @@ pub struct Config {
   /// the bundle ID and path to the webview data directory.
   /// This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),
   /// and periods (.).
+  /// The default value `com.tauri.dev` is rejected by `tauri build` and must be changed before
+  /// building your application.
   pub identifier: String,
   /// The App configuration.
   #[serde(default)]
@@ -3791,9 +4007,22 @@ pub struct Config {
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#pluginconfig>
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
+
+impl Serialize for PluginConfig {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    // Serialize through `BTreeMap` so the output is deterministic
+    // see: https://github.com/tauri-apps/tauri/issues/14978
+    // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+    let btree_map: BTreeMap<_, _> = self.0.iter().collect();
+    btree_map.serialize(serializer)
+  }
+}
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///
@@ -3805,7 +4034,7 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
   use std::convert::identity;
 
   impl ToTokens for WebviewUrl {
@@ -4017,6 +4246,7 @@ mod build {
       let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
       let window_classname = opt_str_lit(self.window_classname.as_ref());
+      let no_redirection_bitmap = self.no_redirection_bitmap;
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let traffic_light_position = opt_lit(self.traffic_light_position.as_ref());
@@ -4040,9 +4270,11 @@ mod build {
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
+      let limit_navigations_to_app_bound_domains = self.limit_navigations_to_app_bound_domains;
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
+      let general_autofill_enabled = self.general_autofill_enabled;
 
       literal_struct!(
         tokens,
@@ -4081,6 +4313,7 @@ mod build {
         content_protected,
         skip_taskbar,
         window_classname,
+        no_redirection_bitmap,
         theme,
         title_bar_style,
         traffic_light_position,
@@ -4104,9 +4337,11 @@ mod build {
         data_directory,
         data_store_identifier,
         scroll_bar_style,
+        limit_navigations_to_app_bound_domains,
         activity_name,
         created_by_activity_name,
-        requested_by_scene_identifier
+        requested_by_scene_identifier,
+        general_autofill_enabled
       );
     }
   }
@@ -4268,6 +4503,7 @@ mod build {
       let features = quote!(None);
       let remove_unused_commands = quote!(false);
       let additional_watch_folders = quote!(Vec::new());
+      let windows = &self.windows;
 
       literal_struct!(
         tokens,
@@ -4280,7 +4516,20 @@ mod build {
         before_bundle_command,
         features,
         remove_unused_commands,
-        additional_watch_folders
+        additional_watch_folders,
+        windows
+      );
+    }
+  }
+
+  impl ToTokens for WindowsBuildConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let static_vc_runtime = self.static_vc_runtime;
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::WindowsBuildConfig,
+        static_vc_runtime
       );
     }
   }
@@ -4624,6 +4873,7 @@ mod test {
       features: None,
       remove_unused_commands: false,
       additional_watch_folders: Vec::new(),
+      windows: WindowsBuildConfig::default(),
     };
 
     // create a bundle config
@@ -4875,6 +5125,53 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
+  }
+
+  #[test]
+  fn header_source_map_display_is_deterministic() {
+    let map = HashMap::from([
+      ("key3".to_string(), "'value3'".to_string()),
+      ("key1".to_string(), "'value1' 'value2'".to_string()),
+      ("key2".to_string(), "'value4'".to_string()),
+    ]);
+
+    // the value must be sorted by key and stable across runs and across `HashMap` orderings
+    assert_eq!(
+      HeaderSource::Map(map.clone()).to_string(),
+      "key1 'value1' 'value2'; key2 'value4'; key3 'value3'"
+    );
+
+    let expected = HeaderSource::Map(map).to_string();
+    for _ in 0..10 {
+      let map = HashMap::from([
+        ("key2".to_string(), "'value4'".to_string()),
+        ("key3".to_string(), "'value3'".to_string()),
+        ("key1".to_string(), "'value1' 'value2'".to_string()),
+      ]);
+      assert_eq!(HeaderSource::Map(map).to_string(), expected);
+    }
+
+    // `Serialize` must keep matching `Display`'s ordering
+    let map = HashMap::from([
+      ("b".to_string(), "2".to_string()),
+      ("a".to_string(), "1".to_string()),
+    ]);
+    assert_eq!(
+      serde_json::to_string(&HeaderSource::Map(map)).unwrap(),
+      r#"{"a":"1","b":"2"}"#
+    );
+  }
+
+  #[test]
+  fn header_source_display() {
+    assert_eq!(
+      HeaderSource::Inline("same-origin".into()).to_string(),
+      "same-origin"
+    );
+    assert_eq!(
+      HeaderSource::List(vec!["https://a.example".into(), "https://b.example".into()]).to_string(),
+      "https://a.example, https://b.example"
+    );
   }
 
   #[test]

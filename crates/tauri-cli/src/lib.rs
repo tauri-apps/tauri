@@ -30,13 +30,13 @@ mod remove;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
-use env_logger::fmt::style::{AnsiColor, Style};
 use env_logger::Builder;
+use env_logger::fmt::style::{AnsiColor, Style};
 pub use error::{Error, ErrorExt, Result};
 use log::Level;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
-use std::process::{exit, Command, ExitStatus, Output, Stdio};
+use std::process::{Command, ExitStatus, Output, Stdio, exit};
 use std::{
   ffi::OsString,
   fmt::Display,
@@ -227,13 +227,14 @@ where
   };
   // set the verbosity level so subsequent CLI calls (xcode-script, android-studio-script) refer to it
   let verbosity_number = get_verbosity(cli.verbose);
-  std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string());
+  unsafe { std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string()) };
 
   let mut builder = Builder::from_default_env();
   if let Err(err) = builder
     .format_indent(Some(12))
     .filter(None, verbosity_level(verbosity_number).to_level_filter())
-    // golbin spams an insane amount of really technical logs on the debug level so we're reducing one level
+    // goblin spams an insane amount of really technical logs on the debug level so we're reducing one level.
+    // goblin was removed in 2.12 but is still used in apple-codesign so we keep this just in case.
     .filter(
       Some("goblin"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
@@ -241,6 +242,11 @@ where
     // handlebars is not that spammy but its debug logs are typically far from being helpful
     .filter(
       Some("handlebars"),
+      verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
+    )
+    // `ureq_proto` logs out every network packets at trace level
+    .filter(
+      Some("ureq_proto"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
     )
     .format(|f, record| {

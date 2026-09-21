@@ -286,6 +286,7 @@ pub enum RunEvent {
   /// Scenes created by [`Window::new`] are not emitted with this event.
   /// It is also not emitted for the main scene.
   #[cfg(target_os = "ios")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "ios")))]
   SceneRequested {
     /// Scene that was requested by the system.
     scene: objc2::rc::Retained<objc2_ui_kit::UIScene>,
@@ -2380,6 +2381,34 @@ tauri::Builder::default()
   }
 
   /// Builds the application.
+  ///
+  /// This creates the underlying webview runtime (the event loop), registers the core plugins and
+  /// initializes everything defined on the builder, but it does not start the application:
+  /// call [`App::run`] or [`App::run_return`] on the returned value to do so, or use [`Self::run`]
+  /// to do both at once.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error if the application cannot be initialized, in particular when:
+  ///
+  /// - the webview runtime (event loop) cannot be created, for instance when it is created outside
+  ///   the main thread, when the display server cannot be reached or when the WebView2 runtime is
+  ///   missing on Windows;
+  /// - the `app > security > assetProtocol > scope` patterns in the configuration are invalid;
+  /// - the app menu defined with [`Self::menu`] cannot be created;
+  /// - the tray icon defined in the configuration cannot be created;
+  /// - a plugin fails to initialize, i.e. its [`Plugin::initialize`](crate::plugin::Plugin::initialize)
+  ///   hook returns an error, which is also the case when a plugin is registered twice.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application")
+  ///   .run(|_app_handle, _event| {});
+  /// ```
   #[allow(clippy::type_complexity, unused_mut)]
   #[cfg_attr(
     feature = "tracing",

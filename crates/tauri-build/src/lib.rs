@@ -578,9 +578,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       mobile::update_android_manifest_file_associations(associations)?;
     }
 
-    if let Some(embedding) = activity_embedding {
-      mobile::setup_activity_embedding(&project_dir, embedding, &config.identifier)?;
-    }
+    // always runs so previously generated files and manifest entries are removed when disabled
+    mobile::sync_activity_embedding(&project_dir, activity_embedding, &config.identifier)?;
   }
 
   cfg_alias("dev", is_dev());

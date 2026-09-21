@@ -3340,6 +3340,12 @@ impl Default for IosConfig {
 /// Configuration for Android Activity Embedding, which splits activities
 /// side by side on large screens.
 ///
+/// When enabled with at least one split rule, the build script generates the Gradle
+/// dependencies, the Android manifest entries and a `TauriSplitInitializer` Kotlin class.
+/// Each secondary activity is declared in the manifest automatically, and a default
+/// `TauriActivity` subclass is generated for it unless the app sources already define
+/// a class with that name in the application package.
+///
 /// See <https://developer.android.com/guide/topics/large-screens/activity-embedding>
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -3372,10 +3378,17 @@ pub struct ActivityEmbeddingConfig {
 pub struct SplitPairRule {
   /// The primary activity class name, relative to the application package
   /// (e.g. `"MainActivity"` or a fully-qualified name like
-  /// `"com.example.MainActivity"`).
+  /// `"com.example.MainActivity"`). The activity must exist and be declared
+  /// in the Android manifest, as `MainActivity` is by default.
   pub primary: String,
   /// The secondary activity class name, relative to the application package
   /// (e.g. `"DetailActivity"` or a fully-qualified name).
+  ///
+  /// Secondary activities are declared in the Android manifest automatically
+  /// unless the manifest already declares them. When no source file with this
+  /// name exists in the application package, a default class extending
+  /// `TauriActivity` is generated. A custom implementation must extend
+  /// `TauriActivity` so it can host a webview window.
   pub secondary: String,
   /// Optional intent action used to match the secondary activity when it is
   /// started via an implicit intent.
@@ -3439,7 +3452,8 @@ pub struct SplitPairRule {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum SplitType {
   /// Splits the parent into two containers with the given weight
-  /// for the primary container (0.0 exclusive to 1.0 exclusive).
+  /// for the primary container. Must be greater than `0.0` and less
+  /// than `1.0`; other values fail the build.
   Ratio(f64),
   /// The secondary container expands to cover the entire parent window.
   Expand,
@@ -3503,7 +3517,7 @@ pub enum EmbeddingAspectRatio {
   /// Embedding never applies in this orientation.
   AlwaysDisallow,
   /// Embedding applies when the parent window aspect ratio is less than or
-  /// equal to this value. Must be greater than `1.0`.
+  /// equal to this value. Must be greater than `1.0`; other values fail the build.
   Ratio(f64),
 }
 
@@ -3546,7 +3560,8 @@ pub struct AndroidConfig {
   /// Activity embedding for large screens (tablets, foldables).
   ///
   /// When set and enabled, Tauri generates the Gradle dependencies, Android manifest entries,
-  /// and a `TauriSplitInitializer` Kotlin class for split-screen activity layouts.
+  /// a `TauriSplitInitializer` Kotlin class and a default `TauriActivity` subclass for each
+  /// secondary activity the app sources do not define.
   #[serde(alias = "activity-embedding")]
   pub activity_embedding: Option<ActivityEmbeddingConfig>,
 }

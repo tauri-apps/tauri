@@ -3969,12 +3969,23 @@
             "string",
             "null"
           ]
+        },
+        "activityEmbedding": {
+          "description": "Activity embedding for large screens (tablets, foldables).\n\n When set and enabled, Tauri generates the Gradle dependencies, Android manifest entries,\n a `TauriSplitInitializer` Kotlin class and a default `TauriActivity` subclass for each\n secondary activity the app sources do not define.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ActivityEmbeddingConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
     },
     "ActivityEmbeddingConfig": {
-      "description": "Configuration for Android Activity Embedding, which splits activities\n side by side on large screens.\n\n See <https://developer.android.com/guide/topics/large-screens/activity-embedding>",
+      "description": "Configuration for Android Activity Embedding, which splits activities\n side by side on large screens.\n\n When enabled with at least one split rule, the build script generates the Gradle\n dependencies, the Android manifest entries and a `TauriSplitInitializer` Kotlin class.\n Each secondary activity is declared in the manifest automatically, and a default\n `TauriActivity` subclass is generated for it unless the app sources already define\n a class with that name in the application package.\n\n See <https://developer.android.com/guide/topics/large-screens/activity-embedding>",
       "type": "object",
       "properties": {
         "enabled": {
@@ -4002,11 +4013,11 @@
       ],
       "properties": {
         "primary": {
-          "description": "The primary activity class name, relative to the application package\n (e.g. `\"MainActivity\"` or a fully-qualified name like\n `\"com.example.MainActivity\"`).",
+          "description": "The primary activity class name, relative to the application package\n (e.g. `\"MainActivity\"` or a fully-qualified name like\n `\"com.example.MainActivity\"`). The activity must exist and be declared\n in the Android manifest, as `MainActivity` is by default.",
           "type": "string"
         },
         "secondary": {
-          "description": "The secondary activity class name, relative to the application package\n (e.g. `\"DetailActivity\"` or a fully-qualified name).",
+          "description": "The secondary activity class name, relative to the application package\n (e.g. `\"DetailActivity\"` or a fully-qualified name).\n\n Secondary activities are declared in the Android manifest automatically\n unless the manifest already declares them. When no source file with this\n name exists in the application package, a default class extending\n `TauriActivity` is generated. A custom implementation must extend\n `TauriActivity` so it can host a webview window.",
           "type": "string"
         },
         "secondaryIntentAction": {
@@ -4130,7 +4141,7 @@
       "description": "How the parent window is split between primary and secondary containers.\n\n Mirrors [`androidx.window.embedding.SplitAttributes.SplitType`].\n\n [`androidx.window.embedding.SplitAttributes.SplitType`]: https://developer.android.com/reference/androidx/window/embedding/SplitAttributes.SplitType",
       "oneOf": [
         {
-          "description": "Splits the parent into two containers with the given weight\n for the primary container (0.0 exclusive to 1.0 exclusive).",
+          "description": "Splits the parent into two containers with the given weight\n for the primary container. Must be greater than `0.0` and less\n than `1.0`; other values fail the build.",
           "type": "object",
           "required": [
             "ratio"
@@ -4217,7 +4228,7 @@
           ]
         },
         {
-          "description": "Embedding applies when the parent window aspect ratio is less than or\n equal to this value. Must be greater than `1.0`.",
+          "description": "Embedding applies when the parent window aspect ratio is less than or\n equal to this value. Must be greater than `1.0`; other values fail the build.",
           "type": "object",
           "required": [
             "ratio"

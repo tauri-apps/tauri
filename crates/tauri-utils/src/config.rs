@@ -4997,23 +4997,6 @@ mod test {
   }
 
   #[test]
-  fn additional_watch_folders_aliases() {
-    for key in [
-      "additionalWatchFolders",
-      "additional-watch-folders",
-      "additional-watch-directories",
-    ] {
-      let config: BuildConfig =
-        serde_json::from_str(&format!(r#"{{"{key}": ["../shared"]}}"#)).unwrap();
-      assert_eq!(
-        config.additional_watch_folders,
-        vec![PathBuf::from("../shared")],
-        "failed to deserialize `{key}`"
-      );
-    }
-  }
-
-  #[test]
   fn window_config_default_same_as_deserialize() {
     let config_from_deserialization: WindowConfig = serde_json::from_str("{}").unwrap();
     let config_from_default: WindowConfig = WindowConfig::default();

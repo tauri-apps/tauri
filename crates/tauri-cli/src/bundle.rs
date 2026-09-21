@@ -8,20 +8,20 @@ use std::{
   sync::OnceLock,
 };
 
-use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
+use clap::{ArgAction, Parser, ValueEnum, builder::PossibleValue};
 use tauri_bundler::PackageType;
 use tauri_utils::platform::Target;
 
 use crate::{
+  ConfigValue,
   error::{Context, ErrorExt},
   helpers::{
     self,
     app_paths::Dirs,
-    config::{get_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config},
     updater_signature,
   },
   interface::{AppInterface, AppSettings},
-  ConfigValue,
 };
 
 #[derive(Debug, Clone)]
@@ -311,9 +311,12 @@ fn sign_updaters(
     // another type of updater package who require multiple file signature
     for path in &bundle.bundle_paths {
       // sign our path from environment variables
-      let (signature_path, signature) = updater_signature::sign_file(&secret_key, path)?;
+      let (signature_path, signature) =
+        updater_signature::sign_file(&secret_key, path, Some(settings.version_string()))?;
       if signature.keynum() != public_key.keynum() {
-        log::warn!("The updater secret key from `TAURI_SIGNING_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update.");
+        log::warn!(
+          "The updater secret key from `TAURI_SIGNING_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update."
+        );
       }
       signed_paths.push(signature_path);
     }

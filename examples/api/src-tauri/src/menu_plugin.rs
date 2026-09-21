@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use tauri::{
-  command,
+  Runtime, command,
   plugin::{Builder, TauriPlugin},
-  Runtime,
 };
 
 #[cfg(not(target_os = "macos"))]

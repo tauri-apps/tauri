@@ -16,8 +16,8 @@
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::config::Color;
 use tauri_utils::Theme;
+use tauri_utils::config::Color;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
@@ -477,6 +477,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
+  /// Sets whether the application activates when launched while another application is already active.
+  ///
+  /// This API must be called before the event loop starts.
+  ///
+  /// If `false`, the app activates only if no other app is currently active.
+  /// If `true`, the app activates regardless.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
+
   /// Sets the dock visibility for the application.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -910,6 +920,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window fullscreen state.
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
+
+  /// Sets the window as fullscreen on the monitor that contains the given physical position.
+  ///
+  /// Does nothing if no monitor contains the position.
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()>;
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()>;

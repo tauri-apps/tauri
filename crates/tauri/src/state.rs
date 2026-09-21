@@ -10,8 +10,8 @@ use std::{
 };
 
 use crate::{
-  ipc::{CommandArg, CommandItem, InvokeError},
   Manager, Runtime,
+  ipc::{CommandArg, CommandItem, InvokeError},
 };
 
 /// A guard for a state value.

@@ -292,7 +292,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
 /// Builds the template variables for the Tauri crate dependencies of the generated `Cargo.toml`.
 ///
-/// `tauri_dep` and `tauri_build_dep` are always set.
+/// `tauri_dep`, `tauri_build_dep` and `tauri_runtime_wry_dep` are always set.
 ///
 /// When `tauri_path` is provided the dependencies point to the crates inside that directory
 /// and `patch_tauri_dep`, `tauri_utils_dep` and `tauri_plugin_dep` are also set so the template
@@ -312,6 +312,7 @@ fn tauri_dependencies_data(
     };
     data.insert("tauri_dep", path_dep("crates/tauri"));
     data.insert("tauri_build_dep", path_dep("crates/tauri-build"));
+    data.insert("tauri_runtime_wry_dep", path_dep("crates/tauri-runtime-wry"));
     data.insert("patch_tauri_dep", to_json(true));
     data.insert("tauri_utils_dep", path_dep("crates/tauri-utils"));
     data.insert("tauri_plugin_dep", path_dep("crates/tauri-plugin"));
@@ -323,6 +324,13 @@ fn tauri_dependencies_data(
     data.insert(
       "tauri_build_dep",
       to_json(format!(r#"{{ version = "{}" }}"#, metadata.tauri_build)),
+    );
+    data.insert(
+      "tauri_runtime_wry_dep",
+      to_json(format!(
+        r#"{{ version = "{}" }}"#,
+        metadata.tauri_runtime_wry
+      )),
     );
   }
   data
@@ -392,6 +400,11 @@ mod tests {
       tauri_path,
       "crates/tauri-build",
     );
+    assert_path_dependency(
+      dependency(manifest, "dependencies", "tauri-runtime-wry"),
+      tauri_path,
+      "crates/tauri-runtime-wry",
+    );
 
     let patch = manifest
       .get("patch")
@@ -400,13 +413,14 @@ mod tests {
       .expect("[patch.crates-io] must be rendered for path dependencies");
     assert_eq!(
       patch.len(),
-      3,
+      4,
       "unexpected [patch.crates-io] entries: {patch:?}"
     );
     for (name, crate_dir) in [
       ("tauri", "crates/tauri"),
       ("tauri-utils", "crates/tauri-utils"),
       ("tauri-plugin", "crates/tauri-plugin"),
+      ("tauri-runtime-wry", "crates/tauri-runtime-wry"),
     ] {
       let dep = patch
         .get(name)
@@ -440,6 +454,13 @@ mod tests {
       Some(metadata.tauri_build.as_str())
     );
     assert!(!tauri_build.contains_key("path"));
+
+    let tauri_runtime_wry = dependency(&manifest, "dependencies", "tauri-runtime-wry");
+    assert_eq!(
+      tauri_runtime_wry.get("version").and_then(|v| v.as_str()),
+      Some(metadata.tauri_runtime_wry.as_str())
+    );
+    assert!(!tauri_runtime_wry.contains_key("path"));
 
     assert!(
       !manifest.contains_key("patch"),

@@ -164,6 +164,7 @@ settings:
 
 overrides:
   devalue@<5.9.1: ^5.9.1
+  morgan@<1.12.0: ^1.12.0
   serialize-javascript@<7.0.5: ^7.0.5
 
 importers:
@@ -4093,8 +4094,8 @@ packages:
     resolution: {integrity: sha512-sweCIVXzx1aIGTCdzcMlSZt1h8k5Tmk08VNAuRk3IU28XamGiOH5ypi11g6De2CH7PhYqSSnGy2A/EFhbWnVKg==}
     engines: {node: '>=18.0.0'}
 
-  morgan@1.11.0:
-    resolution: {integrity: sha512-zSkVu3t18r39pw4ixfBKvfZi3y2UOqr7d4WYwcj3m8nXpEQK4rPO6GLzs/CExoRgmX3y9EjmmcXqv6jq0SK46g==}
+  morgan@1.12.1:
+    resolution: {integrity: sha512-tljKC0ex20AjO58Ob/eZ53JloycbVswbVNCHx6V6VLGzqt/w8dIynVGL0G8qVjNKwiA7sYSogCrN6QtJ82IV+g==}
     engines: {node: '>= 0.8.0'}
 
   mrmime@2.0.1:
@@ -5326,7 +5327,7 @@ snapshots:
       http-status-codes: 2.3.0
       lru-cache: 11.5.2
       method-override: 3.0.0(supports-color@8.1.1)
-      morgan: 1.11.0(supports-color@8.1.1)
+      morgan: 1.12.1(supports-color@8.1.1)
       path-to-regexp: 8.4.2
       serve-favicon: 2.5.1
       type-fest: 5.8.0
@@ -9025,7 +9026,7 @@ snapshots:
 
   modern-tar@0.7.6: {}
 
-  morgan@1.11.0(supports-color@8.1.1):
+  morgan@1.12.1(supports-color@8.1.1):
     dependencies:
       basic-auth: 2.0.1
       debug: 2.6.9(supports-color@8.1.1)

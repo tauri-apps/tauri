@@ -22,6 +22,7 @@ allowBuilds:
 
 overrides:
   devalue@<5.9.1: ^5.9.1
+  morgan@<1.12.0: ^1.12.0
   serialize-javascript@<7.0.5: ^7.0.5
 
 auditConfig:

@@ -2742,12 +2742,14 @@ impl Display for HeaderSource {
       Self::Inline(s) => write!(f, "{s}"),
       Self::List(l) => write!(f, "{}", l.join(", ")),
       Self::Map(m) => {
-        let len = m.len();
-        let mut i = 0;
-        for (key, value) in m {
+        // Format through `BTreeMap` so the resulting header value is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let map: BTreeMap<_, _> = m.iter().collect();
+        let len = map.len();
+        for (i, (key, value)) in map.into_iter().enumerate() {
           write!(f, "{key} {value}")?;
-          i += 1;
-          if i != len {
+          if i + 1 != len {
             write!(f, "; ")?;
           }
         }
@@ -4941,6 +4943,53 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
+  }
+
+  #[test]
+  fn header_source_map_display_is_deterministic() {
+    let map = HashMap::from([
+      ("key3".to_string(), "'value3'".to_string()),
+      ("key1".to_string(), "'value1' 'value2'".to_string()),
+      ("key2".to_string(), "'value4'".to_string()),
+    ]);
+
+    // the value must be sorted by key and stable across runs and across `HashMap` orderings
+    assert_eq!(
+      HeaderSource::Map(map.clone()).to_string(),
+      "key1 'value1' 'value2'; key2 'value4'; key3 'value3'"
+    );
+
+    let expected = HeaderSource::Map(map).to_string();
+    for _ in 0..10 {
+      let map = HashMap::from([
+        ("key2".to_string(), "'value4'".to_string()),
+        ("key3".to_string(), "'value3'".to_string()),
+        ("key1".to_string(), "'value1' 'value2'".to_string()),
+      ]);
+      assert_eq!(HeaderSource::Map(map).to_string(), expected);
+    }
+
+    // `Serialize` must keep matching `Display`'s ordering
+    let map = HashMap::from([
+      ("b".to_string(), "2".to_string()),
+      ("a".to_string(), "1".to_string()),
+    ]);
+    assert_eq!(
+      serde_json::to_string(&HeaderSource::Map(map)).unwrap(),
+      r#"{"a":"1","b":"2"}"#
+    );
+  }
+
+  #[test]
+  fn header_source_display() {
+    assert_eq!(
+      HeaderSource::Inline("same-origin".into()).to_string(),
+      "same-origin"
+    );
+    assert_eq!(
+      HeaderSource::List(vec!["https://a.example".into(), "https://b.example".into()]).to_string(),
+      "https://a.example, https://b.example"
+    );
   }
 
   #[test]

@@ -1,5 +1,6 @@
 packages:
   - packages/api
+  - packages/api-e2e
   - packages/cli
   - crates/tauri-schema-worker
   - examples/api
@@ -7,12 +8,22 @@ packages:
   - examples/file-associations
 
 allowBuilds:
+  # transitive deps of @wdio/utils; their postinstall downloads browser drivers
+  # the Tauri suite never uses (it drives the app via tauri-driver)
+  edgedriver: false
   esbuild: true
+  geckodriver: false
   sharp: true
   workerd: true
 
 overrides:
-  esbuild@>=0.27.3 <0.28.1: '>=0.28.1'
-  sharp@<0.35.4: ^0.35.4
-  undici@>=7.0.0 <7.29.0: ^7.29.0
-  ws@>=8.0.0 <8.20.1: '>=8.20.1'
+  devalue@<5.9.1: ^5.9.1
+  serialize-javascript@<7.0.5: ^7.0.5
+
+auditConfig:
+  ignoreGhsas:
+    # extract-zip symlink path traversal; no patched release exists (latest is
+    # still 2.0.1). Reached via @wdio/utils > @puppeteer/browsers, which only
+    # unpacks the browser drivers we never download (see allowBuilds above)
+    - GHSA-jmr9-qjv8-65gv
+    - GHSA-7pqw-9j4j-h8q3

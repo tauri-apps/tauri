@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "tauri-cli-node"
 version = "0.0.0"
 
@@ -19,3 +19,6 @@ napi-build = "2.4.1"
 default = ["tauri-cli/default"]
 native-tls = ["tauri-cli/native-tls"]
 native-tls-vendored = ["tauri-cli/native-tls-vendored"]
+
+[lints]
+workspace = true

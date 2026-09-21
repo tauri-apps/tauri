@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use axum::{
-  extract::{ws, State, WebSocketUpgrade},
-  http::{header, StatusCode, Uri},
+  extract::{State, WebSocketUpgrade, ws},
+  http::{StatusCode, Uri, header},
   response::{IntoResponse, Response},
 };
 use std::{
@@ -14,7 +14,7 @@ use std::{
   time::Duration,
 };
 use tauri_utils::mime_type::MimeType;
-use tokio::sync::broadcast::{channel, Sender};
+use tokio::sync::broadcast::{Sender, channel};
 
 use crate::error::ErrorExt;
 

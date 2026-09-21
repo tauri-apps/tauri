@@ -7,10 +7,10 @@ use std::{collections::HashSet, path::PathBuf};
 use clap::Parser;
 use tauri_utils::acl::capability::{Capability, PermissionEntry};
 
-use crate::{acl::FileFormat, error::ErrorExt, helpers::prompts, Result};
+use crate::{Result, acl::FileFormat, error::ErrorExt, helpers::prompts};
 
 #[derive(Debug, Parser)]
-#[clap(about = "Create a new permission file")]
+#[clap(about = "Create a new capability file")]
 pub struct Options {
   /// Capability identifier.
   identifier: Option<String>,

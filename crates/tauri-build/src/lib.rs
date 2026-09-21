@@ -876,6 +876,7 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn static_vc_runtime_chain() {
     // 1. Nothing is set, should default to true
     let config = tauri_utils::config::Config::default();

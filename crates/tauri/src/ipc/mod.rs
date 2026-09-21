@@ -20,7 +20,7 @@ use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_utils::acl::resolved::ResolvedCommand;
 
-use crate::{Runtime, StateManager, webview::Webview};
+use crate::{Runtime, webview::Webview};
 
 mod authority;
 #[cfg(feature = "dynamic-acl")]
@@ -551,22 +551,6 @@ impl<R: Runtime> InvokeMessage<R> {
   #[inline(always)]
   pub fn payload(&self) -> &InvokeBody {
     &self.payload
-  }
-
-  // TODO: make private or remove in v3
-  /// The state manager associated with the application
-  #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
-  #[inline(always)]
-  pub fn state(&self) -> Arc<StateManager> {
-    self.webview.manager.state.clone()
-  }
-
-  // TODO: make private or remove in v3
-  /// A reference to the state manager associated with application.
-  #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
-  #[inline(always)]
-  pub fn state_ref(&self) -> &StateManager {
-    &self.webview.manager.state
   }
 
   /// The request headers.

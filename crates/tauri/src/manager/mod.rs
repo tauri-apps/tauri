@@ -192,7 +192,7 @@ pub struct AppManager<R: Runtime = crate::DynRuntime> {
 
   pub(crate) plugins: Mutex<PluginStore<R>>,
   pub listeners: Listeners,
-  pub state: Arc<StateManager>,
+  pub(crate) state: Arc<StateManager>,
   pub config: Config,
   #[cfg(dev)]
   pub config_parent: Option<std::path::PathBuf>,

@@ -51,7 +51,7 @@ pub(crate) mod project;
 mod run;
 
 const NDK_VERSION: &str = "29.0.13846066";
-const SDK_VERSION: u8 = 36;
+const SDK_VERSION: u8 = 37;
 
 #[cfg(target_os = "macos")]
 const CMDLINE_TOOLS_URL: &str =

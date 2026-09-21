@@ -87,3 +87,6 @@ tauri-plugin = { path = "./crates/tauri-plugin" }
 [workspace.lints.clippy]
 # TODO: Update in next PR to keep changes small, see https://github.com/tauri-apps/tauri/pull/16029
 collapsible_if = "allow"
+
+redundant_clone = "warn"
+assigning_clones = "warn"

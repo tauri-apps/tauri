@@ -21,6 +21,7 @@ allowBuilds:
   workerd: true
 
 overrides:
+  devalue@<5.9.1: ^5.9.1
   serialize-javascript@<7.0.5: ^7.0.5
 
 auditConfig:

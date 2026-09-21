@@ -172,6 +172,11 @@ pub enum Error {
   /// Unexpected menu kind passed to menu/tray plugin command
   #[error("Unexpected menu kind")]
   UnexpectedMenuKind,
+  /// [`crate::image::Image::from_icon_resource`] failed
+  #[cfg(windows)]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
+  #[error("Can not load Image from icon resources: {0}")]
+  ImageFromResource(windows::core::Error),
 }
 
 impl From<getrandom::Error> for Error {

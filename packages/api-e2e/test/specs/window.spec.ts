@@ -269,6 +269,52 @@ describeApi('window', () => {
     })
   })
 
+  itWm('setFullscreenOnMonitor goes fullscreen on that monitor', async () => {
+    // Use the monitor the window is on, so the assertion holds on single-monitor CI.
+    const origin = await tauri(async (api) => {
+      const monitor = await api.window.currentMonitor()
+      return monitor ? { x: monitor.position.x, y: monitor.position.y } : null
+    })
+    expect(origin).not.toBeNull()
+
+    await tauri(
+      (api, origin) =>
+        api.window
+          .getCurrentWindow()
+          .setFullscreenOnMonitor(
+            new api.dpi.PhysicalPosition(origin.x, origin.y)
+          ),
+      origin!
+    )
+    await eventually(async () => {
+      const state = await tauri(async (api) => {
+        const w = api.window.getCurrentWindow()
+        const position = await w.outerPosition()
+        return {
+          fullscreen: await w.isFullscreen(),
+          x: position.x,
+          y: position.y
+        }
+      })
+      if (!state.fullscreen) {
+        throw new Error('window is not fullscreen')
+      }
+      // a fullscreen window sits at its monitor's origin
+      if (state.x !== origin!.x || state.y !== origin!.y) {
+        throw new Error(
+          `window is at (${state.x}, ${state.y}), expected (${origin!.x}, ${origin!.y})`
+        )
+      }
+    })
+
+    await tauri((api) => api.window.getCurrentWindow().setFullscreen(false))
+    await eventually(async () => {
+      if (await tauri((api) => api.window.getCurrentWindow().isFullscreen())) {
+        throw new Error('window is still fullscreen')
+      }
+    })
+  })
+
   itWm('hide and show toggle visibility', async () => {
     await tauri((api) => api.window.getCurrentWindow().hide())
     await eventually(async () => {

@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.0.0-alpha.2]
+
+### What's Changed
+
+- [`d42c0d62b`](https://www.github.com/tauri-apps/tauri/commit/d42c0d62ba18e741a449bfb507dc8dcd2a8ca4ee) Pull latest v2 changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.1`
+- Upgraded to `tauri-runtime@3.0.0-alpha.1`
+- Upgraded to `tauri-macros@3.0.0-alpha.1`
+- Upgraded to `tauri-build@3.0.0-alpha.1`
+
+### Breaking Changes
+
+- [`daa71f675`](https://www.github.com/tauri-apps/tauri/commit/daa71f675b3ea628c97baa9bb1082f685b0ded27) ([#16036](https://www.github.com/tauri-apps/tauri/pull/16036)) Renamed `plugin::Builder::js_init_script` to `initialization_script` and `js_init_script_on_all_frames` to `initialization_script_on_all_frames`.
+- [`daa71f675`](https://www.github.com/tauri-apps/tauri/commit/daa71f675b3ea628c97baa9bb1082f685b0ded27) ([#16036](https://www.github.com/tauri-apps/tauri/pull/16036)) `Plugin::initialization_script` now returns `Option<InitializationScript>` (re-exported as `tauri::webview::InitializationScript`) instead of `Option<String>`, replacing the interim `Plugin::initialization_script_2`. Set `for_main_frame_only: false` to also run the script on sub frames.
+- [`daa71f675`](https://www.github.com/tauri-apps/tauri/commit/daa71f675b3ea628c97baa9bb1082f685b0ded27) ([#16036](https://www.github.com/tauri-apps/tauri/pull/16036)) Renamed `Plugin::extend_api` to `Plugin::run_invoke_handler`.
+- [`fbf9ec9e2`](https://www.github.com/tauri-apps/tauri/commit/fbf9ec9e2b94ce68c8ff2d11242b7aa1c1baac22) ([#16041](https://www.github.com/tauri-apps/tauri/pull/16041)) Removed the deprecated `Invoke::state` and `Invoke::state_ref` methods; use `Manager::state` on `Invoke::webview_ref()` instead. `tauri::StateManager` is no longer exported.
+
 ## [3.0.0-alpha.1]
 
 ### What's Changed

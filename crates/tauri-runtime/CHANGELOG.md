@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.0.0-alpha.1]
+
+### What's Changed
+
+- [`d42c0d62b`](https://www.github.com/tauri-apps/tauri/commit/d42c0d62ba18e741a449bfb507dc8dcd2a8ca4ee) Pull latest v2 changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.1`
+
+### Breaking Changes
+
+- [`a540c11f0`](https://www.github.com/tauri-apps/tauri/commit/a540c11f01eb461d8da5af7c658b45238cd42695) ([#16040](https://www.github.com/tauri-apps/tauri/pull/16040)) The macOS and iOS platform webview accessors (`Webview::inner`, `Webview::controller`, `Webview::ns_window`, `Webview::view_controller`) and the fields of `IosWebviewHandle` are now `*const c_void` instead of `*mut c_void`, since the pointers are borrowed from ObjC `Retained` handles and must not be mutated through.
+- [`4e03a1bb2`](https://www.github.com/tauri-apps/tauri/commit/4e03a1bb298d95526b4c97fde0a367cde9b544c2) ([#16043](https://www.github.com/tauri-apps/tauri/pull/16043)) `tauri_runtime::Error::CreateWindow` now carries the underlying error (`CreateWindow(Box<dyn std::error::Error + Send + Sync>)`), like `CreateWebview`.
+
 ## [3.0.0-alpha.0]
 
 ### New Features

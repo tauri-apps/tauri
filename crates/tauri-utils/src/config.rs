@@ -3386,8 +3386,13 @@ pub struct AppConfig {
   /// `app_local_data_dir`, `app_cache_dir` and `app_log_dir`, and therefore also the `$APPCONFIG`, `$APPDATA`,
   /// `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.
   ///
-  /// This is useful for portable apps that keep all of their data next to the executable
-  /// and for tests that must not touch the user's real app directories.
+  /// This is meant for portable apps that keep all of their data in a single place, typically next to the executable.
+  /// Everything that resolves paths through these APIs follows the override, including Tauri itself
+  /// (the default webview data directory on Windows and Linux) and plugins,
+  /// so a portable build does not need every storage location to be configured individually.
+  ///
+  /// It can also isolate the data of a development build from an installed version of the app,
+  /// though using a distinct `identifier` for development builds achieves that while keeping the production directory layout.
   ///
   /// The value is either a single path used as the root of every app directory,
   /// or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`).
@@ -3403,15 +3408,30 @@ pub struct AppConfig {
   /// - Any other path is resolved relative to the directory containing the executable.
   ///   When running from an AppImage on Linux this is the directory containing the AppImage file,
   ///   and when running from a `.app` bundle on macOS it is the directory containing the bundle.
-  ///   Note that installed apps usually live in a read-only directory such as `/Applications` or `Program Files`.
   ///
   /// With a single root path, the config, data and local data directories resolve to the root itself,
   /// the cache directory resolves to `<root>/caches` and the log directory to `<root>/logs`.
   /// With the object form, each directory resolves to exactly the configured path.
   ///
-  /// On Windows and Linux the webviews store their data (cookies, localStorage, cache, etc.) in the app local data
-  /// directory by default, so they follow this override as well.
   /// A window's `dataDirectory` config is not affected by this option.
+  ///
+  /// ## Warning
+  ///
+  /// A path relative to the executable only works when the executable's directory is writable:
+  /// portable builds, AppImages, per-user NSIS installers on Windows and `tauri dev` builds in the `target` directory.
+  /// It does not work for apps installed system-wide, such as `.app` bundles in `/Applications`,
+  /// `.deb` and `.rpm` packages in `/usr` or per-machine installers in `Program Files`,
+  /// where every write to an app directory fails at runtime.
+  ///
+  /// Unless every distribution of the app is portable, do not set this option in the shared configuration.
+  /// Apply it to the portable build flavor only, for instance with the CLI's `--config` flag,
+  /// which accepts a JSON file or an inline JSON string:
+  ///
+  /// ```sh
+  /// tauri build --config '{ "app": { "appDirectoriesOverride": "./" } }'
+  /// ```
+  ///
+  /// Installed apps that need a custom location should use a base directory variable or an absolute path instead.
   ///
   /// ## Examples
   ///

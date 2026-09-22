@@ -1,7 +1,41 @@
 packages:
   - packages/api
+  - packages/api-e2e
   - packages/cli
   - crates/tauri-schema-worker
   - examples/api
   - examples/resources
   - examples/file-associations
+
+allowBuilds:
+  # appium's postinstall only auto-installs drivers for global installs; ours
+  # are regular devDependencies of packages/api-e2e, which appium picks up on
+  # its own, so there is nothing for it to do
+  appium: false
+  # transitive deps of @wdio/utils; their postinstall downloads browser drivers
+  # the Tauri suite never uses (it drives the app via tauri-driver)
+  edgedriver: false
+  esbuild: true
+  geckodriver: false
+  sharp: true
+  workerd: true
+
+overrides:
+  devalue@<5.9.1: ^5.9.1
+  morgan@<1.12.0: ^1.12.0
+  serialize-javascript@<7.0.5: ^7.0.5
+
+auditConfig:
+  ignoreGhsas:
+    # extract-zip symlink path traversal; no patched release exists (latest is
+    # still 2.0.1). Reached via @wdio/utils > @puppeteer/browsers, which only
+    # unpacks the browser drivers we never download (see allowBuilds above)
+    - GHSA-jmr9-qjv8-65gv
+    - GHSA-7pqw-9j4j-h8q3
+
+minimumReleaseAgeExclude:
+  - '@crabnebula/test-runner-backend-darwin-arm64@0.3.0'
+  - '@crabnebula/test-runner-backend-darwin-x64@0.3.0'
+  - '@crabnebula/test-runner-backend-linux-x64-gnu@0.3.0'
+  - '@crabnebula/test-runner-backend-win32-x64-msvc@0.3.0'
+  - '@crabnebula/test-runner-backend@0.3.0'

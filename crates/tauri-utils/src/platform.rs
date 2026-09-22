@@ -8,7 +8,7 @@ use std::{fmt::Display, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{config::BundleType, Env, PackageInfo};
+use crate::{Env, PackageInfo, config::BundleType};
 
 mod starting_binary;
 
@@ -18,6 +18,14 @@ mod starting_binary;
 /// which resolves these assets to a file descriptor.
 #[cfg(target_os = "android")]
 pub const ANDROID_ASSET_PROTOCOL_URI_PREFIX: &str = "asset://localhost/";
+
+/// Resource id of the application icon that `tauri-build` embeds into Windows executables
+/// and that `tauri::image::Image::from_app_icon_resource` reads back.
+///
+/// `32512` has no special meaning here: it was picked because we misunderstood
+/// `IDI_APPLICATION` (`MAKEINTRESOURCE(32512)`) to be the id an application icon must use,
+/// which is not the case. See <https://devblogs.microsoft.com/oldnewthing/20250423-00/?p=111106>.
+pub const WINDOWS_APP_ICON_RESOURCE_ID: u16 = 32512;
 
 /// Platform target.
 #[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize)]
@@ -238,16 +246,12 @@ const CARGO_OUTPUT_DIRECTORIES: &[&str] = &["debug", "release", "custom-profile"
 
 #[cfg(test)]
 fn is_cargo_output_directory(path: &std::path::Path) -> bool {
-  let last_component = path
-    .components()
-    .next_back()
-    .unwrap()
-    .as_os_str()
-    .to_str()
-    .unwrap();
+  let Some(last_component) = path.components().next_back() else {
+    return false;
+  };
   CARGO_OUTPUT_DIRECTORIES
     .iter()
-    .any(|dirname| &last_component == dirname)
+    .any(|dirname| &last_component.as_os_str() == dirname)
 }
 
 /// Computes the resource directory of the current environment.
@@ -348,23 +352,20 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
 // Variable holding the type of bundle the executable is stored in. This is modified by binary
 // patching during build
 #[used]
-#[no_mangle]
-#[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
-#[cfg_attr(target_vendor = "apple", link_section = "__DATA,taubndl")]
-// Marked as `mut` becuase it could get optimized away without it,
+// Marked as `mut` because it could get optimized away without it,
 // see https://github.com/tauri-apps/tauri/pull/13812
-static mut __TAURI_BUNDLE_TYPE: &str = "UNK";
+static mut __TAURI_BUNDLE_TYPE: &str = "__TAURI_BUNDLE_TYPE_VAR_UNK";
 
 /// Get the type of the bundle current binary is packaged in.
 /// If the bundle type is unknown, it returns [`Option::None`].
 pub fn bundle_type() -> Option<BundleType> {
   unsafe {
     match __TAURI_BUNDLE_TYPE {
-      "DEB" => Some(BundleType::Deb),
-      "RPM" => Some(BundleType::Rpm),
-      "APP" => Some(BundleType::AppImage),
-      "MSI" => Some(BundleType::Msi),
-      "NSS" => Some(BundleType::Nsis),
+      "__TAURI_BUNDLE_TYPE_VAR_DEB" => Some(BundleType::Deb),
+      "__TAURI_BUNDLE_TYPE_VAR_RPM" => Some(BundleType::Rpm),
+      "__TAURI_BUNDLE_TYPE_VAR_APP" => Some(BundleType::AppImage),
+      "__TAURI_BUNDLE_TYPE_VAR_MSI" => Some(BundleType::Msi),
+      "__TAURI_BUNDLE_TYPE_VAR_NSS" => Some(BundleType::Nsis),
       _ => {
         if cfg!(target_os = "macos") {
           Some(BundleType::App)
@@ -376,10 +377,10 @@ pub fn bundle_type() -> Option<BundleType> {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
 
   use super::*;
 
@@ -405,6 +406,7 @@ mod tests {
   use crate::{Env, PackageInfo};
 
   #[test]
+  #[cfg(not(target_os = "android"))]
   fn resolve_resource_dir() {
     let package_info = PackageInfo {
       name: "MyApp".into(),

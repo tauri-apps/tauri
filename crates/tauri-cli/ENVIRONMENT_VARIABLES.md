@@ -19,11 +19,14 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE` - Specify a GitHub mirror template to download files and tools used by tauri bundler, for example: `https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>`.
 - `TAURI_BUNDLER_DMG_IGNORE_CI` - Disable the check for `CI: true` in the `.dmg` bundler.
 - `TAURI_SKIP_SIDECAR_SIGNATURE_CHECK` - Skip signing sidecars.
-- `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles, can be either a string or a path to the file.
+- `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles. For the `build` and `bundle` command, can be either a string or a path to the file. For the `signer sign` command, this must be the literal key string.
+- `TAURI_SIGNING_PRIVATE_KEY_PATH` — Path to the private key file for the `signer sign` command. Mutually exclusive with `TAURI_SIGNING_PRIVATE_KEY` when using the signer command.
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — The signing private key password, see `TAURI_SIGNING_PRIVATE_KEY`.
 - `TAURI_SIGNING_RPM_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.
 - `TAURI_SIGNING_RPM_KEY_PASSPHRASE` — The GPG key passphrase for `TAURI_SIGNING_RPM_KEY`, if needed.
 - `TAURI_WINDOWS_SIGNTOOL_PATH` — Specify a path to `signtool.exe` used for code signing the application on Windows.
+- `STATIC_VCRUNTIME` — Deprecated. Set `build > windows > staticVCRuntime` in `tauri.conf.json` instead.
+- `VCTOOLS_REDIST_DIR` — Override the Visual C++ redistributable root directory used when `bundle > windows > bundleVCRuntime` is enabled. If unset, Tauri uses its bundled `vswhere.exe` to locate Visual Studio and derive this directory.
 - `APPLE_CERTIFICATE` — Base64 encoded of the `.p12` certificate for code signing. To get this value, run `openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt`.
 - `APPLE_CERTIFICATE_PASSWORD` — The password you used to export the certificate.
 - `APPLE_ID` — The Apple ID used to notarize the application. If this environment variable is provided, `APPLE_PASSWORD` and `APPLE_TEAM_ID` must also be set. Alternatively, `APPLE_API_KEY` and `APPLE_API_ISSUER` can be used to authenticate.
@@ -33,7 +36,7 @@ These environment variables are inputs to the CLI which may have an equivalent C
   - See [creating API keys](https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api) for more information.
 - `API_PRIVATE_KEYS_DIR` — Specify the directory where your AuthKey file is located. See `APPLE_API_KEY`.
 - `APPLE_API_ISSUER` — Issuer ID. Required if `APPLE_API_KEY` is specified.
-- `APPLE_API_KEY_PATH` - path to the API key `.p8` file. If not specified, for macOS apps the bundler searches the following directories in sequence for a private key file with the name of 'AuthKey\_<api_key>.p8': './private_keys', '~/private_keys', '~/.private_keys', and '~/.appstoreconnect/private_keys'. **For iOS this variable is required**.
+- `APPLE_API_KEY_PATH` - path to the API key `.p8` file. If not specified, for macOS apps the bundler searches the following directories in sequence for a private key file with the name of `AuthKey\_<api_key>.p8`: `./private_keys`, `~/private_keys`, `~/.private_keys`, and `~/.appstoreconnect/private_keys`. **For iOS this variable is required**.
 - `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > bundle > macOS > signingIdentity`. If neither are set, it is inferred from `APPLE_CERTIFICATE` when provided.
 - `APPLE_PROVIDER_SHORT_NAME` — If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. Overwrites `tauri.conf.json > bundle > macOS > providerShortName`.
 - `APPLE_DEVELOPMENT_TEAM` — The team ID used to code sign on iOS. Overwrites `tauri.conf.json > bundle > iOS > developmentTeam`. Can be found in https://developer.apple.com/account#MembershipDetailsCard.

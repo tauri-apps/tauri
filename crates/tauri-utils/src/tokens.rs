@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use serde_json::Value as JsonValue;
 use url::Url;
 
@@ -27,7 +27,7 @@ macro_rules! literal_struct {
 
 /// Create a `String` constructor `TokenStream`.
 ///
-/// e.g. `"Hello World" -> String::from("Hello World").
+/// e.g. `"Hello World"` -> `String::from("Hello World")`.
 /// This takes a `&String` to reduce casting all the `&String` -> `&str` manually.
 pub fn str_lit(s: impl AsRef<str>) -> TokenStream {
   let s = s.as_ref();

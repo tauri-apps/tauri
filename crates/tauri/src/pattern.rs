@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use serde::Serialize;
-use serialize_to_javascript::{default_template, Template};
+use serialize_to_javascript::{Template, default_template};
 
 /// The domain of the isolation iframe source.
 #[cfg(feature = "isolation")]
@@ -64,21 +64,15 @@ impl From<&Pattern> for PatternObject {
 
 /// Where the JavaScript is injected to
 #[cfg(feature = "isolation")]
-#[derive(Debug, Serialize)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum IsolationSide {
   /// Original frame, the Brownfield application
+  #[default]
   Original,
   /// Secure frame, the isolation security application
   #[allow(dead_code)]
   Secure,
-}
-
-#[cfg(feature = "isolation")]
-impl Default for IsolationSide {
-  fn default() -> Self {
-    Self::Original
-  }
 }
 
 #[derive(Template)]
@@ -89,10 +83,5 @@ pub(crate) struct PatternJavascript {
 
 #[cfg(feature = "isolation")]
 pub(crate) fn format_real_schema(schema: &str, https: bool) -> String {
-  if cfg!(windows) || cfg!(target_os = "android") {
-    let scheme = if https { "https" } else { "http" };
-    format!("{scheme}://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}/")
-  } else {
-    format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}/")
-  }
+  format!("{}/", crate::protocol::origin(schema, https))
 }

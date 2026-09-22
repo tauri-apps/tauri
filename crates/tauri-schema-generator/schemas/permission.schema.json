@@ -4,13 +4,6 @@
   "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
   "type": "object",
   "properties": {
-    "description": {
-      "description": "Human-readable description of what the permission does.\nTauri internal convention is to use `<h4>` headings in markdown content\nfor Tauri documentation generation purposes.",
-      "type": [
-        "string",
-        "null"
-      ]
-    },
     "version": {
       "description": "The version of the permission.",
       "type": [
@@ -23,6 +16,13 @@
     "identifier": {
       "description": "A unique identifier for the permission.",
       "type": "string"
+    },
+    "description": {
+      "description": "Human-readable description of what the permission does.\nTauri internal convention is to use `<h4>` headings in markdown content\nfor Tauri documentation generation purposes.",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "commands": {
       "description": "Allowed or denied commands when using this permission.",

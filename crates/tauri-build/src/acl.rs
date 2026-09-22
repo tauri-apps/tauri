@@ -11,11 +11,13 @@ use std::{
 use anyhow::{Context, Result};
 use tauri_utils::{
   acl::{
+    ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME,
     capability::Capability,
+    get_capabilities,
     manifest::{Manifest, PermissionFile},
     schema::CAPABILITIES_SCHEMA_FOLDER_PATH,
-    ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME,
   },
+  config::Config,
   platform::Target,
   write_if_changed,
 };
@@ -157,7 +159,7 @@ fn read_plugins_manifests() -> Result<BTreeMap<String, Manifest>> {
   Ok(manifests)
 }
 
-struct InlinedPuginsAcl {
+struct InlinedPluginsAcl {
   manifests: BTreeMap<String, Manifest>,
   permission_files: BTreeMap<String, Vec<PermissionFile>>,
 }
@@ -165,7 +167,7 @@ struct InlinedPuginsAcl {
 fn inline_plugins(
   out_dir: &Path,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
-) -> Result<InlinedPuginsAcl> {
+) -> Result<InlinedPluginsAcl> {
   let mut acl_manifests = BTreeMap::new();
   let mut permission_files_map = BTreeMap::new();
 
@@ -250,7 +252,7 @@ permissions = [{default_permissions}]
     acl_manifests.insert(name.into(), manifest);
   }
 
-  Ok(InlinedPuginsAcl {
+  Ok(InlinedPluginsAcl {
     manifests: acl_manifests,
     permission_files: permission_files_map,
   })
@@ -397,7 +399,12 @@ fn validate_capabilities(
   Ok(())
 }
 
-pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::Result<()> {
+pub fn build(
+  out_dir: &Path,
+  target: Target,
+  config: &Config,
+  attributes: &Attributes,
+) -> super::Result<()> {
   let mut acl_manifests = read_plugins_manifests()?;
 
   let app_acl = app_manifest_permissions(
@@ -421,15 +428,36 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
 
   tauri_utils::acl::schema::generate_capability_schema(&acl_manifests, target)?;
 
-  let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
+  let capabilities_from_files = if let Some(pattern) = attributes.capabilities_path_pattern {
     tauri_utils::acl::build::parse_capabilities(pattern)?
   } else {
-    println!("cargo:rerun-if-changed=capabilities");
+    // Emit an absolute watch path: cargo resolves a relative
+    // `rerun-if-changed` against the package that owns the build script, while
+    // the glob below is resolved against the process working directory.
+    // Callers that `set_current_dir` before `try_build[_context]` (for example
+    // a crate generating a context byte-identical to the app's) would
+    // otherwise watch a `<caller-manifest-dir>/capabilities` that usually does
+    // not exist — and a missing watched path is dirty on every fingerprint
+    // check, re-running the build script and recompiling the whole downstream
+    // chain on every build.
+    let capabilities_dir = std::env::current_dir()
+      .context("resolve current dir for capabilities watch path")?
+      .join("capabilities");
+    println!("cargo:rerun-if-changed={}", capabilities_dir.display());
     tauri_utils::acl::build::parse_capabilities("./capabilities/**/*")?
   };
+  // the capabilities that are actually resolved at compile time are the ones returned by
+  // `get_capabilities`: when the configuration file defines `app > security > capabilities`,
+  // the capabilities parsed from the filesystem are only used to resolve the entries that
+  // reference them by identifier, and the inlined ones are never seen by this build script
+  // otherwise. we must validate that same set so a typo in an inlined permission identifier
+  // is reported here instead of panicking later on tauri-codegen's ACL resolution
+  let capabilities = get_capabilities(config, capabilities_from_files.clone(), None)
+    .context("failed to resolve the capabilities from the Tauri configuration file")?;
+
   validate_capabilities(&acl_manifests, &capabilities)?;
 
-  let capabilities_path = save_capabilities(&capabilities)?;
+  let capabilities_path = save_capabilities(&capabilities_from_files)?;
   fs::copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
 
   let mut permissions_map = inline_plugins_acl.permission_files;
@@ -437,7 +465,13 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
     permissions_map.insert(APP_ACL_KEY.to_string(), app_acl.permission_files);
   }
 
-  tauri_utils::acl::build::generate_allowed_commands(out_dir, Some(capabilities), permissions_map)?;
+  // note: `generate_allowed_commands` merges the configuration capabilities itself
+  // so it must receive the capabilities parsed from the filesystem
+  tauri_utils::acl::build::generate_allowed_commands(
+    out_dir,
+    Some(capabilities_from_files),
+    permissions_map,
+  )?;
 
   Ok(())
 }

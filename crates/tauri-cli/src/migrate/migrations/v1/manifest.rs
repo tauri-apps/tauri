@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Result,
   error::ErrorExt,
   interface::rust::manifest::{read_manifest, serialize_manifest},
-  Result,
 };
 
 use tauri_utils::config_v1::Allowlist;
@@ -21,7 +21,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
   migrate_manifest(&mut manifest)?;
 
   std::fs::write(&manifest_path, serialize_manifest(&manifest))
-    .fs_context("failed to rewrite Cargo manifest", manifest_path.clone())?;
+    .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
 
   Ok(())
 }
@@ -80,7 +80,10 @@ fn migrate_manifest(manifest: &mut DocumentMut) -> Result<()> {
         .and_then(|v| v.as_bool())
         .unwrap_or_default()
       {
-        log::warn!("`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.", rename_message);
+        log::warn!(
+          "`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.",
+          rename_message
+        );
       } else {
         migrate_dependency(item, &version, &remove_features, &rename_features);
       }

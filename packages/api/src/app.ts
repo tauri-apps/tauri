@@ -274,6 +274,36 @@ async function onBackButtonPress(
   )
 }
 
+async function supportsMultipleWindows(): Promise<boolean> {
+  return invoke('plugin:app|supports_multiple_windows')
+}
+
+/**
+ * Exits the app with the given exit code.
+ *
+ * This is the same as the `exit` function of the `@tauri-apps/plugin-process` plugin,
+ * but does not require a plugin to be installed.
+ *
+ * #### Platform-specific
+ *
+ * - **Android**: The activity is finished instead of the process being killed,
+ *   so the app closes with the system transition; `code` is ignored.
+ *
+ * @example
+ * ```typescript
+ * import { exit } from '@tauri-apps/api/app';
+ * await exit(1);
+ * ```
+ *
+ * @param code The exit code to use. Defaults to `0`.
+ * @returns A promise indicating the success or failure of the operation.
+ *
+ * @since 2.12.0
+ */
+async function exit(code = 0): Promise<void> {
+  return invoke('plugin:app|exit', { code })
+}
+
 export {
   getName,
   getVersion,
@@ -288,5 +318,7 @@ export {
   setDockVisibility,
   getBundleType,
   type OnBackButtonPressPayload,
-  onBackButtonPress
+  onBackButtonPress,
+  supportsMultipleWindows,
+  exit
 }

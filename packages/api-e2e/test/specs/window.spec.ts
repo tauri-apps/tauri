@@ -1,0 +1,295 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+import { expect } from '@wdio/globals'
+import {
+  tauri,
+  eventually,
+  describeApi,
+  itWm,
+  itDesktop,
+  itOn
+} from '../helpers/index.js'
+
+describeApi('window', () => {
+  it('getCurrentWindow reports the main label', async () => {
+    expect(await tauri((api) => api.window.getCurrentWindow().label)).toBe(
+      'main'
+    )
+  })
+
+  it('getAllWindows includes the main window', async () => {
+    const labels = await tauri(async (api) =>
+      (await api.window.getAllWindows()).map((w) => w.label)
+    )
+    expect(labels).toContain('main')
+  })
+
+  // Mobile windows have no title bar: `title()` is always empty and
+  // `setTitle` a no-op there.
+  itDesktop('title can be read and set', async () => {
+    const original = await tauri((api) => api.window.getCurrentWindow().title())
+    await tauri((api) => api.window.getCurrentWindow().setTitle('e2e title'))
+    expect(await tauri((api) => api.window.getCurrentWindow().title())).toBe(
+      'e2e title'
+    )
+    // restore
+    await tauri(
+      (api, title) => api.window.getCurrentWindow().setTitle(title),
+      original
+    )
+  })
+
+  it('reports a positive scale factor and sizes', async () => {
+    const metrics = await tauri(async (api) => {
+      const w = api.window.getCurrentWindow()
+      const scale = await w.scaleFactor()
+      const inner = await w.innerSize()
+      const outer = await w.outerSize()
+      return {
+        scale,
+        inner: { width: inner.width, height: inner.height },
+        outer: { width: outer.width, height: outer.height }
+      }
+    })
+    expect(metrics.scale).toBeGreaterThan(0)
+    expect(metrics.inner.width).toBeGreaterThan(0)
+    expect(metrics.inner.height).toBeGreaterThan(0)
+    expect(metrics.outer.width).toBeGreaterThanOrEqual(metrics.inner.width)
+  })
+
+  itOn(
+    'android',
+    'activityName reports the activity hosting the window',
+    async () => {
+      const name = await tauri((api) =>
+        api.window.getCurrentWindow().activityName()
+      )
+      expect(name).toMatch(/MainActivity/)
+    }
+  )
+
+  // The window is the whole screen on mobile: `set_size` is a no-op.
+  itDesktop('setSize resizes the window', async () => {
+    const scale = await tauri((api) =>
+      api.window.getCurrentWindow().scaleFactor()
+    )
+    const original = await tauri(async (api) => {
+      const size = await api.window.getCurrentWindow().innerSize()
+      return { width: size.width, height: size.height }
+    })
+
+    await tauri(
+      (api, width, height) =>
+        api.window
+          .getCurrentWindow()
+          .setSize(new api.dpi.LogicalSize(width, height)),
+      600,
+      400
+    )
+
+    await eventually(async () => {
+      const inner = await tauri(async (api) => {
+        const size = await api.window.getCurrentWindow().innerSize()
+        return { width: size.width, height: size.height }
+      })
+      const tolerance = Math.ceil(scale) * 4
+      if (Math.abs(inner.width - 600 * scale) > tolerance) {
+        throw new Error(`width ${inner.width} not near ${600 * scale}`)
+      }
+      if (Math.abs(inner.height - 400 * scale) > tolerance) {
+        throw new Error(`height ${inner.height} not near ${400 * scale}`)
+      }
+    })
+
+    // restore the original physical size
+    await tauri(
+      (api, width, height) =>
+        api.window
+          .getCurrentWindow()
+          .setSize(new api.dpi.PhysicalSize(width, height)),
+      original.width,
+      original.height
+    )
+  })
+
+  // Mobile windows are never resizable (`is_resizable` is always `false`).
+  itDesktop('setResizable toggles resizability', async () => {
+    await tauri((api) => api.window.getCurrentWindow().setResizable(false))
+    expect(
+      await tauri((api) => api.window.getCurrentWindow().isResizable())
+    ).toBe(false)
+    await tauri((api) => api.window.getCurrentWindow().setResizable(true))
+    expect(
+      await tauri((api) => api.window.getCurrentWindow().isResizable())
+    ).toBe(true)
+  })
+
+  // Desktop-only commands (`#[cfg(desktop)]` in the window plugin).
+  itDesktop('assorted setters resolve without throwing', async () => {
+    await tauri(async (api) => {
+      const w = api.window.getCurrentWindow()
+      await w.setAlwaysOnTop(true)
+      await w.setAlwaysOnTop(false)
+      await w.setShadow(true)
+      await w.setContentProtected(false)
+      await w.setCursorVisible(true)
+      await w.requestUserAttention(null)
+      return null
+    })
+  })
+
+  itWm('setPosition moves the window', async () => {
+    const original = await tauri(async (api) => {
+      const pos = await api.window.getCurrentWindow().outerPosition()
+      return { x: pos.x, y: pos.y }
+    })
+
+    await tauri(
+      (api, x, y) =>
+        api.window
+          .getCurrentWindow()
+          .setPosition(new api.dpi.PhysicalPosition(x, y)),
+      original.x + 40,
+      original.y + 40
+    )
+
+    await eventually(async () => {
+      const pos = await tauri(async (api) => {
+        const p = await api.window.getCurrentWindow().outerPosition()
+        return { x: p.x, y: p.y }
+      })
+      // Window managers can nudge the final position; allow a generous tolerance.
+      if (
+        Math.abs(pos.x - (original.x + 40)) > 30
+        || Math.abs(pos.y - (original.y + 40)) > 30
+      ) {
+        throw new Error(
+          `position ${pos.x},${pos.y} not near ${original.x + 40},${original.y + 40}`
+        )
+      }
+    })
+
+    await tauri(
+      (api, x, y) =>
+        api.window
+          .getCurrentWindow()
+          .setPosition(new api.dpi.PhysicalPosition(x, y)),
+      original.x,
+      original.y
+    )
+  })
+
+  itWm('minimize and unminimize toggle the minimized state', async () => {
+    await tauri((api) => api.window.getCurrentWindow().minimize())
+    await eventually(async () => {
+      if (
+        !(await tauri((api) => api.window.getCurrentWindow().isMinimized()))
+      ) {
+        throw new Error('window is not minimized')
+      }
+    })
+    await tauri((api) => api.window.getCurrentWindow().unminimize())
+    await eventually(async () => {
+      if (await tauri((api) => api.window.getCurrentWindow().isMinimized())) {
+        throw new Error('window is still minimized')
+      }
+    })
+  })
+
+  itWm('maximize and unmaximize toggle the maximized state', async () => {
+    await tauri((api) => api.window.getCurrentWindow().maximize())
+    await eventually(async () => {
+      if (
+        !(await tauri((api) => api.window.getCurrentWindow().isMaximized()))
+      ) {
+        throw new Error('window is not maximized')
+      }
+    })
+    await tauri((api) => api.window.getCurrentWindow().unmaximize())
+    await eventually(async () => {
+      if (await tauri((api) => api.window.getCurrentWindow().isMaximized())) {
+        throw new Error('window is still maximized')
+      }
+    })
+  })
+
+  itWm('setFullscreen toggles fullscreen', async () => {
+    await tauri((api) => api.window.getCurrentWindow().setFullscreen(true))
+    await eventually(async () => {
+      if (
+        !(await tauri((api) => api.window.getCurrentWindow().isFullscreen()))
+      ) {
+        throw new Error('window is not fullscreen')
+      }
+    })
+    await tauri((api) => api.window.getCurrentWindow().setFullscreen(false))
+    await eventually(async () => {
+      if (await tauri((api) => api.window.getCurrentWindow().isFullscreen())) {
+        throw new Error('window is still fullscreen')
+      }
+    })
+  })
+
+  itWm('setFullscreenOnMonitor goes fullscreen on that monitor', async () => {
+    // Use the monitor the window is on, so the assertion holds on single-monitor CI.
+    const origin = await tauri(async (api) => {
+      const monitor = await api.window.currentMonitor()
+      return monitor ? { x: monitor.position.x, y: monitor.position.y } : null
+    })
+    expect(origin).not.toBeNull()
+
+    await tauri(
+      (api, origin) =>
+        api.window
+          .getCurrentWindow()
+          .setFullscreenOnMonitor(
+            new api.dpi.PhysicalPosition(origin.x, origin.y)
+          ),
+      origin!
+    )
+    await eventually(async () => {
+      const state = await tauri(async (api) => {
+        const w = api.window.getCurrentWindow()
+        const position = await w.outerPosition()
+        return {
+          fullscreen: await w.isFullscreen(),
+          x: position.x,
+          y: position.y
+        }
+      })
+      if (!state.fullscreen) {
+        throw new Error('window is not fullscreen')
+      }
+      // a fullscreen window sits at its monitor's origin
+      if (state.x !== origin!.x || state.y !== origin!.y) {
+        throw new Error(
+          `window is at (${state.x}, ${state.y}), expected (${origin!.x}, ${origin!.y})`
+        )
+      }
+    })
+
+    await tauri((api) => api.window.getCurrentWindow().setFullscreen(false))
+    await eventually(async () => {
+      if (await tauri((api) => api.window.getCurrentWindow().isFullscreen())) {
+        throw new Error('window is still fullscreen')
+      }
+    })
+  })
+
+  itWm('hide and show toggle visibility', async () => {
+    await tauri((api) => api.window.getCurrentWindow().hide())
+    await eventually(async () => {
+      if (await tauri((api) => api.window.getCurrentWindow().isVisible())) {
+        throw new Error('window is still visible')
+      }
+    })
+    await tauri((api) => api.window.getCurrentWindow().show())
+    await eventually(async () => {
+      if (!(await tauri((api) => api.window.getCurrentWindow().isVisible()))) {
+        throw new Error('window is not visible')
+      }
+    })
+  })
+})

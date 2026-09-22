@@ -102,8 +102,8 @@ class WebviewWindow {
    * Gets the Webview for the webview associated with the given label.
    * @example
    * ```typescript
-   * import { Webview } from '@tauri-apps/api/webviewWindow';
-   * const mainWebview = Webview.getByLabel('main');
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+   * const mainWebview = WebviewWindow.getByLabel('main');
    * ```
    *
    * @param label The webview label.
@@ -134,7 +134,7 @@ class WebviewWindow {
   }
 
   /**
-   * Listen to an emitted event on this webivew window.
+   * Listen to an emitted event on this webview window.
    *
    * @example
    * ```typescript
@@ -220,8 +220,14 @@ class WebviewWindow {
    * @since 2.1.0
    */
   async setBackgroundColor(color: Color): Promise<void> {
-    return invoke('plugin:window|set_background_color', { color }).then(() => {
-      return invoke('plugin:webview|set_webview_background_color', { color })
+    return invoke('plugin:window|set_background_color', {
+      label: this.label,
+      value: color
+    }).then(() => {
+      return invoke('plugin:webview|set_webview_background_color', {
+        label: this.label,
+        value: color
+      })
     })
   }
 }

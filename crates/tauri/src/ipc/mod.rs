@@ -13,15 +13,15 @@ use std::{
 
 use http::HeaderMap;
 use serde::{
-  de::{DeserializeOwned, IntoDeserializer},
   Deserialize, Serialize,
+  de::{DeserializeOwned, IntoDeserializer},
 };
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_macros::default_runtime;
 use tauri_utils::acl::resolved::ResolvedCommand;
 
-use crate::{webview::Webview, Runtime, StateManager};
+use crate::{Runtime, StateManager, webview::Webview};
 
 mod authority;
 #[cfg(feature = "dynamic-acl")]
@@ -37,7 +37,7 @@ pub use authority::{
 #[cfg(feature = "dynamic-acl")]
 pub use capability_builder::{CapabilityBuilder, RuntimeCapability};
 pub use channel::{Channel, JavaScriptChannelId};
-pub use command::{private, CommandArg, CommandItem};
+pub use command::{CommandArg, CommandItem, private};
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
@@ -156,7 +156,7 @@ impl Request<'_> {
     self.body
   }
 
-  /// Thr request headers.
+  /// The request headers.
   pub fn headers(&self) -> &HeaderMap {
     self.headers
   }
@@ -345,7 +345,7 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
   {
     // Dynamic dispatch the call in dev for a faster compile time
-    // TODO: Revisit this and see if we can do this for the release build as well if the performace hit is not a problem
+    // TODO: Revisit this and see if we can do this for the release build as well if the performance hit is not a problem
     #[cfg(debug_assertions)]
     {
       self.respond_async_serialized_dyn(Box::pin(task))
@@ -498,8 +498,6 @@ impl<R: Runtime> InvokeResolver<R> {
 pub struct InvokeMessage<R: Runtime> {
   /// The webview that received the invoke message.
   pub(crate) webview: Webview<R>,
-  /// Application managed state.
-  pub(crate) state: Arc<StateManager>,
   /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
@@ -512,7 +510,6 @@ impl<R: Runtime> Clone for InvokeMessage<R> {
   fn clone(&self) -> Self {
     Self {
       webview: self.webview.clone(),
-      state: self.state.clone(),
       command: self.command.clone(),
       payload: self.payload.clone(),
       headers: self.headers.clone(),
@@ -524,14 +521,12 @@ impl<R: Runtime> InvokeMessage<R> {
   /// Create an new [`InvokeMessage`] from a payload send by a webview.
   pub(crate) fn new(
     webview: Webview<R>,
-    state: Arc<StateManager>,
     command: String,
     payload: InvokeBody,
     headers: HeaderMap,
   ) -> Self {
     Self {
       webview,
-      state,
       command,
       payload,
       headers,
@@ -562,16 +557,20 @@ impl<R: Runtime> InvokeMessage<R> {
     &self.payload
   }
 
+  // TODO: make private or remove in v3
   /// The state manager associated with the application
+  #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
   #[inline(always)]
   pub fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
+    self.webview.manager.state.clone()
   }
 
+  // TODO: make private or remove in v3
   /// A reference to the state manager associated with application.
+  #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
   #[inline(always)]
   pub fn state_ref(&self) -> &StateManager {
-    &self.state
+    &self.webview.manager.state
   }
 
   /// The request headers.

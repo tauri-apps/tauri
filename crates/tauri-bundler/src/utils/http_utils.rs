@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  fs::{create_dir_all, File},
+  fs::{File, create_dir_all},
   io::{Cursor, Read, Write},
   path::Path,
 };
@@ -13,6 +13,8 @@ use regex::Regex;
 use sha2::Digest;
 use url::Url;
 use zip::ZipArchive;
+
+const BUNDLER_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
 fn generate_github_mirror_url_from_template(github_url: &str) -> Option<String> {
   std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE")
@@ -47,7 +49,15 @@ fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
 
   generate_github_mirror_url_from_template(url)
     .or_else(|| generate_github_mirror_url_from_base(url))
-    .map(|alt_url| (ureq::agent(), alt_url))
+    .map(|alt_url| {
+      (
+        ureq::Agent::config_builder()
+          .user_agent(BUNDLER_USER_AGENT)
+          .build()
+          .into(),
+        alt_url,
+      )
+    })
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
@@ -55,22 +65,21 @@ fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
 }
 
 pub(crate) fn base_ureq_agent() -> ureq::Agent {
+  #[allow(unused_mut)]
+  let mut config_builder = ureq::Agent::config_builder()
+    .user_agent(BUNDLER_USER_AGENT)
+    .proxy(ureq::Proxy::try_from_env());
+
   #[cfg(feature = "platform-certs")]
-  let agent: ureq::Agent = ureq::Agent::config_builder()
-    .tls_config(
+  {
+    config_builder = config_builder.tls_config(
       ureq::tls::TlsConfig::builder()
         .root_certs(ureq::tls::RootCerts::PlatformVerifier)
         .build(),
-    )
-    .proxy(ureq::Proxy::try_from_env())
-    .build()
-    .into();
-  #[cfg(not(feature = "platform-certs"))]
-  let agent: ureq::Agent = ureq::Agent::config_builder()
-    .proxy(ureq::Proxy::try_from_env())
-    .build()
-    .into();
-  agent
+    );
+  }
+
+  config_builder.build().into()
 }
 
 #[allow(dead_code)]
@@ -187,18 +196,22 @@ mod tests {
   const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_no_env_var() {
-    env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE");
+    unsafe { env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE") };
 
     assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
   }
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_non_github_url() {
-    env::set_var(
-      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
-      "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
-    );
+    unsafe {
+      env::set_var(
+        "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
+        "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+      )
+    };
 
     assert!(generate_github_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
   }
@@ -209,20 +222,21 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_correctly() {
     let test_cases = vec![
-            TestCase {
-                template: "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
-                expected_url: "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip",
-            },
-            TestCase {
-                template: "https://mirror.example.com/<asset>",
-                expected_url: "https://mirror.example.com/wix311-binaries.zip",
-            },
-        ];
+      TestCase {
+        template: "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+        expected_url: "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip",
+      },
+      TestCase {
+        template: "https://mirror.example.com/<asset>",
+        expected_url: "https://mirror.example.com/wix311-binaries.zip",
+      },
+    ];
 
     for case in test_cases {
-      env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template);
+      unsafe { env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template) };
       assert_eq!(
         generate_github_mirror_url_from_template(GITHUB_ASSET_URL),
         Some(case.expected_url.to_string())

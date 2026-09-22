@@ -4,7 +4,7 @@
 
 use base64::Engine;
 use minisign::{
-  sign, KeyPair as KP, PublicKey, PublicKeyBox, SecretKey, SecretKeyBox, SignatureBox,
+  KeyPair as KP, PublicKey, PublicKeyBox, SecretKey, SecretKeyBox, SignatureBox, sign,
 };
 use std::{
   fs::{self, File, OpenOptions},
@@ -114,21 +114,48 @@ where
 }
 
 /// Sign files
-pub fn sign_file<P>(secret_key: &SecretKey, bin_path: P) -> crate::Result<(PathBuf, SignatureBox)>
+///
+/// When `version` is given it is embedded in the signature's trusted comment. minisign covers
+/// the trusted comment with its global signature, so this binds the signed artifact to the
+/// version it was released as. The update manifest is not itself signed, so without this the
+/// manifest's `version` field can be paired with an older release's URL and signature to force
+/// a downgrade. See the `requireSignedVersion` updater config option.
+pub fn sign_file<P>(
+  secret_key: &SecretKey,
+  bin_path: P,
+  version: Option<&str>,
+) -> crate::Result<(PathBuf, SignatureBox)>
 where
   P: AsRef<Path>,
 {
   let bin_path = bin_path.as_ref();
   // We need to append .sig at the end it's where the signature will be stored
-  let mut extension = bin_path.extension().unwrap().to_os_string();
-  extension.push(".sig");
-  let signature_path = bin_path.with_extension(extension);
+  // TODO: use `with_added_extension` when we bump MSRV to >= 1.91
+  let signature_path = if let Some(ext) = bin_path.extension() {
+    let mut extension = ext.to_os_string();
+    extension.push(".sig");
+    bin_path.with_extension(extension)
+  } else {
+    bin_path.with_extension("sig")
+  };
 
-  let trusted_comment = format!(
+  let mut trusted_comment = format!(
     "timestamp:{}\tfile:{}",
     unix_timestamp(),
     bin_path.file_name().unwrap().to_string_lossy()
   );
+  if let Some(version) = version {
+    // the trusted comment is a single line of tab separated fields, so a version carrying
+    // either separator would produce a signature we cannot parse back
+    if version.contains(['\t', '\r', '\n']) {
+      crate::error::bail!(
+        "the app version {version:?} cannot be signed because it contains a tab or newline"
+      );
+    }
+    // appended last so anything parsing the historical `timestamp:...\tfile:...` prefix keeps working
+    trusted_comment.push_str("\tversion:");
+    trusted_comment.push_str(version);
+  }
 
   let data_reader = open_data_file(bin_path)?;
 
@@ -146,15 +173,15 @@ where
   std::fs::write(&signature_path, encoded_signature.as_bytes())
     .fs_context("failed to write signature file", signature_path.clone())?;
   Ok((
-    fs::canonicalize(&signature_path).fs_context(
-      "failed to canonicalize signature file",
-      signature_path.clone(),
-    )?,
+    fs::canonicalize(&signature_path)
+      .fs_context("failed to canonicalize signature file", &signature_path)?,
     signature_box,
   ))
 }
 
 /// Gets the updater secret key from the given private key and password.
+///
+/// If `password` is `None`, a password is going to be prompted interactively.
 pub fn secret_key<S: AsRef<[u8]>>(
   private_key: S,
   password: Option<String>,
@@ -201,16 +228,70 @@ where
 
 #[cfg(test)]
 mod tests {
+  use super::*;
+
+  // This was encrypted with an empty string
   const PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
 
-  // we use minisign=0.7.3 to prevent a breaking change
+  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords if the private key is encrypted with an empty string.
   #[test]
   fn empty_password_is_valid() {
     let path = std::env::temp_dir().join("minisign-password-text.txt");
     std::fs::write(&path, b"TAURI").expect("failed to write test file");
 
     let secret_key =
-      super::secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
-    super::sign_file(&secret_key, &path).expect("failed to sign file");
+      secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
+    sign_file(&secret_key, &path, None).expect("failed to sign file");
+  }
+
+  #[test]
+  fn embeds_version_in_trusted_comment() {
+    let path = std::env::temp_dir().join("minisign-versioned-text.txt");
+    std::fs::write(&path, b"TAURI").expect("failed to write test file");
+
+    let secret_key =
+      secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
+
+    let (_, signature) = sign_file(&secret_key, &path, Some("1.2.3")).expect("failed to sign file");
+    let trusted_comment = signature
+      .trusted_comment()
+      .expect("failed to read trusted comment");
+    assert!(
+      trusted_comment.ends_with("\tversion:1.2.3"),
+      "unexpected trusted comment: {trusted_comment}"
+    );
+    // the historical prefix must stay intact so older consumers keep parsing it
+    assert!(trusted_comment.starts_with("timestamp:"));
+    assert!(trusted_comment.contains("\tfile:minisign-versioned-text.txt\t"));
+
+    let (_, signature) = sign_file(&secret_key, &path, None).expect("failed to sign file");
+    assert!(
+      !signature
+        .trusted_comment()
+        .expect("failed to read trusted comment")
+        .contains("version:")
+    );
+  }
+
+  #[test]
+  fn rejects_version_that_breaks_the_trusted_comment() {
+    let path = std::env::temp_dir().join("minisign-invalid-version-text.txt");
+    std::fs::write(&path, b"TAURI").expect("failed to write test file");
+
+    let secret_key =
+      secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
+    assert!(sign_file(&secret_key, &path, Some("1.0.0\ttampered")).is_err());
+    assert!(sign_file(&secret_key, &path, Some("1.0.0\ntampered")).is_err());
+  }
+
+  // This tests the newly generated keys with empty string password works
+  // minisign >=0.7.4,<=0.8.0 generate keys unencrypted if the password is empty but is marked encrypted hence unusable
+  #[test]
+  fn generate_empty_password_keys_and_use() {
+    let KeyPair { pk, sk } = generate_key(Some("".to_owned())).unwrap();
+    let pk = pub_key(pk).unwrap();
+    let sk = secret_key(sk, Some("".into())).unwrap();
+    let data = b"TAURI".as_slice();
+    sign(Some(&pk), &sk, data, None, None).expect("failed to sign file");
   }
 }

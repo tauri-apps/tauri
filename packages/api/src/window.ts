@@ -37,7 +37,7 @@ import {
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
 import type { DragDropEvent } from './webview'
-import { Image, transformImage } from './image'
+import { type JsImage, transformImage } from './image'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -47,16 +47,46 @@ import { Image, transformImage } from './image'
 export interface Monitor {
   /** Human-readable name of the monitor */
   name: string | null
-  /** The monitor's resolution. */
+  /**
+   * The monitor's resolution in physical pixels.
+   *
+   * Use {@linkcode Monitor.scaleFactor} to convert to logical pixels:
+   * ```typescript
+   * const logicalSize = monitor.size.toLogical(monitor.scaleFactor);
+   * ```
+   */
   size: PhysicalSize
-  /** the Top-left corner position of the monitor relative to the larger full screen area. */
+  /**
+   * the Top-left corner position of the monitor relative to the larger full screen area, in physical pixels.
+   *
+   * Note that window creation options such as `x`, `y`, `width` and `height` expect
+   * logical pixels, so convert with {@linkcode Monitor.scaleFactor} first:
+   * ```typescript
+   * import { currentMonitor } from '@tauri-apps/api/window';
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+   *
+   * const monitor = await currentMonitor();
+   * if (monitor) {
+   *   const position = monitor.position.toLogical(monitor.scaleFactor);
+   *   const webview = new WebviewWindow('my-label', { x: position.x, y: position.y });
+   * }
+   * ```
+   */
   position: PhysicalPosition
-  /** The monitor's work area. */
+  /**
+   * The monitor's work area (the monitor area excluding taskbars and docks) in physical pixels.
+   *
+   * Use {@linkcode Monitor.scaleFactor} to convert to logical pixels as shown in
+   * {@linkcode Monitor.position}.
+   */
   workArea: {
     position: PhysicalPosition
     size: PhysicalSize
   }
-  /** The scale factor that can be used to map physical pixels to logical pixels. */
+  /**
+   * The scale factor that can be used to map physical pixels to logical pixels,
+   * e.g. `monitor.position.toLogical(monitor.scaleFactor)`.
+   */
   scaleFactor: number
 }
 
@@ -820,6 +850,18 @@ class Window {
     })
   }
 
+  async activityName(): Promise<string> {
+    return invoke('plugin:window|activity_name', {
+      label: this.label
+    })
+  }
+
+  async sceneIdentifier(): Promise<string> {
+    return invoke('plugin:window|scene_identifier', {
+      label: this.label
+    })
+  }
+
   // Setters
 
   /**
@@ -1406,6 +1448,31 @@ class Window {
   }
 
   /**
+   * Sets the window as fullscreen on the monitor that contains the given physical position.
+   *
+   * Does nothing if no monitor contains the position.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow, availableMonitors } from '@tauri-apps/api/window';
+   * const monitors = await availableMonitors();
+   * if (monitors.length > 1) {
+   *   await getCurrentWindow().setFullscreenOnMonitor(monitors[1].position);
+   * }
+   * ```
+   *
+   * @param position A physical position inside the target monitor, such as {@linkcode Monitor.position}.
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.12.0
+   */
+  async setFullscreenOnMonitor(position: PhysicalPosition): Promise<void> {
+    return invoke('plugin:window|set_fullscreen_on_monitor', {
+      label: this.label,
+      value: position
+    })
+  }
+
+  /**
    * On macOS, Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won’t work if the window was already in the native fullscreen).
    * This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
    *
@@ -1479,9 +1546,7 @@ class Window {
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[]
-  ): Promise<void> {
+  async setIcon(icon: JsImage): Promise<void> {
     return invoke('plugin:window|set_icon', {
       label: this.label,
       value: transformImage(icon)
@@ -1591,7 +1656,10 @@ class Window {
    * @since 2.1.0
    */
   async setBackgroundColor(color: Color): Promise<void> {
-    return invoke('plugin:window|set_background_color', { color })
+    return invoke('plugin:window|set_background_color', {
+      label: this.label,
+      value: color
+    })
   }
 
   /**
@@ -1730,9 +1798,7 @@ class Window {
    * @param icon Icon bytes or path to the icon file. Use `undefined` to remove the overlay icon.
    * @return A promise indicating the success or failure of the operation.
    */
-  async setOverlayIcon(
-    icon?: string | Image | Uint8Array | ArrayBuffer | number[]
-  ): Promise<void> {
+  async setOverlayIcon(icon?: JsImage): Promise<void> {
     return invoke('plugin:window|set_overlay_icon', {
       label: this.label,
       value: icon ? transformImage(icon) : undefined
@@ -2229,7 +2295,7 @@ enum Effect {
    */
   Acrylic = 'acrylic',
   /**
-   * Tabbed effect that matches the system dark perefence **Windows 11 Only**
+   * Tabbed effect that matches the system dark preference **Windows 11 Only**
    */
   Tabbed = 'tabbed',
   /**
@@ -2305,21 +2371,25 @@ interface PreventOverflowMargin {
 interface WindowOptions {
   /** Show window in the center of the screen.. */
   center?: boolean
-  /** The initial vertical position. Only applies if `y` is also set. */
+  /**
+   * The initial vertical position in logical pixels. Only applies if `y` is also set.
+   */
   x?: number
-  /** The initial horizontal position. Only applies if `x` is also set. */
+  /**
+   * The initial horizontal position in logical pixels. Only applies if `x` is also set.
+   */
   y?: number
-  /** The initial width. */
+  /** The initial width in logical pixels. */
   width?: number
-  /** The initial height. */
+  /** The initial height in logical pixels. */
   height?: number
-  /** The minimum width. Only applies if `minHeight` is also set. */
+  /** The minimum width in logical pixels. Only applies if `minHeight` is also set. */
   minWidth?: number
-  /** The minimum height. Only applies if `minWidth` is also set. */
+  /** The minimum height in logical pixels. Only applies if `minWidth` is also set. */
   minHeight?: number
-  /** The maximum width. Only applies if `maxHeight` is also set. */
+  /** The maximum width in logical pixels. Only applies if `maxHeight` is also set. */
   maxWidth?: number
-  /** The maximum height. Only applies if `maxWidth` is also set. */
+  /** The maximum height in logical pixels. Only applies if `maxWidth` is also set. */
   maxHeight?: number
   /**
    * Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
@@ -2350,6 +2420,8 @@ interface WindowOptions {
    * Whether the window is transparent or not.
    * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.
    * WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+   *
+   * On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
    */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
@@ -2366,6 +2438,13 @@ interface WindowOptions {
   contentProtected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   * This sets `WS_EX_NOREDIRECTIONBITMAP`.
+   *
+   * This can avoid the white flash that may appear before the webview content is rendered
+   * when using a transparent window. **Windows only**.
+   */
+  noRedirectionBitmap?: boolean
   /**
    *  Whether or not the window has shadow.
    *
@@ -2511,6 +2590,23 @@ interface WindowOptions {
    * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
    */
   scrollBarStyle?: ScrollBarStyle
+  /**
+   * The name of the Android activity to create for this window.
+   */
+  activityName?: string
+  /**
+   * The name of the Android activity that is creating this webview window.
+   *
+   * This is important to determine which stack the activity will belong to.
+   */
+  createdByActivityName?: string
+  /**
+   * Sets the identifier of the UIScene that is requesting the creation of this new scene,
+   * establishing a relationship between the two scenes.
+   *
+   * By default the system uses the foreground scene.
+   */
+  requestedBySceneIdentifier?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

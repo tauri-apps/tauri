@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
+use super::{MobileTarget, detect_target_ok, ensure_init, env, get_app, get_config, read_options};
 use crate::{
-  error::{Context, ErrorExt},
-  helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
-  interface::{AppInterface, Interface},
-  mobile::CliOptions,
   Error, Result,
+  error::{Context, ErrorExt},
+  helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
+  interface::AppInterface,
+  mobile::CliOptions,
 };
 use clap::{ArgAction, Parser};
 
 use cargo_mobile2::{
-  android::{adb, target::Target},
+  android::{adb, device::ConnectionStatus, target::Target},
   opts::Profile,
-  target::{call_for_targets_with_fallback, TargetTrait},
+  target::{TargetTrait, call_for_targets_with_fallback},
 };
 
 use std::path::Path;
@@ -38,7 +38,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let profile = if options.release {
     Profile::Release
@@ -46,45 +46,33 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let (tauri_config, cli_options) = {
-    let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[])?;
-    let cli_options = {
-      let tauri_config_guard = tauri_config.lock().unwrap();
-      let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-      read_options(tauri_config_)
-    };
+  let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[], dirs.tauri)?;
+  let cli_options = read_options(&tauri_config);
 
-    let tauri_config = if cli_options.config.is_empty() {
-      tauri_config
-    } else {
-      // reload config with merges from the android dev|build script
-      reload_tauri_config(
-        &cli_options
-          .config
-          .iter()
-          .map(|conf| &conf.0)
-          .collect::<Vec<_>>(),
-      )?
-    };
-
-    (tauri_config, cli_options)
+  if !cli_options.config.is_empty() {
+    // reload config with merges from the android dev|build script
+    reload_tauri_config(
+      &mut tauri_config,
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+      dirs.tauri,
+    )?
   };
 
-  let (config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let (config, metadata) = get_config(
-      &get_app(
-        MobileTarget::Android,
-        tauri_config_,
-        &AppInterface::new(tauri_config_, None)?,
-      ),
-      tauri_config_,
-      None,
-      &cli_options,
-    );
-    (config, metadata)
-  };
+  let (config, metadata) = get_config(
+    &get_app(
+      MobileTarget::Android,
+      &tauri_config,
+      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      dirs.tauri,
+    ),
+    &tauri_config,
+    &[],
+    &cli_options,
+  );
 
   ensure_init(
     &tauri_config,
@@ -95,7 +83,8 @@ pub fn command(options: Options) -> Result<()> {
   )?;
 
   if !cli_options.config.is_empty() {
-    crate::helpers::config::merge_with(
+    crate::helpers::config::merge_config_with(
+      &mut tauri_config,
       &cli_options
         .config
         .iter()
@@ -107,16 +96,7 @@ pub fn command(options: Options) -> Result<()> {
   let env = env(std::env::var("CI").is_ok())?;
 
   if cli_options.dev {
-    let dev_url = tauri_config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_url
-      .clone();
-
-    if let Some(url) = dev_url {
+    if let Some(url) = &tauri_config.build.dev_url {
       let localhost = match url.host() {
         Some(url::Host::Domain(d)) => d == "localhost",
         Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,
@@ -214,7 +194,11 @@ fn adb_forward_port(
   let forward = format!("tcp:{port}");
   log::info!("Forwarding port {port} with adb");
 
-  let mut devices = adb::device_list(env).unwrap_or_default();
+  let mut devices = adb::device_list(env)
+    .unwrap_or_default()
+    .into_iter()
+    .filter(|d| d.status() == ConnectionStatus::Connected)
+    .collect::<Vec<_>>();
   // if we could not detect any running device, let's wait a few seconds, it might be booting up
   if devices.is_empty() {
     log::warn!(
@@ -226,7 +210,11 @@ fn adb_forward_port(
     loop {
       std::thread::sleep(std::time::Duration::from_secs(1));
 
-      devices = adb::device_list(env).unwrap_or_default();
+      devices = adb::device_list(env)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|d| d.status() == ConnectionStatus::Connected)
+        .collect::<Vec<_>>();
       if !devices.is_empty() {
         break;
       }
@@ -244,8 +232,14 @@ fn adb_forward_port(
     let device = devices.first().unwrap();
     Some((device.serial_no().to_string(), device.name().to_string()))
   } else if devices.len() > 1 {
-    crate::error::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
-      devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
+    crate::error::bail!(
+      "Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
+      devices
+        .iter()
+        .map(|d| d.name())
+        .collect::<Vec<_>>()
+        .join(", ")
+    );
   } else {
     // when building the app without running to a device, we might have an empty devices list
     None

@@ -50,7 +50,7 @@ pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 pub const APP_ACL_KEY: &str = "__app-acl__";
 /// Known acl manifests file
 pub const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
-/// Known capabilityies file
+/// Known capabilities file
 pub const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 /// Allowed commands file name
 pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
@@ -58,7 +58,7 @@ pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
 /// the value is set to the config's directory
 pub const REMOVE_UNUSED_COMMANDS_ENV_VAR: &str = "REMOVE_UNUSED_COMMANDS";
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 pub mod build;
 pub mod capability;
 pub mod identifier;
@@ -74,11 +74,15 @@ pub enum Error {
   /// Could not find an environmental variable that is set inside of build scripts.
   ///
   /// Whatever generated this should be called inside of a build script.
-  #[error("expected build script env var {0}, but it was not found - ensure this is called in a build script")]
+  #[error(
+    "expected build script env var {0}, but it was not found - ensure this is called in a build script"
+  )]
   BuildVar(&'static str),
 
   /// The links field in the manifest **MUST** be set and match the name of the crate.
-  #[error("package.links field in the Cargo manifest is not set, it should be set to the same as package.name")]
+  #[error(
+    "package.links field in the Cargo manifest is not set, it should be set to the same as package.name"
+  )]
   LinksMissing,
 
   /// The links field in the manifest **MUST** match the name of the crate.
@@ -104,7 +108,7 @@ pub enum Error {
   CreateDir(std::io::Error, PathBuf),
 
   /// [`cargo_metadata`] was not able to complete successfully
-  #[cfg(feature = "build")]
+  #[cfg(any(feature = "build", feature = "build-2"))]
   #[error("failed to execute: {0}")]
   Metadata(#[from] ::cargo_metadata::Error),
 
@@ -460,7 +464,7 @@ mod tests {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build_ {
   use std::convert::identity;
 
@@ -468,7 +472,7 @@ mod build_ {
 
   use super::*;
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
 
   impl ToTokens for ExecutionContext {
     fn to_tokens(&self, tokens: &mut TokenStream) {

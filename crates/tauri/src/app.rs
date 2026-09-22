@@ -1127,13 +1127,18 @@ macro_rules! shared_app_impl {
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
         // run plugin cleanup hooks first so plugins can still use the app resources (e.g. stop sidecars)
-        // cleanup is best-effort, so a plugin store poisoned by an earlier panic must not abort it
-        self
-          .manager
-          .plugins
-          .lock()
-          .unwrap_or_else(std::sync::PoisonError::into_inner)
-          .cleanup_before_exit(self.app_handle());
+        // cleanup is best-effort: a plugin store poisoned by an earlier panic must not abort it, and one
+        // that cannot be taken must not hang the exit. The store is held across every plugin callback
+        // (setup, the window/webview hooks, on_event, a plugin command), so a plugin that exits the app
+        // from one of them is holding it on this very thread, where a blocking lock could never be
+        // granted; the hooks are skipped instead.
+        match self.manager.plugins.try_lock() {
+          Ok(mut plugins) => plugins.cleanup_before_exit(self.app_handle()),
+          Err(std::sync::TryLockError::Poisoned(err)) => {
+            err.into_inner().cleanup_before_exit(self.app_handle())
+          }
+          Err(std::sync::TryLockError::WouldBlock) => {}
+        }
 
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
@@ -2828,6 +2833,34 @@ fn on_event_loop_event<R: Runtime>(
 
 #[cfg(test)]
 mod tests {
+  // A plugin that exits the app from one of its own callbacks is holding the plugin store
+  // on the thread it calls `cleanup_before_exit` on - the single-instance plugin does exactly
+  // this from its setup hook, to hand a second launch's argv to the first instance. Taking the
+  // store with a blocking lock there deadlocks the caller against itself, so the cleanup skips
+  // the plugin hooks rather than wait for a guard that can never be released.
+  #[test]
+  fn cleanup_before_exit_from_a_plugin_callback_does_not_deadlock() {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+      let app = crate::test::mock_builder()
+        .plugin(
+          crate::plugin::Builder::<_, ()>::new("exits-from-setup")
+            .setup(|app, _api| {
+              app.cleanup_before_exit();
+              Ok(())
+            })
+            .build(),
+        )
+        .build(crate::test::mock_context(crate::test::noop_assets()))
+        .unwrap();
+      let _ = tx.send(());
+      drop(app);
+    });
+
+    rx.recv_timeout(std::time::Duration::from_secs(30))
+      .expect("cleanup_before_exit deadlocked on the plugin store");
+  }
+
   #[test]
   fn is_send_sync() {
     crate::test_utils::assert_send::<super::AppHandle>();

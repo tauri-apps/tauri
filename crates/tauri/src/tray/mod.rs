@@ -10,9 +10,7 @@ use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
-use crate::{
-  AppHandle, Manager, PhysicalPosition, Rect, Runtime, image::Image, menu::run_item_main_thread,
-};
+use crate::{AppHandle, Manager, PhysicalPosition, Rect, Runtime, image::Image};
 use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;
 use std::path::Path;
@@ -459,6 +457,37 @@ impl<R: Runtime> TrayIcon<R> {
     &self.app_handle
   }
 
+  /// Do something with the inner [`tray_icon::TrayIcon`] on main thread
+  ///
+  /// Note that `tray-icon` crate may be updated in minor releases of Tauri.
+  /// Therefore, it’s recommended to pin Tauri to at least a minor version when you’re using `with_inner_blocking`.
+  ///
+  /// # Example
+  ///
+  /// ```rust,no_run
+  /// # use tauri::TrayIcon;
+  /// # fn main() {
+  /// # let tray_icon: TrayIcon<_> = todo!();
+  /// tray_icon.with_inner_blocking(|inner| {
+  ///   // interact with the inner tray icon here
+  /// });
+  /// # }
+  /// ```
+  pub fn with_inner_blocking<F, T>(&self, f: F) -> crate::Result<T>
+  where
+    F: FnOnce(&tray_icon::TrayIcon) -> T + Send + 'static,
+    T: Send + 'static,
+  {
+    let self_ = self.clone();
+    let app = self.app_handle();
+    app.run_on_main_thread_blocking(move || {
+      // move the whole `TrayIcon` into the closure so the non-Send `inner` field
+      // is only accessed on the main thread
+      let self_ = self_;
+      f(&self_.inner)
+    })
+  }
+
   /// Register a handler for menu events.
   ///
   /// Note that this handler is called for any menu event,
@@ -500,7 +529,9 @@ impl<R: Runtime> TrayIcon<R> {
       Some(i) => Some(i.try_into()?),
       None => None,
     };
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_icon(icon))?.map_err(Into::into)
+    self
+      .with_inner_blocking(|i| i.set_icon(icon))?
+      .map_err(Into::into)
   }
 
   /// Sets a new tray menu.
@@ -509,9 +540,9 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// - **Linux**: once a menu is set it cannot be removed so `None` has no effect
   pub fn set_menu<M: ContextMenu + 'static>(&self, menu: Option<M>) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| {
-      self_.inner.set_menu(menu.map(|m| m.inner_context_owned()))
-    })
+    self
+      .with_inner_blocking(|i| i.set_menu(menu.map(|m| m.inner_context_owned())))
+      .map_err(Into::into)
   }
 
   /// Sets the tooltip for this tray icon.
@@ -520,8 +551,10 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// - **Linux:** Unsupported
   pub fn set_tooltip<S: AsRef<str>>(&self, tooltip: Option<S>) -> crate::Result<()> {
-    let s = tooltip.map(|s| s.as_ref().to_string());
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_tooltip(s))?.map_err(Into::into)
+    let tooltip = tooltip.map(|s| s.as_ref().to_string());
+    self
+      .with_inner_blocking(|i| i.set_tooltip(tooltip))?
+      .map_err(Into::into)
   }
 
   /// Sets the title for this tray icon.
@@ -535,13 +568,15 @@ impl<R: Runtime> TrayIcon<R> {
   ///   on the user's panel.  This may not be shown in all visualizations.
   /// - **Windows:** Unsupported
   pub fn set_title<S: AsRef<str>>(&self, title: Option<S>) -> crate::Result<()> {
-    let s = title.map(|s| s.as_ref().to_string());
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_title(s))
+    let title = title.map(|s| s.as_ref().to_string());
+    self.with_inner_blocking(|i| i.set_title(title))
   }
 
   /// Show or hide this tray icon.
   pub fn set_visible(&self, visible: bool) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_visible(visible))?.map_err(Into::into)
+    self
+      .with_inner_blocking(move |i| i.set_visible(visible))?
+      .map_err(Into::into)
   }
 
   /// Sets the tray icon temp dir path. **Linux only**.
@@ -552,16 +587,17 @@ impl<R: Runtime> TrayIcon<R> {
     #[allow(unused)]
     let p = path.map(|p| p.as_ref().to_path_buf());
     #[cfg(target_os = "linux")]
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_temp_dir_path(p))?;
+    {
+      self.with_inner_blocking(|i| i.set_temp_dir_path(p))?;
+    }
     Ok(())
   }
 
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
   pub fn set_icon_as_template(&self, #[allow(unused)] is_template: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    run_item_main_thread!(self, |self_: Self| {
-      self_.inner.set_icon_as_template(is_template)
-    })?;
+    self.with_inner_blocking(move |i| i.set_icon_as_template(is_template))?;
+
     Ok(())
   }
 
@@ -584,11 +620,7 @@ impl<R: Runtime> TrayIcon<R> {
         Some(i) => Some(i.try_into()?),
         None => None,
       };
-      run_item_main_thread!(self, |self_: Self| {
-        self_
-          .inner
-          .set_icon_with_as_template(tray_icon, is_template)
-      })??;
+      self.with_inner_blocking(move |i| i.set_icon_with_as_template(tray_icon, is_template))?;
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -605,9 +637,9 @@ impl<R: Runtime> TrayIcon<R> {
   /// - **Linux**: Unsupported.
   pub fn set_show_menu_on_left_click(&self, #[allow(unused)] enable: bool) -> crate::Result<()> {
     #[cfg(any(target_os = "macos", windows))]
-    run_item_main_thread!(self, |self_: Self| {
-      self_.inner.set_show_menu_on_left_click(enable)
-    })?;
+    {
+      self.with_inner_blocking(move |i| i.set_show_menu_on_left_click(enable))?;
+    }
     Ok(())
   }
 
@@ -617,8 +649,8 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// - **Linux**: Unsupported, always returns `None`.
   pub fn rect(&self) -> crate::Result<Option<crate::Rect>> {
-    run_item_main_thread!(self, |self_: Self| {
-      self_.inner.rect().map(|rect| Rect {
+    self.with_inner_blocking(|i| {
+      i.rect().map(|rect| Rect {
         position: rect.position.into(),
         size: rect.size.into(),
       })
@@ -629,12 +661,15 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// Note that `tray-icon` crate may be updated in minor releases of Tauri.
   /// Therefore, it’s recommended to pin Tauri to at least a minor version when you’re using `with_inner_tray_icon`.
+  #[deprecated(
+    note = "This will be removed in a future release. Use `with_inner_blocking` instead."
+  )]
   pub fn with_inner_tray_icon<F, T>(&self, f: F) -> crate::Result<T>
   where
     F: FnOnce(&tray_icon::TrayIcon) -> T + Send + 'static,
     T: Send + 'static,
   {
-    run_item_main_thread!(self, |self_: Self| { f(&self_.inner) })
+    self.with_inner_blocking(f)
   }
 }
 

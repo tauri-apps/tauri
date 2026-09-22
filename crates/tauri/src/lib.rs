@@ -820,7 +820,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Runs the given closure on the main thread and returns the result.
   ///
-  /// Uses an [`mpsc::sync_channel``](std::sync::mpsc::sync_channel) to communicate the result back to the caller.
+  /// Uses an [`mpsc::sync_channel`](std::sync::mpsc::sync_channel) to communicate the result back to the caller.
   fn run_on_main_thread_blocking<Ret, F>(&self, f: F) -> crate::Result<Ret>
   where
     F: FnOnce() -> Ret + Send + 'static,

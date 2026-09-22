@@ -20,26 +20,8 @@ pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
 use crate::menu::plugin::remove_menu_channel;
-use crate::{AppHandle, Runtime, image::Image};
+use crate::{AppHandle, Manager, Runtime, image::Image};
 pub use muda::MenuId;
-
-macro_rules! run_item_main_thread {
-  ($self:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-    let self_ = $self.clone();
-    let task = move || {
-      let f = $ex;
-      let _ = tx.send(f(self_));
-    };
-    $self
-      .app_handle()
-      .run_on_main_thread(task)
-      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
-  }};
-}
-
-pub(crate) use run_item_main_thread;
 
 /// Describes a menu event emitted when a menu item is activated
 #[derive(Debug, Clone, Serialize)]
@@ -117,6 +99,44 @@ macro_rules! gen_wrappers {
       impl<R: $crate::Runtime> Clone for $type<R> {
         fn clone(&self) -> Self {
           Self(self.0.clone())
+        }
+      }
+
+      impl<R: $crate::Runtime> $type<R> {
+        /// Returns a unique identifier associated with this menu item.
+        pub fn id(&self) -> &MenuId {
+        self.0.inner.id()
+        }
+
+
+        /// The application handle associated with this type.
+        pub fn app_handle(&self) -> &$crate::AppHandle<R> {
+          &self.0.app_handle
+        }
+
+        /// Do something with the inner [`muda::$type`] on main thread.
+        ///
+        /// Note that `muda` crate may be updated in minor releases of Tauri.
+        /// Therefore, it’s recommended to pin Tauri to at least a minor version when you’re using `with_inner_blocking`.
+        ///
+        /// # Example
+        ///
+        /// ```rust,no_run
+        /// # use tauri::Menu;
+        /// # fn main() {
+        /// # let menu: Menu<_> = todo!();
+        /// menu.with_inner_blocking(|inner| {
+        ///   // interact with the inner menu here
+        /// });
+        /// # }
+        /// ```
+        pub fn with_inner_blocking<F, T>(&self, f: F) -> crate::Result<T>
+        where
+          F: FnOnce(&::muda::$type) -> T + Send + 'static,
+          T: Send + 'static,
+        {
+          let self_ = self.clone();
+          self.app_handle().run_on_main_thread_blocking(move || f((&*self_.0).as_ref()))
         }
       }
 

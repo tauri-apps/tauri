@@ -4,9 +4,8 @@
 
 use std::sync::Arc;
 
-use super::run_item_main_thread;
 use crate::menu::MenuItemInner;
-use crate::{AppHandle, Manager, Runtime, menu::MenuId};
+use crate::{Manager, Runtime, menu::MenuId};
 
 use super::MenuItem;
 
@@ -72,19 +71,9 @@ impl<R: Runtime> MenuItem<R> {
     Ok(Self(Arc::new(item)))
   }
 
-  /// The application handle associated with this type.
-  pub fn app_handle(&self) -> &AppHandle<R> {
-    &self.0.app_handle
-  }
-
-  /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> &MenuId {
-    self.0.inner.id()
-  }
-
   /// Get the text for this menu item.
   pub fn text(&self) -> crate::Result<String> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().text())
+    self.with_inner_blocking(|i| i.text())
   }
 
   /// Set the text for this menu item. `text` could optionally contain
@@ -92,25 +81,24 @@ impl<R: Runtime> MenuItem<R> {
   /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn set_text<S: AsRef<str>>(&self, text: S) -> crate::Result<()> {
     let text = text.as_ref().to_string();
-    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_text(text))
+    self.with_inner_blocking(|i| i.set_text(text))
   }
 
   /// Get whether this menu item is enabled or not.
   pub fn is_enabled(&self) -> crate::Result<bool> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().is_enabled())
+    self.with_inner_blocking(|i| i.is_enabled())
   }
 
   /// Enable or disable this menu item.
   pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_enabled(enabled))
+    self.with_inner_blocking(move |i| i.set_enabled(enabled))
   }
 
   /// Set this menu item accelerator.
   pub fn set_accelerator<S: AsRef<str>>(&self, accelerator: Option<S>) -> crate::Result<()> {
     let accel = accelerator.and_then(|s| s.as_ref().parse().ok());
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().set_accelerator(accel)
-    })?
-    .map_err(Into::into)
+    self
+      .with_inner_blocking(move |i| i.set_accelerator(accel))?
+      .map_err(Into::into)
   }
 }

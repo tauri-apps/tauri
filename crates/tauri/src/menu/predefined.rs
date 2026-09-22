@@ -4,10 +4,9 @@
 
 use std::sync::Arc;
 
-use super::run_item_main_thread;
 use super::{AboutMetadata, PredefinedMenuItem};
 use crate::menu::PredefinedMenuItemInner;
-use crate::{AppHandle, Manager, Runtime, menu::MenuId};
+use crate::{Manager, Runtime, menu::MenuId};
 
 impl<R: Runtime> PredefinedMenuItem<R> {
   /// Separator menu item
@@ -326,7 +325,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let text = text.map(|t| t.to_owned());
 
-    let item = run_main_thread!(handle, || {
+    let item = handle.run_on_main_thread_blocking(move || {
       let item = muda::PredefinedMenuItem::bring_all_to_front(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
@@ -334,14 +333,9 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     Ok(Self(Arc::new(item)))
   }
 
-  /// Returns a unique identifier associated with this menu item.
-  pub fn id(&self) -> &MenuId {
-    self.0.inner.id()
-  }
-
   /// Get the text for this menu item.
   pub fn text(&self) -> crate::Result<String> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().text())
+    self.with_inner_blocking(|i| i.text())
   }
 
   /// Set the text for this menu item. `text` could optionally contain
@@ -349,11 +343,6 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn set_text<S: AsRef<str>>(&self, text: S) -> crate::Result<()> {
     let text = text.as_ref().to_string();
-    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_text(text))
-  }
-
-  /// The application handle associated with this type.
-  pub fn app_handle(&self) -> &AppHandle<R> {
-    &self.0.app_handle
+    self.with_inner_blocking(|i| i.set_text(text))
   }
 }

@@ -4,13 +4,11 @@
 
 use std::sync::Arc;
 
-use super::run_item_main_thread;
 use super::sealed::ContextMenuBase;
 use super::{
   AboutMetadata, IsMenuItem, Menu, MenuInner, MenuItemKind, PredefinedMenuItem, Submenu,
 };
 use crate::Window;
-use crate::run_main_thread;
 use crate::{AppHandle, Manager, Position, Runtime};
 #[cfg(menu_backend)]
 use muda::ContextMenu;
@@ -24,7 +22,7 @@ pub const HELP_SUBMENU_ID: &str = "__tauri_help_menu__";
 impl<R: Runtime> super::ContextMenu for Menu<R> {
   #[cfg(target_os = "windows")]
   fn hpopupmenu(&self) -> crate::Result<isize> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().hpopupmenu())
+    self.with_inner_blocking(|i| i.hpopupmenu())
   }
 
   fn popup<T: Runtime>(&self, window: Window<T>) -> crate::Result<()> {
@@ -49,29 +47,23 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
     position: Option<P>,
   ) -> crate::Result<()> {
     let position = position.map(Into::into);
-    run_item_main_thread!(self, move |self_: Self| {
+    self.with_inner_blocking(move |inner| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {
         unsafe {
-          self_
-            .inner()
-            .show_context_menu_for_nsview(view as _, position);
+          inner.show_context_menu_for_nsview(view as _, position);
         }
       }
 
       #[cfg(gtk)]
       if let Ok(w) = window.gtk_window() {
-        self_
-          .inner()
-          .show_context_menu_for_gtk_window(w.as_ref(), position);
+        inner.show_context_menu_for_gtk_window(w.as_ref(), position);
       }
 
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
         unsafe {
-          self_
-            .inner()
-            .show_context_menu_for_hwnd(hwnd.0 as _, position);
+          inner.show_context_menu_for_hwnd(hwnd.0 as _, position);
         }
       }
     })
@@ -242,16 +234,6 @@ impl<R: Runtime> Menu<R> {
     (*self.0).as_ref()
   }
 
-  /// The application handle associated with this type.
-  pub fn app_handle(&self) -> &AppHandle<R> {
-    &self.0.app_handle
-  }
-
-  /// Returns a unique identifier associated with this menu.
-  pub fn id(&self) -> &MenuId {
-    self.0.inner.id()
-  }
-
   /// Add a menu item to the end of this menu.
   ///
   /// ## Platform-specific:
@@ -261,10 +243,9 @@ impl<R: Runtime> Menu<R> {
   /// [`Submenu`]: super::Submenu
   pub fn append(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().append(kind.inner().inner_muda())
-    })?
-    .map_err(Into::into)
+    self
+      .with_inner_blocking(move |i| i.append(kind.inner().inner_muda()))?
+      .map_err(Into::into)
   }
 
   /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop internally.
@@ -291,10 +272,9 @@ impl<R: Runtime> Menu<R> {
   /// [`Submenu`]: super::Submenu
   pub fn prepend(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().prepend(kind.inner().inner_muda())
-    })?
-    .map_err(Into::into)
+    self
+      .with_inner_blocking(move |i| i.prepend(kind.inner().inner_muda()))?
+      .map_err(Into::into)
   }
 
   /// Add menu items to the beginning of this menu. It calls [`Menu::insert_items`] with position of `0` internally.
@@ -317,10 +297,9 @@ impl<R: Runtime> Menu<R> {
   /// [`Submenu`]: super::Submenu
   pub fn insert(&self, item: &dyn IsMenuItem<R>, position: usize) -> crate::Result<()> {
     let kind = item.kind();
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .insert(kind.inner().inner_muda(), position))?
-    .map_err(Into::into)
+    self
+      .with_inner_blocking(move |i| i.insert(kind.inner().inner_muda(), position))?
+      .map_err(Into::into)
   }
 
   /// Insert menu items at the specified `position` in the menu.
@@ -341,19 +320,17 @@ impl<R: Runtime> Menu<R> {
   /// Remove a menu item from this menu.
   pub fn remove(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().remove(kind.inner().inner_muda())
-    })?
-    .map_err(Into::into)
+    self
+      .with_inner_blocking(move |i| i.remove(kind.inner().inner_muda()))?
+      .map_err(Into::into)
   }
 
   /// Remove the menu item at the specified position from this menu and returns it.
   pub fn remove_at(&self, position: usize) -> crate::Result<Option<MenuItemKind<R>>> {
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0)
-        .as_ref()
-        .remove_at(position)
-        .map(|i| MenuItemKind::from_muda(self_.0.app_handle.clone(), i))
+    let app_handle = self.app_handle().clone();
+    self.with_inner_blocking(move |i| {
+      i.remove_at(position)
+        .map(|i| MenuItemKind::from_muda(app_handle, i))
     })
   }
 
@@ -372,12 +349,11 @@ impl<R: Runtime> Menu<R> {
 
   /// Returns a list of menu items that has been added to this menu.
   pub fn items(&self) -> crate::Result<Vec<MenuItemKind<R>>> {
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0)
-        .as_ref()
-        .items()
+    let app_handle = self.app_handle().clone();
+    self.with_inner_blocking(move |i| {
+      i.items()
         .into_iter()
-        .map(|i| MenuItemKind::from_muda(self_.0.app_handle.clone(), i))
+        .map(|i| MenuItemKind::from_muda(app_handle.clone(), i))
         .collect::<Vec<_>>()
     })
   }

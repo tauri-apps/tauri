@@ -84,13 +84,13 @@ cookie = "0.18"
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.19", default-features = false, features = [
+muda = { version = "0.20", default-features = false, features = [
   "serde",
-  "gtk",
+  "gtk3",
 ] }
-tray-icon = { version = "0.24", default-features = false, features = [
+tray-icon = { version = "0.25", default-features = false, features = [
   "serde",
-  "gtk",
+  "muda-gtk3",
 ], optional = true }
 
 # linux
@@ -195,7 +195,7 @@ unstable = ["tauri-runtime-wry?/unstable"]
 x11 = ["tauri-runtime-wry?/x11"]
 dbus = ["tauri-runtime-wry?/dbus"]
 common-controls-v6 = [
-  "tray-icon?/common-controls-v6",
+  "tray-icon?/muda-common-controls-v6",
   "muda/common-controls-v6",
   "tauri-runtime-wry?/common-controls-v6",
 ]
@@ -206,7 +206,7 @@ compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
-linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
+linux-libxdo = ["tray-icon/muda-libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 # TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384

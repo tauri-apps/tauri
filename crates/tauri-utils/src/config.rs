@@ -3477,7 +3477,8 @@ pub struct AppConfig {
   ///   which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.
   /// - **Windows**: Relative paths also work for per-user NSIS installers,
   ///   but not for per-machine installers in `Program Files`.
-  /// - **Android / iOS**: Unsupported, the override is ignored.
+  /// - **Android / iOS**: Relative paths are not supported, since there is no writable directory next to the executable.
+  ///   Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.
   #[serde(alias = "app-directories-override")]
   pub app_directories_override: Option<AppDirectoriesOverride>,
 }

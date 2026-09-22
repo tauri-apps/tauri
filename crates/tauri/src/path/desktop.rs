@@ -2,34 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{Error, Result};
-use crate::{AppHandle, Manager, Runtime, path::BaseDirectory};
-use std::path::{Component, Path, PathBuf};
-use tauri_utils::config::AppDirectoriesOverride;
+use super::{AppDirectory, Error, Result};
+use crate::{AppHandle, Manager, Runtime};
+use std::path::{Path, PathBuf};
 
 /// The path resolver is a helper class for general and application-specific path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) AppHandle<R>);
-
-/// An app-specific directory that can be overridden with the `app > appDirectoriesOverride` config.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AppDirectory {
-  Config,
-  Data,
-  LocalData,
-  Cache,
-  Log,
-}
-
-impl AppDirectory {
-  /// The subdirectory this directory resolves to when a single root overrides all app directories.
-  fn root_override_subdirectory(self) -> Option<&'static str> {
-    match self {
-      Self::Cache => Some("caches"),
-      Self::Log => Some("logs"),
-      Self::Config | Self::Data | Self::LocalData => None,
-    }
-  }
-}
 
 impl<R: Runtime> Clone for PathResolver<R> {
   fn clone(&self) -> Self {
@@ -336,114 +314,16 @@ impl<R: Runtime> PathResolver<R> {
     Ok(std::env::temp_dir())
   }
 
-  /// Resolves an app directory, honoring the `app > appDirectoriesOverride` config.
-  fn app_dir(
-    &self,
-    dir: AppDirectory,
-    default: impl FnOnce() -> Result<PathBuf>,
-  ) -> Result<PathBuf> {
-    match self.app_directory_override(dir)? {
-      Some(path) => Ok(path),
-      None => default(),
-    }
-  }
-
-  /// Resolves the override configured for the given app directory, if any.
-  ///
-  /// Mobile apps are sandboxed, so the override is ignored on iOS.
-  fn app_directory_override(&self, dir: AppDirectory) -> Result<Option<PathBuf>> {
-    if cfg!(target_os = "ios") {
-      return Ok(None);
-    }
-
-    let Some(config) = &self.0.config().app.app_directories_override else {
-      return Ok(None);
-    };
-
-    let (path, subdirectory) = match config {
-      AppDirectoriesOverride::Root(root) => (root, dir.root_override_subdirectory()),
-      AppDirectoriesOverride::Directories(directories) => {
-        let path = match dir {
-          AppDirectory::Config => &directories.config,
-          AppDirectory::Data => &directories.data,
-          AppDirectory::LocalData => &directories.local_data,
-          AppDirectory::Cache => &directories.cache,
-          AppDirectory::Log => &directories.log,
-        };
-        match path {
-          Some(path) => (path, None),
-          None => return Ok(None),
-        }
-      }
-    };
-
-    let mut path = self.resolve_override_path(path)?;
-    if let Some(subdirectory) = subdirectory {
-      path.push(subdirectory);
-    }
-
-    Ok(Some(path))
-  }
-
-  /// Resolves a path from the `app > appDirectoriesOverride` config:
-  ///
-  /// - a path starting with a base directory variable (e.g. `$DATA/my-app`) is resolved against that directory,
-  /// - an absolute path is used as is,
-  /// - any other path is resolved relative to the [app binary directory](Self::app_binary_dir).
-  fn resolve_override_path(&self, path: &Path) -> Result<PathBuf> {
-    let mut components = path.components();
-    let first = components.next();
-
-    if let Some(Component::Normal(first)) = first {
-      if let Some(variable) = first.to_str().filter(|s| s.starts_with('$')) {
-        let base_directory = BaseDirectory::from_variable(variable).ok_or_else(|| {
-          Error::InvalidAppDirectoriesOverride(
-            path.to_path_buf(),
-            format!("unknown base directory variable `{variable}`"),
-          )
-        })?;
-
-        if matches!(
-          base_directory,
-          BaseDirectory::AppConfig
-            | BaseDirectory::AppData
-            | BaseDirectory::AppLocalData
-            | BaseDirectory::AppCache
-            | BaseDirectory::AppLog
-        ) {
-          return Err(Error::InvalidAppDirectoriesOverride(
-            path.to_path_buf(),
-            format!("`{variable}` refers to an app directory, which is what is being overridden"),
-          ));
-        }
-
-        // unlike `parse`, `resolve` keeps `..` components
-        return self
-          .resolve(components.as_path(), base_directory)
-          .map(normalize);
-      }
-    }
-
-    if path.is_absolute() {
-      return Ok(normalize(path));
-    }
-
-    // Windows root-relative (`\foo`) and drive-relative (`C:foo`) paths would replace the base directory on join
-    if path.has_root() || matches!(first, Some(Component::Prefix(_))) {
-      return Err(Error::InvalidAppDirectoriesOverride(
-        path.to_path_buf(),
-        "root-relative and drive-relative paths are not supported".into(),
-      ));
-    }
-
-    Ok(normalize(self.app_binary_dir()?.join(path)))
+  pub(super) fn app_handle(&self) -> &AppHandle<R> {
+    &self.0
   }
 
   /// The directory relative app directory overrides are resolved against: the directory containing the app binary.
   ///
   /// When running from an AppImage on Linux, this is the directory containing the AppImage file,
   /// and when running from a `.app` bundle on macOS, the directory containing the bundle.
-  fn app_binary_dir(&self) -> Result<PathBuf> {
+  #[cfg(desktop)]
+  pub(super) fn app_binary_dir(&self) -> Result<PathBuf> {
     let binary = crate::process::current_binary(&self.0.env())?;
     let dir = binary.parent().ok_or(Error::NoParent)?;
 
@@ -454,11 +334,6 @@ impl<R: Runtime> PathResolver<R> {
 
     Ok(dir.to_path_buf())
   }
-}
-
-/// Removes `.` components and trailing separators from a path, keeping `..` components.
-fn normalize(path: impl AsRef<Path>) -> PathBuf {
-  path.as_ref().components().collect()
 }
 
 /// For a `<dir>/<name>.app/Contents/MacOS` directory, returns `<dir>`.
@@ -486,10 +361,12 @@ fn macos_bundle_parent(macos_dir: &Path) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::path::normalize;
   use crate::{
     App,
     test::{MockRuntime, mock_builder, mock_context, noop_assets},
   };
+  use std::path::Component;
   use tauri_utils::config::{AppDirectoriesOverride, AppDirectoryOverrides};
 
   const IDENTIFIER: &str = "com.tauri.test";

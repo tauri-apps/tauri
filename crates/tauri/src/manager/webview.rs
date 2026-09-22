@@ -11,7 +11,7 @@ use std::{
 };
 
 use serde::Serialize;
-use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 use tauri_runtime::{
   webview::{DetachedWebview, InitializationScript, PendingWebview},
   window::DragDropEvent,
@@ -20,19 +20,19 @@ use tauri_utils::config::WebviewUrl;
 use url::Url;
 
 use crate::{
+  EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview, Window,
   app::{GlobalWebviewEventListener, OnPageLoad, UriSchemeResponder, WebviewEvent},
   ipc::InvokeHandler,
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview, Window,
 };
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use crate::app::OnWebContentProcessTerminate;
 
 use super::{
-  window::{DragDropPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT},
+  window::{DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT, DragDropPayload},
   {AppManager, EmitPayload},
 };
 
@@ -73,6 +73,8 @@ pub struct WebviewManager<R: Runtime> {
   pub invoke_handler: Box<InvokeHandler<R>>,
   /// The page load hook, invoked when the webview performs a navigation.
   pub on_page_load: Option<Arc<OnPageLoad<R>>>,
+  /// The permission request hook, invoked when the webview requests a permission.
+  pub on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
   /// The web content process termination hook.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
@@ -248,8 +250,7 @@ impl<R: Runtime> WebviewManager<R> {
       && window_url.scheme() != "http"
       && window_url.scheme() != "https"
     {
-      let https = if use_https_scheme { "https" } else { "http" };
-      format!("{https}://{}.localhost", window_url.scheme())
+      crate::protocol::origin(window_url.scheme(), use_https_scheme)
     } else if let Some(host) = window_url.host() {
       format!(
         "{}://{}{}",
@@ -310,6 +311,30 @@ impl<R: Runtime> WebviewManager<R> {
         }
       }));
 
+    let permission_request_handler = pending.permission_request_handler.take();
+    if permission_request_handler.is_some() || self.on_permission_request.is_some() {
+      let label_ = pending.label.clone();
+      let app_manager_ = manager.manager_owned();
+      pending
+        .permission_request_handler
+        .replace(Box::new(move |kind| {
+          if let Some(handler) = &permission_request_handler {
+            let response = handler(kind);
+            if response != crate::webview::PermissionResponse::Default {
+              return response;
+            }
+          }
+
+          if let Some(w) = app_manager_.get_webview(&label_) {
+            if let Some(on_permission_request) = &app_manager_.webview.on_permission_request {
+              return on_permission_request(w, kind);
+            }
+          }
+
+          crate::webview::PermissionResponse::Default
+        }));
+    }
+
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     if pending.on_web_content_process_terminate_handler.is_none() {
       let app_manager_ = manager.manager_owned();
@@ -336,7 +361,7 @@ impl<R: Runtime> WebviewManager<R> {
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let asset_scope = app_manager
-        .state()
+        .state
         .get::<crate::Scopes>()
         .asset_protocol
         .clone();

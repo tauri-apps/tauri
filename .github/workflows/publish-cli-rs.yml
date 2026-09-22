@@ -10,6 +10,9 @@ on:
   repository_dispatch:
     types: [publish-clirs]
 
+permissions:
+  contents: write # required to create new releases
+
 jobs:
   build:
     runs-on: ${{ matrix.config.os }}
@@ -45,18 +48,13 @@ jobs:
             cross: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: 'Setup Rust'
         if: ${{ !matrix.config.cross }}
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
-
-      - uses: Swatinem/rust-cache@v2
-        if: ${{ !matrix.config.cross }}
-        with:
-          key: ${{ matrix.config.rust_target }}
 
       - name: install Linux dependencies
         if: ${{ !matrix.config.cross && startsWith(matrix.config.os, 'ubuntu') }}
@@ -99,7 +97,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download built CLIs
         uses: actions/download-artifact@v4.1.7

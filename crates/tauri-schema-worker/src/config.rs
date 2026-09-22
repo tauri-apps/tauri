@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+// axum Error is too large
+#![allow(clippy::result_large_err)]
+
 use anyhow::Context;
 use axum::{
+  Router,
   extract::Path,
-  http::{header, HeaderValue, StatusCode},
+  http::{HeaderValue, StatusCode, header},
   response::{IntoResponse, Result},
   routing::get,
-  Router,
 };
 use semver::{Version, VersionReq};
 use serde::Deserialize;

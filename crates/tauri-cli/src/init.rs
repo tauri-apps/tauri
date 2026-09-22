@@ -3,27 +3,28 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  VersionMetadata,
   helpers::{
-    framework::{infer_from_package_json as infer_framework, Framework},
+    framework::{Framework, infer_from_package_json as infer_framework},
     npm::PackageManager,
     prompts, resolve_tauri_path, template,
   },
-  VersionMetadata,
 };
 use std::{
   collections::BTreeMap,
   env::current_dir,
   fs::{read_to_string, remove_dir_all},
-  path::PathBuf,
+  io::IsTerminal,
+  path::{Path, PathBuf},
 };
 
 use crate::{
-  error::{Context, ErrorExt},
   Result,
+  error::{Context, ErrorExt},
 };
 use clap::Parser;
-use handlebars::{to_json, Handlebars};
-use include_dir::{include_dir, Dir};
+use handlebars::{Handlebars, to_json};
+use include_dir::{Dir, include_dir};
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
@@ -75,6 +76,9 @@ struct InitDefaults {
 
 impl Options {
   fn load(mut self) -> Result<Self> {
+    if !std::io::stdin().is_terminal() {
+      self.ci = true;
+    }
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
@@ -142,7 +146,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend dev command?",
+          "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
           Some(default_dev_command(detected_package_manager).into()),
           self.ci,
           true,
@@ -154,7 +158,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend build command?",
+          "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
           Some(default_build_command(detected_package_manager).into()),
           self.ci,
           true,
@@ -200,47 +204,11 @@ pub fn command(mut options: Options) -> Result<()> {
       template_target_path
     );
   } else {
-    let (tauri_dep, tauri_build_dep, tauri_utils_dep, tauri_plugin_dep) =
-      if let Some(tauri_path) = &options.tauri_path {
-        (
-          format!(
-            r#"{{  path = {:?} }}"#,
-            resolve_tauri_path(tauri_path, "crates/tauri")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-build")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-utils")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-plugin")
-          ),
-        )
-      } else {
-        (
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
-          r#"{{ version = "2" }}"#.to_string(),
-          r#"{{ version = "2" }}"#.to_string(),
-        )
-      };
-
     let _ = remove_dir_all(&template_target_path);
     let mut handlebars = Handlebars::new();
     handlebars.register_escape_fn(handlebars::no_escape);
 
-    let mut data = BTreeMap::new();
-    data.insert("tauri_dep", to_json(tauri_dep));
-    if options.tauri_path.is_some() {
-      data.insert("patch_tauri_dep", to_json(true));
-    }
-    data.insert("tauri_build_dep", to_json(tauri_build_dep));
-    data.insert("tauri_utils_dep", to_json(tauri_utils_dep));
-    data.insert("tauri_plugin_dep", to_json(tauri_plugin_dep));
+    let mut data = tauri_dependencies_data(options.tauri_path.as_deref(), &metadata);
     data.insert(
       "frontend_dist",
       to_json(options.frontend_dist.as_deref().unwrap_or("../dist")),
@@ -320,4 +288,178 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   Ok(())
+}
+
+/// Builds the template variables for the Tauri crate dependencies of the generated `Cargo.toml`.
+///
+/// `tauri_dep` and `tauri_build_dep` are always set.
+///
+/// When `tauri_path` is provided the dependencies point to the crates inside that directory
+/// and `patch_tauri_dep`, `tauri_utils_dep` and `tauri_plugin_dep` are also set so the template
+/// renders a `[patch.crates-io]` section overriding the Tauri crates pulled in by other dependencies.
+/// Without a path the template never renders that section, so those variables are not needed.
+fn tauri_dependencies_data(
+  tauri_path: Option<&Path>,
+  metadata: &VersionMetadata,
+) -> BTreeMap<&'static str, serde_json::Value> {
+  let mut data = BTreeMap::new();
+  if let Some(tauri_path) = tauri_path {
+    let path_dep = |crate_dir: &str| {
+      to_json(format!(
+        "{{  path = {:?} }}",
+        resolve_tauri_path(tauri_path, crate_dir)
+      ))
+    };
+    data.insert("tauri_dep", path_dep("crates/tauri"));
+    data.insert("tauri_build_dep", path_dep("crates/tauri-build"));
+    data.insert("patch_tauri_dep", to_json(true));
+    data.insert("tauri_utils_dep", path_dep("crates/tauri-utils"));
+    data.insert("tauri_plugin_dep", path_dep("crates/tauri-plugin"));
+  } else {
+    data.insert(
+      "tauri_dep",
+      to_json(format!(r#"{{ version = "{}" }}"#, metadata.tauri)),
+    );
+    data.insert(
+      "tauri_build_dep",
+      to_json(format!(r#"{{ version = "{}" }}"#, metadata.tauri_build)),
+    );
+  }
+  data
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  /// The version metadata shipped with the CLI, the same source `command` uses.
+  fn metadata() -> VersionMetadata {
+    serde_json::from_str(include_str!("../metadata-v2.json"))
+      .expect("failed to parse version metadata")
+  }
+
+  /// Renders the app `Cargo.toml` template with the same handlebars setup used by `command`.
+  fn render_manifest(data: &BTreeMap<&'static str, serde_json::Value>) -> toml::Table {
+    let template = TEMPLATE_DIR
+      .get_file("src-tauri/Cargo.crate-manifest")
+      .expect("app template is missing src-tauri/Cargo.crate-manifest")
+      .contents_utf8()
+      .expect("Cargo manifest template is not UTF-8");
+
+    let mut handlebars = Handlebars::new();
+    handlebars.register_escape_fn(handlebars::no_escape);
+    let rendered = handlebars
+      .render_template(template, data)
+      .expect("failed to render Cargo manifest template");
+
+    assert!(
+      !rendered.contains("{{") && !rendered.contains("}}"),
+      "rendered manifest contains handlebars braces:\n{rendered}"
+    );
+
+    toml::from_str(&rendered)
+      .unwrap_or_else(|e| panic!("rendered manifest is not valid TOML: {e}\n{rendered}"))
+  }
+
+  fn dependency<'a>(manifest: &'a toml::Table, section: &str, name: &str) -> &'a toml::Table {
+    manifest
+      .get(section)
+      .and_then(|s| s.get(name))
+      .and_then(|d| d.as_table())
+      .unwrap_or_else(|| panic!("[{section}] is missing the `{name}` table"))
+  }
+
+  fn assert_path_dependency(dep: &toml::Table, tauri_path: &Path, crate_dir: &str) {
+    assert!(
+      !dep.contains_key("version"),
+      "path dependency must not carry a version: {dep:?}"
+    );
+    let path = dep
+      .get("path")
+      .and_then(|p| p.as_str())
+      .unwrap_or_else(|| panic!("dependency is missing a string `path`: {dep:?}"));
+    assert_eq!(Path::new(path), resolve_tauri_path(tauri_path, crate_dir));
+  }
+
+  fn assert_manifest_uses_path(manifest: &toml::Table, tauri_path: &Path) {
+    assert_path_dependency(
+      dependency(manifest, "dependencies", "tauri"),
+      tauri_path,
+      "crates/tauri",
+    );
+    assert_path_dependency(
+      dependency(manifest, "build-dependencies", "tauri-build"),
+      tauri_path,
+      "crates/tauri-build",
+    );
+
+    let patch = manifest
+      .get("patch")
+      .and_then(|p| p.get("crates-io"))
+      .and_then(|p| p.as_table())
+      .expect("[patch.crates-io] must be rendered for path dependencies");
+    assert_eq!(
+      patch.len(),
+      3,
+      "unexpected [patch.crates-io] entries: {patch:?}"
+    );
+    for (name, crate_dir) in [
+      ("tauri", "crates/tauri"),
+      ("tauri-utils", "crates/tauri-utils"),
+      ("tauri-plugin", "crates/tauri-plugin"),
+    ] {
+      let dep = patch
+        .get(name)
+        .and_then(|d| d.as_table())
+        .unwrap_or_else(|| panic!("[patch.crates-io] is missing `{name}`"));
+      assert_path_dependency(dep, tauri_path, crate_dir);
+    }
+  }
+
+  #[test]
+  fn version_dependencies() {
+    let metadata = metadata();
+    let data = tauri_dependencies_data(None, &metadata);
+    assert!(
+      !data.contains_key("patch_tauri_dep"),
+      "patch_tauri_dep must only be set for path dependencies"
+    );
+
+    let manifest = render_manifest(&data);
+
+    let tauri = dependency(&manifest, "dependencies", "tauri");
+    assert_eq!(
+      tauri.get("version").and_then(|v| v.as_str()),
+      Some(metadata.tauri.as_str())
+    );
+    assert!(!tauri.contains_key("path"));
+
+    let tauri_build = dependency(&manifest, "build-dependencies", "tauri-build");
+    assert_eq!(
+      tauri_build.get("version").and_then(|v| v.as_str()),
+      Some(metadata.tauri_build.as_str())
+    );
+    assert!(!tauri_build.contains_key("path"));
+
+    assert!(
+      !manifest.contains_key("patch"),
+      "[patch.crates-io] must not be rendered for version dependencies"
+    );
+  }
+
+  #[test]
+  fn relative_path_dependencies() {
+    let tauri_path = Path::new("tauri-src");
+    let manifest = render_manifest(&tauri_dependencies_data(Some(tauri_path), &metadata()));
+    assert_manifest_uses_path(&manifest, tauri_path);
+  }
+
+  #[test]
+  fn absolute_path_dependencies() {
+    // absolute paths are written as-is; on Windows this covers backslash escaping
+    let tauri_path = std::env::current_dir().unwrap().join("tauri-src");
+    assert!(tauri_path.is_absolute());
+    let manifest = render_manifest(&tauri_dependencies_data(Some(&tauri_path), &metadata()));
+    assert_manifest_uses_path(&manifest, &tauri_path);
+  }
 }

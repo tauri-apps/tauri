@@ -16,8 +16,8 @@
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::config::Color;
 use tauri_utils::Theme;
+use tauri_utils::config::Color;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
@@ -26,6 +26,7 @@ pub mod dpi;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
+mod webview_permissions;
 pub mod window;
 
 use dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size};
@@ -90,6 +91,15 @@ pub enum UserAttentionType {
   Informational,
 }
 
+/// Defines which device events (raw input from mice, keyboards and other HID devices that is not
+/// bound to a specific window) the event loop should deliver to the application.
+///
+/// Listening to device events can be expensive, so the runtime filters them out by default
+/// while the application has no focused window. See [`crate::Runtime::set_device_event_filter`].
+///
+/// ## Platform-specific
+///
+/// - **Linux / macOS / iOS / Android**: Unsupported, device events are always filtered out.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "type")]
 pub enum DeviceEventFilter {
@@ -115,6 +125,12 @@ pub enum ResizeDirection {
   West,
 }
 
+/// Errors returned by the webview runtime.
+///
+/// These are surfaced to Tauri applications wrapped in
+/// [`tauri::Error::Runtime`](https://docs.rs/tauri/latest/tauri/enum.Error.html).
+///
+/// This enum is `#[non_exhaustive]`: new variants can be added in minor releases.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -314,13 +330,13 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
-  fn primary_monitor(&self) -> Option<Monitor>;
+  fn primary_monitor(&self) -> Result<Option<Monitor>>;
 
   /// Returns the monitor that contains the given point.
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>>;
 
   /// Returns the list of all the monitors available on the system.
-  fn available_monitors(&self) -> Vec<Monitor>;
+  fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
   /// Get the cursor position relative to the top-left hand corner of the desktop.
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
@@ -475,6 +491,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
+
+  /// Sets whether the application activates when launched while another application is already active.
+  ///
+  /// This API must be called before the event loop starts.
+  ///
+  /// If `false`, the app activates only if no other app is currently active.
+  /// If `true`, the app activates regardless.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
 
   /// Sets the dock visibility for the application.
   #[cfg(target_os = "macos")]
@@ -909,6 +935,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window fullscreen state.
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
+
+  /// Sets the window as fullscreen on the monitor that contains the given physical position.
+  ///
+  /// Does nothing if no monitor contains the position.
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()>;
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()>;

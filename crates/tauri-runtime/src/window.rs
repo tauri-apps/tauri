@@ -5,15 +5,15 @@
 //! A layer between raw [`Runtime`] windows and Tauri.
 
 use crate::{
-  webview::{DetachedWebview, PendingWebview},
   Icon, Runtime, UserEvent, WindowDispatch,
+  webview::{DetachedWebview, PendingWebview},
 };
 
 use dpi::PixelUnit;
 use serde::{Deserialize, Deserializer, Serialize};
 use tauri_utils::{
-  config::{Color, WindowConfig},
   Theme,
+  config::{Color, WindowConfig},
 };
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -71,6 +71,7 @@ pub enum WindowEvent {
   /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
   /// - **Linux / macOS / Windows**: Unsupported.
   #[cfg(mobile)]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "android", target_os = "ios"))))]
   Suspended,
 
   /// Emitted when the application has been resumed.
@@ -81,6 +82,7 @@ pub enum WindowEvent {
   /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
   /// - **Linux / macOS / Windows**: Unsupported.
   #[cfg(mobile)]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "android", target_os = "ios"))))]
   Resumed,
 }
 

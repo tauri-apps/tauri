@@ -2,7 +2,7 @@
 name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
-edition = "2021"
+edition = "2024"
 rust-version = "1.90"
 license = "Apache-2.0 OR MIT"
 
@@ -11,7 +11,7 @@ name = "api_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { path = "../../../crates/tauri-build", features = [
+tauri-build = { workspace = true, default-features = true, features = [
   "codegen",
   "isolation",
 ] }
@@ -23,8 +23,15 @@ log = "0.4.21"
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 tauri-plugin-log = "2"
 
+# WebDriver automation bridge, used by the `@tauri-apps/api` e2e suite (packages/api-e2e).
+# Desktop-only and behind the off-by-default `automation` feature so it never ships in a
+# regular build.
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-automation = { version = "0.2", optional = true }
+
 [dependencies.tauri]
-path = "../../../crates/tauri"
+workspace = true
+default-features = true
 features = [
   "protocol-asset",
   "image-ico",
@@ -35,8 +42,10 @@ features = [
 ]
 
 [dev-dependencies.tauri]
-path = "../../../crates/tauri"
+workspace = true
 features = ["test"]
 
 [features]
 prod = ["tauri/custom-protocol"]
+# Enables the WebDriver automation bridge; set by the e2e suite's build (packages/api-e2e).
+automation = ["dep:tauri-plugin-automation"]

@@ -10,9 +10,9 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{
+  App, Emitter, Listener, Runtime, WebviewUrl,
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
-  App, Emitter, Listener, Runtime, WebviewUrl,
 };
 #[allow(unused)]
 use tauri::{Manager, RunEvent};
@@ -38,6 +38,13 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   builder: tauri::Builder<R>,
   setup: F,
 ) {
+  // WebDriver automation bridge for the `@tauri-apps/api` e2e suite (packages/api-e2e).
+  // Registered as early as possible per the plugin's docs. Behind the off-by-default
+  // `automation` feature, and `not(test)` so it never interferes with the mock-runtime
+  // unit test below.
+  #[cfg(all(desktop, feature = "automation", not(test)))]
+  let builder = builder.plugin(tauri_plugin_automation::init());
+
   let builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
@@ -67,6 +74,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       #[allow(unused_mut)]
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .disable_drag_drop_handler()
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
         });
@@ -104,10 +112,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           });
       }
 
-      let webview = window_builder.build()?;
-
-      #[cfg(debug_assertions)]
-      webview.open_devtools();
+      let _webview = window_builder.build()?;
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {
@@ -118,8 +123,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         }),
       });
       log::info!("got response: {response:?}");
-      // when #[cfg(desktop)], Rust will detect pattern as irrefutable
-      #[allow(irrefutable_let_patterns)]
       if let Ok(res) = response {
         assert_eq!(res.value, value);
       }
@@ -160,13 +163,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   #[cfg(target_os = "ios")]
   let mut counter = 0;
-  app.run(move |_app_handle, _event| {
-    #[cfg(not(test))]
-    match &_event {
+  app.run(move |_app_handle, event| {
+    match event {
       // Keep the event loop running even if all windows are closed
       // This allow us to catch tray icon events when there is no window
       // if we manually requested an exit (code is Some(_)) we will let it go through
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
         api.prevent_exit();
       }
@@ -181,7 +183,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         // usually you'd show a dialog here to ask for confirmation or whatever
         api.prevent_close();
         _app_handle
-          .get_webview_window(label)
+          .get_webview_window(&label)
           .unwrap()
           .destroy()
           .unwrap();

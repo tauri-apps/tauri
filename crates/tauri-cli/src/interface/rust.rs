@@ -11,7 +11,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
-  sync::{mpsc::sync_channel, Arc, Mutex},
+  sync::{Arc, Mutex, mpsc::sync_channel},
   time::Duration,
 };
 
@@ -25,16 +25,16 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
+use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
 
 use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
-  error::{bail, Context, Error, ErrorExt},
+  ConfigValue,
+  error::{Context, Error, ErrorExt, bail},
   helpers::{
     app_paths::Dirs,
-    config::{nsis_settings, reload_config, wix_settings, BundleResources, Config, ConfigMetadata},
+    config::{BundleResources, Config, ConfigMetadata, nsis_settings, reload_config, wix_settings},
   },
-  ConfigValue,
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -44,7 +44,7 @@ pub mod installation;
 pub mod manifest;
 use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
-use manifest::{rewrite_manifest, Manifest};
+use manifest::{Manifest, rewrite_manifest};
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
@@ -160,10 +160,12 @@ impl Rust {
       .as_ref()
       .is_some_and(|target| target.ends_with("ios") || target.ends_with("ios-sim"));
     if target_ios {
-      std::env::set_var(
-        "IPHONEOS_DEPLOYMENT_TARGET",
-        &config.bundle.ios.minimum_system_version,
-      );
+      unsafe {
+        std::env::set_var(
+          "IPHONEOS_DEPLOYMENT_TARGET",
+          &config.bundle.ios.minimum_system_version,
+        )
+      };
     }
 
     let app_settings = RustAppSettings::new(config, manifest, target, tauri_dir)?;
@@ -899,26 +901,6 @@ impl AppSettings for RustAppSettings {
       });
     }
 
-    if let Some(open) = config.plugins.0.get("shell").and_then(|v| v.get("open")) {
-      if open.as_bool().is_some_and(|x| x) || open.is_string() {
-        settings.appimage.bundle_xdg_open = true;
-      }
-    }
-
-    if let Some(deps) = self
-      .manifest
-      .lock()
-      .unwrap()
-      .inner
-      .as_table()
-      .get("dependencies")
-      .and_then(|f| f.as_table())
-    {
-      if deps.contains_key("tauri-plugin-opener") {
-        settings.appimage.bundle_xdg_open = true;
-      };
-    }
-
     Ok(settings)
   }
 
@@ -1080,7 +1062,7 @@ impl RustAppSettings {
       None => {
         return Err(crate::Error::GenericError(
           "No package info in the config file".to_owned(),
-        ))
+        ));
       }
     };
 
@@ -1903,6 +1885,7 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn parse_target_dir_from_opts() {
     let dirs = crate::helpers::app_paths::resolve_dirs();
     let current_dir = std::env::current_dir().unwrap();
@@ -1958,7 +1941,7 @@ mod tests {
 
     #[cfg(windows)]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir");
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("D:\\path\\to\\env\\dir\\release")
@@ -1971,7 +1954,7 @@ mod tests {
 
     #[cfg(not(windows))]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir");
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("/path/to/env/dir/release")

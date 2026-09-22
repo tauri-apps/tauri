@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::{Context, ErrorExt},
-  helpers::config::{reload_config, Config as TauriConfig, ConfigMetadata},
-  interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
   ConfigValue, Error, Result,
+  error::{Context, ErrorExt},
+  helpers::config::{Config as TauriConfig, ConfigMetadata, reload_config},
+  interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
 };
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
@@ -16,10 +16,10 @@ use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 
 use cargo_mobile2::{
+  ChildHandle,
   config::app::{App, Raw as RawAppConfig},
   env::Error as EnvError,
   opts::{NoiseLevel, Profile},
-  ChildHandle,
 };
 use std::{
   collections::HashMap,
@@ -29,11 +29,11 @@ use std::{
   fs::{read_to_string, write},
   net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
   path::{Path, PathBuf},
-  process::{exit, ExitStatus},
+  process::{ExitStatus, exit},
   str::FromStr,
   sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, OnceLock,
+    atomic::{AtomicBool, Ordering},
   },
 };
 use tokio::runtime::Runtime;
@@ -292,8 +292,8 @@ fn use_network_address_for_dev_url(
   };
 
   if let Some(ip) = ip {
-    std::env::set_var("TAURI_DEV_HOST", ip.to_string());
-    std::env::set_var("TRUNK_SERVE_ADDRESS", ip.to_string());
+    unsafe { std::env::set_var("TAURI_DEV_HOST", ip.to_string()) };
+    unsafe { std::env::set_var("TRUNK_SERVE_ADDRESS", ip.to_string()) };
     if ip.is_ipv6() {
       // in this case we can't ping the server for some reason
       dev_url_config.no_dev_server_wait = true;
@@ -403,7 +403,7 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
     .expect("failed to read CLI options");
 
   for (k, v) in &options.vars {
-    set_var(k, v);
+    unsafe { set_var(k, v) };
   }
   options
 }
@@ -492,7 +492,6 @@ fn ensure_init(
         .join("app/src/main/java")
         .join(tauri_config.identifier.replace('.', "/").replace('-', "_"));
       if java_folder.exists() {
-        #[cfg(unix)]
         ensure_gradlew(&project_dir)?;
       } else {
         project_outdated_reasons
@@ -575,36 +574,57 @@ fn ensure_init(
   if !project_outdated_reasons.is_empty() {
     let reason = project_outdated_reasons.join(" and ");
     crate::error::bail!(
-        "{} project directory is outdated because {reason}. Please delete {}, run `tauri {} init` and try again.",
-        target.ide_name(),
-        project_dir.display(),
-        target.command_name(),
-      )
+      "{} project directory is outdated because {reason}. Please delete {}, run `tauri {} init` and try again.",
+      target.ide_name(),
+      project_dir.display(),
+      target.command_name(),
+    )
   }
 
   Ok(())
 }
 
-#[cfg(unix)]
 fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
-  use std::os::unix::fs::PermissionsExt;
-
   let gradlew_path = project_dir.join("gradlew");
-  if let Ok(metadata) = gradlew_path.metadata() {
-    let mut permissions = metadata.permissions();
-    let is_executable = permissions.mode() & 0o111 != 0;
-    if !is_executable {
-      permissions.set_mode(permissions.mode() | 0o111);
-      std::fs::set_permissions(&gradlew_path, permissions)
-        .fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
+
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+
+    if let Ok(metadata) = gradlew_path.metadata() {
+      let mut permissions = metadata.permissions();
+      let is_executable = permissions.mode() & 0o111 != 0;
+      if !is_executable {
+        permissions.set_mode(permissions.mode() | 0o111);
+        std::fs::set_permissions(&gradlew_path, permissions)
+          .fs_context("failed to mark gradlew as executable", &gradlew_path)?;
+      }
     }
-    std::fs::write(
-      &gradlew_path,
-      std::fs::read_to_string(&gradlew_path)
-        .fs_context("failed to read gradlew", gradlew_path.clone())?
-        .replace("\r\n", "\n"),
-    )
-    .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
+  }
+
+  // A gradlew with CRLF line endings cannot run: sh fails with
+  // "/usr/bin/env: 'sh\r': No such file or directory" or similar, which
+  // also happens under Git Bash on Windows, so the rewrite runs on all
+  // platforms (https://github.com/tauri-apps/tauri/pull/16017). Windows
+  // builds invoke gradlew.bat, so there a gradlew that cannot be
+  // rewritten only draws a warning; on unix the error is returned.
+  if gradlew_path.exists() {
+    let result = std::fs::read_to_string(&gradlew_path)
+      .fs_context("failed to read gradlew", &gradlew_path)
+      .and_then(|contents| {
+        if contents.contains("\r\n") {
+          std::fs::write(&gradlew_path, contents.replace("\r\n", "\n"))
+            .fs_context("failed to replace gradlew CRLF with LF", &gradlew_path)
+        } else {
+          Ok(())
+        }
+      });
+    #[cfg(unix)]
+    result?;
+    #[cfg(not(unix))]
+    if let Err(error) = result {
+      log::warn!("failed to normalize gradlew line endings: {error}");
+    }
   }
 
   Ok(())

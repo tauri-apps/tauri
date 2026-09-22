@@ -13,13 +13,17 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_CLI_PORT` — Port to use for the CLI built-in dev server.
 - `TAURI_CLI_WATCHER_IGNORE_FILENAME` — Name of a `.gitignore`-style file to control which files should be watched by the CLI in `dev` command. The CLI will look for this file name in each directory.
 - `TAURI_CLI_NO_DEV_SERVER_WAIT` — Skip waiting for the frontend dev server to start before building the tauri application.
+- `TAURI_APP_PATH` — Path to the Tauri application (Rust crate) directory, usually `<project>/src-tauri`. When set, the CLI uses it instead of searching for the configuration file from the current directory.
+- `TAURI_FRONTEND_PATH` — Path to the frontend directory, usually `<project>`. When set, the CLI uses it instead of inferring the frontend directory from the Tauri application directory.
+- `TAURI_CONFIG` — JSON string with configuration values to merge into `tauri.conf.json`. The CLI sets it from the `--config` argument so that `tauri-build` and `tauri-codegen` see the same merged configuration; set it yourself when compiling with `cargo` directly.
 - `TAURI_LINUX_AYATANA_APPINDICATOR` — Set this var to `true` or `1` to force usage of `libayatana-appindicator` for system tray on Linux.
 - `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` — Specify the bundler's WiX `FipsCompliant` option.
 - `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR` - Specify a GitHub mirror to download files and tools used by tauri bundler.
 - `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE` - Specify a GitHub mirror template to download files and tools used by tauri bundler, for example: `https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>`.
 - `TAURI_BUNDLER_DMG_IGNORE_CI` - Disable the check for `CI: true` in the `.dmg` bundler.
 - `TAURI_SKIP_SIDECAR_SIGNATURE_CHECK` - Skip signing sidecars.
-- `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles, can be either a string or a path to the file.
+- `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles. For the `build` and `bundle` command, can be either a string or a path to the file. For the `signer sign` command, this must be the literal key string.
+- `TAURI_SIGNING_PRIVATE_KEY_PATH` — Path to the private key file for the `signer sign` command. Mutually exclusive with `TAURI_SIGNING_PRIVATE_KEY` when using the signer command.
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — The signing private key password, see `TAURI_SIGNING_PRIVATE_KEY`.
 - `TAURI_SIGNING_RPM_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.
 - `TAURI_SIGNING_RPM_KEY_PASSPHRASE` — The GPG key passphrase for `TAURI_SIGNING_RPM_KEY`, if needed.
@@ -33,23 +37,24 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `APPLE_TEAM_ID`: Developer team ID. To find your Team ID, go to the [Account](https://developer.apple.com/account) page on the Apple Developer website, and check your membership details.
 - `APPLE_API_KEY` — Alternative to `APPLE_ID` and `APPLE_PASSWORD` for notarization authentication using JWT. Also an option to allow automated iOS certificate and provisioning profile management.
   - See [creating API keys](https://developer.apple.com/documentation/appstoreconnectapi/creating_api_keys_for_app_store_connect_api) for more information.
-- `API_PRIVATE_KEYS_DIR` — Specify the directory where your AuthKey file is located. See `APPLE_API_KEY`.
 - `APPLE_API_ISSUER` — Issuer ID. Required if `APPLE_API_KEY` is specified.
 - `APPLE_API_KEY_PATH` - path to the API key `.p8` file. If not specified, for macOS apps the bundler searches the following directories in sequence for a private key file with the name of `AuthKey\_<api_key>.p8`: `./private_keys`, `~/private_keys`, `~/.private_keys`, and `~/.appstoreconnect/private_keys`. **For iOS this variable is required**.
 - `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > bundle > macOS > signingIdentity`. If neither are set, it is inferred from `APPLE_CERTIFICATE` when provided.
 - `APPLE_PROVIDER_SHORT_NAME` — If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. Overwrites `tauri.conf.json > bundle > macOS > providerShortName`.
 - `APPLE_DEVELOPMENT_TEAM` — The team ID used to code sign on iOS. Overwrites `tauri.conf.json > bundle > iOS > developmentTeam`. Can be found in https://developer.apple.com/account#MembershipDetailsCard.
 - `TAURI_WEBVIEW_AUTOMATION` — Enables webview automation (Linux Only).
+- `TAURI_DEV_ROOT_CERTIFICATE_PATH` — Path to a PEM encoded root certificate that the application should trust when running `tauri android dev` or `tauri ios dev`. Useful when your development server is served over HTTPS with a self signed certificate.
 - `TAURI_ANDROID_PROJECT_PATH` — Path of the tauri android project, usually will be `<project>/src-tauri/gen/android`.
-- `TAURI_IOS_PROJECT_PATH` — Path of the tauri iOS project, usually will be `<project>/src-tauri/gen/ios`.
+- `TAURI_IOS_PROJECT_PATH` — Path of the tauri iOS project, usually will be `<project>/src-tauri/gen/apple`.
 
 ### Tauri CLI Hook Commands
 
 These environment variables are set for each hook command (`beforeDevCommand`, `beforeBuildCommand`, ...etc) which could be useful to conditionally build your frontend or execute a specific action.
 
-- `TAURI_ENV_DEBUG` — `true` for `dev` command or `build --debug`, `false` otherwise.
+- `TAURI_ENV_DEBUG` — `true` for the `dev` command or `build --debug`. Not set at all otherwise, so check for the presence of the variable instead of comparing it to `false`.
 - `TAURI_ENV_TARGET_TRIPLE` — Target triple the CLI is building.
 - `TAURI_ENV_ARCH` — Target arch, `x86_64`, `aarch64`...etc.
 - `TAURI_ENV_PLATFORM` — Target platform, `windows`, `darwin`, `linux`...etc.
 - `TAURI_ENV_PLATFORM_VERSION` — Build platform version
 - `TAURI_ENV_FAMILY` — Target platform family `unix` or `windows`.
+- `TAURI_DEV_HOST` — The IP address your frontend development server must listen on so the app can reach it over the network. Only set by `tauri android dev` and `tauri ios dev`, and only when `--host` is used, when running on a physical device or when `build > devUrl` points to `0.0.0.0`.

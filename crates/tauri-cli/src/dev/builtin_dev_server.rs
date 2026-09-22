@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use axum::{
-  extract::{ws, State, WebSocketUpgrade},
-  http::{header, StatusCode, Uri},
+  extract::{State, WebSocketUpgrade, ws},
+  http::{StatusCode, Uri, header},
   response::{IntoResponse, Response},
 };
 use std::{
@@ -14,7 +14,7 @@ use std::{
   time::Duration,
 };
 use tauri_utils::mime_type::MimeType;
-use tokio::sync::broadcast::{channel, Sender};
+use tokio::sync::broadcast::{Sender, channel};
 
 use crate::error::ErrorExt;
 
@@ -90,8 +90,8 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
   };
 
   let bytes = fs_read_scoped(state.dir.join(uri), &state.dir)
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}.html", &uri)), &state.dir))
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}/index.html", &uri)), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}.html")), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}/index.html")), &state.dir))
     .or_else(|_| std::fs::read(state.dir.join("index.html")));
 
   match bytes {

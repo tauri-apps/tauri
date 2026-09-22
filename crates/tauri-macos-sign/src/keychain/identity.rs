@@ -50,8 +50,8 @@ impl Team {
       organization
     } else {
       println!(
-                "found cert {common_name:?} but failed to get organization; falling back to displaying common name"
-            );
+        "found cert {common_name:?} but failed to get organization; falling back to displaying common name"
+      );
       static APPLE_DEV: OnceCell<Regex> = OnceCell::new();
       APPLE_DEV.get_or_init(|| Regex::new(r"Apple Develop\w+: (.*) \(.+\)").unwrap())
                 .captures(&common_name)

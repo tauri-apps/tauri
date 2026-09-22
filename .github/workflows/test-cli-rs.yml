@@ -25,6 +25,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ${{ matrix.platform.os }}
@@ -34,16 +37,20 @@ jobs:
       matrix:
         platform:
           - { target: x86_64-pc-windows-msvc, os: windows-latest }
+          # Same host build as the x86_64 job with the TLS features the aarch64 release uses.
+          # It restores that job's cache and only rebuilds the difference, and never saves
+          # (both jobs would otherwise race for the same cache key).
           - {
               target: aarch64-pc-windows-msvc,
               os: windows-latest,
-              args: --no-default-features --features native-tls-vendored
+              args: --no-default-features --features native-tls-vendored,
+              restore-only: true
             }
           - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
           - { target: x86_64-apple-darwin, os: macos-latest }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: 'Setup Rust'
         uses: dtolnay/rust-toolchain@1.90
@@ -57,6 +64,15 @@ jobs:
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          # One entry per platform with tauri-cli's dependencies built in the dev profile on
+          # the 1.90 toolchain. This job saves it; test-cli-js, test-api-e2e and test-android
+          # restore it (same shared-key, same CARGO_*/RUST* env, same toolchain).
+          shared-key: tauri-cli
+          # Only `dev` writes to the cache: an entry saved from a pull request lives on its
+          # merge ref, where nothing else can restore it, and every write evicts a `dev`
+          # entry that other runs would have hit (10 GB repository limit, LRU eviction).
+          save-if: ${{ github.ref == 'refs/heads/dev' && !matrix.platform.restore-only }}
 
       - name: test CLI
         run: cargo test --manifest-path ./crates/tauri-cli/Cargo.toml ${{ matrix.platform.args }}

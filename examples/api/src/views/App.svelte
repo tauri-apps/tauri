@@ -1,9 +1,8 @@
-<script>
-  import { show, hide, setTheme, setDockVisibility } from '@tauri-apps/api/app'
+<script lang="ts">
+  import { show, hide, setDockVisibility } from '@tauri-apps/api/app'
+  import type { ViewProps } from '../App.svelte'
 
-  let { onMessage } = $props()
-  /** @type {import('@tauri-apps/api/window').Theme | 'auto'} */
-  let theme = $state('auto')
+  let { onMessage }: ViewProps = $props()
   let dockVisible = $state(true)
 
   function showApp() {
@@ -24,28 +23,13 @@
       .catch(onMessage)
   }
 
-  async function switchTheme() {
-    switch (theme) {
-      case 'dark':
-        theme = 'light'
-        break
-      case 'light':
-        theme = 'auto'
-        break
-      case 'auto':
-        theme = 'dark'
-        break
-    }
-    setTheme(theme === 'auto' ? null : theme)
-  }
-
   async function toggleDockVisibility() {
     await setDockVisibility(!dockVisible)
     dockVisible = !dockVisible
   }
 </script>
 
-<div>
+<div class="flex gap-2">
   <button
     class="btn"
     id="show"
@@ -53,8 +37,7 @@
     onclick={showApp}>Show</button
   >
   <button class="btn" id="hide" onclick={hideApp}>Hide</button>
-  <button class="btn" id="switch-theme" onclick={switchTheme}
-    >Switch Theme ({theme})</button
+  <button class="btn" id="toggle-dock-visibility" onclick={toggleDockVisibility}
+    >Toggle dock visibility</button
   >
-  <button class="btn" id="toggle-dock-visibility" onclick={toggleDockVisibility}>Toggle dock visibility</button>
 </div>

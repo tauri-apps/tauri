@@ -4228,7 +4228,6 @@ fn handle_user_message<T: UserEvent>(
           label,
           has_children: AtomicBool::new(false),
           inner: Some(window.clone()),
-          window_event_listeners: Default::default(),
           webviews: Vec::new(),
           #[cfg(windows)]
           background_color,

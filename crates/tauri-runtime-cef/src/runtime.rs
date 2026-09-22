@@ -3172,7 +3172,7 @@ impl<T: UserEvent> CefRuntime<T> {
       main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
-      current_dispatch: Default::default(),
+      current_dispatch,
       app_wide_theme: Default::default(),
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),

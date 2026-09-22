@@ -322,8 +322,18 @@ function iosCapabilities(app: string): WebdriverIO.Capabilities {
     // with one, on every session — and that shutdown regularly outlasts the
     // driver's 15s limit on it.
     'appium:isHeadless': true,
-    // WebDriverAgent is compiled on the first session, which takes minutes on
-    // a CI runner.
+    // A prebuilt WebDriverAgent (Appium's release build for the simulator, see
+    // `appium driver run xcuitest download-wda -- --kind sim`) is installed and
+    // launched as is, instead of being compiled with xcodebuild on the first
+    // session, which takes minutes on a CI runner.
+    ...(process.env.E2E_IOS_WDA
+      ? {
+          'appium:usePreinstalledWDA': true,
+          'appium:prebuiltWDAPath': process.env.E2E_IOS_WDA
+        }
+      : {}),
+    // Without one, WebDriverAgent is compiled on the first session, which takes
+    // minutes on a CI runner.
     'appium:wdaLaunchTimeout': 240_000,
     'appium:wdaStartupRetries': 3,
     'appium:simulatorStartupTimeout': 240_000,

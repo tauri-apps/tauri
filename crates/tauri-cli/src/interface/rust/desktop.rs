@@ -109,7 +109,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         options,
         run_args,
         available_targets,
-        config_features.clone(),
+        config_features,
         on_exit,
         interface,
         dirs,

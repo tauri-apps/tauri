@@ -474,7 +474,7 @@ pub fn build(
   // reference them by identifier, and the inlined ones are never seen by this build script
   // otherwise. we must validate that same set so a typo in an inlined permission identifier
   // is reported here instead of panicking later on tauri-codegen's ACL resolution
-  let capabilities = get_capabilities(config, capabilities.clone(), None)
+  let capabilities = get_capabilities(config, capabilities, None)
     .context("failed to resolve the capabilities from the Tauri configuration file")?;
 
   validate_capabilities(&acl_manifests, &capabilities)?;

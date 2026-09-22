@@ -568,7 +568,7 @@ fn create_cef_helpers(bundle_directory: &Path, settings: &Settings) -> crate::Re
   let frameworks_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(&frameworks_dir).fs_context(
     "failed to create Frameworks directory for CEF helpers",
-    frameworks_dir.to_path_buf(),
+    &frameworks_dir,
   )?;
 
   let helper_binary = cef_helper::build(settings)?;
@@ -661,15 +661,13 @@ fn copy_cef_framework(bundle_directory: &Path, cef_path: &Path) -> crate::Result
   let frameworks_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(&frameworks_dir).fs_context(
     "failed to create Frameworks directory for CEF",
-    frameworks_dir.to_path_buf(),
+    &frameworks_dir,
   )?;
 
   let framework_dst = frameworks_dir.join(CEF_FRAMEWORK);
   if framework_dst.exists() {
-    fs::remove_dir_all(&framework_dst).fs_context(
-      "failed to remove existing CEF framework",
-      framework_dst.to_path_buf(),
-    )?;
+    fs::remove_dir_all(&framework_dst)
+      .fs_context("failed to remove existing CEF framework", &framework_dst)?;
   }
 
   fs_utils::copy_dir(&framework_src, &framework_dst).with_context(|| {

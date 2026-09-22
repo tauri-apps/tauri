@@ -3405,9 +3405,9 @@ pub struct AppConfig {
   ///   `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.
   ///   `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.
   /// - An absolute path is used as is.
-  /// - Any other path is resolved relative to the directory containing the executable.
-  ///   When running from an AppImage on Linux this is the directory containing the AppImage file,
-  ///   and when running from a `.app` bundle on macOS it is the directory containing the bundle.
+  /// - Any other path is resolved relative to the directory containing the executable
+  ///   (the directory containing the AppImage file on Linux, or the `.app` bundle on macOS).
+  ///   This does not work well for bundled Linux and macOS apps, see the warning below.
   ///
   /// With a single root path, the config, data and local data directories resolve to the root itself,
   /// the cache directory resolves to `<root>/caches` and the log directory to `<root>/logs`.
@@ -3417,13 +3417,20 @@ pub struct AppConfig {
   ///
   /// ## Warning
   ///
-  /// A path relative to the executable only works when the executable's directory is writable:
-  /// portable builds, AppImages, per-user NSIS installers on Windows and `tauri dev` builds in the `target` directory.
-  /// It does not work for apps installed system-wide, such as `.app` bundles in `/Applications`,
-  /// `.deb` and `.rpm` packages in `/usr` or per-machine installers in `Program Files`,
-  /// where every write to an app directory fails at runtime.
+  /// A path relative to the executable only works when the executable's directory is writable,
+  /// which is mostly the case for portable builds on Windows and for `tauri dev` builds in the `target` directory.
+  /// It does not work well for bundled Linux and macOS apps, where every write to an app directory fails at runtime:
   ///
-  /// Unless every distribution of the app is portable, do not set this option in the shared configuration.
+  /// - **Linux**: `.deb` and `.rpm` packages install the executable to `/usr/bin`, which is not writable.
+  ///   Only AppImages work, since the path is resolved relative to the AppImage file,
+  ///   and only as long as the AppImage itself is kept in a writable directory.
+  /// - **macOS**: the path is resolved next to the `.app` bundle, which for installed apps is `/Applications`,
+  ///   not writable for standard users. Bundles downloaded from the internet may also run from a random read-only
+  ///   location (App Translocation) until the user moves them out of the quarantined folder.
+  /// - **Windows**: works for portable builds and per-user NSIS installers,
+  ///   but not for per-machine installers in `Program Files`.
+  ///
+  /// Unless every distribution of the app is portable, do not set a relative path in the shared configuration.
   /// Apply it to the portable build flavor only, for instance with the CLI's `--config` flag,
   /// which accepts a JSON file or an inline JSON string:
   ///
@@ -3463,6 +3470,8 @@ pub struct AppConfig {
   ///
   /// ## Platform-specific
   ///
+  /// - **Linux / macOS**: Paths relative to the executable do not work well for bundled apps, see the warning above.
+  ///   Use a base directory variable or an absolute path for those.
   /// - **Android / iOS**: Unsupported, the override is ignored.
   #[serde(alias = "app-directories-override")]
   pub app_directories_override: Option<AppDirectoriesOverride>,

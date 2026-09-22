@@ -465,9 +465,10 @@ impl<R: Runtime> TrayIcon<R> {
   /// # Example
   ///
   /// ```rust,no_run
-  /// # use tauri::TrayIcon;
+  /// # use tauri::tray::TrayIcon;
+  /// # use tauri::test::MockRuntime;
   /// # fn main() {
-  /// # let tray_icon: TrayIcon<_> = todo!();
+  /// # let tray_icon: TrayIcon<MockRuntime> = todo!();
   /// tray_icon.with_inner_blocking(|inner| {
   ///   // interact with the inner tray icon here
   /// });
@@ -618,7 +619,9 @@ impl<R: Runtime> TrayIcon<R> {
         Some(i) => Some(i.try_into()?),
         None => None,
       };
-      self.with_inner_blocking(move |i| i.set_icon_with_as_template(tray_icon, is_template))?;
+      self
+        .with_inner_blocking(move |i| i.set_icon_with_as_template(tray_icon, is_template))?
+        .map_err(crate::Error::from)?;
     }
     #[cfg(not(target_os = "macos"))]
     {

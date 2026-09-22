@@ -122,9 +122,10 @@ macro_rules! gen_wrappers {
         /// # Example
         ///
         /// ```rust,no_run
-        /// # use tauri::Menu;
+        /// # use tauri::menu::Menu;
+        /// # use tauri::test::MockRuntime;
         /// # fn main() {
-        /// # let menu: Menu<_> = todo!();
+        /// # let menu: Menu<MockRuntime> = todo!();
         /// menu.with_inner_blocking(|inner| {
         ///   // interact with the inner menu here
         /// });

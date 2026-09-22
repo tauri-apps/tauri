@@ -171,22 +171,13 @@ impl RuntimeAuthority {
       }
     }
 
-    let mut resolved = Resolved::resolve(
+    let resolved = Resolved::resolve_with_base_scope_id(
       &self.acl,
       capabilities,
       tauri_utils::platform::Target::current(),
+      self.scope_manager.next_scope_id(),
     )
     .unwrap();
-
-    // Rebase fresh scope_ids past existing ones to avoid collisions on merge.
-    let scope_id_offset = self
-      .scope_manager
-      .command_scope
-      .keys()
-      .next_back()
-      .copied()
-      .unwrap_or(0);
-    rebase_scope_ids(&mut resolved, scope_id_offset);
 
     // fill global scope
     for (plugin, global_scope) in resolved.global_scope {
@@ -198,6 +189,19 @@ impl RuntimeAuthority {
       self.scope_manager.global_scope_cache = StateManager::new();
     }
 
+    // fill command scope
+    // the scope ids were assigned past the existing ones, so these are all new entries
+    for (scope_id, command_scope) in resolved.command_scope {
+      self
+        .scope_manager
+        .command_cache
+        .insert(scope_id, StateManager::new());
+      self
+        .scope_manager
+        .command_scope
+        .insert(scope_id, command_scope);
+    }
+
     // denied commands
     for (cmd_key, resolved_cmds) in resolved.denied_commands {
       let entry = self.denied_commands.entry(cmd_key).or_default();
@@ -206,28 +210,6 @@ impl RuntimeAuthority {
 
     // allowed commands
     for (cmd_key, resolved_cmds) in resolved.allowed_commands {
-      // fill command scope
-      for resolved_cmd in &resolved_cmds {
-        if let Some(scope_id) = resolved_cmd.scope_id {
-          let command_scope = resolved.command_scope.get(&scope_id).unwrap();
-
-          let command_scope_entry = self
-            .scope_manager
-            .command_scope
-            .entry(scope_id)
-            .or_default();
-          command_scope_entry
-            .allow
-            .extend(command_scope.allow.clone());
-          command_scope_entry.deny.extend(command_scope.deny.clone());
-
-          self
-            .scope_manager
-            .command_cache
-            .insert(scope_id, StateManager::new());
-        }
-      }
-
       let entry = self.allowed_commands.entry(cmd_key).or_default();
       entry.extend(resolved_cmds);
     }
@@ -506,26 +488,6 @@ impl RuntimeAuthority {
   }
 }
 
-/// Offset every `scope_id` in `resolved` by `offset`; a zero offset is a no-op.
-#[cfg(feature = "dynamic-acl")]
-fn rebase_scope_ids(resolved: &mut Resolved, offset: ScopeKey) {
-  if offset == 0 {
-    return;
-  }
-  resolved.command_scope = std::mem::take(&mut resolved.command_scope)
-    .into_iter()
-    .map(|(k, v)| (k + offset, v))
-    .collect();
-  for cmd in resolved
-    .allowed_commands
-    .values_mut()
-    .chain(resolved.denied_commands.values_mut())
-    .flatten()
-  {
-    cmd.scope_id = cmd.scope_id.map(|id| id + offset);
-  }
-}
-
 /// List of allowed and denied objects that match either the command-specific or plugin global scope criteria.
 #[derive(Debug)]
 pub struct ScopeValue<T: ScopeObject> {
@@ -789,6 +751,16 @@ pub trait ScopeObjectMatch: ScopeObject {
 }
 
 impl ScopeManager {
+  /// The next command scope id that is free to be assigned.
+  #[cfg(feature = "dynamic-acl")]
+  fn next_scope_id(&self) -> ScopeKey {
+    self
+      .command_scope
+      .keys()
+      .next_back()
+      .map_or(1, |last| last + 1)
+  }
+
   pub(crate) fn get_global_scope_typed<R: Runtime, T: ScopeObject>(
     &self,
     app: &AppHandle<R>,
@@ -1515,83 +1487,134 @@ mod tests {
 
   #[cfg(feature = "dynamic-acl")]
   #[test]
-  fn rebase_scope_ids_shifts_keys_and_scope_ids() {
-    use tauri_utils::acl::resolved::ResolvedScope;
-
-    let mut resolved = Resolved {
-      command_scope: [(1, ResolvedScope::default()), (2, ResolvedScope::default())]
-        .into_iter()
-        .collect(),
-      allowed_commands: [(
-        "fetch".to_string(),
-        vec![
-          ResolvedCommand {
-            scope_id: Some(1),
-            ..Default::default()
-          },
-          ResolvedCommand {
-            scope_id: None,
-            ..Default::default()
-          },
-        ],
-      )]
-      .into_iter()
-      .collect(),
-      denied_commands: [(
-        "fetch".to_string(),
-        vec![ResolvedCommand {
-          scope_id: Some(2),
-          ..Default::default()
-        }],
-      )]
-      .into_iter()
-      .collect(),
-      ..Default::default()
+  fn add_capability_assigns_fresh_scope_ids() {
+    use serde_json::json;
+    use std::collections::{BTreeMap, BTreeSet};
+    use tauri_utils::acl::{
+      Permission,
+      capability::{Capability, CapabilityFile},
+      manifest::Manifest,
     };
 
-    super::rebase_scope_ids(&mut resolved, 10);
+    fn manifest(permission: serde_json::Value) -> Manifest {
+      let permission: Permission = serde_json::from_value(permission).unwrap();
+      Manifest {
+        permissions: [(permission.identifier.clone(), permission)].into(),
+        ..Default::default()
+      }
+    }
 
-    assert_eq!(
-      resolved.command_scope.keys().copied().collect::<Vec<_>>(),
-      vec![11, 12]
-    );
-    let allowed = resolved.allowed_commands.get("fetch").unwrap();
-    assert_eq!(allowed[0].scope_id, Some(11));
-    assert_eq!(allowed[1].scope_id, None);
-    let denied = resolved.denied_commands.get("fetch").unwrap();
-    assert_eq!(denied[0].scope_id, Some(12));
-  }
+    fn capability(identifier: &str, permission: &str) -> Capability {
+      serde_json::from_value(json!({
+        "identifier": identifier,
+        "windows": ["main"],
+        "permissions": [permission]
+      }))
+      .unwrap()
+    }
 
-  #[cfg(feature = "dynamic-acl")]
-  #[test]
-  fn rebase_scope_ids_zero_offset_is_noop() {
-    use tauri_utils::acl::resolved::ResolvedScope;
+    fn scope_ids(authority: &RuntimeAuthority, command: &str) -> BTreeSet<u64> {
+      authority.allowed_commands[command]
+        .iter()
+        .filter_map(|cmd| cmd.scope_id)
+        .collect()
+    }
 
-    let mut resolved = Resolved {
-      command_scope: [(1, ResolvedScope::default()), (5, ResolvedScope::default())]
-        .into_iter()
-        .collect(),
-      allowed_commands: [(
-        "fetch".to_string(),
-        vec![ResolvedCommand {
-          scope_id: Some(1),
-          ..Default::default()
-        }],
+    // the scope values the command resolves to, see `CommandScope::resolve`
+    fn allowed_scope(authority: &RuntimeAuthority, command: &str) -> Vec<serde_json::Value> {
+      scope_ids(authority, command)
+        .iter()
+        .flat_map(|id| &authority.scope_manager.command_scope[id].allow)
+        .cloned()
+        .map(serde_json::Value::from)
+        .collect()
+    }
+
+    let acl: BTreeMap<String, Manifest> = [
+      (
+        "opener".to_string(),
+        manifest(json!({
+          "identifier": "allow-open-path",
+          "commands": { "allow": ["open_path"] },
+          "scope": { "allow": [{ "path": "/tmp/**" }] }
+        })),
+      ),
+      (
+        "http".to_string(),
+        manifest(json!({
+          "identifier": "allow-fetch",
+          "commands": { "allow": ["fetch", "fetch_send"] },
+          "scope": { "allow": [{ "url": "https://example.com" }] }
+        })),
+      ),
+    ]
+    .into();
+
+    // build time ACL, the opener scope gets id 1
+    let baked = Resolved::resolve(
+      &acl,
+      [(
+        "baked".to_string(),
+        capability("baked", "opener:allow-open-path"),
       )]
-      .into_iter()
-      .collect(),
-      ..Default::default()
-    };
+      .into(),
+      tauri_utils::platform::Target::current(),
+    )
+    .unwrap();
+    let mut authority = RuntimeAuthority::new(acl, baked);
+    assert_eq!(scope_ids(&authority, "plugin:opener|open_path"), [1].into());
 
-    super::rebase_scope_ids(&mut resolved, 0);
+    // a runtime capability for another plugin must not be merged into scope 1
+    authority
+      .add_capability_inner(CapabilityFile::Capability(capability(
+        "runtime",
+        "http:allow-fetch",
+      )))
+      .unwrap();
 
     assert_eq!(
-      resolved.command_scope.keys().copied().collect::<Vec<_>>(),
-      vec![1, 5]
+      authority
+        .scope_manager
+        .command_scope
+        .keys()
+        .copied()
+        .collect::<Vec<_>>(),
+      vec![1, 2]
     );
+    assert!(authority.scope_manager.command_cache.contains_key(&2));
     assert_eq!(
-      resolved.allowed_commands.get("fetch").unwrap()[0].scope_id,
-      Some(1)
+      allowed_scope(&authority, "plugin:opener|open_path"),
+      vec![json!({ "path": "/tmp/**" })]
     );
+    // fetch and fetch_send share the scope, and it must not be duplicated
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch"), [2].into());
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch_send"), [2].into());
+    assert_eq!(
+      allowed_scope(&authority, "plugin:http|fetch"),
+      vec![json!({ "url": "https://example.com" })]
+    );
+
+    // the next runtime capability continues past the previous one
+    authority
+      .add_capability_inner(CapabilityFile::Capability(capability(
+        "runtime-2",
+        "opener:allow-open-path",
+      )))
+      .unwrap();
+    assert_eq!(
+      authority
+        .scope_manager
+        .command_scope
+        .keys()
+        .copied()
+        .collect::<Vec<_>>(),
+      vec![1, 2, 3]
+    );
+    assert!(authority.scope_manager.command_cache.contains_key(&3));
+    assert_eq!(
+      scope_ids(&authority, "plugin:opener|open_path"),
+      [1, 3].into()
+    );
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch"), [2].into());
   }
 }

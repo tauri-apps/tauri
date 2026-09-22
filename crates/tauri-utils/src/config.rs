@@ -194,7 +194,7 @@ impl<'de> Deserialize<'de> for BundleType {
 }
 
 /// Targets to bundle. Each value is case insensitive.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 #[cfg_attr(
   feature = "schema",
   derive(JsonSchema),
@@ -202,6 +202,7 @@ impl<'de> Deserialize<'de> for BundleType {
 )]
 pub enum BundleTarget {
   /// Bundle all targets.
+  #[default]
   All,
   #[cfg_attr(feature = "schema", schemars(untagged))]
   /// A list of bundle targets.
@@ -209,12 +210,6 @@ pub enum BundleTarget {
   #[cfg_attr(feature = "schema", schemars(untagged))]
   /// A single bundle target.
   One(BundleType),
-}
-
-impl Default for BundleTarget {
-  fn default() -> Self {
-    Self::All
-  }
 }
 
 impl Serialize for BundleTarget {

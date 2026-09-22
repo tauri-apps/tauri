@@ -36,13 +36,6 @@
       "description": "The default permission set of the plugin.\n\nWorks similarly to a permission with the \"default\" identifier.",
       "type": "object",
       "properties": {
-        "description": {
-          "description": "Human-readable description of what the permission does.\nTauri convention is to use `<h4>` headings in markdown content\nfor Tauri documentation generation purposes.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "version": {
           "description": "The version of the permission.",
           "type": [
@@ -51,6 +44,13 @@
           ],
           "format": "uint64",
           "minimum": 1
+        },
+        "description": {
+          "description": "Human-readable description of what the permission does.\nTauri convention is to use `<h4>` headings in markdown content\nfor Tauri documentation generation purposes.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "permissions": {
           "description": "All permissions this set contains.",
@@ -68,12 +68,12 @@
       "description": "A set of direct permissions grouped together under a new name.",
       "type": "object",
       "properties": {
-        "description": {
-          "description": "Human-readable description of what the permission does.",
-          "type": "string"
-        },
         "identifier": {
           "description": "A unique identifier for the permission.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description of what the permission does.",
           "type": "string"
         },
         "permissions": {
@@ -94,13 +94,6 @@
       "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
       "type": "object",
       "properties": {
-        "description": {
-          "description": "Human-readable description of what the permission does.\nTauri internal convention is to use `<h4>` headings in markdown content\nfor Tauri documentation generation purposes.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "version": {
           "description": "The version of the permission.",
           "type": [
@@ -113,6 +106,13 @@
         "identifier": {
           "description": "A unique identifier for the permission.",
           "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description of what the permission does.\nTauri internal convention is to use `<h4>` headings in markdown content\nfor Tauri documentation generation purposes.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "commands": {
           "description": "Allowed or denied commands when using this permission.",

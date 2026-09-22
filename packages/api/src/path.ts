@@ -8,6 +8,22 @@
  * This package is also accessible with `window.__TAURI__.path` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ *
+ * #### Platform-specific
+ *
+ * - **Android:** The user directories are sandboxed per app. `desktopDir`,
+ *   `executableDir`, `fontDir`, `runtimeDir` and `templateDir` — and the matching
+ *   {@link BaseDirectory} variants — do not exist on Android at all. The remaining
+ *   ones resolve inside the app's own storage, so they are not shared with other
+ *   apps, and `videoDir` resolves to the app-specific Movies directory.
+ * - **iOS:** Every directory resolves inside the app sandbox, so paths are private
+ *   to your app and change between installs. Resolve them at runtime instead of
+ *   persisting absolute paths.
+ *
+ * @remarks All commands used by this module are part of the `core:path:default`
+ * permission set, which is enabled by default, so no extra capability
+ * configuration is needed.
+ *
  * @module
  */
 
@@ -55,6 +71,11 @@ enum BaseDirectory {
   Public = 9,
   /**
    * @see {@link videoDir} for more information.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** Resolves to the app-specific Movies directory since 2.12.0,
+   *   see {@link videoDir}.
    */
   Video = 10,
   /**
@@ -87,14 +108,26 @@ enum BaseDirectory {
   AppLog = 17,
   /**
    * @see {@link desktopDir} for more information.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** Unsupported, this variant does not exist on Android.
    */
   Desktop = 18,
   /**
    * @see {@link executableDir} for more information.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** Unsupported, this variant does not exist on Android.
    */
   Executable = 19,
   /**
    * @see {@link fontDir} for more information.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** Unsupported, this variant does not exist on Android.
    */
   Font = 20,
   /**
@@ -103,10 +136,18 @@ enum BaseDirectory {
   Home = 21,
   /**
    * @see {@link runtimeDir} for more information.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** Unsupported, this variant does not exist on Android.
    */
   Runtime = 22,
   /**
    * @see {@link templateDir} for more information.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** Unsupported, this variant does not exist on Android.
    */
   Template = 23
 }
@@ -272,6 +313,9 @@ async function dataDir(): Promise<string> {
  *
  * #### Platform-specific
  *
+ * - **Android:** Unsupported. Android has no desktop directory, the
+ *   {@link BaseDirectory.Desktop} variant does not exist there and the call rejects.
+ *
  * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DESKTOP_DIR`.
  * - **macOS:** Resolves to `$HOME/Desktop`.
  * - **Windows:** Resolves to `{FOLDERID_Desktop}`.
@@ -338,6 +382,9 @@ async function downloadDir(): Promise<string> {
  *
  * #### Platform-specific
  *
+ * - **Android:** Unsupported. The {@link BaseDirectory.Executable} variant does not
+ *   exist there and the call rejects.
+ *
  * - **Linux:** Resolves to `$XDG_BIN_HOME/../bin` or `$XDG_DATA_HOME/../bin` or `$HOME/.local/bin`.
  * - **macOS:** Not supported.
  * - **Windows:** Not supported.
@@ -359,6 +406,9 @@ async function executableDir(): Promise<string> {
  * Returns the path to the user's font directory.
  *
  * #### Platform-specific
+ *
+ * - **Android:** Unsupported. The {@link BaseDirectory.Font} variant does not exist
+ *   there and the call rejects.
  *
  * - **Linux:** Resolves to `$XDG_DATA_HOME/fonts` or `$HOME/.local/share/fonts`.
  * - **macOS:** Resolves to `$HOME/Library/Fonts`.
@@ -524,6 +574,9 @@ async function resolveResource(resourcePath: string): Promise<string> {
  *
  * #### Platform-specific
  *
+ * - **Android:** Unsupported. The {@link BaseDirectory.Runtime} variant does not
+ *   exist there and the call rejects.
+ *
  * - **Linux:** Resolves to `$XDG_RUNTIME_DIR`.
  * - **macOS:** Not supported.
  * - **Windows:** Not supported.
@@ -545,6 +598,9 @@ async function runtimeDir(): Promise<string> {
  * Returns the path to the user's template directory.
  *
  * #### Platform-specific
+ *
+ * - **Android:** Unsupported. The {@link BaseDirectory.Template} variant does not
+ *   exist there and the call rejects.
  *
  * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_TEMPLATES_DIR`.
  * - **macOS:** Not supported.
@@ -571,11 +627,21 @@ async function templateDir(): Promise<string> {
  * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_VIDEOS_DIR`.
  * - **macOS:** Resolves to `$HOME/Movies`.
  * - **Windows:** Resolves to `{FOLDERID_Videos}`.
+ * - **Android:** Resolves to the app-specific Movies directory
+ *   (`getExternalFilesDir(DIRECTORY_MOVIES)`), typically `.../files/Movies`. It is
+ *   private to your app and removed when the app is uninstalled.
+ * - **iOS:** Resolves inside the app sandbox.
  * @example
  * ```typescript
  * import { videoDir } from '@tauri-apps/api/path';
  * const videoDirPath = await videoDir();
  * ```
+ *
+ * @remarks **Breaking change on Android in `tauri` 2.12.0:** `videoDir()` and the
+ * `$VIDEO` path variable used to resolve to external *cache* storage
+ * (`.../cache`) and now resolve to the app-specific Movies directory
+ * (`.../files/Movies`). Files written to the old location are not found at the new
+ * one, so migrate them or update your path assumptions.
  *
  * @since 1.0.0
  */

@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use super::{AboutMetadata, PredefinedMenuItem};
 use crate::menu::PredefinedMenuItemInner;
-use crate::{Manager, Runtime, menu::MenuId};
+use crate::{Manager, Runtime};
 
 impl<R: Runtime> PredefinedMenuItem<R> {
   /// Separator menu item

@@ -540,9 +540,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// - **Linux**: once a menu is set it cannot be removed so `None` has no effect
   pub fn set_menu<M: ContextMenu + 'static>(&self, menu: Option<M>) -> crate::Result<()> {
-    self
-      .with_inner_blocking(|i| i.set_menu(menu.map(|m| m.inner_context_owned())))
-      .map_err(Into::into)
+    self.with_inner_blocking(|i| i.set_menu(menu.map(|m| m.inner_context_owned())))
   }
 
   /// Sets the tooltip for this tray icon.

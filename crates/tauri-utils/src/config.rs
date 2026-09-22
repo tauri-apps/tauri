@@ -3382,23 +3382,24 @@ pub struct AppConfig {
   /// - **Windows / macOS / Android / iOS**: Unsupported.
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
-  /// Overrides the directories returned by the `app_*_dir` path APIs: `app_config_dir`, `app_data_dir`,
-  /// `app_local_data_dir`, `app_cache_dir` and `app_log_dir`, and therefore also the `$APPCONFIG`, `$APPDATA`,
+  /// Overrides the directories returned by the `app_*_dir` path APIs (`app_config_dir`, `app_data_dir`,
+  /// `app_local_data_dir`, `app_cache_dir` and `app_log_dir`) and the matching `$APPCONFIG`, `$APPDATA`,
   /// `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.
   ///
   /// This is useful for portable apps that keep all of their data next to the executable,
-  /// and for apps that want all of their app directories in a location they choose,
-  /// such as `$DOCUMENT/my-app` or a directory picked by the user.
+  /// and for apps that want their app directories in a location they choose, such as `$DOCUMENT/my-app`.
   /// Everything that resolves paths through these APIs follows the override, including Tauri itself
   /// (the default webview data directory on Windows and Linux) and plugins,
   /// so the storage locations do not need to be configured one by one.
+  /// The only exception is a window's `dataDirectory` config, which is not affected.
   ///
   /// It can also isolate the data of a development build from an installed version of the app,
-  /// though using a distinct `identifier` for development builds achieves that while keeping the production directory layout.
+  /// though a distinct `identifier` for development builds achieves that while keeping the production directory layout.
   ///
-  /// The value is either a single path used as the root of every app directory,
-  /// or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`).
-  /// Directories that are not listed in the object keep their default location.
+  /// The value is either a single path used as the root of every app directory
+  /// (config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),
+  /// or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),
+  /// each resolving to exactly the configured path. Directories that are not listed in the object keep their default location.
   ///
   /// Each path is resolved as follows:
   ///
@@ -3407,44 +3408,12 @@ pub struct AppConfig {
   ///   `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.
   ///   `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.
   /// - An absolute path is used as is.
-  /// - Any other path is resolved relative to the directory containing the executable
-  ///   (the directory containing the AppImage file on Linux, or the `.app` bundle on macOS).
-  ///   This does not work well for bundled Linux and macOS apps, see the warning below.
-  ///
-  /// With a single root path, the config, data and local data directories resolve to the root itself,
-  /// the cache directory resolves to `<root>/caches` and the log directory to `<root>/logs`.
-  /// With the object form, each directory resolves to exactly the configured path.
-  ///
-  /// A window's `dataDirectory` config is not affected by this option.
-  ///
-  /// ## Warning
-  ///
-  /// A path relative to the executable only works when the executable's directory is writable,
-  /// which is mostly the case for portable builds on Windows and for `tauri dev` builds in the `target` directory.
-  /// It does not work well for bundled Linux and macOS apps, where every write to an app directory fails at runtime:
-  ///
-  /// - **Linux**: `.deb` and `.rpm` packages install the executable to `/usr/bin`, which is not writable.
-  ///   Only AppImages work, since the path is resolved relative to the AppImage file,
-  ///   and only as long as the AppImage itself is kept in a writable directory.
-  /// - **macOS**: the path is resolved next to the `.app` bundle, which for installed apps is `/Applications`,
-  ///   not writable for standard users. Bundles downloaded from the internet may also run from a random read-only
-  ///   location (App Translocation) until the user moves them out of the quarantined folder.
-  /// - **Windows**: works for portable builds and per-user NSIS installers,
-  ///   but not for per-machine installers in `Program Files`.
-  ///
-  /// Unless every distribution of the app is portable, do not set a relative path in the shared configuration.
-  /// Apply it to the portable build flavor only, for instance with the CLI's `--config` flag,
-  /// which accepts a JSON file or an inline JSON string:
-  ///
-  /// ```sh
-  /// tauri build --config '{ "app": { "appDirectoriesOverride": "./" } }'
-  /// ```
-  ///
-  /// Installed apps that need a custom location should use a base directory variable or an absolute path instead.
+  /// - Any other path is resolved relative to the directory containing the executable,
+  ///   which must be writable, see the platform-specific notes below.
   ///
   /// ## Examples
   ///
-  /// Keep all data next to the executable:
+  /// Keep all data next to the executable, for a portable build:
   ///
   /// ```json
   /// {
@@ -3453,9 +3422,6 @@ pub struct AppConfig {
   ///   }
   /// }
   /// ```
-  ///
-  /// `app_local_data_dir()` now resolves to the directory containing the executable,
-  /// `app_cache_dir()` to `<executable directory>/caches` and `app_log_dir()` to `<executable directory>/logs`.
   ///
   /// Only move the logs and the cache:
   ///
@@ -3470,7 +3436,7 @@ pub struct AppConfig {
   /// }
   /// ```
   ///
-  /// The override can also be set at runtime, for instance from a command line flag, an environment variable
+  /// Set the override at runtime, for instance from an environment variable, a command line flag
   /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
   /// before building the app:
   ///
@@ -3493,8 +3459,24 @@ pub struct AppConfig {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux / macOS**: Paths relative to the executable do not work well for bundled apps, see the warning above.
-  ///   Use a base directory variable or an absolute path for those.
+  /// A path relative to the executable only works where the executable's directory is writable:
+  /// portable builds, `tauri dev` builds in the `target` directory and the cases listed below.
+  /// Everywhere else every write to an app directory fails at runtime, so installed apps should use
+  /// a base directory variable or an absolute path instead. Unless every distribution of the app is portable,
+  /// keep relative paths out of the shared configuration and apply them to the portable build flavor only,
+  /// for instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:
+  ///
+  /// ```sh
+  /// tauri build --config '{ "app": { "appDirectoriesOverride": "./" } }'
+  /// ```
+  ///
+  /// - **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,
+  ///   as long as it is kept in a writable directory. `.deb` and `.rpm` packages install the executable to `/usr/bin`.
+  /// - **macOS**: Relative paths are resolved next to the `.app` bundle. This does not work for installed apps,
+  ///   since `/Applications` is not writable for standard users, nor for bundles downloaded from the internet,
+  ///   which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.
+  /// - **Windows**: Relative paths also work for per-user NSIS installers,
+  ///   but not for per-machine installers in `Program Files`.
   /// - **Android / iOS**: Unsupported, the override is ignored.
   #[serde(alias = "app-directories-override")]
   pub app_directories_override: Option<AppDirectoriesOverride>,

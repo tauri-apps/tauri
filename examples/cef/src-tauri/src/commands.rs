@@ -419,17 +419,18 @@ pub fn open_child_webviews_window(
     let builder = WebviewBuilder::new(child_label, WebviewUrl::App(url.into()))
       .auto_resize()
       // Every method of `WebviewWindowBuilderCefExt` has a counterpart here.
+      .position(LogicalPosition::new(
+        if side == "chrome" { 0. } else { width / 2. },
+        0.,
+      ))
+      .size(LogicalSize::new(width / 2., height))
       .browser_runtime_style(style)
       .allow_chrome_commands([ChromeCommandGroup::History])
       .on_console_message(move |message| console_sink.console(&console_label, message))
       .on_frame_event(move |event| frame_sink.frame(&frame_label, event));
 
     window
-      .add_child(
-        builder,
-        LogicalPosition::new(if side == "chrome" { 0. } else { width / 2. }, 0.),
-        LogicalSize::new(width / 2., height),
-      )
+      .add_child(builder)
       .map_err(|error| error.to_string())?;
   }
 

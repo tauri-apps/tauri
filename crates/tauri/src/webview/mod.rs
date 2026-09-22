@@ -7,6 +7,7 @@
 pub(crate) mod plugin;
 mod webview_window;
 
+#[cfg(desktop)]
 use tauri_runtime::dpi::Rect;
 pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 
@@ -26,14 +27,13 @@ pub use tauri_runtime::webview::{
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
 use tauri_runtime::{
-  dpi::{Position, Rect, Size},
-  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
   WebviewDispatch,
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
 };
 #[cfg(desktop)]
 use tauri_runtime::{
-  dpi::{PhysicalPosition, PhysicalSize},
   WindowDispatch,
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
 };
 pub use tauri_utils::config::Color;
 use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
@@ -423,6 +423,7 @@ async fn create_window(app: tauri::AppHandle) {
     }
   }
 
+  #[cfg(desktop)]
   fn default_bounds() -> Rect {
     Rect {
       position: Position::Logical((0, 0).into()),

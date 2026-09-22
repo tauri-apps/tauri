@@ -28,6 +28,25 @@ use crate::window::AppWindow;
 
 use super::utils;
 
+/// The content view winit created for `window`.
+fn nsview(window: &dyn winit::window::Window) -> Retained<NSView> {
+  let handle = window.window_handle().expect("failed to get window handle");
+  match handle.as_raw() {
+    RawWindowHandle::AppKit(handle) => unsafe {
+      Retained::<NSView>::retain(handle.ns_view.as_ptr().cast::<NSView>())
+        .expect("failed to retain NSView")
+    },
+    other => panic!("expected AppKit window handle, got {other:?}"),
+  }
+}
+
+/// The `NSWindow` behind a winit window.
+pub(crate) fn nswindow(window: &dyn winit::window::Window) -> Retained<NSWindow> {
+  nsview(window)
+    .window()
+    .expect("winit's content view is always inside its window")
+}
+
 impl AppWindow {
   pub(crate) fn cef_host_handle(&self) -> cef::sys::cef_window_handle_t {
     let nsview = self.nsview();
@@ -35,17 +54,7 @@ impl AppWindow {
   }
 
   pub(crate) fn nsview(&self) -> Retained<NSView> {
-    let handle = self
-      .window
-      .window_handle()
-      .expect("failed to get window handle");
-    match handle.as_raw() {
-      RawWindowHandle::AppKit(handle) => unsafe {
-        Retained::<NSView>::retain(handle.ns_view.as_ptr().cast::<NSView>())
-          .expect("failed to retain NSView")
-      },
-      other => panic!("expected AppKit window handle, got {other:?}"),
-    }
+    nsview(self.window.as_ref())
   }
 
   pub(crate) fn set_enabled(&self, enabled: bool) {

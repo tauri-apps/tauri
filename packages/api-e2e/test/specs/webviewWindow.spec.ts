@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect } from '@wdio/globals'
-import { tauri, eventually, describeApi } from '../helpers/index.js'
+import { tauri, eventually, describeApi, itDesktop } from '../helpers/index.js'
 
 describeApi('webviewWindow', () => {
   it('getCurrentWebviewWindow reports the main label', async () => {
@@ -12,7 +12,10 @@ describeApi('webviewWindow', () => {
     ).toBe('main')
   })
 
-  it('creates, finds and closes a new webview window', async () => {
+  // On mobile a new window is a new Android activity / iOS scene that takes
+  // over the foreground (and the automation session's webview context), so
+  // this is only exercised on desktop.
+  itDesktop('creates, finds and closes a new webview window', async () => {
     // The label must match `main-*` to inherit the run-app capability.
     const created = await tauri(
       (api) =>

@@ -27,7 +27,7 @@ tauri-plugin-log = "2"
 # Desktop-only and behind the off-by-default `automation` feature so it never ships in a
 # regular build.
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
-tauri-plugin-automation = { version = "0.1.4", optional = true }
+tauri-plugin-automation = { version = "0.2", optional = true }
 
 [dependencies.tauri]
 workspace = true

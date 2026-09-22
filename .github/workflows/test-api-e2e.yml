@@ -42,8 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: install Rust 1.90
+        # the MSRV, so this job restores the `tauri-cli` cache entry saved by test-cli-rs
+        uses: dtolnay/rust-toolchain@1.90
 
       - run: npm i -g --force corepack
       - name: setup node
@@ -68,14 +69,18 @@ jobs:
       # install a matching Microsoft Edge Driver version using msedgedriver-tool
       - name: install msedgedriver (Windows)
         if: runner.os == 'Windows'
+        # Built with the runner's stable toolchain: the tool has no lockfile, so its freshly
+        # resolved dependencies may need a compiler newer than the 1.90 pin above.
         run: |
-          cargo install --git https://github.com/chippers/msedgedriver-tool
+          cargo +stable install --git https://github.com/chippers/msedgedriver-tool
           & "$HOME/.cargo/bin/msedgedriver-tool.exe"
           $PWD.Path >> $env:GITHUB_PATH
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.platform.os }}
+          # Restore-only: test-cli-rs saves this entry on `dev`; see test-cli-rs.yml.
+          shared-key: tauri-cli
+          save-if: false
 
       - name: install dependencies
         run: pnpm i --frozen-lockfile
@@ -84,7 +89,9 @@ jobs:
         run: pnpm build:api
 
       - name: build @tauri-apps/cli
-        run: pnpm build:cli
+        # Debug profile: the suite builds the example app with `tauri build --debug` anyway, and
+        # a debug CLI reuses the cached dependencies instead of a from-scratch LTO build.
+        run: pnpm build:cli:debug
 
       - name: run e2e tests (Linux)
         if: runner.os == 'Linux'

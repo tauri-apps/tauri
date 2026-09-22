@@ -219,7 +219,7 @@
           "type": "boolean"
         },
         "enableGTKAppId": {
-          "description": "If set to true \"identifier\" will be set as GTK app ID (on systems that use GTK).",
+          "description": "Whether the application `identifier` is used as the GTK application ID on systems that use GTK.\n\n Setting the GTK application ID lets the desktop environment associate the app's windows with\n its `.desktop` entry of the same name, which is what makes Wayland compositors and GNOME show\n the correct icon and application name, and group the windows in the dock or taskbar.\n\n Defaults to `false`, because registering an application ID also makes GTK register the\n application on the session bus under that ID, which prevents running more than one instance\n of the app at the same time.\n\n ## Platform-specific\n\n - **Linux / FreeBSD / DragonFly / NetBSD / OpenBSD**: The identifier must be a valid GTK\n   application ID.\n - **Windows / macOS / Android / iOS**: Unsupported.",
           "default": false,
           "type": "boolean"
         }
@@ -378,7 +378,7 @@
           "type": "boolean"
         },
         "transparent": {
-          "description": "Whether the window is transparent or not.\n\n Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.\n WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.\n\n On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.",
+          "description": "Whether the window is transparent or not.\n\n ## Platform-specific\n\n - **macOS**: Requires the `macos-private-api` Cargo feature, which is enabled by setting\n   `app > macOSPrivateApi` to `true` in the configuration file.\n   **WARNING:** Using private APIs on macOS prevents your application from being accepted to the App Store.\n   If you only need a translucent background, use `windowEffects` instead, which relies on public APIs.\n - **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.",
           "default": false,
           "type": "boolean"
         },
@@ -585,14 +585,14 @@
           "type": "boolean"
         },
         "dataDirectory": {
-          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n - **Android**: Unsupported.",
+          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.),\n **relative to the app data directory (`appDataDir()`), followed by the window label**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n - **Android**: Unsupported.",
           "type": [
             "string",
             "null"
           ]
         },
         "dataStoreIdentifier": {
-          "description": "Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\n See https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc\n\n The array must contain 16 u8 numbers.\n\n #### Platform-specific:\n\n - **iOS**: Supported since version 17.0+.\n - **macOS**: Supported since version 14.0+.\n - **Windows / Linux / Android**: Unsupported.",
+          "description": "Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\n\n See <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>\n\n The array must contain 16 u8 numbers.\n\n #### Platform-specific:\n\n - **iOS**: Supported since version 17.0+.\n - **macOS**: Supported since version 14.0+.\n - **Windows / Linux / Android**: Unsupported.",
           "type": [
             "array",
             "null"
@@ -615,7 +615,7 @@
           ]
         },
         "limitNavigationsToAppBoundDomains": {
-          "description": "Whether to limit navigations to App-Bound Domains. This is necessary to\n enable Service Workers on iOS according to\n [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).\n\n Default is false.\n\n Note: If you set this to `true` make sure to add localhost and any [`registrable\n domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)\n used in this webview to tauri-src/Info.ios.plist:\n\n ```xml\n <plist>\n <dict>\n     <key>WKAppBoundDomains</key>\n     <array>\n         <string>localhost</string>\n         <string>aregistrabledomain.example</string>\n     </array>\n </dict>\n </plist>\n ```\n\n You must add `localhost` if any webview with this set to true opens a\n local webpage, makes any localhost calls, or uses the isolation pattern\n because Tauri uses the `localhost` domain for hosting the application\n webpage, the IPC protocol, and the isolation pattern's iframe.\n\n Requests served through custom uri schemes are allowed so long as they use\n a registrable domain specified in the `WKAppBoundDomains` array for all the\n requests from the app, including requests for the `localhost` domain.\n\n In theory, you can whitelist an entire uri scheme by including the\n protocol name followed by a colon. For example, to allow all requests\n using a custom \"stream\" uri scheme (see [this tauri\n example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),\n you could add `stream:` to the AppBoundDomains array. That said, I'm not\n sure whether Apple would let your app through app review if you do\n whitelist an entire protocol because this feature is not mentioned in\n [their blog post on App-Bound\n Domains](https://webkit.org/blog/10882/app-bound-domains/).\n\n See https://webkit.org/blog/10882/app-bound-domains/ and\n https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains\n for the official documentation on App-Bound Domains.\n\n ## Platform-specific\n\n - **iOS**: Supported since version 14.0+.\n - **Linux / Windows / Android / MacOS:** Unsupported.",
+          "description": "Whether to limit navigations to App-Bound Domains.\n\n This is required to enable Service Workers in WKWebView, which are otherwise\n unavailable. Defaults to `false`.\n\n When this is set to `true`, the webview can only navigate to the domains listed in the\n `WKAppBoundDomains` array of `src-tauri/Info.ios.plist`. Add `localhost` and every\n [registrable domain](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)\n this webview loads to that array:\n\n ```xml\n <plist>\n <dict>\n     <key>WKAppBoundDomains</key>\n     <array>\n         <string>localhost</string>\n         <string>aregistrabledomain.example</string>\n     </array>\n </dict>\n </plist>\n ```\n\n `localhost` must be listed if any webview with this option enabled opens a local webpage,\n makes any localhost call, or uses the isolation pattern, because Tauri serves the\n application webpage, the IPC protocol and the isolation pattern iframe from the\n `localhost` domain.\n\n Requests served through custom URI schemes are allowed as long as they use a registrable\n domain listed in the `WKAppBoundDomains` array, including requests to the `localhost`\n domain.\n\n An entire URI scheme can be listed by adding the protocol name followed by a colon, for\n example `stream:` for a custom `stream` scheme (see the\n [streaming example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)).\n This is not covered by Apple's\n [App-Bound Domains announcement](https://webkit.org/blog/10882/app-bound-domains/),\n so it may not be accepted during App Store review.\n\n See <https://webkit.org/blog/10882/app-bound-domains/> and\n <https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains>\n for the official documentation on App-Bound Domains.\n\n ## Platform-specific\n\n - **iOS**: Supported since version 14.0+.\n - **Linux / Windows / Android / macOS:** Unsupported.",
           "default": false,
           "type": "boolean"
         },
@@ -1186,7 +1186,7 @@
       "description": "The scrollbar style to use in the webview.\n\n ## Platform-specific\n\n - **Windows**: This option must be given the same value for all webviews that target the same data directory.",
       "oneOf": [
         {
-          "description": "The scrollbar style to use in the webview.",
+          "description": "The platform's native scrollbar, as rendered by the webview by default.\n\n This is the only supported value outside of Windows.",
           "type": "string",
           "enum": [
             "default"
@@ -1206,7 +1206,7 @@
       "type": "object",
       "properties": {
         "csp": {
-          "description": "The Content Security Policy that will be injected on all HTML files on the built application.\n If [`dev_csp`](#SecurityConfig.devCsp) is not specified, this value is also injected on dev.\n\n This is a really important part of the configuration since it helps you ensure your WebView is secured.\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
+          "description": "The Content Security Policy that will be injected on all HTML files on the built application.\n If `devCsp` is not specified, this value is also injected on dev.\n\n This is a really important part of the configuration since it helps you ensure your WebView is secured.\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
           "anyOf": [
             {
               "$ref": "#/definitions/Csp"
@@ -1228,7 +1228,7 @@
           ]
         },
         "freezePrototype": {
-          "description": "Freeze the `Object.prototype` when using the custom protocol.",
+          "description": "Whether `Object.freeze(Object.prototype)` is run as an initialization script on every webview.\n\n This hardens the frontend against prototype pollution: once the prototype is frozen,\n a script cannot add or replace properties on `Object.prototype` and thus cannot tamper\n with objects it does not own, including the ones used by the Tauri API.\n\n The script runs before any of your frontend code, on every webview, regardless of whether\n the content is served by the custom protocol or by a development server.\n\n Defaults to `false`. Note that frontend libraries that extend built-in prototypes\n (polyfills, some older frameworks) stop working when this is enabled, so test your\n application with it on before shipping.",
           "default": false,
           "type": "boolean"
         },
@@ -1254,7 +1254,7 @@
           ]
         },
         "pattern": {
-          "description": "The pattern to use.",
+          "description": "The application pattern, which defines how the frontend communicates with the Rust core.\n\n - `brownfield` (default): the frontend talks to the core directly. Use it unless you need\n   the extra isolation layer.\n - `isolation`: every IPC message is routed through a secure JavaScript application you own,\n   hosted in a sandboxed `<iframe>`, so it can validate or reject messages before they reach\n   the Rust core. This protects the core from an untrusted or compromised frontend\n   (for example one that loads third-party scripts), at the cost of an extra build step:\n   the `dir` value must point at a directory containing the isolation application's `index.html`.\n\n See <https://tauri.app/concept/inter-process-communication/isolation/>.",
           "default": {
             "use": "brownfield"
           },
@@ -1265,7 +1265,7 @@
           ]
         },
         "capabilities": {
-          "description": "List of capabilities that are enabled on the application.\n\n By default (not set or empty list), all capability files from `./capabilities/` are included,\n by setting values in this entry, you have fine grained control over which capabilities are included\n\n You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]\n\n ### Example\n\n ```json\n {\n   \"app\": {\n     \"capabilities\": [\n       \"main-window\",\n       {\n         \"identifier\": \"drag-window\",\n         \"permissions\": [\"core:window:allow-start-dragging\"]\n       }\n     ]\n   }\n }\n ```",
+          "description": "List of capabilities that are enabled on the application.\n\n By default (not set or empty list), all capability files from `./capabilities/` are included,\n by setting values in this entry, you have fine grained control over which capabilities are included\n\n You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]\n\n ### Example\n\n ```json\n {\n   \"app\": {\n     \"security\": {\n       \"capabilities\": [\n         \"main-window\",\n         {\n           \"identifier\": \"drag-window\",\n           \"permissions\": [\"core:window:allow-start-dragging\"]\n         }\n       ]\n     }\n   }\n }\n ```",
           "default": [],
           "type": "array",
           "items": {
@@ -1950,7 +1950,7 @@
           ]
         },
         "beforeDevCommand": {
-          "description": "A shell command to run before `tauri dev` kicks in.\n\n The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri dev` kicks in.\n\n The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`\n and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can\n adapt its output to the target that is being built.\n `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.",
           "anyOf": [
             {
               "$ref": "#/definitions/BeforeDevCommand"
@@ -1961,7 +1961,7 @@
           ]
         },
         "beforeBuildCommand": {
-          "description": "A shell command to run before `tauri build` kicks in.\n\n The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri build` kicks in.\n\n The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`\n and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can\n adapt its output to the target that is being built.\n `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.",
           "anyOf": [
             {
               "$ref": "#/definitions/HookCommand"
@@ -1972,7 +1972,7 @@
           ]
         },
         "beforeBundleCommand": {
-          "description": "A shell command to run before the bundling phase in `tauri build` kicks in.\n\n The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before the bundling phase in `tauri build` kicks in.\n\n The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`\n and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can\n adapt its output to the target that is being built.\n `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.",
           "anyOf": [
             {
               "$ref": "#/definitions/HookCommand"

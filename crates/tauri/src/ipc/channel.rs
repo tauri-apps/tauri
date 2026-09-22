@@ -38,13 +38,136 @@ const MAX_JSON_DIRECT_EXECUTE_THRESHOLD: usize = 8192;
 const MAX_RAW_DIRECT_EXECUTE_THRESHOLD: usize = 1024;
 
 static CHANNEL_COUNTER: AtomicU32 = AtomicU32::new(0);
-static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 
-/// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
+/// Maps channel ids to pending data that must be sent to the JavaScript side via the IPC.
+///
+/// Scoped per webview: each webview has its own id sequence and lookups only
+/// ever touch the calling webview's entries.
 #[derive(Default, Clone)]
-pub struct ChannelDataIpcQueue(Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
+pub struct ChannelDataIpcQueue(Arc<Mutex<HashMap<String, WebviewChannelDataQueue>>>);
 
-/// An IPC channel.
+/// Pending channel data of one webview.
+#[derive(Default)]
+struct WebviewChannelDataQueue {
+  next_id: u32,
+  entries: HashMap<u32, InvokeResponseBody>,
+}
+
+impl ChannelDataIpcQueue {
+  /// Stores the body for the given webview and returns its id.
+  ///
+  /// Ids are sequential per webview and only address that webview's entries.
+  fn insert(&self, webview_label: &str, body: InvokeResponseBody) -> u32 {
+    let mut cache = self.0.lock().unwrap();
+    let queue = cache.entry(webview_label.to_string()).or_default();
+    let data_id = loop {
+      let candidate = queue.next_id;
+      queue.next_id = queue.next_id.wrapping_add(1);
+      if !queue.entries.contains_key(&candidate) {
+        break candidate;
+      }
+    };
+    queue.entries.insert(data_id, body);
+    data_id
+  }
+
+  /// Removes and returns the entry with the given id from the given webview's queue.
+  fn remove(&self, webview_label: &str, data_id: u32) -> Option<InvokeResponseBody> {
+    self
+      .0
+      .lock()
+      .unwrap()
+      .get_mut(webview_label)?
+      .entries
+      .remove(&data_id)
+  }
+
+  /// Drops all entries of the given webview.
+  pub(crate) fn remove_webview_entries(&self, webview_label: &str) {
+    self.0.lock().unwrap().remove(webview_label);
+  }
+}
+
+/// An IPC channel, used to stream values from Rust to the frontend.
+///
+/// A command can only resolve once, so a channel is how you push an arbitrary number of messages
+/// to the JavaScript side after the command returned: download progress, log lines, streamed
+/// responses and so on. Each message is a `TSend` value, which must implement [`IpcResponse`]
+/// (automatically implemented for every [`serde::Serialize`] type) and is delivered to the
+/// `onmessage` handler of the matching `Channel` on the JavaScript side.
+///
+/// The usual flow is to create the channel on the frontend and pass it as a command argument,
+/// since [`Channel`] implements [`CommandArg`]:
+///
+/// ```javascript
+/// import { Channel, invoke } from '@tauri-apps/api/core'
+///
+/// const onProgress = new Channel()
+/// onProgress.onmessage = (message) => console.log(message)
+/// await invoke('download', { url, onProgress })
+/// ```
+///
+/// A channel can also be created on the Rust side with [`Channel::new`], or resolved from an id
+/// the frontend sent inside a bigger payload with [`JavaScriptChannelId::channel_on`].
+///
+/// Channels are cheap to clone (every clone refers to the same JavaScript callback) and can be
+/// stored in the app state or moved to another thread to send messages later. When the last clone
+/// of a channel created from the frontend is dropped, the JavaScript side is notified that no more
+/// messages will arrive and the callback is unregistered.
+///
+/// # Ordering
+///
+/// The channel automatically orders the messages: every message carries the index it was sent with,
+/// and the JavaScript side buffers out-of-order messages until the missing ones arrive, so the
+/// `onmessage` handler always observes messages in the same order [`Channel::send`] was called.
+/// See [`Builder::channel_interceptor`](crate::Builder::channel_interceptor) if you need to
+/// intercept or replace this delivery mechanism.
+///
+/// # Raw payloads
+///
+/// Any [`serde::Serialize`] value is sent as JSON. To stream binary data without the JSON overhead,
+/// send an [`InvokeResponseBody::Raw`] through a `Channel<InvokeResponseBody>` (the default type
+/// parameter) or a [`Response`]: the payload is then received in JavaScript as an `ArrayBuffer`.
+/// Note that a `Channel<Vec<u8>>` does *not* do this - `Vec<u8>` is `Serialize`,
+/// so it is sent as a JSON array of numbers.
+///
+/// # Examples
+///
+/// Streaming progress to the frontend from a command:
+///
+/// ```rust
+/// use tauri::ipc::Channel;
+///
+/// #[derive(Clone, serde::Serialize)]
+/// #[serde(rename_all = "camelCase")]
+/// struct DownloadProgress {
+///   downloaded: usize,
+///   content_length: usize,
+/// }
+///
+/// #[tauri::command]
+/// fn download(url: String, on_progress: Channel<DownloadProgress>) -> tauri::Result<()> {
+///   let content_length = 1000;
+///   for downloaded in (0..=content_length).step_by(100) {
+///     on_progress.send(DownloadProgress { downloaded, content_length })?;
+///   }
+///   Ok(())
+/// }
+/// ```
+///
+/// Streaming binary chunks, received as `ArrayBuffer`s in JavaScript:
+///
+/// ```rust
+/// use tauri::ipc::{Channel, InvokeResponseBody};
+///
+/// #[tauri::command]
+/// fn read_file(on_chunk: Channel<InvokeResponseBody>) -> tauri::Result<()> {
+///   for chunk in [vec![0u8; 16], vec![1u8; 16]] {
+///     on_chunk.send(InvokeResponseBody::Raw(chunk))?;
+///   }
+///   Ok(())
+/// }
+/// ```
 pub struct Channel<TSend = InvokeResponseBody> {
   inner: Arc<ChannelInner>,
   phantom: std::marker::PhantomData<TSend>,
@@ -165,14 +288,9 @@ impl JavaScriptChannelId {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
-
-            webview
+            let data_id = webview
               .state::<ChannelDataIpcQueue>()
-              .0
-              .lock()
-              .unwrap()
-              .insert(data_id, body);
+              .insert(webview.label(), body);
 
             webview.eval(format!(
               "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, {{ message: response, index: {current_index} }})).catch(console.error)",
@@ -209,6 +327,31 @@ impl<'de> Deserialize<'de> for JavaScriptChannelId {
 
 impl<TSend> Channel<TSend> {
   /// Creates a new channel with the given message handler.
+  ///
+  /// This does not involve the frontend: the closure is called with the body of every message sent
+  /// through [`Channel::send`], and it is up to you to forward it. Use it to create a channel that
+  /// a plugin or a mobile command expects, or to consume channel messages in Rust.
+  ///
+  /// To push messages to a channel that was created by the frontend, receive the [`Channel`] as a
+  /// command argument (see [`CommandArg`]) or deserialize a [`JavaScriptChannelId`] and call
+  /// [`JavaScriptChannelId::channel_on`] with the target [`Webview`], which wires the messages
+  /// through the IPC for you.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::ipc::{Channel, InvokeResponseBody};
+  ///
+  /// let channel = Channel::new(|message: InvokeResponseBody| {
+  ///   match message {
+  ///     InvokeResponseBody::Json(json) => println!("channel message: {json}"),
+  ///     InvokeResponseBody::Raw(bytes) => println!("channel message: {} bytes", bytes.len()),
+  ///   }
+  ///   Ok(())
+  /// });
+  ///
+  /// channel.send("hello").unwrap();
+  /// ```
   pub fn new<F: Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync + 'static>(
     on_message: F,
   ) -> Self {
@@ -261,14 +404,9 @@ impl<TSend> Channel<TSend> {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
-
-            webview
+            let data_id = webview
               .state::<ChannelDataIpcQueue>()
-              .0
-              .lock()
-              .unwrap()
-              .insert(data_id, body);
+              .insert(webview.label(), body);
 
             webview.eval(format!(
               "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, response)).catch(console.error)",
@@ -315,7 +453,8 @@ impl<'de, R: Runtime, TSend> CommandArg<'de, R> for Channel<TSend> {
 }
 
 #[command(root = "crate")]
-fn fetch(
+fn fetch<R: Runtime>(
+  webview: Webview<R>,
   request: Request<'_>,
   cache: State<'_, ChannelDataIpcQueue>,
 ) -> Result<Response, &'static str> {
@@ -325,7 +464,7 @@ fn fetch(
     .and_then(|v| v.to_str().ok())
     .and_then(|id| id.parse().ok())
   {
-    if let Some(data) = cache.0.lock().unwrap().remove(&id) {
+    if let Some(data) = cache.remove(webview.label(), id) {
       Ok(Response::new(data))
     } else {
       Err("data not found")
@@ -342,4 +481,50 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
       fetch
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn json_body(s: &str) -> InvokeResponseBody {
+    InvokeResponseBody::Json(s.to_string())
+  }
+
+  #[test]
+  fn queue_entries_are_scoped_to_the_owning_webview() {
+    let queue = ChannelDataIpcQueue::default();
+    let id = queue.insert("main", json_body("{}"));
+
+    // foreign webviews cannot fetch the entry
+    assert!(queue.remove("settings", id).is_none());
+    // the owner can, once
+    assert!(queue.remove("main", id).is_some());
+    assert!(queue.remove("main", id).is_none());
+  }
+
+  #[test]
+  fn ids_are_scoped_per_webview() {
+    let queue = ChannelDataIpcQueue::default();
+    let a = queue.insert("a", json_body("1"));
+    let b = queue.insert("b", json_body("2"));
+
+    // each webview has its own id sequence, so the same id exists twice
+    // without the entries being visible across webviews
+    assert_eq!(a, b);
+    assert!(queue.remove("b", a).is_some());
+    assert!(queue.remove("a", a).is_some());
+  }
+
+  #[test]
+  fn purge_removes_only_the_closed_webview_entries() {
+    let queue = ChannelDataIpcQueue::default();
+    let a = queue.insert("a", json_body("1"));
+    let b = queue.insert("b", json_body("2"));
+
+    queue.remove_webview_entries("a");
+
+    assert!(queue.remove("a", a).is_none());
+    assert!(queue.remove("b", b).is_some());
+  }
 }

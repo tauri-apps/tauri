@@ -19,7 +19,8 @@ use windows::{
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
-      GetIconInfo, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR, LoadImageW,
+      GetIconInfo, GetSystemMetrics, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR, LoadImageW,
+      SM_CXICON, SM_CYICON,
     },
   },
   core::{Owned, PCWSTR},
@@ -58,7 +59,20 @@ impl<'a> From<&'a str> for IconResource<'a> {
 #[cfg(windows)]
 #[doc(hidden)]
 pub fn default_window_icon_from_app_icon_resource() -> Option<Image<'static>> {
-  match Image::from_app_icon_resource(64) {
+  // the window icon is drawn in the title bar and, as a fallback for the taskbar icon,
+  // at the system's large icon size (32x32 at 96 DPI, scaled with the system DPI),
+  // so pick the entry Windows would use for the taskbar instead of a larger one it has to shrink
+  // `GetSystemMetrics` returns 0 on failure
+  let metric = |index| match unsafe { GetSystemMetrics(index) } {
+    n if n > 0 => n as u32,
+    _ => 32,
+  };
+  let (width, height) = (metric(SM_CXICON), metric(SM_CYICON));
+  match Image::from_icon_resource(
+    crate::utils::platform::WINDOWS_APP_ICON_RESOURCE_ID,
+    width,
+    height,
+  ) {
     Ok(icon) => Some(icon),
     Err(e) => {
       // a logger is usually not installed yet when `generate_context!` runs
@@ -474,6 +488,40 @@ impl JsImage {
         )
         .into(),
       ),
+    }
+  }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+  use super::{IconResource, Image, default_window_icon_from_app_icon_resource};
+
+  /// The test executable has no icon resources, so every lookup must fail with an error
+  /// (instead of panicking or returning a stretched placeholder).
+  #[test]
+  fn from_icon_resource_missing_resource_is_an_error() {
+    for resource in [
+      IconResource::Id(u16::MAX),
+      IconResource::Name("tauri-image-test-missing-icon"),
+    ] {
+      let error = Image::from_icon_resource(resource, 32, 32).unwrap_err();
+      assert!(
+        matches!(error, crate::Error::ImageFromResource(_)),
+        "{resource:?}: {error:?}"
+      );
+    }
+
+    assert!(default_window_icon_from_app_icon_resource().is_none());
+  }
+
+  #[test]
+  fn from_icon_resource_rejects_invalid_sizes() {
+    for (width, height) in [(0, 32), (32, 0), (u32::MAX, 32), (32, i32::MAX as u32 + 1)] {
+      let error = Image::from_icon_resource(1, width, height).unwrap_err();
+      assert!(
+        matches!(error, crate::Error::ImageFromResource(_)),
+        "{width}x{height}: {error:?}"
+      );
     }
   }
 }

@@ -3386,10 +3386,12 @@ pub struct AppConfig {
   /// `app_local_data_dir`, `app_cache_dir` and `app_log_dir`, and therefore also the `$APPCONFIG`, `$APPDATA`,
   /// `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.
   ///
-  /// This is meant for portable apps that keep all of their data in a single place, typically next to the executable.
+  /// This is useful for portable apps that keep all of their data next to the executable,
+  /// and for apps that want all of their app directories in a location they choose,
+  /// such as `$DOCUMENT/my-app` or a directory picked by the user.
   /// Everything that resolves paths through these APIs follows the override, including Tauri itself
   /// (the default webview data directory on Windows and Linux) and plugins,
-  /// so a portable build does not need every storage location to be configured individually.
+  /// so the storage locations do not need to be configured one by one.
   ///
   /// It can also isolate the data of a development build from an installed version of the app,
   /// though using a distinct `identifier` for development builds achieves that while keeping the production directory layout.
@@ -3465,6 +3467,27 @@ pub struct AppConfig {
   ///       "cache": "$CACHE/my-app"
   ///     }
   ///   }
+  /// }
+  /// ```
+  ///
+  /// The override can also be set at runtime, for instance from a command line flag, an environment variable
+  /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
+  /// before building the app:
+  ///
+  /// ```rust
+  /// use tauri::utils::config::AppDirectoriesOverride;
+  ///
+  /// fn main() {
+  ///   let mut context = tauri::generate_context!();
+  ///
+  ///   if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
+  ///     context.config_mut().app.app_directories_override =
+  ///       Some(AppDirectoriesOverride::Root(data_dir.into()));
+  ///   }
+  ///
+  ///   tauri::Builder::default()
+  ///     .run(context)
+  ///     .expect("error while running tauri application");
   /// }
   /// ```
   ///

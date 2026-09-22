@@ -224,10 +224,14 @@
           "type": "boolean"
         },
         "appDirectoriesOverride": {
-          "description": "Override the path returned from `app_*_dir` APIs,\n this is useful for making portable apps that stores all the data inside a single place\n\n Note:\n   - Relative paths are resolved based on the app's executable path,\n   - The path can start with a variable that resolves to a system base directory.\n     The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DOCUMENT`, `$DOWNLOAD`, `$PICTURE`,\n     `$PUBLIC`, `$VIDEO`, `$RESOURCE`, `$TEMP`, `$HOME`, `$DESKTOP`, `$EXE`, `$FONT`, `$RUNTIME`, `$TEMPLATE`\n\n ## Example:\n\n To put all the data besides your current executable:\n\n ```json\n {\n   \"app\": {\n     \"appDirectoriesOverride\": \"./\"\n   }\n }\n ```\n\n `app.path().app_local_data_dir()` should now return `${current_exe_dir}/`\n\n ## Platform-specific:\n\n - **Android**: Unsupported.",
-          "type": [
-            "string",
-            "null"
+          "description": "Overrides the directories returned by the `app_*_dir` path APIs: `app_config_dir`, `app_data_dir`,\n `app_local_data_dir`, `app_cache_dir` and `app_log_dir`, and therefore also the `$APPCONFIG`, `$APPDATA`,\n `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.\n\n This is useful for portable apps that keep all of their data next to the executable\n and for tests that must not touch the user's real app directories.\n\n The value is either a single path used as the root of every app directory,\n or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`).\n Directories that are not listed in the object keep their default location.\n\n Each path is resolved as follows:\n\n - A path starting with a base directory variable is resolved relative to that directory.\n   The supported variables are `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`,\n   `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.\n   `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.\n - An absolute path is used as is.\n - Any other path is resolved relative to the directory containing the executable.\n   When running from an AppImage on Linux this is the directory containing the AppImage file,\n   and when running from a `.app` bundle on macOS it is the directory containing the bundle.\n   Note that installed apps usually live in a read-only directory such as `/Applications` or `Program Files`.\n\n With a single root path, the config, data and local data directories resolve to the root itself,\n the cache directory resolves to `<root>/caches` and the log directory to `<root>/logs`.\n With the object form, each directory resolves to exactly the configured path.\n\n On Windows and Linux the webviews store their data (cookies, localStorage, cache, etc.) in the app local data\n directory by default, so they follow this override as well.\n A window's `dataDirectory` config is not affected by this option.\n\n ## Examples\n\n Keep all data next to the executable:\n\n ```json\n {\n   \"app\": {\n     \"appDirectoriesOverride\": \"./\"\n   }\n }\n ```\n\n `app_local_data_dir()` now resolves to the directory containing the executable,\n `app_cache_dir()` to `<executable directory>/caches` and `app_log_dir()` to `<executable directory>/logs`.\n\n Only move the logs and the cache:\n\n ```json\n {\n   \"app\": {\n     \"appDirectoriesOverride\": {\n       \"log\": \"$DATA/my-app/logs\",\n       \"cache\": \"$CACHE/my-app\"\n     }\n   }\n }\n ```\n\n ## Platform-specific\n\n - **Android / iOS**: Unsupported, the override is ignored.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AppDirectoriesOverride"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },
@@ -1895,6 +1899,65 @@
         },
         "tooltip": {
           "description": "Tray icon tooltip on Windows and macOS",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AppDirectoriesOverride": {
+      "description": "Overrides the directories returned by the `app_*_dir` path APIs.\n\n See the `app > appDirectoriesOverride` config for how each path is resolved.",
+      "anyOf": [
+        {
+          "description": "A single directory that holds all app directories.\n\n The config, data and local data directories resolve to this path,\n the cache directory resolves to `<path>/caches` and the log directory to `<path>/logs`.",
+          "type": "string"
+        },
+        {
+          "description": "Overrides for individual app directories.\n\n Directories that are not listed keep their default location.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppDirectoryOverrides"
+            }
+          ]
+        }
+      ]
+    },
+    "AppDirectoryOverrides": {
+      "description": "Overrides for individual app directories.",
+      "type": "object",
+      "properties": {
+        "config": {
+          "description": "Overrides the app config directory (`app_config_dir`, `$APPCONFIG`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "data": {
+          "description": "Overrides the app data directory (`app_data_dir`, `$APPDATA`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "localData": {
+          "description": "Overrides the app local data directory (`app_local_data_dir`, `$APPLOCALDATA`).\n\n On Windows and Linux this is also the default data directory of the webviews.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cache": {
+          "description": "Overrides the app cache directory (`app_cache_dir`, `$APPCACHE`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "log": {
+          "description": "Overrides the app log directory (`app_log_dir`, `$APPLOG`).",
           "type": [
             "string",
             "null"

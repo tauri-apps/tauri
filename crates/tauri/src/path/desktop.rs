@@ -5,6 +5,7 @@
 use super::{Error, Result};
 use crate::{AppHandle, Manager, Runtime, path::BaseDirectory};
 use std::path::{Component, Path, PathBuf};
+use tauri_utils::config::AppDirectoriesOverride;
 
 /// The path resolver is a helper class for general and application-specific path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) AppHandle<R>);
@@ -345,12 +346,29 @@ impl<R: Runtime> PathResolver<R> {
       return Ok(None);
     }
 
-    let Some(root) = &self.0.config().app.app_directories_override else {
+    let Some(config) = &self.0.config().app.app_directories_override else {
       return Ok(None);
     };
 
-    let mut path = self.resolve_override_path(root)?;
-    if let Some(subdirectory) = dir.root_override_subdirectory() {
+    let (path, subdirectory) = match config {
+      AppDirectoriesOverride::Root(root) => (root, dir.root_override_subdirectory()),
+      AppDirectoriesOverride::Directories(directories) => {
+        let path = match dir {
+          AppDirectory::Config => &directories.config,
+          AppDirectory::Data => &directories.data,
+          AppDirectory::LocalData => &directories.local_data,
+          AppDirectory::Cache => &directories.cache,
+          AppDirectory::Log => &directories.log,
+        };
+        match path {
+          Some(path) => (path, None),
+          None => return Ok(None),
+        }
+      }
+    };
+
+    let mut path = self.resolve_override_path(path)?;
+    if let Some(subdirectory) = subdirectory {
       path.push(subdirectory);
     }
 

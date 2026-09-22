@@ -1,5 +1,6 @@
 ---
 "tauri": minor:feat
+"tauri-utils": minor:feat
 ---
 
-Introduce a new config `appDirectoriesOverride` that changes what `app_*_dir` APIs return, useful for putting all your data besides the executable for testing or as portable apps
+Added the `app > appDirectoriesOverride` config to override the directories returned by the `app_*_dir` path APIs, either with a single root directory or per directory. This is useful for portable apps that keep their data next to the executable and for tests.

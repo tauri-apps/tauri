@@ -899,6 +899,12 @@ impl<T: UserEvent> WinitCefApp<T> {
           .expect("failed to send initialized CEF browser");
       }
     });
+    let main_thread: request_handler::MainThreadDispatcher = Arc::new({
+      let context = context.clone();
+      move |task| {
+        let _ = context.send_message(Message::Task(task));
+      }
+    });
     let request_context = request_context::request_context_from_webview_attributes(
       &context.cache_path,
       &pending.webview_attributes,
@@ -907,6 +913,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       uri_scheme_protocols.keys(),
       &custom_protocol_scheme,
       scheme_registry.clone(),
+      main_thread,
       on_initialized,
     );
     if request_context.is_none() {

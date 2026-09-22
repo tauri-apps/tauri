@@ -157,6 +157,21 @@ importers:
         specifier: ^8.1.4
         version: 8.1.4(@types/node@24.11.0)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.46.0)(tsx@4.23.0)
 
+  examples/cef:
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.63.0
+        version: 1.63.0
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.0
+      cross-env:
+        specifier: ^10.1.0
+        version: 10.1.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   examples/file-associations: {}
 
   examples/resources: {}
@@ -212,8 +227,8 @@ importers:
         specifier: ^2.0.9
         version: 2.0.9
       '@crabnebula/test-runner-backend':
-        specifier: ^0.2.9
-        version: 0.2.9
+        specifier: ^0.3.0
+        version: 0.3.0
       '@tauri-apps/api':
         specifier: ../api/dist
         version: link:../api/dist
@@ -346,33 +361,33 @@ packages:
     engines: {node: '>= 10'}
     hasBin: true
 
-  '@crabnebula/test-runner-backend-darwin-arm64@0.2.9':
-    resolution: {integrity: sha512-UAlL8VA23y/fp+MigNYFwGvtE9vJ518f846c0k2vgT/bLIpt+d3UXndjZCMYbEVFTmaq00wHoRPSPbyzHEMWlQ==}
+  '@crabnebula/test-runner-backend-darwin-arm64@0.3.0':
+    resolution: {integrity: sha512-XnZdSeew2ew/Eix+z1BwKt5PcrJSjL+VQ7dlrV1fvRj4WUTQtluzE1VhiVV0j2EIFJsRH2IExNj5OdCWxKSPiQ==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
 
-  '@crabnebula/test-runner-backend-darwin-x64@0.2.9':
-    resolution: {integrity: sha512-RUP9L4Lk8KsT4A64U4QFVy5rj99Y6iIichPLpZgTvpRybYKZBVXjUiU31aGUIlWnd4VHsWKLM2vNl90rKZm3lA==}
+  '@crabnebula/test-runner-backend-darwin-x64@0.3.0':
+    resolution: {integrity: sha512-dpogk8TxKd2CZb8BZ2Ni1mpbogD8KSoB8J92aw+9R24S8xBeTu8I+t4w9PVNIBvFaNAhEQelYhFffxH0FDs5+Q==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
 
-  '@crabnebula/test-runner-backend-linux-x64-gnu@0.2.9':
-    resolution: {integrity: sha512-js/haLE9OUsa0oDHNuVps5DY7av3iWG7PpAKjr9nMnIEXiLACDmvyUL/IplHMmu1lr6S0fztoudRf4JfTR+mfA==}
+  '@crabnebula/test-runner-backend-linux-x64-gnu@0.3.0':
+    resolution: {integrity: sha512-ZzDVKdY1ydv+lqfRYs6PAdmIc8AlfOciH3ntuUxyRJ8aSq0v8y+pow6b3/CRqmumkj9riVWsUriJr7Xw2YZFTg==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@crabnebula/test-runner-backend-win32-x64-msvc@0.2.9':
-    resolution: {integrity: sha512-p4pc/GQ0bj3vVLuUyTHDnhaXO52EQNkaCUPhWXwEkG00loW93pvCBRrOWoYpJH9me/n2zMFv61meW9mQyvbByw==}
+  '@crabnebula/test-runner-backend-win32-x64-msvc@0.3.0':
+    resolution: {integrity: sha512-xzE5bZx6QpqCkGFTpOYGxMfYidfsvYQgp3yQ1hXwuxeC5vsabOngRtE6X2DxQU6U8JzzNaooN0afG/khzoaihQ==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
 
-  '@crabnebula/test-runner-backend@0.2.9':
-    resolution: {integrity: sha512-3z6qZbJtVyA1JymQU5hFqcxG6nFD5INgqBc3OxTbYXVzMpihlRGOcHWyPK72ndHK88YmfwQWPcEFN1R/H/Lvhw==}
+  '@crabnebula/test-runner-backend@0.3.0':
+    resolution: {integrity: sha512-72aldFCPV0Sflv8KGLeaNoUY4Vz8eRl7AvUsJXFwqJ7KKNDAfPKwovXjmZoqIWn6Icv01sEsd1b2w0O66Y3WEQ==}
     engines: {node: '>= 10'}
     hasBin: true
 
@@ -1683,6 +1698,11 @@ packages:
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
+
+  '@playwright/test@1.63.0':
+    resolution: {integrity: sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
@@ -3669,6 +3689,16 @@ packages:
   pkg-types@1.3.1:
     resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
 
+  playwright-core@1.63.0:
+    resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.63.0:
+    resolution: {integrity: sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   postcss@8.5.23:
     resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
     engines: {node: ^10 || ^12 || >=14}
@@ -4465,24 +4495,24 @@ snapshots:
       '@crabnebula/tauri-driver-linux-x64-gnu': 2.0.9
       '@crabnebula/tauri-driver-win32-x64-msvc': 2.0.9
 
-  '@crabnebula/test-runner-backend-darwin-arm64@0.2.9':
+  '@crabnebula/test-runner-backend-darwin-arm64@0.3.0':
     optional: true
 
-  '@crabnebula/test-runner-backend-darwin-x64@0.2.9':
+  '@crabnebula/test-runner-backend-darwin-x64@0.3.0':
     optional: true
 
-  '@crabnebula/test-runner-backend-linux-x64-gnu@0.2.9':
+  '@crabnebula/test-runner-backend-linux-x64-gnu@0.3.0':
     optional: true
 
-  '@crabnebula/test-runner-backend-win32-x64-msvc@0.2.9':
+  '@crabnebula/test-runner-backend-win32-x64-msvc@0.3.0':
     optional: true
 
-  '@crabnebula/test-runner-backend@0.2.9':
+  '@crabnebula/test-runner-backend@0.3.0':
     optionalDependencies:
-      '@crabnebula/test-runner-backend-darwin-arm64': 0.2.9
-      '@crabnebula/test-runner-backend-darwin-x64': 0.2.9
-      '@crabnebula/test-runner-backend-linux-x64-gnu': 0.2.9
-      '@crabnebula/test-runner-backend-win32-x64-msvc': 0.2.9
+      '@crabnebula/test-runner-backend-darwin-arm64': 0.3.0
+      '@crabnebula/test-runner-backend-darwin-x64': 0.3.0
+      '@crabnebula/test-runner-backend-linux-x64-gnu': 0.3.0
+      '@crabnebula/test-runner-backend-win32-x64-msvc': 0.3.0
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -5527,6 +5557,10 @@ snapshots:
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
+
+  '@playwright/test@1.63.0':
+    dependencies:
+      playwright: 1.63.0
 
   '@polka/url@1.0.0-next.29': {}
 
@@ -7657,6 +7691,12 @@ snapshots:
       confbox: 0.1.8
       mlly: 1.8.0
       pathe: 2.0.3
+
+  playwright-core@1.63.0: {}
+
+  playwright@1.63.0:
+    dependencies:
+      playwright-core: 1.63.0
 
   postcss@8.5.23:
     dependencies:

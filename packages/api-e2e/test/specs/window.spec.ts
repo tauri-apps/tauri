@@ -239,11 +239,18 @@ describeApi('window', () => {
 
   itWm('setFullscreenOnMonitor goes fullscreen on that monitor', async () => {
     // Use the monitor the window is on, so the assertion holds on single-monitor CI.
-    const origin = await tauri(async (api) => {
+    const monitor = await tauri(async (api) => {
       const monitor = await api.window.currentMonitor()
-      return monitor ? { x: monitor.position.x, y: monitor.position.y } : null
+      return monitor
+        ? {
+            x: monitor.position.x,
+            y: monitor.position.y,
+            width: monitor.size.width,
+            height: monitor.size.height
+          }
+        : null
     })
-    expect(origin).not.toBeNull()
+    expect(monitor).not.toBeNull()
 
     await tauri(
       (api, origin) =>
@@ -252,7 +259,7 @@ describeApi('window', () => {
           .setFullscreenOnMonitor(
             new api.dpi.PhysicalPosition(origin.x, origin.y)
           ),
-      origin!
+      monitor!
     )
     await eventually(async () => {
       const state = await tauri(async (api) => {
@@ -267,10 +274,18 @@ describeApi('window', () => {
       if (!state.fullscreen) {
         throw new Error('window is not fullscreen')
       }
-      // a fullscreen window sits at its monitor's origin
-      if (state.x !== origin!.x || state.y !== origin!.y) {
+      // A fullscreen window lies on its monitor. It is not necessarily at the
+      // monitor's origin: on a Mac with a camera housing, fullscreen windows
+      // sit below it.
+      const { x, y, width, height } = monitor!
+      if (
+        state.x < x
+        || state.x >= x + width
+        || state.y < y
+        || state.y >= y + height
+      ) {
         throw new Error(
-          `window is at (${state.x}, ${state.y}), expected (${origin!.x}, ${origin!.y})`
+          `window is at (${state.x}, ${state.y}), outside the monitor at (${x}, ${y}) ${width}x${height}`
         )
       }
     })

@@ -1,0 +1,153 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test `examples/cef` e2e
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '.github/workflows/test-cef-e2e.yml'
+      - 'examples/cef/**'
+      - 'crates/tauri-runtime-cef/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # keeps the target folder small for better cache efficiency
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { name: Linux, os: ubuntu-latest }
+          - { name: Windows, os: windows-latest }
+          - { name: macOS, os: macos-latest }
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      # The CEF runtime links GTK 4 and ships its own Chromium; the suite needs a
+      # display and a window manager for the windows the app opens.
+      - name: install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libgtk-4-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            xvfb \
+            fluxbox
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.os }}
+
+      # The `cef` crate's build script downloads the CEF binary distribution into
+      # `CEF_PATH/<cef version>/<os-arch>` (the CLI points it at a per-user cache
+      # dir otherwise), and the bundler ships the framework from the same place, so
+      # one cache entry per CEF version serves both. `$USERPROFILE` keeps the path
+      # in Windows form for cargo, which bash's `$HOME` on Windows is not.
+      - name: resolve CEF version
+        id: cef-version
+        shell: bash
+        run: |
+          version=$(sed -nE 's/^cef = .*version = "=?([^"]+)".*/\1/p' crates/tauri-runtime-cef/Cargo.toml)
+          if [ -z "$version" ]; then
+            echo "could not resolve the cef crate version from crates/tauri-runtime-cef/Cargo.toml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "CEF_PATH=${USERPROFILE:-$HOME}/.cache/tauri-cef" >> "$GITHUB_ENV"
+
+      - name: cache CEF
+        uses: actions/cache@v5.0.3
+        with:
+          path: ~/.cache/tauri-cef
+          key: cef-e2e-${{ matrix.platform.os }}-${{ steps.cef-version.outputs.version }}
+
+      - name: install dependencies
+        run: pnpm i --frozen-lockfile
+
+      # The example's `tauri` script runs the local native CLI, which is what
+      # detects the CEF runtime and ships the framework and helper apps on macOS.
+      - name: build @tauri-apps/cli
+        run: pnpm build:cli
+
+      # Chromium's Linux sandbox needs either unprivileged user namespaces or a
+      # root-owned setuid `chrome-sandbox` next to the binary, and aborts with
+      # "No usable sandbox!" with neither. A `--no-bundle` build has the helper
+      # without the setuid bit (the deb/rpm bundlers set it at install time), and
+      # Ubuntu 24.04 restricts unprivileged user namespaces through AppArmor, so
+      # lift that restriction for the runner.
+      - name: allow unprivileged user namespaces (Linux)
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: run e2e tests (Linux)
+        if: runner.os == 'Linux'
+        timeout-minutes: 45
+        # A real window manager (fluxbox) is started so the windows the app opens
+        # get mapped and focused the way they would on a desktop.
+        run: |
+          xvfb-run --auto-servernum -- bash -c '
+            fluxbox >/dev/null 2>&1 &
+            sleep 1
+            pnpm test:cef-e2e
+          '
+
+      # The suite attaches to the app over the Chrome DevTools Protocol, so no
+      # WebDriver, no driver binary and no elevation dance are needed anywhere.
+      - name: run e2e tests (Windows, macOS)
+        if: runner.os != 'Linux'
+        timeout-minutes: 45
+        run: pnpm test:cef-e2e
+
+      - name: upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.platform.os }}
+          path: |
+            examples/cef/playwright-report
+            examples/cef/test-results
+          if-no-files-found: ignore
+
+      - name: collect app crash reports (macOS)
+        if: runner.os == 'macOS' && failure()
+        run: .scripts/ci/collect-macos-crash-reports.sh "$RUNNER_TEMP/crash-reports"
+
+      - name: upload app crash reports (macOS)
+        if: runner.os == 'macOS' && failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-crash-reports
+          path: ${{ runner.temp }}/crash-reports
+          if-no-files-found: ignore

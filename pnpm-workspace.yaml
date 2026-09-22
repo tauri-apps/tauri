@@ -4,6 +4,7 @@ packages:
   - packages/cli
   - crates/tauri-schema-worker
   - examples/api
+  - examples/cef
   - examples/resources
   - examples/file-associations
 
@@ -27,3 +28,10 @@ auditConfig:
     # unpacks the browser drivers we never download (see allowBuilds above)
     - GHSA-jmr9-qjv8-65gv
     - GHSA-7pqw-9j4j-h8q3
+
+minimumReleaseAgeExclude:
+  - '@crabnebula/test-runner-backend-darwin-arm64@0.3.0'
+  - '@crabnebula/test-runner-backend-darwin-x64@0.3.0'
+  - '@crabnebula/test-runner-backend-linux-x64-gnu@0.3.0'
+  - '@crabnebula/test-runner-backend-win32-x64-msvc@0.3.0'
+  - '@crabnebula/test-runner-backend@0.3.0'

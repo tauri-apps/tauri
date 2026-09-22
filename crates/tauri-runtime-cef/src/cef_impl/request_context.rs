@@ -313,6 +313,7 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
   custom_schemes: impl IntoIterator<Item = &'a String>,
   custom_protocol_scheme: &str,
   scheme_registry: request_handler::SchemeRegistry,
+  main_thread: request_handler::MainThreadDispatcher,
   on_initialized: RequestContextInitContinuation,
 ) -> Option<RequestContext> {
   let own_cache_path = |cache_path: PathBuf| {
@@ -388,6 +389,7 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
           scheme_registry.clone(),
           scheme.clone(),
+          main_thread.clone(),
         )),
       );
     }

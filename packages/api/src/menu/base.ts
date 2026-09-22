@@ -11,6 +11,12 @@ import { MenuItemOptions } from './menuItem'
 import { PredefinedMenuItemOptions } from './predefinedMenuItem'
 import { SubmenuOptions } from './submenu'
 
+/**
+ * The kind of a menu item, used internally to route IPC calls to the right
+ * Rust-side type.
+ *
+ * @ignore
+ */
 export type ItemKind =
   | 'MenuItem'
   | 'Predefined'
@@ -42,6 +48,12 @@ function injectChannel(i: MenuItemOptionsAlias): MenuItemOptionsAlias & {
   return i
 }
 
+/**
+ * Creates a menu or menu item on the Rust side. Implementation detail of the
+ * `new` static methods of the menu classes.
+ *
+ * @ignore
+ */
 export async function newMenu(
   kind: ItemKind,
   opts?:
@@ -118,6 +130,15 @@ export async function newMenu(
   })
 }
 
+/**
+ * The base class of every menu and menu item type.
+ *
+ * It is not constructible on its own: create a {@linkcode Menu}, {@linkcode Submenu},
+ * {@linkcode MenuItem}, {@linkcode CheckMenuItem}, {@linkcode IconMenuItem} or
+ * {@linkcode PredefinedMenuItem} instead. It provides the `id` shared by all of
+ * them and, through {@linkcode Resource}, the `rid` and `close()` used to release
+ * the Rust-side object.
+ */
 export class MenuItemBase extends Resource {
   /** @ignore */
   readonly #id: string

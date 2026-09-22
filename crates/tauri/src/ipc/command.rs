@@ -47,10 +47,22 @@ pub struct CommandItem<'a, R: Runtime> {
 /// # Provided Implementations
 ///
 /// Tauri implements [`CommandArg`] automatically for a number of types.
+/// * [`crate::AppHandle`]
 /// * [`crate::Window`]
+/// * [`crate::Webview`]
+/// * [`crate::WebviewWindow`]
 /// * [`crate::State`]
+/// * [`crate::ipc::Channel`]
+/// * [`crate::ipc::Request`]
+///   * Gives access to the raw request body and headers instead of a deserialized argument.
+/// * [`crate::ipc::CommandScope`] and [`crate::ipc::GlobalScope`]
+///   * The scope defined by the capabilities that allowed the command, see the
+///     [scope documentation](https://v2.tauri.app/security/scope/).
 /// * `T where T: serde::Deserialize`
 ///   * Any type that implements `Deserialize` can automatically be used as a [`CommandArg`].
+///
+/// Note that the types above are resolved from the command message and not from the command
+/// arguments sent by the frontend, so they do not need to be provided on the JavaScript side.
 pub trait CommandArg<'de, R: Runtime>: Sized {
   /// Derives an instance of `Self` from the [`CommandItem`].
   ///

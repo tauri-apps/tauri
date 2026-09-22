@@ -1867,15 +1867,28 @@ pub enum BackgroundThrottlingPolicy {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowEffectsConfig {
   /// List of Window effects to apply to the Window.
-  /// Conflicting effects will apply the first one and ignore the rest.
+  ///
+  /// Generally, conflicting effects will apply the first one and ignore the rest but
+  /// on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time
+  /// to make Tauri fallback to the latter on macOS 15 and below.
   pub effects: Vec<WindowEffect>,
-  /// Window effect state **macOS Only**
+  /// Window effect state **macOS Only**. Ignored for Liquid Glass Effects.
   pub state: Option<WindowEffectState>,
   /// Window effect corner radius **macOS Only**
   pub radius: Option<f64>,
-  /// Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
+  /// Window effect color.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
   /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
+  /// - **macOS**: Only affects Liquid Glass effects.
   pub color: Option<Color>,
+  /// Enables interactive glass behavior, which adds a visual response to user interactions.
+  ///
+  /// **macOS 27.0+**. Only affects Liquid Glass effects.
+  #[serde(default)]
+  pub interactive: bool,
 }
 
 /// Enable prevent overflow with a margin
@@ -1913,7 +1926,9 @@ pub enum PreventOverflowConfig {
 #[non_exhaustive]
 pub enum ScrollBarStyle {
   #[default]
-  /// The scrollbar style to use in the webview.
+  /// The platform's native scrollbar, as rendered by the webview by default.
+  ///
+  /// This is the only supported value outside of Windows.
   Default,
 
   /// Fluent UI style overlay scrollbars. **Windows Only**
@@ -2041,10 +2056,13 @@ pub struct WindowConfig {
   pub focusable: bool,
   /// Whether the window is transparent or not.
   ///
-  /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.
-  /// WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+  /// ## Platform-specific
   ///
-  /// On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
+  /// - **macOS**: Requires the `macos-private-api` Cargo feature, which is enabled by setting
+  ///   `app > macOSPrivateApi` to `true` in the configuration file.
+  ///   **WARNING:** Using private APIs on macOS prevents your application from being accepted to the App Store.
+  ///   If you only need a translucent background, use `windowEffects` instead, which relies on public APIs.
+  /// - **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
   #[serde(default)]
   pub transparent: bool,
   /// Whether the window is maximized or not.
@@ -2251,8 +2269,8 @@ pub struct WindowConfig {
     alias = "disable_input_accessory_view"
   )]
   pub disable_input_accessory_view: bool,
-  ///
-  /// Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
+  /// Set a custom path for the webview's data directory (localStorage, cache, etc.),
+  /// **relative to the app data directory (`appDataDir()`), followed by the window label**.
   ///
   /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
   ///
@@ -2263,9 +2281,9 @@ pub struct WindowConfig {
   /// - **Android**: Unsupported.
   #[serde(default, alias = "data-directory")]
   pub data_directory: Option<PathBuf>,
-  ///
   /// Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
-  /// See https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc
+  ///
+  /// See <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>
   ///
   /// The array must contain 16 u8 numbers.
   ///
@@ -2292,15 +2310,15 @@ pub struct WindowConfig {
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
 
-  /// Whether to limit navigations to App-Bound Domains. This is necessary to
-  /// enable Service Workers on iOS according to
-  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  /// Whether to limit navigations to App-Bound Domains.
   ///
-  /// Default is false.
+  /// This is required to enable Service Workers in WKWebView, which are otherwise
+  /// unavailable. Defaults to `false`.
   ///
-  /// Note: If you set this to `true` make sure to add localhost and any [`registrable
-  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
-  /// used in this webview to tauri-src/Info.ios.plist:
+  /// When this is set to `true`, the webview can only navigate to the domains listed in the
+  /// `WKAppBoundDomains` array of `src-tauri/Info.ios.plist`. Add `localhost` and every
+  /// [registrable domain](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// this webview loads to that array:
   ///
   /// ```xml
   /// <plist>
@@ -2314,33 +2332,30 @@ pub struct WindowConfig {
   /// </plist>
   /// ```
   ///
-  /// You must add `localhost` if any webview with this set to true opens a
-  /// local webpage, makes any localhost calls, or uses the isolation pattern
-  /// because Tauri uses the `localhost` domain for hosting the application
-  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  /// `localhost` must be listed if any webview with this option enabled opens a local webpage,
+  /// makes any localhost call, or uses the isolation pattern, because Tauri serves the
+  /// application webpage, the IPC protocol and the isolation pattern iframe from the
+  /// `localhost` domain.
   ///
-  /// Requests served through custom uri schemes are allowed so long as they use
-  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
-  /// requests from the app, including requests for the `localhost` domain.
+  /// Requests served through custom URI schemes are allowed as long as they use a registrable
+  /// domain listed in the `WKAppBoundDomains` array, including requests to the `localhost`
+  /// domain.
   ///
-  /// In theory, you can whitelist an entire uri scheme by including the
-  /// protocol name followed by a colon. For example, to allow all requests
-  /// using a custom "stream" uri scheme (see [this tauri
-  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
-  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
-  /// sure whether Apple would let your app through app review if you do
-  /// whitelist an entire protocol because this feature is not mentioned in
-  /// [their blog post on App-Bound
-  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  /// An entire URI scheme can be listed by adding the protocol name followed by a colon, for
+  /// example `stream:` for a custom `stream` scheme (see the
+  /// [streaming example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)).
+  /// This is not covered by Apple's
+  /// [App-Bound Domains announcement](https://webkit.org/blog/10882/app-bound-domains/),
+  /// so it may not be accepted during App Store review.
   ///
-  /// See https://webkit.org/blog/10882/app-bound-domains/ and
-  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// See <https://webkit.org/blog/10882/app-bound-domains/> and
+  /// <https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains>
   /// for the official documentation on App-Bound Domains.
   ///
   /// ## Platform-specific
   ///
   /// - **iOS**: Supported since version 14.0+.
-  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  /// - **Linux / Windows / Android / macOS:** Unsupported.
   #[serde(default, alias = "limit-navigations-to-app-bound-domains")]
   pub limit_navigations_to_app_bound_domains: bool,
   /// The name of the Android activity to create for this window.
@@ -3023,7 +3038,7 @@ impl HeaderConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
   /// The Content Security Policy that will be injected on all HTML files on the built application.
-  /// If [`dev_csp`](#SecurityConfig.devCsp) is not specified, this value is also injected on dev.
+  /// If `devCsp` is not specified, this value is also injected on dev.
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
@@ -3034,7 +3049,18 @@ pub struct SecurityConfig {
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
   #[serde(alias = "dev-csp")]
   pub dev_csp: Option<Csp>,
-  /// Freeze the `Object.prototype` when using the custom protocol.
+  /// Whether `Object.freeze(Object.prototype)` is run as an initialization script on every webview.
+  ///
+  /// This hardens the frontend against prototype pollution: once the prototype is frozen,
+  /// a script cannot add or replace properties on `Object.prototype` and thus cannot tamper
+  /// with objects it does not own, including the ones used by the Tauri API.
+  ///
+  /// The script runs before any of your frontend code, on every webview, regardless of whether
+  /// the content is served by the custom protocol or by a development server.
+  ///
+  /// Defaults to `false`. Note that frontend libraries that extend built-in prototypes
+  /// (polyfills, some older frameworks) stop working when this is enabled, so test your
+  /// application with it on before shipping.
   #[serde(default, alias = "freeze-prototype")]
   pub freeze_prototype: bool,
   /// Disables the Tauri-injected CSP sources.
@@ -3054,7 +3080,17 @@ pub struct SecurityConfig {
   /// Custom protocol config.
   #[serde(default, alias = "asset-protocol")]
   pub asset_protocol: AssetProtocolConfig,
-  /// The pattern to use.
+  /// The application pattern, which defines how the frontend communicates with the Rust core.
+  ///
+  /// - `brownfield` (default): the frontend talks to the core directly. Use it unless you need
+  ///   the extra isolation layer.
+  /// - `isolation`: every IPC message is routed through a secure JavaScript application you own,
+  ///   hosted in a sandboxed `<iframe>`, so it can validate or reject messages before they reach
+  ///   the Rust core. This protects the core from an untrusted or compromised frontend
+  ///   (for example one that loads third-party scripts), at the cost of an extra build step:
+  ///   the `dir` value must point at a directory containing the isolation application's `index.html`.
+  ///
+  /// See <https://tauri.app/concept/inter-process-communication/isolation/>.
   #[serde(default)]
   pub pattern: PatternKind,
   /// List of capabilities that are enabled on the application.
@@ -3069,13 +3105,15 @@ pub struct SecurityConfig {
   /// ```json
   /// {
   ///   "app": {
-  ///     "capabilities": [
-  ///       "main-window",
-  ///       {
-  ///         "identifier": "drag-window",
-  ///         "permissions": ["core:window:allow-start-dragging"]
-  ///       }
-  ///     ]
+  ///     "security": {
+  ///       "capabilities": [
+  ///         "main-window",
+  ///         {
+  ///           "identifier": "drag-window",
+  ///           "permissions": ["core:window:allow-start-dragging"]
+  ///         }
+  ///       ]
+  ///     }
   ///   }
   /// }
   /// ```
@@ -3202,7 +3240,21 @@ pub struct AppConfig {
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
-  /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
+  /// Whether the application `identifier` is used as the GTK application ID on systems that use GTK.
+  ///
+  /// Setting the GTK application ID lets the desktop environment associate the app's windows with
+  /// its `.desktop` entry of the same name, which is what makes Wayland compositors and GNOME show
+  /// the correct icon and application name, and group the windows in the dock or taskbar.
+  ///
+  /// Defaults to `false`, because registering an application ID also makes GTK register the
+  /// application on the session bus under that ID, which prevents running more than one instance
+  /// of the app at the same time.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / FreeBSD / DragonFly / NetBSD / OpenBSD**: The identifier must be a valid GTK
+  ///   application ID.
+  /// - **Windows / macOS / Android / iOS**: Unsupported.
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
 }
@@ -3555,17 +3607,26 @@ pub struct BuildConfig {
   pub frontend_dist: Option<FrontendDist>,
   /// A shell command to run before `tauri dev` kicks in.
   ///
-  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
+  /// The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`
+  /// and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can
+  /// adapt its output to the target that is being built.
+  /// `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.
   #[serde(alias = "before-dev-command")]
   pub before_dev_command: Option<BeforeDevCommand>,
   /// A shell command to run before `tauri build` kicks in.
   ///
-  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
+  /// The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`
+  /// and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can
+  /// adapt its output to the target that is being built.
+  /// `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.
   #[serde(alias = "before-build-command")]
   pub before_build_command: Option<HookCommand>,
   /// A shell command to run before the bundling phase in `tauri build` kicks in.
   ///
-  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
+  /// The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`
+  /// and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can
+  /// adapt its output to the target that is being built.
+  /// `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.
   #[serde(alias = "before-bundle-command")]
   pub before_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.
@@ -3914,6 +3975,7 @@ mod build {
       let state = opt_lit(self.state.as_ref());
       let radius = opt_lit(self.radius.as_ref());
       let color = opt_lit(self.color.as_ref());
+      let interactive = self.interactive;
 
       literal_struct!(
         tokens,
@@ -3921,7 +3983,8 @@ mod build {
         effects,
         state,
         radius,
-        color
+        color,
+        interactive
       )
     }
   }
@@ -3970,6 +4033,8 @@ mod build {
         WindowEffect::ContentBackground => quote! { #prefix::ContentBackground},
         WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
         WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
+        WindowEffect::LiquidGlassRegular => quote! { #prefix::LiquidGlassRegular },
+        WindowEffect::LiquidGlassClear => quote! { #prefix::LiquidGlassClear },
         WindowEffect::Mica => quote! { #prefix::Mica},
         WindowEffect::MicaDark => quote! { #prefix::MicaDark},
         WindowEffect::MicaLight => quote! { #prefix::MicaLight},

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect } from '@wdio/globals'
-import { tauri, describeApi } from '../helpers/index.js'
+import { tauri, describeApi, itDesktop } from '../helpers/index.js'
 
 describeApi('webview', () => {
   it('getCurrentWebview reports the main label', async () => {
@@ -19,7 +19,9 @@ describeApi('webview', () => {
     expect(labels).toContain('main')
   })
 
-  it('exposes a physical position and size', async () => {
+  // `webview_position`/`webview_size` are desktop-only commands: on mobile the
+  // webview always fills the window.
+  itDesktop('exposes a physical position and size', async () => {
     const rect = await tauri(async (api) => {
       const wv = api.webview.getCurrentWebview()
       const pos = await wv.position()
@@ -30,7 +32,7 @@ describeApi('webview', () => {
     expect(rect.height).toBeGreaterThan(0)
   })
 
-  it('setZoom adjusts and restores the zoom level', async () => {
+  itDesktop('setZoom adjusts and restores the zoom level', async () => {
     // Requires `core:webview:allow-set-webview-zoom` in the run-app capability.
     await tauri(async (api) => {
       const wv = api.webview.getCurrentWebview()

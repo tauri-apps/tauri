@@ -489,6 +489,10 @@ fn run_build(
           .with_extension("app");
 
         let path = out_dir.join(app_path.file_name().unwrap());
+        // `rename` does not replace a non-empty directory, such as the previous build
+        if path.exists() {
+          fs::remove_dir_all(&path).fs_context("failed to remove previous app", path.clone())?;
+        }
         fs::rename(&app_path, &path).fs_context("failed to rename app", app_path)?;
         out_files.push(path);
       } else if options.no_sign {

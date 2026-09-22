@@ -5018,6 +5018,150 @@ mod test {
   }
 
   #[test]
+  fn app_directories_override_root() {
+    let config: AppDirectoriesOverride = serde_json::from_str(r#""./""#).unwrap();
+    assert_eq!(config, AppDirectoriesOverride::Root("./".into()));
+
+    let config: AppDirectoriesOverride = serde_json::from_str(r#""$DATA/my-app""#).unwrap();
+    assert_eq!(config, AppDirectoriesOverride::Root("$DATA/my-app".into()));
+  }
+
+  #[test]
+  fn app_directories_override_directories() {
+    let config: AppDirectoriesOverride = serde_json::from_str(
+      r#"{ "log": "$DATA/logs", "cache": "$CACHE/my-app", "local-data": "data" }"#,
+    )
+    .unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+        config: None,
+        data: None,
+        local_data: Some("data".into()),
+        cache: Some("$CACHE/my-app".into()),
+        log: Some("$DATA/logs".into()),
+      })
+    );
+
+    let config: AppDirectoriesOverride =
+      serde_json::from_str(r#"{ "config": "conf", "data": "data", "localData": "local" }"#)
+        .unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+        config: Some("conf".into()),
+        data: Some("data".into()),
+        local_data: Some("local".into()),
+        cache: None,
+        log: None,
+      })
+    );
+
+    let config: AppDirectoriesOverride = serde_json::from_str("{}").unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides::default())
+    );
+  }
+
+  #[test]
+  fn app_directories_override_rejects_unknown_directories() {
+    let err = serde_json::from_str::<AppDirectoriesOverride>(r#"{ "logs": "x" }"#).unwrap_err();
+    assert!(err.to_string().contains("unknown field `logs`"), "{err}");
+  }
+
+  #[test]
+  fn app_directories_override_accepts_supported_variables() {
+    for variable in APP_DIRECTORIES_OVERRIDE_VARIABLES {
+      for path in [
+        variable.to_string(),
+        format!("{variable}/my-app"),
+        format!("{variable}/../my-app"),
+      ] {
+        let json = serde_json::to_string(&path).unwrap();
+        let config: AppDirectoriesOverride = serde_json::from_str(&json).unwrap();
+        assert_eq!(config, AppDirectoriesOverride::Root(path.into()));
+      }
+    }
+  }
+
+  #[test]
+  fn app_directories_override_rejects_unsupported_variables() {
+    for variable in [
+      "$APPCONFIG",
+      "$APPDATA",
+      "$APPLOCALDATA",
+      "$APPCACHE",
+      "$APPLOG",
+      "$EXE",
+      "$FONT",
+      "$RESOURCE",
+      "$RUNTIME",
+      "$TEMPLATE",
+      "$UNKNOWN",
+    ] {
+      let err = serde_json::from_str::<AppDirectoriesOverride>(&format!(r#""{variable}/my-app""#))
+        .unwrap_err();
+      assert!(
+        err
+          .to_string()
+          .contains(&format!("unsupported base directory variable `{variable}`")),
+        "{variable}: {err}"
+      );
+
+      let err =
+        serde_json::from_str::<AppDirectoriesOverride>(&format!(r#"{{ "log": "{variable}" }}"#))
+          .unwrap_err();
+      assert!(
+        err
+          .to_string()
+          .contains("unsupported base directory variable"),
+        "{variable}: {err}"
+      );
+    }
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn app_directories_override_rejects_root_relative_paths() {
+    for path in [r"\my-app", "C:my-app"] {
+      let json = serde_json::to_string(path).unwrap();
+      let err = serde_json::from_str::<AppDirectoriesOverride>(&json).unwrap_err();
+      assert!(
+        err.to_string().contains("must be an absolute path"),
+        "{path}: {err}"
+      );
+    }
+  }
+
+  #[cfg(feature = "build")]
+  #[test]
+  fn app_directories_override_to_tokens() {
+    use quote::ToTokens;
+
+    let tokens = AppDirectoriesOverride::Root("./".into())
+      .to_token_stream()
+      .to_string()
+      .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AppDirectoriesOverride::Root(::std::path::PathBuf::from("./"))"#
+    );
+
+    let tokens = AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+      log: Some("$DATA/logs".into()),
+      ..Default::default()
+    })
+    .to_token_stream()
+    .to_string()
+    .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AppDirectoriesOverride::Directories(::tauri::utils::config::AppDirectoryOverrides{config:::core::option::Option::None,data:::core::option::Option::None,local_data:::core::option::Option::None,cache:::core::option::Option::None,log:::core::option::Option::Some(::std::path::PathBuf::from("$DATA/logs"))})"#
+    );
+  }
+
+  #[test]
   fn parse_hex_color() {
     use super::Color;
 

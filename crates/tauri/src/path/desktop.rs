@@ -482,3 +482,216 @@ fn macos_bundle_parent(macos_dir: &Path) -> Option<PathBuf> {
 
   bundle.parent().map(Path::to_path_buf)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::{
+    App,
+    test::{MockRuntime, mock_builder, mock_context, noop_assets},
+  };
+  use tauri_utils::config::{AppDirectoriesOverride, AppDirectoryOverrides};
+
+  const IDENTIFIER: &str = "com.tauri.test";
+
+  fn app_with(app_directories_override: Option<AppDirectoriesOverride>) -> App<MockRuntime> {
+    let mut context = mock_context(noop_assets());
+    context.config_mut().identifier = IDENTIFIER.into();
+    context.config_mut().app.app_directories_override = app_directories_override;
+    mock_builder().build(context).unwrap()
+  }
+
+  /// The directory containing the test binary, which is never inside an app bundle.
+  fn binary_dir() -> PathBuf {
+    crate::utils::platform::current_exe()
+      .unwrap()
+      .parent()
+      .unwrap()
+      .to_path_buf()
+  }
+
+  #[test]
+  fn default_directories() {
+    let app = app_with(None);
+    let path = app.path();
+    assert_eq!(
+      path.app_config_dir().unwrap(),
+      dirs::config_dir().unwrap().join(IDENTIFIER)
+    );
+    assert_eq!(
+      path.app_data_dir().unwrap(),
+      dirs::data_dir().unwrap().join(IDENTIFIER)
+    );
+    assert_eq!(
+      path.app_local_data_dir().unwrap(),
+      dirs::data_local_dir().unwrap().join(IDENTIFIER)
+    );
+    assert_eq!(
+      path.app_cache_dir().unwrap(),
+      dirs::cache_dir().unwrap().join(IDENTIFIER)
+    );
+  }
+
+  #[test]
+  fn root_override_relative_to_binary() {
+    let binary_dir = binary_dir();
+
+    let app = app_with(Some(AppDirectoriesOverride::Root("./".into())));
+    let path = app.path();
+    assert_eq!(path.app_config_dir().unwrap(), binary_dir);
+    assert_eq!(path.app_data_dir().unwrap(), binary_dir);
+    assert_eq!(path.app_local_data_dir().unwrap(), binary_dir);
+    assert_eq!(path.app_cache_dir().unwrap(), binary_dir.join("caches"));
+    assert_eq!(path.app_log_dir().unwrap(), binary_dir.join("logs"));
+    // the `.` component must not leak into the resolved path
+    assert!(
+      !path
+        .app_cache_dir()
+        .unwrap()
+        .components()
+        .any(|c| c == Component::CurDir)
+    );
+
+    let app = app_with(Some(AppDirectoriesOverride::Root("data".into())));
+    assert_eq!(app.path().app_data_dir().unwrap(), binary_dir.join("data"));
+
+    // `..` components are kept
+    let app = app_with(Some(AppDirectoriesOverride::Root("../data".into())));
+    assert_eq!(
+      app.path().app_data_dir().unwrap(),
+      binary_dir.join("../data")
+    );
+  }
+
+  #[test]
+  fn root_override_absolute() {
+    let root = normalize(std::env::temp_dir().join("tauri-app-directories-override"));
+    let app = app_with(Some(AppDirectoriesOverride::Root(root.clone())));
+    let path = app.path();
+    assert_eq!(path.app_config_dir().unwrap(), root);
+    assert_eq!(path.app_data_dir().unwrap(), root);
+    assert_eq!(path.app_local_data_dir().unwrap(), root);
+    assert_eq!(path.app_cache_dir().unwrap(), root.join("caches"));
+    assert_eq!(path.app_log_dir().unwrap(), root.join("logs"));
+  }
+
+  #[test]
+  fn root_override_variable() {
+    let data_dir = dirs::data_dir().unwrap();
+
+    let app = app_with(Some(AppDirectoriesOverride::Root("$DATA/my-app".into())));
+    let path = app.path();
+    assert_eq!(path.app_config_dir().unwrap(), data_dir.join("my-app"));
+    assert_eq!(
+      path.app_cache_dir().unwrap(),
+      data_dir.join("my-app/caches")
+    );
+    assert_eq!(path.app_log_dir().unwrap(), data_dir.join("my-app/logs"));
+
+    let app = app_with(Some(AppDirectoriesOverride::Root("$DATA".into())));
+    assert_eq!(app.path().app_data_dir().unwrap(), data_dir);
+
+    // `..` components are kept, unlike `PathResolver::parse`
+    let app = app_with(Some(AppDirectoriesOverride::Root("$DATA/../my-app".into())));
+    assert_eq!(
+      app.path().app_data_dir().unwrap(),
+      data_dir.join("../my-app")
+    );
+  }
+
+  #[test]
+  fn directories_override() {
+    let app = app_with(Some(AppDirectoriesOverride::Directories(
+      AppDirectoryOverrides {
+        log: Some("$CACHE/my-app/logs".into()),
+        cache: Some("custom-cache".into()),
+        ..Default::default()
+      },
+    )));
+    let path = app.path();
+
+    // overridden directories resolve to exactly the configured path
+    assert_eq!(
+      path.app_log_dir().unwrap(),
+      dirs::cache_dir().unwrap().join("my-app/logs")
+    );
+    assert_eq!(
+      path.app_cache_dir().unwrap(),
+      binary_dir().join("custom-cache")
+    );
+
+    // the other directories keep their default location
+    assert_eq!(
+      path.app_config_dir().unwrap(),
+      dirs::config_dir().unwrap().join(IDENTIFIER)
+    );
+    assert_eq!(
+      path.app_data_dir().unwrap(),
+      dirs::data_dir().unwrap().join(IDENTIFIER)
+    );
+    assert_eq!(
+      path.app_local_data_dir().unwrap(),
+      dirs::data_local_dir().unwrap().join(IDENTIFIER)
+    );
+  }
+
+  #[test]
+  fn rejects_app_directory_variables() {
+    for variable in [
+      "$APPCONFIG",
+      "$APPDATA",
+      "$APPLOCALDATA",
+      "$APPCACHE",
+      "$APPLOG",
+    ] {
+      let app = app_with(Some(AppDirectoriesOverride::Root(
+        format!("{variable}/my-app").into(),
+      )));
+      let err = app.path().app_data_dir().unwrap_err();
+      assert!(
+        matches!(err, Error::InvalidAppDirectoriesOverride(..)),
+        "{variable}: {err}"
+      );
+    }
+  }
+
+  #[test]
+  fn rejects_unknown_variables() {
+    let app = app_with(Some(AppDirectoriesOverride::Root("$UNKNOWN/my-app".into())));
+    let err = app.path().app_data_dir().unwrap_err();
+    assert!(
+      matches!(err, Error::InvalidAppDirectoriesOverride(..)),
+      "{err}"
+    );
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn rejects_root_relative_paths() {
+    for root in [r"\my-app", "C:my-app"] {
+      let app = app_with(Some(AppDirectoriesOverride::Root(root.into())));
+      let err = app.path().app_data_dir().unwrap_err();
+      assert!(
+        matches!(err, Error::InvalidAppDirectoriesOverride(..)),
+        "{root}: {err}"
+      );
+    }
+  }
+
+  #[test]
+  fn macos_bundle_parent_dir() {
+    assert_eq!(
+      macos_bundle_parent(Path::new("/Applications/My App.app/Contents/MacOS")),
+      Some(PathBuf::from("/Applications"))
+    );
+    assert_eq!(
+      macos_bundle_parent(Path::new("/Applications/My App.app/Contents")),
+      None
+    );
+    assert_eq!(
+      macos_bundle_parent(Path::new("/Applications/MyApp/Contents/MacOS")),
+      None
+    );
+    assert_eq!(macos_bundle_parent(Path::new("/opt/my-app/bin")), None);
+  }
+}

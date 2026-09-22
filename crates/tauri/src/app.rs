@@ -547,12 +547,29 @@ impl<R: Runtime> AppHandle<R> {
   }
 
   /// Exits the app by triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`].
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unless the exit is prevented, the activity is finished instead of the process being exited directly,
+  ///   so the app closes with the system transition and the activity lifecycle callbacks run.
+  ///   [`RunEvent::Exit`] is triggered once the activity is destroyed, and `exit_code` is not used as the process exit code.
   pub fn exit(&self, exit_code: i32) {
     if let Err(e) = self.runtime_handle.request_exit(exit_code) {
       log::error!("failed to exit: {}", e);
       self.cleanup_before_exit();
       std::process::exit(exit_code);
     }
+  }
+
+  /// Finishes the Android activity, and any other activity of its task, so the app closes gracefully.
+  #[cfg(target_os = "android")]
+  pub(crate) fn finish_activity(&self) -> crate::Result<()> {
+    // the app plugin is a core plugin, so its Android handle is always managed
+    self
+      .state::<crate::app::plugin::AppPlugin<R>>()
+      .0
+      .run_mobile_plugin::<()>("exit", ())?;
+    Ok(())
   }
 
   /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`](crate::RESTART_EXIT_CODE) and [`RunEvent::Exit`].
@@ -1072,6 +1089,15 @@ macro_rules! shared_app_impl {
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
+        // run plugin cleanup hooks first so plugins can still use the app resources (e.g. stop sidecars)
+        // cleanup is best-effort, so a plugin store poisoned by an earlier panic must not abort it
+        self
+          .manager
+          .plugins
+          .lock()
+          .unwrap_or_else(std::sync::PoisonError::into_inner)
+          .cleanup_before_exit(self.app_handle());
+
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
@@ -1383,7 +1409,11 @@ impl<R: Runtime> App<R> {
     let _app_handle = self.handle().clone();
     let _manager = self.manager.clone();
 
-    move |event| match &event {
+    // whether the activity is being finished to fulfill an exit request the app accepted
+    #[cfg(target_os = "android")]
+    let mut finishing_activity = false;
+
+    move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
@@ -1398,6 +1428,43 @@ impl<R: Runtime> App<R> {
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
+      }
+      // On Android, exiting the process while the activity is still on screen skips the close transition
+      // and flashes a blank screen, so a programmatic exit finishes the activity instead and the event loop
+      // exits through the regular window destroyed path.
+      #[cfg(target_os = "android")]
+      RuntimeRunEvent::ExitRequested {
+        code: Some(code),
+        tx,
+      } if code != RESTART_EXIT_CODE && !self.manager.windows().is_empty() => {
+        let (app_tx, app_rx) = std::sync::mpsc::channel();
+        let event = on_event_loop_event(
+          self.handle(),
+          RuntimeRunEvent::ExitRequested {
+            code: Some(code),
+            tx: app_tx,
+          },
+          self.manager(),
+        );
+        callback(self.handle(), event);
+
+        if matches!(app_rx.try_recv(), Ok(ExitRequestedEventAction::Prevent)) {
+          let _ = tx.send(ExitRequestedEventAction::Prevent);
+        } else {
+          match self.handle().finish_activity() {
+            Ok(()) => {
+              finishing_activity = true;
+              // keep the event loop running until the activity is destroyed
+              let _ = tx.send(ExitRequestedEventAction::Prevent);
+            }
+            // fall back to exiting the process directly
+            Err(e) => log::error!("failed to finish the activity: {e}"),
+          }
+        }
+      }
+      #[cfg(target_os = "android")]
+      RuntimeRunEvent::ExitRequested { code: None, .. } if finishing_activity => {
+        // the app already accepted this exit when it was requested
       }
       _ => {
         let event = on_event_loop_event(self.handle(), event, self.manager());
@@ -1513,6 +1580,10 @@ pub struct Builder<R: Runtime = crate::DynRuntime> {
   #[allow(unused)]
   enable_macos_default_menu: bool,
 
+  /// Whether to activate the application when launched while another application is active.
+  #[cfg(target_os = "macos")]
+  activate_ignoring_other_apps: bool,
+
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
 
@@ -1581,6 +1652,8 @@ impl<R: Runtime> Builder<R> {
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray_icon_event_listeners: Vec::new(),
       enable_macos_default_menu: true,
+      #[cfg(target_os = "macos")]
+      activate_ignoring_other_apps: true,
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
@@ -2108,6 +2181,31 @@ tauri::Builder::default()
     self
   }
 
+  /// Configures whether the application should activate when launched while another application
+  /// is active.
+  ///
+  /// By default, the application ignores other applications and activates when launched.
+  ///
+  /// If `false`, the application activates only if no other application is currently active.
+  /// If `true`, the application activates regardless.
+  ///
+  /// This only affects the initial activation at launch. Explicitly focusing a window later
+  /// (e.g. via [`Window::set_focus`](crate::window::Window::set_focus)) still activates the
+  /// application regardless of this setting.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .activate_ignoring_other_apps(false);
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  #[must_use]
+  pub fn activate_ignoring_other_apps(mut self, ignore: bool) -> Self {
+    self.activate_ignoring_other_apps = ignore;
+    self
+  }
+
   /// Registers a window event handler for all windows.
   ///
   /// # Examples
@@ -2444,6 +2542,8 @@ tauri::Builder::default()
     // macOS's default malloc zone): an allocation racing the swap corrupts the heap and crashes
     // at startup. See `RuntimeAuthority::new_async` / `begin_build`.
     manager.runtime_authority.lock().unwrap().begin_build();
+    #[cfg(target_os = "macos")]
+    runtime.set_activate_ignoring_other_apps(self.activate_ignoring_other_apps);
 
     #[cfg(desktop)]
     {

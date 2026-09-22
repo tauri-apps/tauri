@@ -1,6 +1,7 @@
 [package]
 name = "tauri-runtime-cef"
-version = "0.1.0"
+version = "3.0.0-alpha.2"
+description = "Tauri runtime interface for Chromium Embedded Framework"
 # lets `tauri-build` detect the CEF runtime through the `DEP_TAURI_RUNTIME_CEF_RUNTIME` env var
 links = "tauri_runtime_cef"
 authors.workspace = true
@@ -19,9 +20,9 @@ harness = false
 tauri = { workspace = true, features = ["gtk4"] }
 tauri-macros = { workspace = true }
 base64 = "0.22"
-cef = { version = "=151.8.1", features = ["build-util", "linux-x11"] }
+cef = { version = "=152.3.0", features = ["build-util", "linux-x11"] }
 # Not actually used directly, just locking it.
-cef-dll-sys = { version = "=151.8.1", default-features = false }
+cef-dll-sys = { version = "=152.3.0", default-features = false }
 dirs = "6"
 dioxus-debug-cell = "0.1"
 http = "1"
@@ -32,18 +33,16 @@ raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-tauri-runtime = { version = "2.11.2", path = "../tauri-runtime" }
-tauri-utils = { version = "2.9.2", path = "../tauri-utils", features = [
-  "html-manipulation",
-] }
+tauri-runtime = { workspace = true }
+tauri-utils = { workspace = true, features = ["html-manipulation"] }
 url = "2"
-winit = { version = "0.31.0-beta.2", git = "https://github.com/tauri-apps/winit-gtk4", branch = "master", default-features = false, features = [
+winit = { version = "0.31.0-beta.3", package = "tauri-winit", default-features = false, features = [
   "gtk4",
 ] }
 
 [target."cfg(windows)".dependencies]
 softbuffer = { version = "0.4", default-features = false }
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",
@@ -56,6 +55,8 @@ windows = { version = "0.61", features = [
 ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
+# `kill(pid, 0)` and `gethostname`, to read Chromium's process singleton lock.
+libc = "0.2"
 objc2 = "0.6"
 objc2-application-services = { version = "0.3", default-features = false, features = [
   "HIServices",
@@ -83,6 +84,12 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 objc2-quartz-core = { version = "0.3", default-features = false, features = [
   "CALayer",
   "objc2-core-graphics",
+] }
+# CFRunLoop gives the run-loop observer that delivers event-loop wake-ups, see
+# `platform::macos::MainThreadWake`.
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "CFRunLoop",
+  "std",
 ] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSArray",

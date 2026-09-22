@@ -13,14 +13,32 @@ export interface ImageSize {
   height: number
 }
 
+/**
+ * A type that can be passed to Rust side as [`tauri::image::JsImage`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html) through {@linkcode transformImage}
+ *
+ * Values of this type must go through {@linkcode transformImage} before being placed in `invoke` arguments;
+ * an {@linkcode Image} instance is not serializable on its own.
+ *
+ * ## Variants
+ *
+ * - **string:** Path to an image in the filesystem. Maps to [`JsImage::Path`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html#variant.Path)
+ * - **Uint8Array | ArrayBuffer | number[]:** ICO or PNG image in raw bytes. Maps to [`JsImage::Bytes`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html#variant.Bytes)
+ * - **Image:** An image that was previously loaded with the API and is stored in the resource table. Maps to [`JsImage::Resource`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html#variant.Resource)
+ *
+ * The `string` and bytes variants require the `image-ico` or `image-png` Cargo features.
+ * To enable them, change your Cargo.toml file:
+ * ```toml
+ * [dependencies]
+ * tauri = { version = "...", features = ["...", "image-png"] }
+ * ```
+ *
+ * The Rust [`JsImage::Rgba`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html#variant.Rgba) variant is intentionally not exposed here;
+ * use {@linkcode Image.new} to create an image from raw RGBA data instead.
+ */
+export type JsImage = string | Uint8Array | ArrayBuffer | number[] | Image
+
 /** A type that represents an icon that can be used in menu items. */
-export type MenuIcon =
-  | NativeIcon
-  | string
-  | Image
-  | Uint8Array
-  | ArrayBuffer
-  | number[]
+export type MenuIcon = JsImage | NativeIcon
 
 /** An RGBA Image in row-major order from top to bottom. */
 export class Image extends Resource {
@@ -40,7 +58,7 @@ export class Image extends Resource {
     height: number
   ): Promise<Image> {
     return invoke<number>('plugin:image|new', {
-      rgba: transformImage(rgba),
+      rgba,
       width,
       height
     }).then((rid) => new Image(rid))
@@ -48,7 +66,6 @@ export class Image extends Resource {
 
   /**
    * Creates a new image using the provided bytes by inferring the file format.
-   * If the format is known, prefer [@link Image.fromPngBytes] or [@link Image.fromIcoBytes].
    *
    * Only `ico` and `png` are supported (based on activated feature flag).
    *
@@ -63,7 +80,7 @@ export class Image extends Resource {
     bytes: number[] | Uint8Array | ArrayBuffer
   ): Promise<Image> {
     return invoke<number>('plugin:image|from_bytes', {
-      bytes: transformImage(bytes)
+      bytes
     }).then((rid) => new Image(rid))
   }
 
@@ -101,12 +118,10 @@ export class Image extends Resource {
 /**
  * Transforms image from various types into a type acceptable by Rust.
  *
- * See [tauri::image::JsImage](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html) for more information.
+ * See [`tauri::image::JsImage`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html) for more information.
  * Note the API signature is not stable and might change.
  */
-export function transformImage<T>(
-  image: string | Image | Uint8Array | ArrayBuffer | number[] | null
-): T {
+export function transformImage<T>(image: JsImage | null): T {
   const ret =
     image == null
       ? null

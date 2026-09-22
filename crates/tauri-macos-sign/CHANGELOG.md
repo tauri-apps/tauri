@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.0.0-alpha.1]
+
+### What's Changed
+
+- [`d42c0d62b`](https://www.github.com/tauri-apps/tauri/commit/d42c0d62ba18e741a449bfb507dc8dcd2a8ca4ee) Pull latest v2 changes.
+
+## [3.0.0-alpha.0]
+
+### What's Changed
+
+- [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
+- [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
 ## \[2.3.4]
 
 ### Enhancements

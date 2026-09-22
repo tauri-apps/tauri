@@ -1,9 +1,8 @@
 [package]
 name = "tauri-macros"
-version = "2.6.3"
+version = "3.0.0-alpha.1"
 description = "Macros for the tauri crate."
 exclude = ["CHANGELOG.md", "/target"]
-readme = "README.md"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -30,3 +29,6 @@ isolation = ["tauri-codegen/isolation"]
 config-json5 = ["tauri-codegen/config-json5", "tauri-utils/config-json5"]
 config-toml = ["tauri-codegen/config-toml", "tauri-utils/config-toml"]
 tracing = []
+
+[lints]
+workspace = true

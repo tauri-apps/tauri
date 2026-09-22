@@ -810,9 +810,8 @@ pub struct NsisConfig {
   /// The recommended dimensions are 164px x 314px.
   #[serde(alias = "sidebar-image")]
   pub sidebar_image: Option<PathBuf>,
-  // TODO: Change the alias to installer-icon in v3
   /// The path to an icon file used as the installer icon.
-  #[serde(alias = "install-icon")]
+  #[serde(alias = "installer-icon")]
   pub installer_icon: Option<PathBuf>,
   /// The path to an icon file used as the uninstaller icon.
   #[serde(alias = "uninstaller-icon")]
@@ -2013,6 +2012,10 @@ pub struct WindowConfig {
   /// WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
   ///
   /// On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.
   #[serde(default)]
   pub transparent: bool,
   /// Whether the window is maximized or not.
@@ -2065,6 +2068,12 @@ pub struct WindowConfig {
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
   /// Whether clicking an inactive window also clicks through to the webview on macOS.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime:** Unsupported. Chromium decides on its own whether the click that activates
+  ///   the window reaches the page: it is swallowed on regular windows and only clicks through on
+  ///   always-on-top windows or while a DevTools debugger is attached.
   #[serde(default, alias = "accept-first-mouse")]
   pub accept_first_mouse: bool,
   /// Defines the window [tabbing identifier] for macOS.
@@ -2076,6 +2085,11 @@ pub struct WindowConfig {
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
   /// Defines additional browser arguments on Windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime**: Unsupported. Chromium's command line is per process, not per webview;
+  ///   pass switches through `Cef::command_line_arg` in Rust instead.
   ///
   /// ## Warning
   ///
@@ -2151,6 +2165,7 @@ pub struct WindowConfig {
   ///
   /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[serde(default, alias = "browser-extensions-enabled")]
   pub browser_extensions_enabled: bool,
 
@@ -2198,6 +2213,7 @@ pub struct WindowConfig {
   /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
+  /// - **CEF runtime**: Unsupported per webview. Chromium throttles hidden pages process-wide; pass `--disable-background-timer-throttling` through `Cef::command_line_arg` to turn that off for every webview.
   ///
   /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[serde(default, alias = "background-throttling")]
@@ -2207,6 +2223,8 @@ pub struct WindowConfig {
   pub javascript_disabled: bool,
   /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// Not applicable on the CEF runtime, Chromium has no link previews.
   #[serde(default = "default_true", alias = "allow-link-preview")]
   pub allow_link_preview: bool,
   /// Allows disabling the input accessory view on iOS.
@@ -2242,6 +2260,7 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   /// - **Windows / Linux / Android**: Unsupported.
+  /// - **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation `dataDirectory` gives; `dataDirectory` wins when both are set.
   #[serde(default, alias = "data-store-identifier")]
   pub data_store_identifier: Option<[u8; 16]>,
 
@@ -2257,6 +2276,7 @@ pub struct WindowConfig {
   ///     and does nothing on older versions.
   ///   - This option must be given the same value for all webviews that target the same data directory.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  /// - **CEF runtime**: Unsupported per webview. Overlay scrollbars are a process-wide Chromium feature; enable them for every webview with `Cef::enable_features(["OverlayScrollbar"])`.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
 
@@ -2343,6 +2363,7 @@ pub struct WindowConfig {
   ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
+  /// - **CEF runtime**: Autofill is already off on this runtime (it disables `autofill.profile_enabled` on every profile), so `false` is the state you get; turn it on with `Cef::profile_preference("autofill.profile_enabled", true)`.
   #[serde(default = "default_true", alias = "general-autofill-enabled")]
   pub general_autofill_enabled: bool,
 }
@@ -2710,12 +2731,14 @@ impl Display for HeaderSource {
       Self::Inline(s) => write!(f, "{s}"),
       Self::List(l) => write!(f, "{}", l.join(", ")),
       Self::Map(m) => {
-        let len = m.len();
-        let mut i = 0;
-        for (key, value) in m {
+        // Format through `BTreeMap` so the resulting header value is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let map: BTreeMap<_, _> = m.iter().collect();
+        let len = map.len();
+        for (i, (key, value)) in map.into_iter().enumerate() {
           write!(f, "{key} {value}")?;
-          i += 1;
-          if i != len {
+          if i + 1 != len {
             write!(f, "; ")?;
           }
         }
@@ -2779,9 +2802,9 @@ impl HeaderAddition for http::response::Builder {
         self = self.header("Cross-Origin-Resource-Policy", value.to_string());
       };
 
-      // Add the header Permission-Policy, if we find a value for it
+      // Add the header Permissions-Policy, if we find a value for it
       if let Some(value) = &headers.permissions_policy {
-        self = self.header("Permission-Policy", value.to_string());
+        self = self.header("Permissions-Policy", value.to_string());
       };
 
       if let Some(value) = &headers.service_worker_allowed {
@@ -3546,7 +3569,11 @@ pub struct BuildConfig {
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
   /// Additional paths to watch for changes when running `tauri dev`.
-  #[serde(alias = "additional-watch-directories", default)]
+  #[serde(
+    alias = "additional-watch-folders",
+    alias = "additional-watch-directories",
+    default
+  )]
   pub additional_watch_folders: Vec<PathBuf>,
   /// Windows-specific build configuration.
   #[serde(default)]
@@ -4934,6 +4961,53 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
+  }
+
+  #[test]
+  fn header_source_map_display_is_deterministic() {
+    let map = HashMap::from([
+      ("key3".to_string(), "'value3'".to_string()),
+      ("key1".to_string(), "'value1' 'value2'".to_string()),
+      ("key2".to_string(), "'value4'".to_string()),
+    ]);
+
+    // the value must be sorted by key and stable across runs and across `HashMap` orderings
+    assert_eq!(
+      HeaderSource::Map(map.clone()).to_string(),
+      "key1 'value1' 'value2'; key2 'value4'; key3 'value3'"
+    );
+
+    let expected = HeaderSource::Map(map).to_string();
+    for _ in 0..10 {
+      let map = HashMap::from([
+        ("key2".to_string(), "'value4'".to_string()),
+        ("key3".to_string(), "'value3'".to_string()),
+        ("key1".to_string(), "'value1' 'value2'".to_string()),
+      ]);
+      assert_eq!(HeaderSource::Map(map).to_string(), expected);
+    }
+
+    // `Serialize` must keep matching `Display`'s ordering
+    let map = HashMap::from([
+      ("b".to_string(), "2".to_string()),
+      ("a".to_string(), "1".to_string()),
+    ]);
+    assert_eq!(
+      serde_json::to_string(&HeaderSource::Map(map)).unwrap(),
+      r#"{"a":"1","b":"2"}"#
+    );
+  }
+
+  #[test]
+  fn header_source_display() {
+    assert_eq!(
+      HeaderSource::Inline("same-origin".into()).to_string(),
+      "same-origin"
+    );
+    assert_eq!(
+      HeaderSource::List(vec!["https://a.example".into(), "https://b.example".into()]).to_string(),
+      "https://a.example, https://b.example"
+    );
   }
 
   #[test]

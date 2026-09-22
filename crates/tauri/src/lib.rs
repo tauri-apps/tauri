@@ -200,6 +200,7 @@ pub use self::utils::TitleBarStyle;
 use self::event::EventName;
 pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
+pub(crate) use self::state::StateManager;
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
@@ -214,7 +215,7 @@ pub use {
     },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
   },
-  self::state::{State, StateManager},
+  self::state::State,
   self::utils::{
     Env, PackageInfo, Theme,
     config::{Config, WebviewUrl},
@@ -680,7 +681,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().set(state)
+    self.manager().state.set(state)
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
@@ -708,7 +709,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     T: Send + Sync + 'static,
   {
     // The caller decides to break the safety here, then OK, just let it go.
-    unsafe { self.manager().state().unmanage() }
+    unsafe { self.manager().state.unmanage() }
   }
 
   /// Retrieves the managed state for the type `T`.
@@ -721,12 +722,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state.try_get().unwrap_or_else(|| {
-      panic!(
-        "state() called before manage() for {}",
-        std::any::type_name::<T>()
-      )
-    })
+    self.manager().state.get()
   }
 
   /// Attempts to retrieve the managed state for the type `T`.

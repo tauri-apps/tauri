@@ -1,9 +1,8 @@
 [package]
 name = "tauri"
-version = "2.11.5"
+version = "3.0.0-alpha.2"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
-readme = "README.md"
 links = "Tauri"
 authors.workspace = true
 homepage.workspace = true
@@ -63,7 +62,7 @@ tauri-utils = { workspace = true, features = ["resources"] }
 getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"
-dirs = "6"
+dirs = "7"
 percent-encoding = "2"
 raw-window-handle = { version = "0.6", features = ["std"] }
 glob = "0.3"
@@ -139,10 +138,12 @@ window-vibrancy = "0.6"
 # windows
 [target."cfg(windows)".dependencies]
 window-vibrancy = "0.6"
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_UI",
   "Win32_UI_WindowsAndMessaging",
+  "Win32_System_LibraryLoader",
+  "Win32_Graphics_Gdi",
 ] }
 
 # android
@@ -216,3 +217,6 @@ image-ico = ["image/ico"]
 image-png = ["image/png"]
 dynamic-acl = []
 specta = ["dep:specta"]
+
+[lints]
+workspace = true

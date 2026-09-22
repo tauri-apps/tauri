@@ -40,7 +40,19 @@ pub fn run() {
   #[cfg(test)]
   let builder = tauri::test::mock_builder();
   #[cfg(all(not(test), feature = "cef"))]
-  let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
+  let builder = {
+    let cef = tauri_runtime_cef::Cef::default();
+    // The e2e suite (packages/api-e2e) drives a `tauri build --debug` bundle: a
+    // `custom-protocol` build, so `SecretStorage::Auto` picks the OS secret store.
+    // That bundle is ad-hoc signed, and on macOS the keychain item's ACL is bound to
+    // the code signature, so every rebuild puts up the keychain password prompt —
+    // which nothing answers in CI. The mock keychain (`--use-mock-keychain`, and
+    // `--password-store=basic` on Linux, where CI has no keyring at all) avoids it;
+    // it only weakens cookie encryption at rest, which the test app has no use for.
+    #[cfg(feature = "automation")]
+    let cef = cef.secret_storage(tauri_runtime_cef::SecretStorage::Mock);
+    tauri::Builder::default().runtime(cef)
+  };
   #[cfg(all(not(test), not(feature = "cef")))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
 
@@ -51,6 +63,13 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
   builder: tauri::Builder<TauriRuntime>,
   setup: F,
 ) {
+  // WebDriver automation bridge for the `@tauri-apps/api` e2e suite (packages/api-e2e).
+  // Registered as early as possible per the plugin's docs. Behind the off-by-default
+  // `automation` feature, and `not(test)` so it never interferes with the mock-runtime
+  // unit test below.
+  #[cfg(all(desktop, feature = "automation", not(test)))]
+  let builder = builder.plugin(tauri_plugin_automation::init());
+
   let builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
@@ -157,10 +176,9 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
         });
       }
 
+      // Only the CEF-specific block below reads it.
+      #[cfg_attr(not(all(feature = "cef", not(test))), allow(unused_variables))]
       let webview = window_builder.build()?;
-
-      #[cfg(debug_assertions)]
-      webview.open_devtools();
 
       #[cfg(all(feature = "cef", not(test)))]
       {

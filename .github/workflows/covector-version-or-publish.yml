@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: covector version or publish
+name: covector version or publish (v3)
 
 on:
   push:
     branches:
-      - dev
+      - v3
 
 permissions:
   contents: read
@@ -38,7 +38,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
+          sudo apt-get install -y webkit2gtk-4.1 libgtk-4-dev libayatana-appindicator3-dev libfuse2 librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
 
@@ -90,7 +90,7 @@ jobs:
       - name: install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y webkit2gtk-4.1 libgtk-4-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
@@ -113,8 +113,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: release/version-updates
-          title: Apply Version Updates From Current Changes
+          branch: release/version-updates-v3
+          title: Apply Version Updates From Current Changes (v3)
           commit-message: 'apply version updates'
           labels: 'version updates'
           body: ${{ steps.covector.outputs.change }}
@@ -134,7 +134,7 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        run: gh workflow run 31554138 -r dev -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
+        run: gh workflow run 31554138 -r v3 -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -142,6 +142,6 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
-        run: gh workflow run 31554139 -r dev
+        run: gh workflow run 31554139 -r v3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

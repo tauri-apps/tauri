@@ -451,7 +451,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICO"; "Creating icon.ico");
   let mut frames = Vec::new();
 
-  for size in [32, 16, 24, 48, 64, 256] {
+  for size in [16, 24, 32, 48, 64, 256] {
     let image = source.resize_exact(size);
 
     // Only the 256px layer can be compressed according to the ico specs.
@@ -1132,5 +1132,29 @@ mod tests {
     // top band is transparent padding, the centered content is opaque
     assert_eq!(image.get_pixel(32, 2)[3], 0);
     assert_eq!(image.get_pixel(32, 32)[3], 255);
+  }
+
+  #[test]
+  fn ico_stores_entries_smallest_first() {
+    let out_dir = tempfile::tempdir().unwrap();
+    ico(&landscape(64, 64), out_dir.path()).unwrap();
+    let bytes = std::fs::read(out_dir.path().join("icon.ico")).unwrap();
+
+    // ICONDIR: idReserved, idType and idCount (u16 each) followed by `idCount` 16-byte
+    // ICONDIRENTRY records starting with bWidth and bHeight, where 0 means 256
+    assert_eq!(&bytes[..4], &[0, 0, 1, 0]);
+    let count = u16::from_le_bytes([bytes[4], bytes[5]]) as usize;
+    let dimension = |b: u8| if b == 0 { 256 } else { u32::from(b) };
+    let sizes: Vec<_> = bytes[6..]
+      .as_chunks::<16>()
+      .0
+      .iter()
+      .take(count)
+      .map(|entry| (dimension(entry[0]), dimension(entry[1])))
+      .collect();
+    assert_eq!(
+      sizes,
+      [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (256, 256)]
+    );
   }
 }

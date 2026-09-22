@@ -303,6 +303,17 @@ pub(crate) fn max_size_constraint(
   paired_size_constraint(width, height, u32::MAX)
 }
 
+/// The monitor a fullscreen request targets. Kept as the request came in, rather than as a
+/// resolved `MonitorHandle`, so that a request held back on macOS can be applied later (see
+/// [`AppWindow::request_fullscreen`]).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum FullscreenTarget {
+  /// The monitor the window is on (`set_fullscreen(true)`).
+  CurrentMonitor,
+  /// The monitor containing this physical position (`set_fullscreen_on_monitor`).
+  MonitorAt(PhysicalPosition<f64>),
+}
+
 pub(crate) enum WindowMessage {
   Close,
   Destroy,
@@ -372,6 +383,11 @@ pub(crate) enum WindowMessage {
   SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFullscreenOnMonitor(PhysicalPosition<f64>),
+  /// Applies the fullscreen request held back during a transition, now that it ended. See
+  /// [`AppWindow::request_fullscreen`].
+  #[cfg(target_os = "macos")]
+  ApplyPendingFullscreen,
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
@@ -472,6 +488,11 @@ pub(crate) struct AppWindow {
   /// [`WinitCefApp::apply_pending_activations`]. `None` once it has been
   /// raised or given up on.
   pub(crate) pending_activation: Option<Instant>,
+  /// Holds fullscreen requests back while the window is animating a fullscreen
+  /// transition, see [`AppWindow::request_fullscreen`].
+  #[cfg(target_os = "macos")]
+  pub(crate) fullscreen_transition:
+    objc2::rc::Retained<crate::platform::macos::FullscreenTransition>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -560,6 +581,43 @@ impl AppWindow {
     self.window.focus_window();
   }
 
+  /// Applies a fullscreen request; `None` leaves fullscreen.
+  ///
+  /// On macOS the request is held back while the window is animating a fullscreen transition
+  /// and applied once it ended: AppKit drops `toggleFullScreen:` during one, and winit's own
+  /// handling of that leaves its state out of step with the window's (see
+  /// [`platform::macos::FullscreenTransition`](crate::platform::macos::FullscreenTransition)).
+  /// The latest request wins, as it would have had the window been idle.
+  pub(crate) fn request_fullscreen(&self, target: Option<FullscreenTarget>) {
+    #[cfg(target_os = "macos")]
+    if self.fullscreen_transition.in_progress() {
+      self.fullscreen_transition.hold(target);
+      return;
+    }
+
+    let fullscreen = match target {
+      None => None,
+      Some(FullscreenTarget::CurrentMonitor) => Some(Fullscreen::Borderless(None)),
+      Some(FullscreenTarget::MonitorAt(position)) => {
+        // same physical-coordinate lookup as `MonitorFromPoint`; a position outside every monitor is a no-op
+        let monitor = self.window.available_monitors().find(|m| {
+          let pos = m.position().unwrap_or_default();
+          let vm = m.current_video_mode();
+          let size = vm.map(|v| v.size()).unwrap_or_default();
+          position.x >= pos.x as f64
+            && position.x < pos.x as f64 + size.width as f64
+            && position.y >= pos.y as f64
+            && position.y < pos.y as f64 + size.height as f64
+        });
+        let Some(monitor) = monitor else {
+          return;
+        };
+        Some(Fullscreen::Borderless(Some(monitor)))
+      }
+    };
+    self.window.set_fullscreen(fullscreen);
+  }
+
   pub(crate) fn preferred_theme(&self) -> Option<Theme> {
     self
       .attrs
@@ -631,7 +689,7 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     let window = event_loop
       .create_window(attrs.inner.clone())
-      .map_err(|_| Error::CreateWindow)?;
+      .map_err(|e| Error::CreateWindow(Box::new(e)))?;
 
     #[cfg(any(
       target_os = "linux",
@@ -640,12 +698,26 @@ impl<T: UserEvent> WinitCefApp<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    let cef_host =
-      crate::platform::linux::CefX11Host::new(window.as_ref()).ok_or(Error::CreateWindow)?;
+    let cef_host = crate::platform::linux::CefX11Host::new(window.as_ref()).ok_or_else(|| {
+      Error::CreateWindow("failed to create the X11 host for the CEF browser".into())
+    })?;
 
     let winit_id = window.id();
     let pending_activation = (attrs.inner.active && attrs.inner.visible)
       .then(|| Instant::now() + PENDING_ACTIVATION_TIMEOUT);
+    #[cfg(target_os = "macos")]
+    let fullscreen_transition = {
+      let context = self.context.clone();
+      crate::platform::macos::FullscreenTransition::observe(
+        &crate::platform::macos::nswindow(window.as_ref()),
+        move || {
+          let _ = context.send_message(Message::Window {
+            window_id,
+            message: WindowMessage::ApplyPendingFullscreen,
+          });
+        },
+      )
+    };
     let mut appwindow = AppWindow {
       lifetime: NativeWindowToken::new(),
       id: window_id,
@@ -665,6 +737,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       ))]
       cef_host,
       pending_activation,
+      #[cfg(target_os = "macos")]
+      fullscreen_transition,
     };
 
     #[cfg(target_os = "macos")]
@@ -978,7 +1052,16 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetSize(size) => _ = window.request_surface_size(size),
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
       WindowMessage::SetFullscreen(value) => {
-        window.set_fullscreen(value.then_some(Fullscreen::Borderless(None)))
+        appwindow.request_fullscreen(value.then_some(FullscreenTarget::CurrentMonitor))
+      }
+      WindowMessage::SetFullscreenOnMonitor(position) => {
+        appwindow.request_fullscreen(Some(FullscreenTarget::MonitorAt(position)))
+      }
+      #[cfg(target_os = "macos")]
+      WindowMessage::ApplyPendingFullscreen => {
+        if let Some(target) = appwindow.fullscreen_transition.take_pending() {
+          appwindow.request_fullscreen(target);
+        }
       }
       #[cfg(target_os = "macos")]
       WindowMessage::SetSimpleFullscreen(value) => {
@@ -1498,6 +1581,13 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     self.context.send_message(Message::Window {
       window_id: self.window_id,
       message: WindowMessage::SetFullscreen(fullscreen),
+    })
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    self.context.send_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetFullscreenOnMonitor(position),
     })
   }
 

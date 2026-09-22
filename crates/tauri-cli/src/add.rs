@@ -8,15 +8,17 @@ use regex::Regex;
 
 use crate::{
   Result, acl,
-  error::ErrorExt,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::{Dirs, resolve_frontend_dir},
     cargo,
+    config::Target,
     npm::PackageManager,
   },
 };
 
-use std::process::Command;
+use serde_json::Value as JsonValue;
+use std::{fs, path::Path, process::Command};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Add a tauri plugin to the project")]
@@ -115,13 +117,23 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
         (None, None, None, None) => npm_name,
         _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
-      manager.install(&[npm_spec], dirs.tauri)?;
+      manager.install(&[npm_spec], dirs.frontend)?;
     }
 
     let _ = acl::permission::add::command(acl::permission::add::Options {
       identifier: format!("{plugin}:default"),
       capability: None,
     });
+  }
+
+  if plugin == "updater" {
+    // not fatal: the plugin is installed by this point, and the developer can set the option by
+    // hand if we could not
+    if let Err(e) = enable_require_signed_version(dirs.tauri) {
+      log::warn!(
+        "Failed to enable `plugins > updater > requireSignedVersion`, set it manually: {e}"
+      );
+    }
   }
 
   // add plugin init code to main.rs or lib.rs
@@ -202,4 +214,115 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
   );
 
   Ok(())
+}
+
+/// Turns on the updater's signed version check for a project adopting the plugin now.
+///
+/// An update endpoint response is not signed, so the version it announces does not by itself
+/// prove which release its `url` and `signature` point at. `requireSignedVersion` makes the
+/// updater compare that version against the one recorded inside the signature, which is what
+/// stops a tampered response from pairing a new version number with an older release to force a
+/// downgrade.
+///
+/// This can only be the default for a project adding the plugin now, because the check also
+/// rejects releases that were signed before the version was recorded. A project already serving
+/// such releases has to re-sign them first, so a value that is already in the config is left
+/// alone.
+fn enable_require_signed_version(tauri_dir: &Path) -> Result<()> {
+  let (mut config, config_path) =
+    tauri_utils::config::parse::parse_value(Target::current(), tauri_dir.join("tauri.conf.json"))
+      .context("failed to parse config")?;
+
+  if !set_require_signed_version(&mut config) {
+    return Ok(());
+  }
+
+  let serialized = if config_path.extension().is_some_and(|ext| ext == "toml") {
+    toml::to_string_pretty(&config).context("failed to serialize config")?
+  } else {
+    serde_json::to_string_pretty(&config).context("failed to serialize config")?
+  };
+  fs::write(&config_path, serialized).fs_context("failed to write config", config_path.clone())?;
+
+  log::info!(
+    "Enabled `plugins > updater > requireSignedVersion` in {}",
+    config_path.display()
+  );
+  log::info!("Remember to set `plugins > updater > pubkey` and `endpoints`.");
+
+  Ok(())
+}
+
+/// Sets `plugins > updater > requireSignedVersion`, returning whether the config changed.
+fn set_require_signed_version(config: &mut JsonValue) -> bool {
+  let Some(root) = config.as_object_mut() else {
+    return false;
+  };
+  let plugins = root
+    .entry("plugins")
+    .or_insert_with(|| JsonValue::Object(Default::default()));
+  let Some(plugins) = plugins.as_object_mut() else {
+    return false;
+  };
+  let updater = plugins
+    .entry("updater")
+    .or_insert_with(|| JsonValue::Object(Default::default()));
+  let Some(updater) = updater.as_object_mut() else {
+    return false;
+  };
+
+  // a value already in the config is a deliberate choice, an explicit `false` included
+  if updater.contains_key("requireSignedVersion") || updater.contains_key("require-signed-version")
+  {
+    return false;
+  }
+
+  updater.insert("requireSignedVersion".into(), JsonValue::Bool(true));
+  true
+}
+
+#[cfg(test)]
+mod tests {
+  use super::set_require_signed_version;
+  use serde_json::json;
+
+  #[test]
+  fn enables_required_version_signing_on_a_config_without_updater_plugin_config() {
+    let mut config = json!({ "identifier": "com.tauri.dev" });
+    assert!(set_require_signed_version(&mut config));
+    assert_eq!(config["plugins"]["updater"]["requireSignedVersion"], true);
+    // the rest of the config is carried through untouched
+    assert_eq!(config["identifier"], "com.tauri.dev");
+  }
+
+  #[test]
+  fn keeps_the_existing_updater_config() {
+    let mut config = json!({ "plugins": { "updater": { "pubkey": "abc" } } });
+    assert!(set_require_signed_version(&mut config));
+    assert_eq!(config["plugins"]["updater"]["pubkey"], "abc");
+    assert_eq!(config["plugins"]["updater"]["requireSignedVersion"], true);
+  }
+
+  #[test]
+  fn never_overwrites_a_deliberate_choice() {
+    // a project that still serves releases signed before the version was recorded has to keep
+    // this off until it has re-signed them, so an explicit `false` must survive
+    for existing in ["requireSignedVersion", "require-signed-version"] {
+      let mut config = json!({ "plugins": { "updater": { existing: false } } });
+      assert!(!set_require_signed_version(&mut config));
+      assert_eq!(config["plugins"]["updater"][existing], false);
+      assert!(
+        config["plugins"]["updater"]
+          .as_object()
+          .is_some_and(|updater| updater.len() == 1)
+      );
+    }
+  }
+
+  #[test]
+  fn leaves_a_config_it_cannot_understand_alone() {
+    let mut config = json!({ "plugins": { "updater": "not an object" } });
+    assert!(!set_require_signed_version(&mut config));
+    assert_eq!(config["plugins"]["updater"], "not an object");
+  }
 }

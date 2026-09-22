@@ -53,8 +53,7 @@ pub trait Plugin<R: Runtime>: Send {
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
   /// so global variables must be assigned to `window` instead of implicitly declared.
   ///
-  /// This is executed only on the main frame.
-  /// If you only want to run it in all frames, use [`Plugin::initialization_script_2`] to set that to false.
+  /// Set [`InitializationScript::for_main_frame_only`] to `false` to also run the script on sub frames.
   ///
   /// ## Platform-specific
   ///
@@ -65,20 +64,8 @@ pub trait Plugin<R: Runtime>: Send {
   ///
   /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
   /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
-  fn initialization_script(&self) -> Option<String> {
+  fn initialization_script(&self) -> Option<InitializationScript> {
     None
-  }
-
-  // TODO: Change `initialization_script` to this in v3
-  /// Same as [`Plugin::initialization_script`] but returns an [`InitializationScript`] instead
-  /// We plan to replace [`Plugin::initialization_script`] with this signature in v3
-  fn initialization_script_2(&self) -> Option<InitializationScript> {
-    self
-      .initialization_script()
-      .map(|script| InitializationScript {
-        script,
-        for_main_frame_only: true,
-      })
   }
 
   /// Callback invoked when the window is created.
@@ -103,10 +90,27 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
 
-  // TODO: Change this to `run_invoke_handler` in v3
-  /// Extend commands to [`crate::Builder::invoke_handler`].
+  /// Callback invoked by [`App::cleanup_before_exit`](crate::App::cleanup_before_exit) right before the process exits.
+  ///
+  /// Use it to release resources the OS does not reclaim on its own, such as child processes (sidecars).
+  ///
+  /// Unlike [`RunEvent::Exit`], this hook also runs on exit paths that bypass the event loop,
+  /// e.g. [`AppHandle::restart`] when called on the main thread. On a regular exit,
+  /// [`Plugin::on_event`] receives [`RunEvent::Exit`] first and then this hook is called.
+  /// It does **not** run when the process is killed (e.g. by `tauri dev` on rebuild)
+  /// or when `std::process::exit` is called directly.
+  ///
+  /// The plugin store is locked while this hook runs, so it must not call APIs that access
+  /// other plugins such as [`AppHandle::remove_plugin`] or [`AppHandle::plugin`].
+  /// No Tauri API should be used after it returns.
   #[allow(unused_variables)]
-  fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
+  fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {}
+
+  /// Runs the given invoke against the plugin's commands, extending [`crate::Builder::invoke_handler`].
+  ///
+  /// Returns whether the invoke message was handled or not.
+  #[allow(unused_variables)]
+  fn run_invoke_handler(&mut self, invoke: Invoke<R>) -> bool {
     false
   }
 }
@@ -116,6 +120,7 @@ type SetupHook<R, C> =
 type OnWindowReady<R> = dyn FnMut(Window<R>) + Send;
 type OnWebviewReady<R> = dyn FnMut(Webview<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
+type OnCleanupBeforeExit<R> = dyn FnMut(&AppHandle<R>) + Send;
 type OnNavigation<R> = dyn Fn(&Webview<R>, &Url) -> bool + Send;
 type OnPageLoad<R> = dyn FnMut(&Webview<R>, &PageLoadPayload<'_>) + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
@@ -265,12 +270,13 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
-  js_init_script: Option<InitializationScript>,
+  initialization_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
+  on_cleanup_before_exit: Box<OnCleanupBeforeExit<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
   uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 }
@@ -281,13 +287,14 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     Self {
       name,
       setup: None,
-      js_init_script: None,
+      initialization_script: None,
       invoke_handler: Box::new(|_| false),
       on_navigation: Box::new(|_, _| true),
       on_page_load: Box::new(|_, _| ()),
       on_window_ready: Box::new(|_| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
+      on_cleanup_before_exit: Box::new(|_| ()),
       on_drop: None,
       uri_scheme_protocols: Default::default(),
     }
@@ -334,7 +341,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// Note that calling this function multiple times overrides previous values.
   ///
   /// This is executed only on the main frame.
-  /// If you only want to run it in all frames, use [`Self::js_init_script_on_all_frames`] instead.
+  /// If you only want to run it in all frames, use [`Self::initialization_script_on_all_frames`] instead.
   ///
   /// ## Platform-specific
   ///
@@ -361,15 +368,14 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
-  ///     .js_init_script(INIT_SCRIPT)
+  ///     .initialization_script(INIT_SCRIPT)
   ///     .build()
   /// }
   /// ```
   #[must_use]
-  // TODO: Rename to `initialization_script` in v3
-  pub fn js_init_script(mut self, js_init_script: impl Into<String>) -> Self {
-    self.js_init_script = Some(InitializationScript {
-      script: js_init_script.into(),
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
+    self.initialization_script = Some(InitializationScript {
+      script: script.into(),
       for_main_frame_only: true,
     });
     self
@@ -384,7 +390,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// Note that calling this function multiple times overrides previous values.
   ///
   /// This is executed on all frames, main frame and also sub frames.
-  /// If you only want to run it in the main frame, use [`Self::js_init_script`] instead.
+  /// If you only want to run it in the main frame, use [`Self::initialization_script`] instead.
   ///
   /// ## Platform-specific
   ///
@@ -396,9 +402,9 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
   /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
-  pub fn js_init_script_on_all_frames(mut self, js_init_script: impl Into<String>) -> Self {
-    self.js_init_script = Some(InitializationScript {
-      script: js_init_script.into(),
+  pub fn initialization_script_on_all_frames(mut self, script: impl Into<String>) -> Self {
+    self.initialization_script = Some(InitializationScript {
+      script: script.into(),
       for_main_frame_only: false,
     });
     self
@@ -564,6 +570,32 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     F: FnMut(&AppHandle<R>, &RunEvent) + Send + 'static,
   {
     self.on_event = Box::new(on_event);
+    self
+  }
+
+  /// Callback invoked when the application is performing cleanup before exit.
+  ///
+  /// See [`Plugin::cleanup_before_exit`] for details.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_cleanup_before_exit(|app| {
+  ///       // release OS resources such as child processes here
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
+  #[must_use]
+  pub fn on_cleanup_before_exit<F>(mut self, on_cleanup_before_exit: F) -> Self
+  where
+    F: FnMut(&AppHandle<R>) + Send + 'static,
+  {
+    self.on_cleanup_before_exit = Box::new(on_cleanup_before_exit);
     self
   }
 
@@ -734,12 +766,13 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       app: None,
       invoke_handler: self.invoke_handler,
       setup: self.setup,
-      js_init_script: self.js_init_script,
+      initialization_script: self.initialization_script,
       on_navigation: self.on_navigation,
       on_page_load: self.on_page_load,
       on_window_ready: self.on_window_ready,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
+      on_cleanup_before_exit: self.on_cleanup_before_exit,
       on_drop: self.on_drop,
       uri_scheme_protocols: self.uri_scheme_protocols,
     })
@@ -761,12 +794,13 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   app: Option<AppHandle<R>>,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
-  js_init_script: Option<InitializationScript>,
+  initialization_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
+  on_cleanup_before_exit: Box<OnCleanupBeforeExit<R>>,
   on_drop: Option<Box<OnDrop<R>>>,
   uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 }
@@ -816,15 +850,8 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     Ok(())
   }
 
-  fn initialization_script(&self) -> Option<String> {
-    self
-      .js_init_script
-      .clone()
-      .map(|initialization_script| initialization_script.script)
-  }
-
-  fn initialization_script_2(&self) -> Option<InitializationScript> {
-    self.js_init_script.clone()
+  fn initialization_script(&self) -> Option<InitializationScript> {
+    self.initialization_script.clone()
   }
 
   fn window_created(&mut self, window: Window<R>) {
@@ -847,7 +874,11 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     (self.on_event)(app, event)
   }
 
-  fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
+  fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {
+    (self.on_cleanup_before_exit)(app)
+  }
+
+  fn run_invoke_handler(&mut self, invoke: Invoke<R>) -> bool {
     (self.invoke_handler)(invoke)
   }
 }
@@ -918,7 +949,7 @@ impl<R: Runtime> PluginStore<R> {
     self
       .store
       .iter()
-      .filter_map(|p| p.initialization_script_2())
+      .filter_map(|p| p.initialization_script())
       .map(
         |InitializationScript {
            script,
@@ -978,7 +1009,17 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
-  /// Runs the plugin [`Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the cleanup_before_exit hook for all plugins in the store.
+  pub(crate) fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {
+    self.store.iter_mut().for_each(|plugin| {
+      #[cfg(feature = "tracing")]
+      let _span =
+        tracing::trace_span!("plugin::hooks::cleanup_before_exit", name = plugin.name()).entered();
+      plugin.cleanup_before_exit(app)
+    })
+  }
+
+  /// Runs the plugin [`Plugin::run_invoke_handler`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
   pub(crate) fn run_invoke_handler(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
@@ -986,7 +1027,7 @@ impl<R: Runtime> PluginStore<R> {
       if p.name() == plugin {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("plugin::hooks::ipc", name = plugin).entered();
-        return p.extend_api(invoke);
+        return p.run_invoke_handler(invoke);
       }
     }
     invoke.resolver.reject(format!("plugin {plugin} not found"));
@@ -1056,5 +1097,33 @@ impl<'de> Deserialize<'de> for PermissionState {
       "prompt-with-rationale" => Ok(Self::PromptWithRationale),
       _ => Err(DeError::custom(format!("unknown permission state '{s}'"))),
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{Builder, TauriPlugin};
+  use crate::test::{MockRuntime, mock_builder, mock_context, noop_assets};
+  use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+  };
+
+  #[test]
+  fn builder_cleanup_before_exit_hook_runs_on_app_cleanup() {
+    let called = Arc::new(AtomicBool::new(false));
+    let called_ = called.clone();
+    let plugin: TauriPlugin<MockRuntime> = Builder::new("cleanup-test")
+      .on_cleanup_before_exit(move |_app| called_.store(true, Ordering::SeqCst))
+      .build();
+
+    let app = mock_builder()
+      .plugin(plugin)
+      .build(mock_context(noop_assets()))
+      .unwrap();
+
+    app.cleanup_before_exit();
+
+    assert!(called.load(Ordering::SeqCst));
   }
 }

@@ -183,7 +183,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
             last_evaluated_script: Default::default(),
           },
         },
-        use_https_scheme: false,
+        use_https_scheme: w.webview_attributes.use_https_scheme,
         devtools: w.webview_attributes.devtools,
       }
     });
@@ -929,7 +929,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
             last_evaluated_script: Default::default(),
           },
         },
-        use_https_scheme: false,
+        use_https_scheme: w.webview_attributes.use_https_scheme,
         devtools: w.webview_attributes.devtools,
       }
     });
@@ -1061,6 +1061,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   }
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
     Ok(())
   }
 
@@ -1285,7 +1289,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
             last_evaluated_script: Default::default(),
           },
         },
-        use_https_scheme: false,
+        use_https_scheme: w.webview_attributes.use_https_scheme,
         devtools: w.webview_attributes.devtools,
       }
     });
@@ -1346,6 +1350,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_dock_visibility(&mut self, visible: bool) {}
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {}
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]

@@ -111,9 +111,9 @@ impl<R: Runtime> Submenu<R> {
     let app_handle = handle.clone();
     let text = text.as_ref().to_owned();
     let icon_data = icon.map(|i| (i.rgba().to_vec(), i.width(), i.height()));
-    let submenu = run_main_thread!(handle, || {
+    let submenu = run_main_thread!(handle, move || {
       let submenu = muda::Submenu::new(text, enabled);
-      if let Some((rgba, width, height)) = icon_data.clone() {
+      if let Some((rgba, width, height)) = icon_data {
         submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
       }
       SubmenuInner::new(app_handle, submenu)
@@ -175,9 +175,9 @@ impl<R: Runtime> Submenu<R> {
     let id = id.into();
     let text = text.as_ref().to_owned();
     let icon_data = icon.map(|i| (i.rgba().to_vec(), i.width(), i.height()));
-    let submenu = run_main_thread!(handle, || {
+    let submenu = run_main_thread!(handle, move || {
       let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
-      if let Some((rgba, width, height)) = icon_data.clone() {
+      if let Some((rgba, width, height)) = icon_data {
         submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
       }
       SubmenuInner::new(app_handle, submenu)

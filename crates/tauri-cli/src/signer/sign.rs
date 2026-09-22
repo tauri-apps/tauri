@@ -35,6 +35,16 @@ pub struct Options {
   /// Set private key password when signing
   #[clap(short, long, env = "TAURI_SIGNING_PRIVATE_KEY_PASSWORD")]
   password: Option<String>,
+  /// Bind the signature to this app version.
+  ///
+  /// The version is embedded in the signature's trusted comment, which is covered by the
+  /// signature itself. Updaters configured with `requireSignedVersion` reject an update whose
+  /// manifest announces a different version than the one signed here, which prevents a
+  /// tampered manifest from pairing a new version number with an older release.
+  ///
+  /// `tauri build` sets this automatically; pass it when signing updater artifacts by hand.
+  #[clap(long)]
+  app_version: Option<String>,
   /// Sign the specified file
   file: PathBuf,
 }
@@ -88,9 +98,18 @@ pub fn command(mut options: Options) -> Result<()> {
     println!("Signing without password.");
   }
 
-  let (manifest_dir, signature) =
-    sign_file(&secret_key(private_key, options.password)?, options.file)
-      .with_context(|| "failed to sign file")?;
+  if options.app_version.is_none() {
+    println!(
+      "Signing without an app version. Pass --app-version to bind this signature to a version; updaters configured with `requireSignedVersion` will reject this signature."
+    );
+  }
+
+  let (manifest_dir, signature) = sign_file(
+    &secret_key(private_key, options.password)?,
+    options.file,
+    options.app_version.as_deref(),
+  )
+  .with_context(|| "failed to sign file")?;
 
   println!(
     "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",

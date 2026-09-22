@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.11.4"
+version = "3.0.0-alpha.2"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2024"
 rust-version = "1.95"
@@ -70,7 +70,7 @@ toml = "1"
 jsonschema = { version = "0.49", default-features = false }
 handlebars = "6"
 include_dir = "0.7"
-dirs = "6"
+dirs = "7"
 # Careful with updating minisign, often broke our updater signatures.
 # See https://github.com/tauri-apps/tauri/pull/15022 for example.
 minisign = "0.9"
@@ -115,9 +115,10 @@ rand = "0.10"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 which = "8"
 rayon = "1.10"
-download-cef = "2.2"
+download-cef = "3"
 
 [dev-dependencies]
+serial_test = "3.5"
 insta = "1"
 pretty_assertions = "1"
 
@@ -153,3 +154,6 @@ native-tls = [
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
 rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]
 platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]
+
+[lints]
+workspace = true

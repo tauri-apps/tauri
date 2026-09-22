@@ -38,8 +38,6 @@ pub fn get<R: Runtime>(
     url
   };
 
-  let window_origin = window_origin.to_string();
-
   #[allow(unused_mut)]
   let mut client_builder = reqwest::ClientBuilder::new();
   if use_https {

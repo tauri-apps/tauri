@@ -38,6 +38,9 @@ use crate::{
 };
 
 type HttpResponse = Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>;
+/// Runs a closure on the runtime's main thread, see [`WebResourceHandler`]. Type-erased so
+/// the CEF-side handlers, which are not generic over the user event type, can carry it.
+pub(crate) type MainThreadDispatcher = Arc<dyn Fn(Box<dyn FnOnce() + Send>) + Send + Sync>;
 pub(crate) type SchemeRegistry = Arc<
   Mutex<
     std::collections::HashMap<
@@ -325,11 +328,25 @@ wrap_with_args! {
     // header in that case. `None` when the initiator is not the (non-opaque)
     // main frame, so sandboxed/subframe `Origin: null` requests are left as-is.
     initiator_origin: Option<String>,
-    // we clone response to send it to the handler thread
+    // Runs the protocol handler on the main thread, see `process_request`.
+    main_thread: MainThreadDispatcher,
+    // Filled in by the responder on the main thread, read back on the IO thread.
     response: HttpResponse,
   }
 
   impl ResourceHandler {
+    /// Answers a request for a custom scheme with the app's protocol handler.
+    ///
+    /// CEF calls this on its IO thread; the handler is run on the main thread instead,
+    /// which is where the wry runtime's handlers run (the platform webviews call their
+    /// scheme handlers there) and what Tauri relies on. The `ipc` handler runs the invoked
+    /// command while holding the plugin store lock, and the event loop takes that lock to
+    /// deliver `RunEvent`s, so a command that waits on the main thread — a menu or tray
+    /// command, say — deadlocks with it from any other thread. And the objects those
+    /// commands create or drop, an `NSStatusItem` for one, are main-thread only.
+    ///
+    /// `responder` is safe to call from any thread, so a handler that responds
+    /// asynchronously from a thread of its own keeps working.
     fn process_request(
       &self,
       request: Option<&mut Request>,
@@ -409,7 +426,7 @@ wrap_with_args! {
         let method_str = CefString::from(&request.method()).to_string();
         let method = http::Method::from_bytes(method_str.as_bytes()).unwrap_or(http::Method::GET);
 
-        std::thread::spawn(move || {
+        (self.main_thread)(Box::new(move || {
           let mut http_request = http::Request::builder()
             .method(method)
             .uri(url.as_str())
@@ -418,7 +435,7 @@ wrap_with_args! {
           *http_request.headers_mut() = headers;
           // handler is Arc<Box<UriSchemeProtocol>>, so we need to dereference to call it
           (**handler)(&label, http_request, responder);
-        });
+        }));
         1
       } else {
         0
@@ -504,6 +521,7 @@ wrap_scheme_handler_factory! {
   pub struct UriSchemeHandlerFactory {
     registry: SchemeRegistry,
     scheme: String,
+    main_thread: MainThreadDispatcher,
   }
 
   impl SchemeHandlerFactory {
@@ -572,6 +590,7 @@ wrap_scheme_handler_factory! {
         initialization_scripts,
         is_main_frame,
         initiator_origin,
+        main_thread: self.main_thread.clone(),
         response: Arc::new(RefCell::new(None)),
       }))
     }

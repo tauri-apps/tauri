@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use tauri_runtime_cef::{
-  CEF_API_VERSION_LAST, Cef, SandboxPolicy, SecretStorage, cef::LogSeverity,
+  CEF_API_VERSION_LAST, Cef, RemoteDebugging, SandboxPolicy, SecretStorage, cef::LogSeverity,
 };
 
 /// Kept in sync with the `identifier` of `tauri.conf.json`.
@@ -40,6 +40,7 @@ pub struct RuntimeConfig {
   log_severity: Option<(String, LogSeverity)>,
   allow_chromium_command_line_args: bool,
   autoplay_without_gesture: bool,
+  remote_debugging_port: Option<u16>,
   cache_path: PathBuf,
   log_file: PathBuf,
   cef_api_version: i32,
@@ -50,11 +51,19 @@ impl RuntimeConfig {
     // The runtime defaults to `{user cache}/{identifier}/cef`. This example keeps
     // its own directory so trying `SecretStorage` variants here cannot invalidate
     // the cookie jar of another app built from this repository: cookies encrypted
-    // under one key are unreadable under another.
-    let cache_path = dirs::cache_dir()
-      .unwrap_or_else(std::env::temp_dir)
-      .join(IDENTIFIER)
-      .join("cef");
+    // under one key are unreadable under another. `CEF_EXAMPLE_CACHE_DIR` moves
+    // the whole profile elsewhere: the end-to-end suite in `e2e/` gives every run
+    // a fresh temporary one, because the permission decisions `decide_permission`
+    // makes persist in it and would otherwise carry over into the next run.
+    let cache_path = std::env::var_os("CEF_EXAMPLE_CACHE_DIR")
+      .filter(|dir| !dir.is_empty())
+      .map(PathBuf::from)
+      .unwrap_or_else(|| {
+        dirs::cache_dir()
+          .unwrap_or_else(std::env::temp_dir)
+          .join(IDENTIFIER)
+          .join("cef")
+      });
 
     Self {
       sandbox: match env("CEF_EXAMPLE_SANDBOX").as_deref() {
@@ -99,6 +108,14 @@ impl RuntimeConfig {
       // Drives a raw Chromium switch rather than a `Cef` method, so the page can
       // be compared with Chromium's own default of requiring a user gesture.
       autoplay_without_gesture: !env_is(&env("CEF_EXAMPLE_AUTOPLAY"), "off"),
+      // The Chrome DevTools Protocol server, the one behind `chrome://inspect`:
+      // off unless a port is named, because anything that can reach the port can
+      // read and rewrite every page the app shows. It is what the end-to-end
+      // suite attaches Playwright to, and the only way to get the server in a
+      // release build, which ignores a `--remote-debugging-port` on its own
+      // command line (see `allow_chromium_command_line_args`).
+      remote_debugging_port: env("CEF_EXAMPLE_REMOTE_DEBUGGING_PORT")
+        .and_then(|port| port.parse().ok()),
       // The version of the CEF API this build was compiled against, which is
       // also `Cef`'s own default. Both sides of a CEF application — the browser
       // process and every helper process the entry point runs — have to agree on
@@ -127,6 +144,20 @@ impl RuntimeConfig {
       // installed app is a directory that is often not even writable.
       .log_file(&self.log_file)
       .allow_chromium_command_line_args(self.allow_chromium_command_line_args)
+      // `Disabled` also pins Chromium's `devtools.remote_debugging.allowed`
+      // preference off, so a switch that reaches Chromium some other way is
+      // refused too. `Port` listens on TCP like `--remote-debugging-port`; the
+      // `Pipe` variant speaks the protocol over inherited file descriptors, which
+      // only the process that launched this one can reach.
+      .remote_debugging(match self.remote_debugging_port {
+        Some(port) => RemoteDebugging::Port {
+          port,
+          // Beyond `localhost`, which is always accepted. Only a browser page
+          // attaching over WebSocket needs an origin named here.
+          allowed_origins: Vec::new(),
+        },
+        None => RemoteDebugging::Disabled,
+      })
       // Boolean Chromium profile preferences, applied to every webview's request
       // context after the runtime's own defaults, so they can turn a preference
       // the runtime disabled back on as well as turn something else off.
@@ -209,9 +240,17 @@ impl RuntimeConfig {
         "CEF_EXAMPLE_CHROMIUM_ARGS=on|off (development builds always allow them)",
       ),
       ConfiguredValue::new(
+        "remote_debugging",
+        match self.remote_debugging_port {
+          Some(port) => format!("Port {{ port: {port} }}"),
+          None => "Disabled".into(),
+        },
+        "CEF_EXAMPLE_REMOTE_DEBUGGING_PORT=<port>, which the e2e suite attaches Playwright to",
+      ),
+      ConfiguredValue::new(
         "root_cache_path",
         self.cache_path.display().to_string(),
-        "defaults to {user cache}/{identifier}/cef",
+        "CEF_EXAMPLE_CACHE_DIR=<dir>, else {user cache}/{identifier}/cef",
       ),
       ConfiguredValue::new(
         "log_file",

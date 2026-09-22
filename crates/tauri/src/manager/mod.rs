@@ -193,7 +193,7 @@ pub struct AppManager<R: Runtime = crate::DynRuntime> {
 
   pub(crate) plugins: Mutex<PluginStore<R>>,
   pub listeners: Listeners,
-  pub state: Arc<StateManager>,
+  pub(crate) state: Arc<StateManager>,
   pub config: Config,
   #[cfg(dev)]
   pub config_parent: Option<std::path::PathBuf>,
@@ -338,11 +338,6 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  /// State managed by the application.
-  pub(crate) fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
-  }
-
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
   ///
   /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exists.
@@ -396,12 +391,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  // TODO: Change to return `crate::Result` here in v3
-  pub fn get_asset(
-    &self,
-    mut path: String,
-    _use_https_schema: bool,
-  ) -> Result<Asset, Box<dyn std::error::Error>> {
+  pub fn get_asset(&self, mut path: String, _use_https_schema: bool) -> crate::Result<Asset> {
     let assets = &self.assets;
     if path.ends_with('/') {
       path.pop();
@@ -445,7 +435,7 @@ impl<R: Runtime> AppManager<R> {
       .ok_or_else(|| {
         let error = crate::Error::AssetNotFound(path.clone());
         log::error!("{error}");
-        Box::new(error)
+        error
       })?;
 
     let mut csp_header = None;
@@ -485,7 +475,7 @@ impl<R: Runtime> AppManager<R> {
     (self.webview.invoke_handler)(invoke)
   }
 
-  /// Runs the plugin [`crate::plugin::Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`crate::plugin::Plugin::run_invoke_handler`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
   pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
@@ -676,6 +666,10 @@ impl<R: Runtime> AppManager<R> {
         self.webview.webviews_lock().remove(webview.label());
         self.listeners().remove_webview_listeners(webview.label());
         self.webview.scoped_event_listeners.remove(webview.label());
+        self
+          .state
+          .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+          .remove_webview_entries(webview.label());
       }
     }
     self.listeners().remove_window_listeners(label);
@@ -686,6 +680,10 @@ impl<R: Runtime> AppManager<R> {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_listeners(label);
     self.webview.scoped_event_listeners.remove(label);
+    self
+      .state
+      .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+      .remove_webview_entries(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

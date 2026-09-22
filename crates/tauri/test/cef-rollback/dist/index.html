@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>CEF rollback test</title>
+  </head>
+  <body>
+    <p id="status">reporting…</p>
+    <script>
+      // Counts the launches this profile has seen. It lives in localStorage, which
+      // Chromium keeps in the profile: a launch that finds the previous count ran on the
+      // same profile, one that finds nothing ran on a reset one.
+      const RUNS = "cef-rollback-test.runs";
+      const COOKIE = "cef_rollback_test";
+
+      const previousRuns = Number(localStorage.getItem(RUNS) || "0");
+      localStorage.setItem(RUNS, String(previousRuns + 1));
+
+      const cookieSeen = document.cookie
+        .split(";")
+        .some((cookie) => cookie.trim().startsWith(COOKIE + "="));
+      document.cookie = COOKIE + "=1; max-age=31536000; path=/; SameSite=Lax";
+
+      // The report makes the app exit. The writes above reach Chromium's storage service
+      // over IPC on their own schedule, so give them a moment before asking for that.
+      setTimeout(() => {
+        window.__TAURI__.core
+          .invoke("report", { previousRuns, cookieSeen })
+          .then(() => (document.getElementById("status").textContent = "reported"))
+          .catch((error) => (document.getElementById("status").textContent = "report failed: " + error));
+      }, 250);
+    </script>
+  </body>
+</html>

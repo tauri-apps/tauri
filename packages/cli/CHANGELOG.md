@@ -1,5 +1,53 @@
 # Changelog
 
+## [3.0.0-alpha.2]
+
+### Bug Fixes
+
+- [`747a0612d`](https://www.github.com/tauri-apps/tauri/commit/747a0612d5dba9829fb3487a3ed6cdf7b5e81dd9) Only probe for libappindicator (and add it to the deb dependencies and AppImage files) when the `linux-libappindicator` feature is enabled. The `tray-icon` feature alone now uses the D-Bus StatusNotifierItem backend, so the probe panicked with "Can't detect any appindicator library" on hosts without the GTK 3 library.
+
+### What's Changed
+
+- [`d42c0d62b`](https://www.github.com/tauri-apps/tauri/commit/d42c0d62ba18e741a449bfb507dc8dcd2a8ca4ee) Pull latest v2 changes.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@3.0.0-alpha.2`
+
+## [3.0.0-alpha.1]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@3.0.0-alpha.1`
+- [`fc5941fb9`](https://www.github.com/tauri-apps/tauri/commit/fc5941fb92dee89b7ed5c58b334d4c08ca955881) Update `download-cef` from 2.3 to 3.0, matching the `cef` crate used by `tauri-runtime-cef`.
+
+## [3.0.0-alpha.0]
+
+### Enhancements
+
+- [`84a37feed`](https://www.github.com/tauri-apps/tauri/commit/84a37feedb6f9c7946a89deff53ad9ab6031cafc) When a captured command fails, include its stderr in the error message.
+
+### Bug Fixes
+
+- [`b30c16623`](https://www.github.com/tauri-apps/tauri/commit/b30c16623b2b7ee3243815fba9c19879e22e44e5) ([#15778](https://www.github.com/tauri-apps/tauri/pull/15778)) Respect the `CARGO_BUILD_TARGET` environment variable when resolving the build target, matching Cargo's precedence over `build.target` in `.cargo/config.toml`.
+
+### What's Changed
+
+- [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
+### Dependencies
+
+- Upgraded to `tauri-cli@3.0.0-alpha.0`
+
+### Breaking Changes
+
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The CLI detects the webview runtime (wry, CEF or other) from the `tauri-runtime-wry` and `tauri-runtime-cef` dependencies of the app manifest instead of the removed `cef` feature of `tauri`:
+    
+    - The webkit2gtk package dependencies of the Debian and RPM packages and the WebView2 installation step of the Windows installers are only added when the app uses wry.
+    - The CEF files, code signing entitlements and macOS dev flow are only used when the app uses CEF.
+    - Nothing runtime-specific is done for other runtimes.
+    - The app and plugin templates add the `tauri-runtime-wry` dependency and select it with `tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default())`.
+
 ## \[2.11.4]
 
 ### Bug Fixes

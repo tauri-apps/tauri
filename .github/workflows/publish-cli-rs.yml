@@ -119,6 +119,7 @@ jobs:
         uses: softprops/action-gh-release@50195ba7f6f93d1ac97ba8332a178e008ad176aa
         with:
           tag_name: tauri-cli-v${{ env.CLI_VERSION }}
+          prerelease: ${{ contains(env.CLI_VERSION, '-') }}
           files: |
             outputs/cargo-tauri-*.zip
             outputs/cargo-tauri-*.tgz

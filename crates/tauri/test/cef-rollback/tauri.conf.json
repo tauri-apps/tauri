@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../tauri-schema-generator/schemas/config.schema.json",
+  "productName": "CEF Rollback Test",
+  "version": "0.1.0",
+  "identifier": "app.tauri.test.cef-rollback",
+  "build": {
+    "frontendDist": "dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": []
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "../fixture/isolation/src-tauri/icons/icon.png",
+      "../fixture/isolation/src-tauri/icons/icon.ico"
+    ]
+  }
+}

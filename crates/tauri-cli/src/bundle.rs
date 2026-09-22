@@ -82,7 +82,7 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
-  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  /// Skip stapling the notarization ticket onto the app and do not wait for notarization to finish.
   ///
   /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
   /// reaching out to Apple's servers which is helpful in offline environments.
@@ -311,7 +311,8 @@ fn sign_updaters(
     // another type of updater package who require multiple file signature
     for path in &bundle.bundle_paths {
       // sign our path from environment variables
-      let (signature_path, signature) = updater_signature::sign_file(&secret_key, path)?;
+      let (signature_path, signature) =
+        updater_signature::sign_file(&secret_key, path, Some(settings.version_string()))?;
       if signature.keynum() != public_key.keynum() {
         log::warn!(
           "The updater secret key from `TAURI_SIGNING_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update."

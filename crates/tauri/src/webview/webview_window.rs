@@ -826,6 +826,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// ## Platform-specific
   ///
   /// - **Linux / Windows / Android:** Unsupported.
+  /// - **CEF runtime:** Not applicable, Chromium has no link previews.
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
@@ -971,6 +972,12 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 /// Webview attributes.
 impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// Sets whether clicking an inactive window also clicks through to the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime:** Unsupported. Chromium decides on its own whether the click that activates
+  ///   the window reaches the page: it is swallowed on regular windows and only clicks through on
+  ///   always-on-top windows or while a DevTools debugger is attached.
   #[must_use]
   pub fn accept_first_mouse(mut self, accept: bool) -> Self {
     self.webview_builder = self.webview_builder.accept_first_mouse(accept);
@@ -1082,6 +1089,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// ## Platform-specific
   ///
   /// - **macOS / Linux / Android / iOS**: Unsupported.
+  /// - **CEF runtime**: Unsupported. Chromium's command line is per process, not per webview,
+  ///   so pass switches through `Cef::command_line_arg` instead; the runtime logs a warning
+  ///   when a webview sets this.
   ///
   /// ## Warning
   ///
@@ -1191,6 +1201,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.webview_builder = self.webview_builder.browser_extensions_enabled(enabled);
@@ -1203,6 +1214,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// - **Windows**: Browser extensions must first be enabled. See [`browser_extensions_enabled`](Self::browser_extensions_enabled)
   /// - **MacOS / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[must_use]
   pub fn extensions_path(mut self, path: impl AsRef<Path>) -> Self {
     self.webview_builder = self.webview_builder.extensions_path(path);
@@ -1214,6 +1226,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17
   /// - **Windows / Linux / Android**: Unsupported.
+  /// - **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation [`data_directory`](Self::data_directory) gives; `data_directory` wins when both are set.
   #[must_use]
   pub fn data_store_identifier(mut self, data_store_identifier: [u8; 16]) -> Self {
     self.webview_builder = self
@@ -1281,6 +1294,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
+  /// - **CEF runtime**: Unsupported per webview. Chromium throttles hidden pages process-wide; pass `--disable-background-timer-throttling` through `Cef::command_line_arg` to turn that off for every webview.
   ///
   /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
@@ -1309,6 +1323,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///   - This option must be given the same value for all webviews that target the same data directory. Use
   ///     [`WebviewWindowBuilder::data_directory`] to change data directories if needed.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  /// - **CEF runtime**: Unsupported per webview. Overlay scrollbars are a process-wide Chromium feature; enable them for every webview with `Cef::enable_features(["OverlayScrollbar"])`.
   #[must_use]
   pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
     self.webview_builder = self.webview_builder.scroll_bar_style(style);
@@ -1332,6 +1347,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
+  /// - **CEF runtime**: Autofill is already off on this runtime (it disables `autofill.profile_enabled` on every profile), so `false` is the state you get; turn it on with `Cef::profile_preference("autofill.profile_enabled", true)`.
   #[must_use]
   pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
     self.webview_builder = self.webview_builder.general_autofill_enabled(enabled);
@@ -2130,6 +2146,14 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_fullscreen(fullscreen)
   }
 
+  /// Sets the window as fullscreen on the monitor that contains the given physical position,
+  /// such as a [`Monitor::position`](crate::Monitor::position).
+  ///
+  /// Does nothing if no monitor contains the position.
+  pub fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> crate::Result<()> {
+    self.window.set_fullscreen_on_monitor(position)
+  }
+
   /// Toggles a fullscreen mode that doesn't require a new macOS space.
   /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
   ///
@@ -2488,6 +2512,53 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Checks whether the webview can navigate forward.
   pub fn can_go_forward(&self) -> crate::Result<bool> {
     self.webview.can_go_forward()
+  }
+
+  /// Converts a file path to a URL that can be loaded by this webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  ///
+  /// The `protocol-asset` Cargo feature must be enabled and the file must be included in the
+  /// [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+  /// scope. The protocol origin must also be allowed by the relevant
+  /// [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) directive,
+  /// e.g. `img-src 'self' asset: http://asset.localhost`.
+  ///
+  /// The URL origin is defined by the runtime (see [`tauri_runtime::RuntimeHandle::custom_scheme_url`]).
+  /// With `tauri-runtime-wry`, on Windows and Android the URL is `http://{protocol}.localhost/{path}`
+  /// (or `https://` if the webview was built with [`WebviewWindowBuilder::use_https_scheme`]);
+  /// on macOS, Linux and iOS it is `{protocol}://localhost/{path}`.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert.
+  /// * `protocol` - The custom protocol to use. Defaults to `asset`; you only need to set this
+  ///   when using a protocol registered with [`Builder::register_uri_scheme_protocol`](crate::Builder::register_uri_scheme_protocol).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::NonUtf8Path`](crate::Error::NonUtf8Path) if the path is not valid UTF-8,
+  /// since the asset protocol could not resolve such a URL back to the file.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview_window("main").unwrap();
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = webview.convert_file_src(&video_path, None)?;
+  ///     webview.eval(format!("document.querySelector('video').src = '{url}'"))?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(
+    &self,
+    path: P,
+    protocol: Option<&str>,
+  ) -> crate::Result<String> {
+    self.webview.convert_file_src(path, protocol)
   }
 
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].

@@ -22,12 +22,12 @@ wrap_browser_process_handler! {
   impl BrowserProcessHandler {
     fn on_context_initialized(&self) {
       self.context_initialized.store(true, Ordering::SeqCst);
-      self.context.proxy.wake_up();
+      self.context.wake_event_loop();
     }
 
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
       self.context.cef_pump.on_schedule_message_pump_work(delay_ms);
-      self.context.proxy.wake_up();
+      self.context.wake_event_loop();
     }
 
     fn on_already_running_app_relaunch(
@@ -46,8 +46,7 @@ wrap_browser_process_handler! {
       {
         let scheme = url.scheme().to_string();
         if self.deep_link_schemes.iter().any(|s| s == &scheme) {
-          let _ = self.context.sender.send(Message::Opened(vec![url]));
-          self.context.proxy.wake_up();
+          let _ = self.context.send_message(Message::Opened(vec![url]));
           return 1;
         }
       }

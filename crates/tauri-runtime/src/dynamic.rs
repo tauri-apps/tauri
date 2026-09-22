@@ -1282,6 +1282,7 @@ trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
   fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()>;
   fn set_position(&self, position: Position) -> Result<()>;
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()>;
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()>;
   fn set_focus(&self) -> Result<()>;
@@ -1574,6 +1575,10 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
     WindowDispatch::set_fullscreen(self, fullscreen)
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    WindowDispatch::set_fullscreen_on_monitor(self, position)
   }
 
   #[cfg(target_os = "macos")]
@@ -1961,6 +1966,10 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
     self.inner.set_fullscreen(fullscreen)
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    self.inner.set_fullscreen_on_monitor(position)
   }
 
   #[cfg(target_os = "macos")]
@@ -2571,6 +2580,8 @@ trait ErasedRuntime<T: UserEvent>: fmt::Debug + Any {
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool);
   #[cfg(target_os = "macos")]
   fn show(&self);
@@ -2635,6 +2646,11 @@ impl<T: UserEvent, R: Runtime<T>> ErasedRuntime<T> for R {
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     Runtime::set_activation_policy(self, activation_policy)
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    Runtime::set_activate_ignoring_other_apps(self, ignore)
   }
 
   #[cfg(target_os = "macos")]
@@ -2798,6 +2814,11 @@ impl<T: UserEvent> Runtime<T> for DynRuntime<T> {
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     self.inner.set_activation_policy(activation_policy)
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    self.inner.set_activate_ignoring_other_apps(ignore)
   }
 
   #[cfg(target_os = "macos")]

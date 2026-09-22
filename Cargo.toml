@@ -23,6 +23,7 @@ members = [
   # integration tests
   "crates/tests/restart",
   "crates/tests/acl",
+  "crates/tauri/test/cef-rollback",
 
   # bench
   "bench",
@@ -37,7 +38,7 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 authors = ["Tauri Programme within The Commons Conservancy"]
@@ -49,17 +50,17 @@ edition = "2024"
 rust-version = "1.95"
 
 [workspace.dependencies]
-tauri = { version = "2.11.5", path = "./crates/tauri", default-features = false }
-tauri-runtime = { version = "~2.11.3", path = "./crates/tauri-runtime" }
-tauri-runtime-wry = { version = "~2.11.4", path = "./crates/tauri-runtime-wry", default-features = false }
-tauri-runtime-cef = { version = "~0.1.0", path = "./crates/tauri-runtime-cef", default-features = false }
-tauri-build = { version = "2.6.3", path = "./crates/tauri-build", default-features = false }
-tauri-macros = { version = "~2.6.3", path = "./crates/tauri-macros" }
-tauri-codegen = { version = "~2.6.3", path = "./crates/tauri-codegen" }
-tauri-utils = { version = "~2.9.3", path = "./crates/tauri-utils" }
-tauri-plugin = { version = "2.6.3", path = "./crates/tauri-plugin", default-features = false }
-tauri-bundler = { version = "=2.9.4", path = "./crates/tauri-bundler", default-features = false }
-tauri-macos-sign = { version = "=2.3.4", path = "./crates/tauri-macos-sign" }
+tauri = { version = "3.0.0-alpha.2", path = "./crates/tauri", default-features = false }
+tauri-runtime = { version = "~3.0.0-alpha.1", path = "./crates/tauri-runtime" }
+tauri-runtime-wry = { version = "~3.0.0-alpha.2", path = "./crates/tauri-runtime-wry", default-features = false }
+tauri-runtime-cef = { version = "~3.0.0-alpha.2", path = "./crates/tauri-runtime-cef", default-features = false }
+tauri-build = { version = "3.0.0-alpha.1", path = "./crates/tauri-build", default-features = false }
+tauri-macros = { version = "~3.0.0-alpha.1", path = "./crates/tauri-macros" }
+tauri-codegen = { version = "~3.0.0-alpha.1", path = "./crates/tauri-codegen" }
+tauri-utils = { version = "~3.0.0-alpha.1", path = "./crates/tauri-utils" }
+tauri-plugin = { version = "3.0.0-alpha.1", path = "./crates/tauri-plugin", default-features = false }
+tauri-bundler = { version = "=3.0.0-alpha.1", path = "./crates/tauri-bundler", default-features = false }
+tauri-macos-sign = { version = "=3.0.0-alpha.1", path = "./crates/tauri-macos-sign" }
 
 # default to small, optimized workspace release binaries
 [profile.release]
@@ -85,5 +86,10 @@ opt-level = "s"
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
-tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
-dpi = { git = "https://github.com/tauri-apps/winit-gtk4", branch = "master" }
+
+[workspace.lints.clippy]
+# TODO: Update in next PR to keep changes small, see https://github.com/tauri-apps/tauri/pull/16029
+collapsible_if = "allow"
+
+redundant_clone = "warn"
+assigning_clones = "warn"

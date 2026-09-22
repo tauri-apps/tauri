@@ -296,25 +296,6 @@ where
   runtime.spawn_blocking(func)
 }
 
-#[track_caller]
-#[allow(dead_code)]
-pub(crate) fn safe_block_on<F>(task: F) -> F::Output
-where
-  F: Future + Send + 'static,
-  F::Output: Send + 'static,
-{
-  if let Ok(handle) = tokio::runtime::Handle::try_current() {
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    let handle_ = handle.clone();
-    handle.spawn_blocking(move || {
-      tx.send(handle_.block_on(task)).unwrap();
-    });
-    rx.recv().unwrap()
-  } else {
-    block_on(task)
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;

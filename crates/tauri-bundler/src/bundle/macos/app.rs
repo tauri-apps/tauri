@@ -318,7 +318,7 @@ fn create_info_plist(
   if let Some(assets_car_file) = assets_car_file {
     if let Some(icon_name) = app_icon_name_from_assets_car(&assets_car_file) {
       // only set CFBundleIconName for the Assets.car, CFBundleIconFile is the fallback icns file
-      plist.insert("CFBundleIconName".into(), icon_name.clone().into());
+      plist.insert("CFBundleIconName".into(), icon_name.into());
     } else {
       log::warn!("Failed to get icon name from Assets.car file");
     }
@@ -568,7 +568,7 @@ fn create_cef_helpers(bundle_directory: &Path, settings: &Settings) -> crate::Re
   let frameworks_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(&frameworks_dir).fs_context(
     "failed to create Frameworks directory for CEF helpers",
-    frameworks_dir.to_path_buf(),
+    &frameworks_dir,
   )?;
 
   let helper_binary = cef_helper::build(settings)?;
@@ -661,15 +661,13 @@ fn copy_cef_framework(bundle_directory: &Path, cef_path: &Path) -> crate::Result
   let frameworks_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(&frameworks_dir).fs_context(
     "failed to create Frameworks directory for CEF",
-    frameworks_dir.to_path_buf(),
+    &frameworks_dir,
   )?;
 
   let framework_dst = frameworks_dir.join(CEF_FRAMEWORK);
   if framework_dst.exists() {
-    fs::remove_dir_all(&framework_dst).fs_context(
-      "failed to remove existing CEF framework",
-      framework_dst.to_path_buf(),
-    )?;
+    fs::remove_dir_all(&framework_dst)
+      .fs_context("failed to remove existing CEF framework", &framework_dst)?;
   }
 
   fs_utils::copy_dir(&framework_src, &framework_dst).with_context(|| {
@@ -737,7 +735,7 @@ mod tests {
     let src_file = tmp_dir.path().join("sample.txt");
     fs::write(&src_file, b"hello tauri").expect("failed to write sample file");
 
-    let files_map = HashMap::from([(PathBuf::from("Resources/sample.txt"), src_file.clone())]);
+    let files_map = HashMap::from([(PathBuf::from("Resources/sample.txt"), src_file)]);
 
     let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
 
@@ -759,7 +757,7 @@ mod tests {
     let nested_file = src_dir.join("nested.txt");
     fs::write(&nested_file, b"nested").expect("failed to write nested file");
 
-    let files_map = HashMap::from([(PathBuf::from("MyAssets"), src_dir.clone())]);
+    let files_map = HashMap::from([(PathBuf::from("MyAssets"), src_dir)]);
 
     let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
 

@@ -128,10 +128,9 @@ pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
   CreateWebview(Box<dyn std::error::Error + Send + Sync>),
-  // TODO: Make it take an error like `CreateWebview` in v3
   /// Failed to create window.
-  #[error("failed to create window")]
-  CreateWindow,
+  #[error("failed to create window: {0}")]
+  CreateWindow(Box<dyn std::error::Error + Send + Sync>),
   /// The given window label is invalid.
   #[error("Window labels must only include alphanumeric characters, `-`, `/`, `:` and `_`.")]
   InvalidWindowLabel,
@@ -598,6 +597,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
+
+  /// Sets whether the application activates when launched while another application is already active.
+  ///
+  /// This API must be called before the event loop starts.
+  ///
+  /// If `false`, the app activates only if no other app is currently active.
+  /// If `true`, the app activates regardless.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
 
   /// Sets the dock visibility for the application.
   #[cfg(target_os = "macos")]
@@ -1067,6 +1076,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window fullscreen state.
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
+
+  /// Sets the window as fullscreen on the monitor that contains the given physical position.
+  ///
+  /// Does nothing if no monitor contains the position.
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()>;
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()>;

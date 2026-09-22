@@ -20,6 +20,7 @@ fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
   let source = source.as_ref();
 
   let sdk_root = std::env::var_os("SDKROOT");
+  // FIXME: This can be accessed from multiple threads
   unsafe {
     std::env::remove_var("SDKROOT");
   }
@@ -32,6 +33,7 @@ fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
   .link();
 
   if let Some(root) = sdk_root {
+    // FIXME: This can be accessed from multiple threads
     unsafe {
       std::env::set_var("SDKROOT", root);
     }

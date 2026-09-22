@@ -67,7 +67,7 @@ fn inject_script_hashes(document: &Document, key: &AssetKey, csp_hashes: &mut Cs
 
 fn map_core_assets(
   options: &AssetOptions,
-) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> {
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> + use<> {
   let csp = options.csp;
   let dangerous_disable_asset_csp_modification =
     options.dangerous_disable_asset_csp_modification.clone();
@@ -94,7 +94,7 @@ fn map_core_assets(
 fn map_isolation(
   _options: &AssetOptions,
   dir: PathBuf,
-) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> {
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> + use<> {
   // create the csp for the isolation iframe styling now, to make the runtime less complex
   let mut hasher = Sha256::new();
   hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
@@ -211,25 +211,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let default_window_icon = {
     if target == Target::Windows {
       // handle default window icons for Windows targets
-      let icon_path = find_icon(
-        &config,
-        &config_parent,
-        |i| i.ends_with(".ico"),
-        "icons/icon.ico",
-      );
-      if icon_path.exists() {
-        let icon = CachedIcon::new(&root, &icon_path)?;
-        quote!(::std::option::Option::Some(#icon))
-      } else {
-        let icon_path = find_icon(
-          &config,
-          &config_parent,
-          |i| i.ends_with(".png"),
-          "icons/icon.png",
-        );
-        let icon = CachedIcon::new(&root, &icon_path)?;
-        quote!(::std::option::Option::Some(#icon))
-      }
+      quote!(#root::image::default_window_icon_from_app_icon_resource())
     } else {
       // handle default window icons for Unix targets
       let icon_path = find_icon(

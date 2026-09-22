@@ -523,8 +523,19 @@ impl<T: UserEvent> Context<T> {
 }
 
 #[cfg(feature = "tracing")]
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
+
+// Deliberately does not borrow the inner `RefCell`: formatting can happen re-entrantly
+// while the store is already borrowed (e.g. from an event loop callback),
+// which would panic with "already borrowed".
+#[cfg(feature = "tracing")]
+impl fmt::Debug for ActiveTraceSpanStore {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("ActiveTraceSpanStore")
+      .finish_non_exhaustive()
+  }
+}
 
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
@@ -545,8 +556,16 @@ pub enum ActiveTracingSpan {
   },
 }
 
-#[derive(Debug)]
 pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
+
+// Deliberately does not borrow the inner `RefCell`: formatting can happen re-entrantly
+// while the store is already borrowed (e.g. from an event loop callback),
+// which would panic with "already borrowed".
+impl fmt::Debug for WindowsStore {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("WindowsStore").finish_non_exhaustive()
+  }
+}
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
@@ -730,7 +749,6 @@ impl From<MonitorHandleWrapper> for Monitor {
   }
 }
 
-#[cfg(desktop)]
 fn find_monitor_for_position(
   monitors: impl Iterator<Item = MonitorHandle>,
   window_position: Position,
@@ -1499,6 +1517,7 @@ pub enum WindowMessage {
   SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFullscreenOnMonitor(PhysicalPosition<f64>),
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
@@ -2363,6 +2382,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     ))
   }
 
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetFullscreenOnMonitor(position),
+    ))
+  }
+
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
     self.context.send_user_message(Message::Window(
       self.window_id,
@@ -3214,6 +3240,11 @@ impl<T: UserEvent> Runtime<T> for WryRuntime<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    self.event_loop.set_activate_ignoring_other_apps(ignore);
+  }
+
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool) {
     self.event_loop.set_dock_visibility(visible);
   }
@@ -3615,6 +3646,15 @@ fn handle_user_message<T: UserEvent>(
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
             } else {
               window.set_fullscreen(None)
+            }
+          }
+          WindowMessage::SetFullscreenOnMonitor(position) => {
+            // Not `Window::monitor_from_point`: on macOS and Linux (GTK) it takes logical
+            // coordinates, while callers pass physical ones (e.g. `Monitor::position`).
+            if let Some(monitor) =
+              find_monitor_for_position(window.available_monitors(), position.into())
+            {
+              window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))))
             }
           }
 
@@ -4067,9 +4107,9 @@ fn handle_user_message<T: UserEvent>(
               let manager = webview.manager();
               let ns_window = webview.ns_window();
               f(Webview::new(
-                Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&ns_window).cast_mut() as *mut std::ffi::c_void,
+                Retained::as_ptr(&platform_webview).cast(),
+                Retained::as_ptr(&manager).cast(),
+                Retained::as_ptr(&ns_window).cast(),
               ));
             }
             #[cfg(target_os = "ios")]
@@ -4079,9 +4119,9 @@ fn handle_user_message<T: UserEvent>(
               let manager = webview.inner.manager();
 
               f(Webview::new(
-                Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
-                Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
-                window.ui_view_controller(),
+                Retained::as_ptr(&platform_webview).cast(),
+                Retained::as_ptr(&manager).cast(),
+                window.ui_view_controller().cast_const(),
               ));
             }
             #[cfg(windows)]
@@ -4154,48 +4194,53 @@ fn handle_user_message<T: UserEvent>(
       #[cfg(windows)]
       let is_window_transparent = builder.window.transparent;
 
-      if let Ok(window) = builder.build(event_loop) {
-        window_id_map.insert(window.id(), window_id);
+      let window = match builder.build(event_loop) {
+        Ok(window) => window,
+        Err(e) => {
+          sender.send(Err(Error::CreateWindow(Box::new(e)))).unwrap();
+          return;
+        }
+      };
 
-        let window = Arc::new(window);
+      window_id_map.insert(window.id(), window_id);
 
-        #[cfg(windows)]
-        let surface = if is_window_transparent {
-          if let Ok(context) = softbuffer::Context::new(window.clone()) {
-            if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
-              window.draw_surface(&mut surface, background_color);
-              Some(surface)
-            } else {
-              None
-            }
+      let window = Arc::new(window);
+
+      #[cfg(windows)]
+      let surface = if is_window_transparent {
+        if let Ok(context) = softbuffer::Context::new(window.clone()) {
+          if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
+            window.draw_surface(&mut surface, background_color);
+            Some(surface)
           } else {
             None
           }
         } else {
           None
-        };
-
-        windows.0.borrow_mut().insert(
-          window_id,
-          WindowWrapper {
-            label,
-            has_children: AtomicBool::new(false),
-            inner: Some(window.clone()),
-            webviews: Vec::new(),
-            #[cfg(windows)]
-            background_color,
-            #[cfg(windows)]
-            is_window_transparent,
-            #[cfg(windows)]
-            surface,
-            #[cfg(windows)]
-            focused_webview: Default::default(),
-          },
-        );
-        sender.send(Ok(Arc::downgrade(&window))).unwrap();
+        }
       } else {
-        sender.send(Err(Error::CreateWindow)).unwrap();
-      }
+        None
+      };
+
+      windows.0.borrow_mut().insert(
+        window_id,
+        WindowWrapper {
+          label,
+          has_children: AtomicBool::new(false),
+          inner: Some(window.clone()),
+          window_event_listeners: Default::default(),
+          webviews: Vec::new(),
+          #[cfg(windows)]
+          background_color,
+          #[cfg(windows)]
+          is_window_transparent,
+          #[cfg(windows)]
+          surface,
+          #[cfg(windows)]
+          focused_webview: Default::default(),
+        },
+      );
+      sender.send(Ok(Arc::downgrade(&window))).unwrap();
     }
 
     Message::UserEvent(_) => (),
@@ -4219,6 +4264,17 @@ fn handle_user_message<T: UserEvent>(
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
         event_loop.set_theme(to_tao_theme(theme));
+        // On macOS tao caches each window's theme and only refreshes it from the
+        // system-wide appearance change notification, which the app-level
+        // `NSApp.setAppearance` call above never posts, so `Window::theme()`
+        // would keep reporting the previous value. tao's window-level setter
+        // does update the cache, so push the theme through it as well.
+        #[cfg(target_os = "macos")]
+        for window in windows.0.borrow().values() {
+          if let Some(inner) = &window.inner {
+            inner.set_theme(to_tao_theme(theme));
+          }
+        }
       }
       EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
         event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
@@ -4625,7 +4681,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     .inner
     .build(event_loop)
     .inspect_err(|e| log::error!("Error creating window: {e:?}"))
-    .map_err(|_| Error::CreateWindow)?;
+    .map_err(|e| Error::CreateWindow(Box::new(e)))?;
 
   // On macOS, `with_position` uses the content origin; the title bar is added
   // above it. `set_outer_position` is needed for precise window placement.
@@ -5224,8 +5280,12 @@ You may have it installed on another user account, but it is not available for t
     }
   }
 
+  #[cfg(windows)]
+  let window_id_for_ipc = window_id.clone();
+  #[cfg(not(windows))]
+  let window_id_for_ipc = window_id;
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-    window_id.clone(),
+    window_id_for_ipc,
     id,
     context.clone(),
     label.clone(),

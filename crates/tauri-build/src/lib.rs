@@ -314,10 +314,10 @@ impl WindowsAttributes {
   /// Creates the default attribute set.
   pub fn new() -> Self {
     Self {
-      window_icon_path: Default::default(),
       static_vc_runtime: None,
       append_rc_content: Vec::new(),
       app_manifest: Some(default_windows_app_manifest().into()),
+      window_icon_path: None,
     }
   }
 
@@ -326,14 +326,16 @@ impl WindowsAttributes {
   pub fn new_without_app_manifest() -> Self {
     Self {
       app_manifest: None,
-      window_icon_path: Default::default(),
+      window_icon_path: None,
       static_vc_runtime: None,
       append_rc_content: Vec::new(),
     }
   }
 
-  /// Sets the icon to use on the window. Currently only used on Windows.
-  /// It must be in `ico` format. Defaults to `icons/icon.ico`.
+  /// Sets the icon to use as the application icon and default window icon.
+  /// It must be in `ico` format.
+  ///
+  /// If not set, we will search for a `.ico` from the `bundle > icon` in your tauri config file, then `icons/icon.ico`.
   #[must_use]
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
     self
@@ -500,6 +502,19 @@ impl Attributes {
     self.codegen.replace(codegen);
     self
   }
+
+  /// The subset of these attributes that shapes the generated context and its
+  /// Access Control List; the executable-specific ones (Windows resources,
+  /// config path, codegen) stay behind.
+  fn context_attributes(&self) -> ContextAttributes {
+    ContextAttributes {
+      capabilities_path_pattern: self.capabilities_path_pattern,
+      #[cfg(feature = "codegen")]
+      codegen: None,
+      inlined_plugins: self.inlined_plugins.clone(),
+      app_manifest: self.app_manifest,
+    }
+  }
 }
 
 /// The attributes used by [`try_build_context`].
@@ -615,12 +630,11 @@ pub fn build() {
   }
 }
 
-/// Parses the Tauri configuration from the current directory, emitting a
+/// Parses the Tauri configuration from `config_root`, emitting a
 /// `rerun-if-changed` instruction for every config file it reads and applying
 /// the `TAURI_CONFIG` merge overlay.
-fn parse_tauri_config(target: tauri_utils::platform::Target) -> Result<Config> {
-  let (mut config, config_paths) =
-    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
+fn parse_tauri_config(target: tauri_utils::platform::Target, config_root: &Path) -> Result<Config> {
+  let (mut config, config_paths) = tauri_utils::config::parse::read_from(target, config_root)?;
   for config_file_path in config_paths {
     println!("cargo:rerun-if-changed={}", config_file_path.display());
   }
@@ -646,7 +660,18 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let config = parse_tauri_config(target)?;
+  let config_root = if let Some(config_path) = &attributes.config_path {
+    config_path.parent().with_context(|| {
+      format!(
+        "`config_path` '{}' doesn't have a parent directory",
+        config_path.display()
+      )
+    })?
+  } else {
+    &env::current_dir().unwrap()
+  };
+
+  let config = parse_tauri_config(target, config_root)?;
   let static_vc_runtime = should_static_link_vc_runtime(&config, &attributes);
 
   let s = config.identifier.split('.');
@@ -684,18 +709,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   manifest::check(&config, &mut manifest)?;
 
-  acl::build(
-    &out_dir,
-    target,
-    attributes.app_manifest,
-    &attributes.inlined_plugins,
-    attributes.capabilities_path_pattern,
-  )?;
+  acl::build(&out_dir, target, &config, &attributes.context_attributes())?;
 
   tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
   // when running codegen in this build script, we need to access the env var directly
+  // FIXME: This can be accessed from multiple threads
   unsafe { env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple) };
 
   let build_profile_dir = build_profile_dir_from_out_dir(&out_dir)
@@ -756,14 +776,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       .windows_attributes
       .window_icon_path
       .unwrap_or_else(|| {
-        config
-          .bundle
-          .icon
-          .iter()
-          .find(|i| i.ends_with(".ico"))
-          .map(AsRef::as_ref)
-          .unwrap_or("icons/icon.ico")
-          .into()
+        // icon paths in the config are relative to the config file
+        config_root.join(
+          config
+            .bundle
+            .icon
+            .iter()
+            .find(|i| i.ends_with(".ico"))
+            .map(AsRef::as_ref)
+            .unwrap_or("icons/icon.ico"),
+        )
       });
 
     let mut res = WindowsResource::new();
@@ -813,7 +835,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
 
     if window_icon_path.exists() {
-      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
+      res.set_icon_with_id(
+        &window_icon_path.display().to_string(),
+        &tauri_utils::platform::WINDOWS_APP_ICON_RESOURCE_ID.to_string(),
+      );
     } else {
       return Err(anyhow!(format!(
         "`{}` not found; required for generating a Windows Resource file during tauri-build",
@@ -934,20 +959,11 @@ pub fn try_build_context(attributes: ContextAttributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  // Parsed only to declare each config file as a build script input and to
-  // fail fast on invalid configuration; the value itself is read again by the
-  // `generate_context!` expansion.
-  parse_tauri_config(target)?;
+  let config = parse_tauri_config(target, &env::current_dir().unwrap())?;
 
   let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
-  acl::build(
-    &out_dir,
-    target,
-    attributes.app_manifest,
-    &attributes.inlined_plugins,
-    attributes.capabilities_path_pattern,
-  )?;
+  acl::build(&out_dir, target, &config, &attributes)?;
 
   tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
 
@@ -1071,6 +1087,7 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn static_vc_runtime_chain() {
     // 1. Nothing is set, should default to true
     let config = tauri_utils::config::Config::default();

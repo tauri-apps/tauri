@@ -408,6 +408,51 @@ impl WebRtcIpHandling {
   }
 }
 
+/// What to do with the profile on disk when a newer Chromium milestone than the one this
+/// binary embeds last used it: the application was rolled back to a release on an older
+/// CEF.
+///
+/// Defaults to [`DowngradePolicy::KeepProfile`].
+///
+/// # What a rollback does to the profile
+///
+/// Chromium migrates its profile forward only, and Chrome calls a launch on a profile from
+/// a higher milestone an unsupported downgrade (`chrome/browser/downgrade/`). In practice a
+/// rollback to the previous milestone usually just works; what can go wrong is bounded by
+/// the stores whose format changed in between. A SQLite database whose schema is newer
+/// than the older Chromium can read — cookies, autofill, history — is left on disk and
+/// unused, so cookies stop persisting until the application is upgraded again, and for
+/// some of them Chromium shows its own "profile is from a newer version" dialog; an
+/// IndexedDB store whose data format is newer may be discarded as corrupt.
+///
+/// Chrome keeps a `Last Version` breadcrumb in its user data directory to recognize a
+/// downgrade. CEF does not write it, so the runtime does, in [`Cef::root_cache_path`], and
+/// applies this policy when the breadcrumb names a higher milestone. A downgrade within a
+/// milestone, `152.0.7977.83` to `152.0.7977.50`, is left alone either way, as Chrome
+/// leaves it, and a profile another running instance of the application holds is never
+/// touched.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum DowngradePolicy {
+  /// Keep the profile and let Chromium open it, logging a warning that names both
+  /// versions.
+  ///
+  /// Nothing is deleted: whatever the older Chromium cannot read stays on disk and is back
+  /// once the application is upgraded again. This is what Chrome does for a downgrade
+  /// nobody administered.
+  #[default]
+  KeepProfile,
+  /// Move the root cache path aside and start on an empty profile, deleting the old one in
+  /// the background.
+  ///
+  /// The application starts as if freshly installed, on every platform and whatever
+  /// changed between the two versions: cookies and sessions, local storage, IndexedDB,
+  /// caches and granted permissions are gone, and a warning naming both versions is
+  /// logged. For an application whose state lives on a server, or that would rather have
+  /// every user start clean than some run on a half-readable profile.
+  ResetProfile,
+}
+
 /// Selects and configures the CEF runtime.
 ///
 /// Pass it to `tauri::Builder::runtime` to run the application with CEF:
@@ -445,6 +490,7 @@ pub struct Cef {
   debug_environment: DebugEnvironment,
   certificate_errors: CertificateErrorPolicy,
   sandbox: SandboxPolicy,
+  downgrade: DowngradePolicy,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
@@ -482,6 +528,7 @@ impl fmt::Debug for Cef {
       .field("debug_environment", &self.debug_environment)
       .field("certificate_errors", &self.certificate_errors)
       .field("sandbox", &self.sandbox)
+      .field("downgrade", &self.downgrade)
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -546,12 +593,29 @@ impl Cef {
     self
   }
 
-  /// Directory used for CEF disk cache (`Settings::cache_path`).
+  /// Directory used for CEF disk cache (`Settings::cache_path`): Chromium's user data
+  /// directory, holding `Local State`, every profile and the caches.
   ///
   /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
+  ///
+  /// Give CEF a directory of its own. The runtime keeps a `Last Version` file in it naming
+  /// the Chromium that ran last, and [`DowngradePolicy::ResetProfile`] moves the whole
+  /// directory aside when a newer Chromium milestone last used it — see [`Self::downgrade`].
   #[must_use]
   pub fn root_cache_path<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
     self.cache_path = Some(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// What to do with the profile on disk when a newer Chromium milestone last used it,
+  /// which is what a release rolled back to an older CEF finds.
+  ///
+  /// Defaults to [`DowngradePolicy::KeepProfile`]: the profile is opened as is and a
+  /// warning is logged, as Chrome does. [`DowngradePolicy::ResetProfile`] moves it aside
+  /// and starts clean instead. See [`DowngradePolicy`] for what each one costs.
+  #[must_use]
+  pub fn downgrade(mut self, policy: DowngradePolicy) -> Self {
+    self.downgrade = policy;
     self
   }
 
@@ -1127,7 +1191,14 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 #[derive(Clone)]
 pub(crate) struct RuntimeContext<T: UserEvent> {
   pub(crate) sender: Sender<Message<T>>,
-  pub(crate) proxy: WinitEventLoopProxy,
+  /// Only ever woken through [`Self::wake_event_loop`].
+  #[cfg(not(target_os = "macos"))]
+  proxy: WinitEventLoopProxy,
+  /// Pokes the main run loop, which then delivers pending wake-ups at the start of its next
+  /// pass through [`MainThreadDispatchSlot::deliver_wake`], the only place the proxy is
+  /// woken on macOS. See [`Self::wake_event_loop`].
+  #[cfg(target_os = "macos")]
+  wake: crate::platform::macos::MainThreadWake,
   main_thread_id: std::thread::ThreadId,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
@@ -1170,11 +1241,35 @@ struct MainThreadDispatch<T: UserEvent> {
 
 struct MainThreadDispatchSlot<T: UserEvent> {
   current: AtomicPtr<MainThreadDispatch<T>>,
+  /// Whether winit's proxy still has to be signalled, see [`Self::deliver_wake`].
+  #[cfg(target_os = "macos")]
+  wake_pending: AtomicBool,
 }
 
 impl<T: UserEvent> MainThreadDispatchSlot<T> {
   fn install(&self, dispatch: &mut MainThreadDispatch<T>) -> *mut MainThreadDispatch<T> {
     self.current.swap(dispatch, Ordering::AcqRel)
+  }
+
+  /// Whether a winit callback is running on the main thread right now.
+  #[cfg(target_os = "macos")]
+  fn is_active(&self) -> bool {
+    !self.current.load(Ordering::Acquire).is_null()
+  }
+
+  /// Signals winit's `proxy` if a wake-up is pending and no callback is running; the wake-up
+  /// stays pending otherwise. Runs on the main thread at the start of every run-loop pass,
+  /// see [`RuntimeContext::wake_event_loop`] for why it must happen there.
+  #[cfg(target_os = "macos")]
+  fn deliver_wake(&self, proxy: &WinitEventLoopProxy) {
+    if self.is_active() || !self.wake_pending.load(Ordering::Acquire) {
+      return;
+    }
+    // A read-modify-write rather than a store: a request racing with this pass is either
+    // consumed here, and its message is then visible to the drain that follows, or stays
+    // pending for the next pass.
+    self.wake_pending.swap(false, Ordering::AcqRel);
+    proxy.wake_up();
   }
 
   fn restore(&self, current: *mut MainThreadDispatch<T>, previous: *mut MainThreadDispatch<T>) {
@@ -1201,6 +1296,8 @@ impl<T: UserEvent> Default for MainThreadDispatchSlot<T> {
   fn default() -> Self {
     Self {
       current: AtomicPtr::new(std::ptr::null_mut()),
+      #[cfg(target_os = "macos")]
+      wake_pending: AtomicBool::new(false),
     }
   }
 }
@@ -1288,8 +1385,39 @@ impl<T: UserEvent> RuntimeContext<T> {
       .sender
       .send(message)
       .map_err(|_| Error::FailedToSendMessage)?;
-    self.proxy.wake_up();
+    self.wake_event_loop();
     Ok(())
+  }
+
+  /// Has winit call [`WinitCefApp::proxy_wake_up`], which drains the message queue.
+  ///
+  /// Every wake-up of the event loop goes through here; on macOS the context does not even
+  /// hold the proxy, only [`MainThreadDispatchSlot::deliver_wake`] signals it (see below).
+  pub(crate) fn wake_event_loop(&self) {
+    #[cfg(not(target_os = "macos"))]
+    self.proxy.wake_up();
+
+    // winit's proxy is a run-loop source in the common modes, so it also fires while AppKit
+    // tracks a menu or runs a modal panel. If that nested loop was started from a winit
+    // callback — a `run_on_main_thread` closure showing a context menu, say — winit finds its
+    // handler still borrowed and panics ("tried to handle event while another event is
+    // currently being handled"). So the proxy is not signalled here. The request is recorded
+    // and the main run loop poked; at the start of its next pass, `deliver_wake` signals the
+    // proxy if no callback is running, or keeps the request pending until the callback
+    // returns. A proxy signalled at that point of a pass is performed in the same pass, before
+    // any AppKit event can reach a callback (see `platform::macos::MainThreadWake`).
+    //
+    // Consequently, messages from other threads wait while a nested loop started from a
+    // callback runs: a blocking getter called from a worker returns once the menu or panel
+    // closes, and a task meant to close it from a worker cannot run before it does.
+    #[cfg(target_os = "macos")]
+    {
+      self
+        .current_dispatch
+        .wake_pending
+        .store(true, Ordering::Release);
+      self.wake.wake_up();
+    }
   }
 
   pub(crate) fn is_main_thread(&self) -> bool {
@@ -2055,6 +2183,9 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 }
 
+// Every overridden method installs the dispatch guard before anything else: besides enabling
+// inline dispatch, the guard is how `MainThreadDispatchSlot::is_active` knows that winit's
+// handler is borrowed, which the macOS wake-up deferral relies on.
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
@@ -2783,6 +2914,7 @@ impl<T: UserEvent> CefRuntime<T> {
       debug_environment,
       certificate_errors,
       sandbox: sandbox_policy,
+      downgrade: downgrade_policy,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
@@ -2971,6 +3103,11 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_base.join(&runtime_args.identifier).join("cef")
     });
     let _ = create_dir_all(&cache_path);
+    // Chromium migrates its profile forward only, so a release rolled back to an older CEF
+    // milestone finds a profile a newer Chromium wrote. Recording which one ran, and what
+    // becomes of such a profile, is the `downgrade` module; it must run before the first
+    // CEF call that opens anything in the directory, which is `cef::initialize` below.
+    crate::downgrade::prepare_root_cache_path(&cache_path, downgrade_policy);
 
     // Force X11 usage on Linux.
     //
@@ -3015,14 +3152,23 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let event_loop = event_loop_builder
       .build()
-      .map_err(|_| Error::CreateWindow)?;
+      .map_err(|e| Error::CreateWindow(Box::new(e)))?;
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
     let cef_pump = CefExternalPump::new();
+    let current_dispatch: Arc<MainThreadDispatchSlot<T>> = Default::default();
+    #[cfg(target_os = "macos")]
+    let wake = {
+      let slot = current_dispatch.clone();
+      crate::platform::macos::MainThreadWake::new(move || slot.deliver_wake(&proxy))
+    };
     let context = RuntimeContext {
       sender: sender.clone(),
-      proxy: proxy.clone(),
+      #[cfg(not(target_os = "macos"))]
+      proxy,
+      #[cfg(target_os = "macos")]
+      wake,
       main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
@@ -3317,6 +3463,18 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    // TODO: honor this flag. The winit event loop is already built by the time tauri calls this
+    // (see `Self::init`), and launch-time activation is driven by the CEF application delegate
+    // rather than winit's `with_activate_ignoring_other_apps`.
+    if !ignore {
+      log::warn!(
+        "`Builder::activate_ignoring_other_apps(false)` is not supported by the CEF runtime yet"
+      );
+    }
+  }
+
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool) {
     let message = Message::EventLoop(EventLoopMessage::SetDockVisibility(visible));
     let _ = self.context.send_message(message);
@@ -3457,6 +3615,11 @@ mod configuration_tests {
     assert_eq!(cef.devtools, DevToolsPolicy::Auto);
     assert_eq!(cef.debug_environment, DebugEnvironment::Auto);
     assert_eq!(cef.sandbox, SandboxPolicy::Auto);
+    assert_eq!(
+      cef.downgrade,
+      DowngradePolicy::KeepProfile,
+      "a rollback keeps the user's data on disk, as Chrome does; wiping it is opted into"
+    );
     assert!(
       !cef.allow_chromium_command_line_args,
       "a shipped application must ignore Chromium switches on its command line"

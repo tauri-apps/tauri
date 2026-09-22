@@ -509,7 +509,7 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
 
   let new_manifest_str = serialize_manifest(&manifest);
 
-  if persist && original_manifest_str != new_manifest_str {
+  if persist && original_manifest_str.replace("\r\n", "\n") != new_manifest_str {
     std::fs::write(&manifest_path, new_manifest_str)
       .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
     Ok((

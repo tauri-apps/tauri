@@ -560,8 +560,11 @@ impl<R: Runtime> WebviewManager<R> {
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      if let Ok(user_data_dir) = manager.path().app_local_data_dir() {
-        pending.webview_attributes.data_directory = Some(user_data_dir);
+      match manager.path().app_local_data_dir() {
+        Ok(user_data_dir) => pending.webview_attributes.data_directory = Some(user_data_dir),
+        Err(e) => log::error!(
+          "failed to resolve the app local data directory, the webview falls back to its default data directory: {e}"
+        ),
       }
     }
 

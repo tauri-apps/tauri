@@ -3,11 +3,32 @@
 // SPDX-License-Identifier: MIT
 
 use super::{Error, Result};
-use crate::{path::BaseDirectory, AppHandle, Manager, Runtime};
-use std::path::{Path, PathBuf};
+use crate::{AppHandle, Manager, Runtime, path::BaseDirectory};
+use std::path::{Component, Path, PathBuf};
 
 /// The path resolver is a helper class for general and application-specific path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) AppHandle<R>);
+
+/// An app-specific directory that can be overridden with the `app > appDirectoriesOverride` config.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AppDirectory {
+  Config,
+  Data,
+  LocalData,
+  Cache,
+  Log,
+}
+
+impl AppDirectory {
+  /// The subdirectory this directory resolves to when a single root overrides all app directories.
+  fn root_override_subdirectory(self) -> Option<&'static str> {
+    match self {
+      Self::Cache => Some("caches"),
+      Self::Log => Some("logs"),
+      Self::Config | Self::Data | Self::LocalData => None,
+    }
+  }
+}
 
 impl<R: Runtime> Clone for PathResolver<R> {
   fn clone(&self) -> Self {
@@ -236,52 +257,44 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`config_dir`](Self::config_dir)`/${bundle_identifier}`.
   pub fn app_config_dir(&self) -> Result<PathBuf> {
-    if let Some(app_directories_override) = self.resolve_app_directories_override() {
-      return app_directories_override;
-    }
-
-    dirs::config_dir()
-      .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().identifier))
+    self.app_dir(AppDirectory::Config, || {
+      dirs::config_dir()
+        .ok_or(Error::UnknownPath)
+        .map(|dir| dir.join(&self.0.config().identifier))
+    })
   }
 
   /// Returns the path to the suggested directory for your app's data files.
   ///
   /// Resolves to [`data_dir`](Self::data_dir)`/${bundle_identifier}`.
   pub fn app_data_dir(&self) -> Result<PathBuf> {
-    if let Some(app_directories_override) = self.resolve_app_directories_override() {
-      return app_directories_override;
-    }
-
-    dirs::data_dir()
-      .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().identifier))
+    self.app_dir(AppDirectory::Data, || {
+      dirs::data_dir()
+        .ok_or(Error::UnknownPath)
+        .map(|dir| dir.join(&self.0.config().identifier))
+    })
   }
 
   /// Returns the path to the suggested directory for your app's local data files.
   ///
   /// Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}`.
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
-    if let Some(app_directories_override) = self.resolve_app_directories_override() {
-      return app_directories_override;
-    }
-
-    dirs::data_local_dir()
-      .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().identifier))
+    self.app_dir(AppDirectory::LocalData, || {
+      dirs::data_local_dir()
+        .ok_or(Error::UnknownPath)
+        .map(|dir| dir.join(&self.0.config().identifier))
+    })
   }
 
   /// Returns the path to the suggested directory for your app's cache files.
   ///
   /// Resolves to [`cache_dir`](Self::cache_dir)`/${bundle_identifier}`.
   pub fn app_cache_dir(&self) -> Result<PathBuf> {
-    if let Some(app_directories_override) = self.resolve_app_directories_override() {
-      return Ok(app_directories_override?.join("caches"));
-    }
-
-    dirs::cache_dir()
-      .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().identifier))
+    self.app_dir(AppDirectory::Cache, || {
+      dirs::cache_dir()
+        .ok_or(Error::UnknownPath)
+        .map(|dir| dir.join(&self.0.config().identifier))
+    })
   }
 
   /// Returns the path to the suggested directory for your app's log files.
@@ -292,21 +305,19 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to [`home_dir`](Self::home_dir)`/Library/Logs/${bundle_identifier}`
   /// - **Windows:** Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}/logs`.
   pub fn app_log_dir(&self) -> Result<PathBuf> {
-    if let Some(app_directories_override) = self.resolve_app_directories_override() {
-      return Ok(app_directories_override?.join("logs"));
-    }
+    self.app_dir(AppDirectory::Log, || {
+      #[cfg(target_os = "macos")]
+      let path = dirs::home_dir()
+        .ok_or(Error::UnknownPath)
+        .map(|dir| dir.join("Library/Logs").join(&self.0.config().identifier));
 
-    #[cfg(target_os = "macos")]
-    let path = dirs::home_dir()
-      .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join("Library/Logs").join(&self.0.config().identifier));
+      #[cfg(not(target_os = "macos"))]
+      let path = dirs::data_local_dir()
+        .ok_or(Error::UnknownPath)
+        .map(|dir| dir.join(&self.0.config().identifier).join("logs"));
 
-    #[cfg(not(target_os = "macos"))]
-    let path = dirs::data_local_dir()
-      .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().identifier).join("logs"));
-
-    path
+      path
+    })
   }
 
   /// A temporary directory. Resolves to [`std::env::temp_dir`].
@@ -314,38 +325,132 @@ impl<R: Runtime> PathResolver<R> {
     Ok(std::env::temp_dir())
   }
 
-  /// Resolves the `app_directories_override` based on `current_exe` if it exists
-  fn resolve_app_directories_override(&self) -> Option<Result<PathBuf>> {
-    let app_directories_override = self.0.config().app.app_directories_override.as_ref();
-    app_directories_override.map(|app_directories_override| {
-      if let Some(base_directory) = app_directories_override
-        .components()
-        .next()
-        .and_then(|str| BaseDirectory::from_variable(str.as_os_str().to_str()?))
-      {
-        return if matches!(
+  /// Resolves an app directory, honoring the `app > appDirectoriesOverride` config.
+  fn app_dir(
+    &self,
+    dir: AppDirectory,
+    default: impl FnOnce() -> Result<PathBuf>,
+  ) -> Result<PathBuf> {
+    match self.app_directory_override(dir)? {
+      Some(path) => Ok(path),
+      None => default(),
+    }
+  }
+
+  /// Resolves the override configured for the given app directory, if any.
+  ///
+  /// Mobile apps are sandboxed, so the override is ignored on iOS.
+  fn app_directory_override(&self, dir: AppDirectory) -> Result<Option<PathBuf>> {
+    if cfg!(target_os = "ios") {
+      return Ok(None);
+    }
+
+    let Some(root) = &self.0.config().app.app_directories_override else {
+      return Ok(None);
+    };
+
+    let mut path = self.resolve_override_path(root)?;
+    if let Some(subdirectory) = dir.root_override_subdirectory() {
+      path.push(subdirectory);
+    }
+
+    Ok(Some(path))
+  }
+
+  /// Resolves a path from the `app > appDirectoriesOverride` config:
+  ///
+  /// - a path starting with a base directory variable (e.g. `$DATA/my-app`) is resolved against that directory,
+  /// - an absolute path is used as is,
+  /// - any other path is resolved relative to the [app binary directory](Self::app_binary_dir).
+  fn resolve_override_path(&self, path: &Path) -> Result<PathBuf> {
+    let mut components = path.components();
+    let first = components.next();
+
+    if let Some(Component::Normal(first)) = first {
+      if let Some(variable) = first.to_str().filter(|s| s.starts_with('$')) {
+        let base_directory = BaseDirectory::from_variable(variable).ok_or_else(|| {
+          Error::InvalidAppDirectoriesOverride(
+            path.to_path_buf(),
+            format!("unknown base directory variable `{variable}`"),
+          )
+        })?;
+
+        if matches!(
           base_directory,
-          BaseDirectory::AppCache
-            | BaseDirectory::AppConfig
+          BaseDirectory::AppConfig
             | BaseDirectory::AppData
             | BaseDirectory::AppLocalData
+            | BaseDirectory::AppCache
             | BaseDirectory::AppLog
         ) {
-          // TODO: Maybe add a new variant?
-          Err(crate::Error::UnknownPath)
-        } else {
-          self.parse(app_directories_override)
-        };
-      }
+          return Err(Error::InvalidAppDirectoriesOverride(
+            path.to_path_buf(),
+            format!("`{variable}` refers to an app directory, which is what is being overridden"),
+          ));
+        }
 
-      Ok(if app_directories_override.is_absolute() {
-        app_directories_override.clone()
-      } else {
-        crate::process::current_binary(&self.0.env())?
-          .parent()
-          .ok_or(crate::Error::NoParent)?
-          .join(app_directories_override)
-      })
-    })
+        // unlike `parse`, `resolve` keeps `..` components
+        return self
+          .resolve(components.as_path(), base_directory)
+          .map(normalize);
+      }
+    }
+
+    if path.is_absolute() {
+      return Ok(normalize(path));
+    }
+
+    // Windows root-relative (`\foo`) and drive-relative (`C:foo`) paths would replace the base directory on join
+    if path.has_root() || matches!(first, Some(Component::Prefix(_))) {
+      return Err(Error::InvalidAppDirectoriesOverride(
+        path.to_path_buf(),
+        "root-relative and drive-relative paths are not supported".into(),
+      ));
+    }
+
+    Ok(normalize(self.app_binary_dir()?.join(path)))
   }
+
+  /// The directory relative app directory overrides are resolved against: the directory containing the app binary.
+  ///
+  /// When running from an AppImage on Linux, this is the directory containing the AppImage file,
+  /// and when running from a `.app` bundle on macOS, the directory containing the bundle.
+  fn app_binary_dir(&self) -> Result<PathBuf> {
+    let binary = crate::process::current_binary(&self.0.env())?;
+    let dir = binary.parent().ok_or(Error::NoParent)?;
+
+    #[cfg(target_os = "macos")]
+    if let Some(bundle_parent) = macos_bundle_parent(dir) {
+      return Ok(bundle_parent);
+    }
+
+    Ok(dir.to_path_buf())
+  }
+}
+
+/// Removes `.` components and trailing separators from a path, keeping `..` components.
+fn normalize(path: impl AsRef<Path>) -> PathBuf {
+  path.as_ref().components().collect()
+}
+
+/// For a `<dir>/<name>.app/Contents/MacOS` directory, returns `<dir>`.
+#[cfg(any(target_os = "macos", test))]
+fn macos_bundle_parent(macos_dir: &Path) -> Option<PathBuf> {
+  use std::ffi::OsStr;
+
+  if macos_dir.file_name() != Some(OsStr::new("MacOS")) {
+    return None;
+  }
+
+  let contents_dir = macos_dir.parent()?;
+  if contents_dir.file_name() != Some(OsStr::new("Contents")) {
+    return None;
+  }
+
+  let bundle = contents_dir.parent()?;
+  if bundle.extension() != Some(OsStr::new("app")) {
+    return None;
+  }
+
+  bundle.parent().map(Path::to_path_buf)
 }

@@ -136,20 +136,24 @@ pub enum BaseDirectory {
   /// Resolves to [`std::env::temp_dir`].
   Temp = 12,
   /// The default app config directory.
-  /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
+  /// Resolves to [`crate::path::PathResolver::app_config_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppConfig = 13,
   /// The default app data directory.
-  /// Resolves to [`BaseDirectory::Data`]`/{bundle_identifier}`.
+  /// Resolves to [`crate::path::PathResolver::app_data_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppData = 14,
   /// The default app local data directory.
-  /// Resolves to [`BaseDirectory::LocalData`]`/{bundle_identifier}`.
+  /// Resolves to [`crate::path::PathResolver::app_local_data_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppLocalData = 15,
   /// The default app cache directory.
-  /// Resolves to [`BaseDirectory::Cache`]`/{bundle_identifier}`.
+  /// Resolves to [`crate::path::PathResolver::app_cache_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppCache = 16,
   /// The default app log directory.
-  /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
-  /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
+  /// Resolves to [`crate::path::PathResolver::app_log_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppLog = 17,
   /// The Desktop directory.
   /// Resolves to [`crate::path::PathResolver::desktop_dir`].

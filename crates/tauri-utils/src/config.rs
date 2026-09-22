@@ -2257,9 +2257,13 @@ pub struct WindowConfig {
   )]
   pub disable_input_accessory_view: bool,
   /// Set a custom path for the webview's data directory (localStorage, cache, etc.),
-  /// **relative to the app data directory (`appDataDir()`), followed by the window label**.
+  /// **relative to the local data directory (`localDataDir()`), followed by the window label**.
   ///
   /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
+  ///
+  /// This path is not affected by the `app > appDirectoriesOverride` config.
+  /// To keep the webview data in an overridden directory, leave this unset (the webview then uses the app local data directory)
+  /// or resolve a path from `app.path().app_local_data_dir()` and set it with `WebviewWindowBuilder::data_directory`.
   ///
   /// #### Platform-specific:
   ///

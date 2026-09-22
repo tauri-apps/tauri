@@ -256,7 +256,8 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's config files.
   ///
-  /// Resolves to [`config_dir`](Self::config_dir)`/${bundle_identifier}`.
+  /// Resolves to [`config_dir`](Self::config_dir)`/${bundle_identifier}`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
   pub fn app_config_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::Config, || {
       dirs::config_dir()
@@ -267,7 +268,8 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's data files.
   ///
-  /// Resolves to [`data_dir`](Self::data_dir)`/${bundle_identifier}`.
+  /// Resolves to [`data_dir`](Self::data_dir)`/${bundle_identifier}`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
   pub fn app_data_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::Data, || {
       dirs::data_dir()
@@ -278,7 +280,10 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's local data files.
   ///
-  /// Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}`.
+  /// Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
+  ///
+  /// On Windows and Linux this is also the default data directory of the webviews.
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::LocalData, || {
       dirs::data_local_dir()
@@ -289,7 +294,9 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's cache files.
   ///
-  /// Resolves to [`cache_dir`](Self::cache_dir)`/${bundle_identifier}`.
+  /// Resolves to [`cache_dir`](Self::cache_dir)`/${bundle_identifier}`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/caches`).
   pub fn app_cache_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::Cache, || {
       dirs::cache_dir()
@@ -305,6 +312,9 @@ impl<R: Runtime> PathResolver<R> {
   /// - **Linux:** Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}/logs`.
   /// - **macOS:** Resolves to [`home_dir`](Self::home_dir)`/Library/Logs/${bundle_identifier}`
   /// - **Windows:** Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}/logs`.
+  ///
+  /// All of them can be overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/logs`).
   pub fn app_log_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::Log, || {
       #[cfg(target_os = "macos")]

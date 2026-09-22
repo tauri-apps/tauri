@@ -13,7 +13,11 @@ use tauri_utils::{
 
 macro_rules! schema {
   ($name:literal, $path:ty) => {
-    (concat!($name, ".schema.json"), schemars::schema_for!($path))
+    (
+      concat!($name, ".schema.json"),
+      schemars::SchemaGenerator::new(schemars::generate::SchemaSettings::draft07())
+        .into_root_schema_for::<$path>(),
+    )
   };
 }
 
@@ -46,8 +50,10 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     // set id for generated schema
     let (filename, mut config_schema) = schema!("config", Config);
-    let schema_metadata = config_schema.schema.metadata.as_mut().unwrap();
-    schema_metadata.id = Some(format!("https://schema.tauri.app/config/{tauri_ver}"));
+    config_schema.insert(
+      "$id".to_owned(),
+      format!("https://schema.tauri.app/config/{tauri_ver}").into(),
+    );
 
     let config_schema = serde_json::to_string_pretty(&config_schema)?;
     write_if_changed(schemas_dir.join(filename), &config_schema)?;

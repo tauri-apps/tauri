@@ -781,14 +781,14 @@
       ],
       "properties": {
         "effects": {
-          "description": "List of Window effects to apply to the Window.\n Conflicting effects will apply the first one and ignore the rest.",
+          "description": "List of Window effects to apply to the Window.\n\n Generally, conflicting effects will apply the first one and ignore the rest but\n on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time\n to make Tauri fallback to the latter on macOS 15 and below.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/WindowEffect"
           }
         },
         "state": {
-          "description": "Window effect state **macOS Only**",
+          "description": "Window effect state **macOS Only**. Ignored for Liquid Glass Effects.",
           "anyOf": [
             {
               "$ref": "#/definitions/WindowEffectState"
@@ -807,7 +807,7 @@
           "format": "double"
         },
         "color": {
-          "description": "Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only\n on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.",
+          "description": "Window effect color.\n\n ## Platform-specific\n\n - **Windows**: Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only\n on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.\n - **macOS**: Only affects Liquid Glass effects.",
           "anyOf": [
             {
               "$ref": "#/definitions/Color"
@@ -816,6 +816,11 @@
               "type": "null"
             }
           ]
+        },
+        "interactive": {
+          "description": "Enables interactive glass behavior, which adds a visual response to user interactions.\n\n **macOS 27.0+**. Only affects Liquid Glass effects.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -959,6 +964,20 @@
           "type": "string",
           "enum": [
             "underPageBackground"
+          ]
+        },
+        {
+          "description": "**macOS 26.0+**",
+          "type": "string",
+          "enum": [
+            "liquidGlassRegular"
+          ]
+        },
+        {
+          "description": "**macOS 26.0+**",
+          "type": "string",
+          "enum": [
+            "liquidGlassClear"
           ]
         },
         {

@@ -2597,6 +2597,12 @@ impl EffectsBuilder {
     self
   }
 
+  /// Sets `interactive` field for the [`WindowEffectsConfig`] **macOS 27.0+ Only**
+  pub fn interactive(mut self, interactive: bool) -> Self {
+    self.0.interactive = interactive;
+    self
+  }
+
   /// Builds a [`WindowEffectsConfig`]
   pub fn build(self) -> WindowEffectsConfig {
     self.0

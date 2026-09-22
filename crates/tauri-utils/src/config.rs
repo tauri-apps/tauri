@@ -1867,15 +1867,28 @@ pub enum BackgroundThrottlingPolicy {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowEffectsConfig {
   /// List of Window effects to apply to the Window.
-  /// Conflicting effects will apply the first one and ignore the rest.
+  ///
+  /// Generally, conflicting effects will apply the first one and ignore the rest but
+  /// on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time
+  /// to make Tauri fallback to the latter on macOS 15 and below.
   pub effects: Vec<WindowEffect>,
-  /// Window effect state **macOS Only**
+  /// Window effect state **macOS Only**. Ignored for Liquid Glass Effects.
   pub state: Option<WindowEffectState>,
   /// Window effect corner radius **macOS Only**
   pub radius: Option<f64>,
-  /// Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
+  /// Window effect color.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
   /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
+  /// - **macOS**: Only affects Liquid Glass effects.
   pub color: Option<Color>,
+  /// Enables interactive glass behavior, which adds a visual response to user interactions.
+  ///
+  /// **macOS 27.0+**. Only affects Liquid Glass effects.
+  #[serde(default)]
+  pub interactive: bool,
 }
 
 /// Enable prevent overflow with a margin
@@ -3962,6 +3975,7 @@ mod build {
       let state = opt_lit(self.state.as_ref());
       let radius = opt_lit(self.radius.as_ref());
       let color = opt_lit(self.color.as_ref());
+      let interactive = self.interactive;
 
       literal_struct!(
         tokens,
@@ -3969,7 +3983,8 @@ mod build {
         effects,
         state,
         radius,
-        color
+        color,
+        interactive
       )
     }
   }
@@ -4018,6 +4033,8 @@ mod build {
         WindowEffect::ContentBackground => quote! { #prefix::ContentBackground},
         WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
         WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
+        WindowEffect::LiquidGlassRegular => quote! { #prefix::LiquidGlassRegular },
+        WindowEffect::LiquidGlassClear => quote! { #prefix::LiquidGlassClear },
         WindowEffect::Mica => quote! { #prefix::Mica},
         WindowEffect::MicaDark => quote! { #prefix::MicaDark},
         WindowEffect::MicaLight => quote! { #prefix::MicaLight},

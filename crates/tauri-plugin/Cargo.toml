@@ -30,7 +30,6 @@ serde = { version = "1", optional = true }
 tauri-utils = { workspace = true, features = ["build-2"] }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
-toml = { version = "0.9", optional = true }
 schemars = { version = "1", features = ["preserve_order"] }
 walkdir = { version = "2", optional = true }
 

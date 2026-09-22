@@ -37,7 +37,6 @@ tauri-winres = "0.3"
 semver = "1"
 dirs = "7"
 glob = "0.3"
-toml = "0.9"
 schemars = { version = "1", features = ["preserve_order"] }
 
 [features]

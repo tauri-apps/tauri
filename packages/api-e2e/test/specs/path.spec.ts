@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import path from 'node:path'
+import nodePath from 'node:path'
 import { expect } from '@wdio/globals'
-import { tauri, describeApi } from '../helpers/index.js'
+import { tauri, describeApi, platform } from '../helpers/index.js'
+
+// Node's path module for the platform the *app* runs on. That is the host for
+// the desktop suite, but the mobile suites drive an Android/iOS app (POSIX
+// paths) from whatever OS hosts the emulator/simulator.
+const path = platform === 'win32' ? nodePath.win32 : nodePath.posix
 
 describeApi('path', () => {
-  it('sep and delimiter match the host platform', async () => {
+  it('sep and delimiter match the target platform', async () => {
     const separators = await tauri((api) => ({
       sep: api.path.sep(),
       delimiter: api.path.delimiter()

@@ -84,6 +84,8 @@ fn exec(
             return ("pnpm".into(), build_args);
           } else if is_pnpm_dlx() {
             return ("pnpm".into(), vec!["dlx", "@tauri-apps/cli"]);
+          } else if is_pnpm_run() {
+            return ("pnpm".into(), build_args);
           } else if let Some(npm_execpath) = var_os("npm_execpath") {
             let manager_stem = PathBuf::from(&npm_execpath)
               .file_stem()
@@ -390,6 +392,13 @@ fn unprefix_path(
         })?,
     )
     .map_err(Into::into)
+}
+
+/// pnpm's native binary (pnpm >= 11) runs package scripts without setting `PNPM_PACKAGE_NAME`,
+/// and `npm_execpath` points at the binary itself, which is not necessarily named `pnpm`
+/// (corepack downloads it as `pnpm-native`), so the user agent is what identifies it.
+fn is_pnpm_run() -> bool {
+  std::env::var("npm_config_user_agent").is_ok_and(|user_agent| user_agent.starts_with("pnpm/"))
 }
 
 fn is_pnpm_dlx() -> bool {

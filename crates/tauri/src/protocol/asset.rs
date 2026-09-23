@@ -113,7 +113,7 @@ async fn get_response(
     };
 
     // parse range header
-    let ranges = if let Ok(ranges) = HttpRange::parse(&range_header, len) {
+    let ranges = if let Ok(ranges) = HttpRange::parse(range_header, len) {
       ranges
         .iter()
         // map the output to spec range <start-end>, example: 0-499

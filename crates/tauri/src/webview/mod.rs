@@ -397,7 +397,7 @@ async fn create_window(app: tauri::AppHandle) {
 
     if let Some(data_directory) = &config.data_directory {
       let resolve_data_dir_res = dirs::data_local_dir()
-        .or({
+        .or_else(|| {
           #[cfg(feature = "tracing")]
           tracing::error!("failed to resolve data directory");
           None

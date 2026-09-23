@@ -318,7 +318,7 @@ fn create_info_plist(
               protocol
                 .name
                 .clone()
-                .unwrap_or(format!(
+                .unwrap_or_else(|| format!(
                   "{} {}",
                   settings.bundle_identifier(),
                   protocol.schemes[0]

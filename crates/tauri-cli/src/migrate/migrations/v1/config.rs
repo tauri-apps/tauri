@@ -445,7 +445,9 @@ fn process_allowlist(
   let allowlist: tauri_utils::config_v1::AllowlistConfig =
     serde_json::from_value(allowlist).context("failed to deserialize allowlist")?;
 
-  if allowlist.protocol.asset_scope != Default::default() {
+  let asset_protocol_enabled = allowlist.all || allowlist.protocol.all || allowlist.protocol.asset;
+  let has_asset_scope = allowlist.protocol.asset_scope != Default::default();
+  if asset_protocol_enabled || has_asset_scope {
     let security = tauri_config
       .entry("security")
       .or_insert_with(|| Value::Object(Default::default()))
@@ -453,12 +455,14 @@ fn process_allowlist(
       .unwrap();
 
     let mut asset_protocol = Map::new();
-    asset_protocol.insert(
-      "scope".into(),
-      serde_json::to_value(allowlist.protocol.asset_scope.clone())
-        .context("failed to serialize asset scope")?,
-    );
-    if allowlist.protocol.asset {
+    if has_asset_scope {
+      asset_protocol.insert(
+        "scope".into(),
+        serde_json::to_value(allowlist.protocol.asset_scope.clone())
+          .context("failed to serialize asset scope")?,
+      );
+    }
+    if asset_protocol_enabled {
       asset_protocol.insert("enable".into(), true.into());
     }
     security.insert("assetProtocol".into(), asset_protocol.into());
@@ -487,7 +491,9 @@ fn allowlist_to_permissions(
 
   // fs
   permissions!(allowlist, permissions, fs, read_file => "fs:allow-read-file");
+  permissions!(allowlist, permissions, fs, read_file => "fs:allow-read-text-file");
   permissions!(allowlist, permissions, fs, write_file => "fs:allow-write-file");
+  permissions!(allowlist, permissions, fs, write_file => "fs:allow-write-text-file");
   permissions!(allowlist, permissions, fs, read_dir => "fs:allow-read-dir");
   permissions!(allowlist, permissions, fs, copy_file => "fs:allow-copy-file");
   permissions!(allowlist, permissions, fs, create_dir => "fs:allow-mkdir");
@@ -527,6 +533,7 @@ fn allowlist_to_permissions(
 
   // window
   permissions!(allowlist, permissions, window, create => "core:window:allow-create");
+  permissions!(allowlist, permissions, window, create => "core:webview:allow-create-webview-window");
   permissions!(allowlist, permissions, window, center => "core:window:allow-center");
   permissions!(allowlist, permissions, window, request_user_attention => "core:window:allow-request-user-attention");
   permissions!(allowlist, permissions, window, set_resizable => "core:window:allow-set-resizable");
@@ -561,11 +568,21 @@ fn allowlist_to_permissions(
   permissions!(allowlist, permissions, window, print => "core:webview:allow-print");
 
   // shell
+  // the v1 execute (and sidecar) allowlist covered both `Command.execute` and `Command.spawn`,
+  // including writing to and killing the spawned child
+  // (kill and stdin-write are not scoped)
+  let shell_scoped_permissions = ["shell:allow-execute", "shell:allow-spawn"];
+  let shell_child_permissions = ["shell:allow-kill", "shell:allow-stdin-write"];
+  let shell_permission_ref =
+    |p: &str| PermissionEntry::PermissionRef(p.to_string().try_into().unwrap());
   if allowlist.shell.scope.0.is_empty() {
-    let added = permissions!(allowlist, permissions, shell, execute => "shell:allow-execute");
-    // prevent duplicated permission
-    if !added {
-      permissions!(allowlist, permissions, shell, sidecar => "shell:allow-execute");
+    if allowlist.all || allowlist.shell.all || allowlist.shell.execute || allowlist.shell.sidecar {
+      permissions.extend(
+        shell_scoped_permissions
+          .into_iter()
+          .chain(shell_child_permissions)
+          .map(shell_permission_ref),
+      );
     }
   } else {
     let allowed = allowlist
@@ -576,13 +593,20 @@ fn allowlist_to_permissions(
       .map(|p| serde_json::to_value(p).unwrap().into())
       .collect::<Vec<_>>();
 
-    permissions.push(PermissionEntry::ExtendedPermission {
-      identifier: "shell:allow-execute".to_string().try_into().unwrap(),
-      scope: Scopes {
-        allow: Some(allowed),
-        deny: None,
-      },
-    });
+    for identifier in shell_scoped_permissions {
+      permissions.push(PermissionEntry::ExtendedPermission {
+        identifier: identifier.to_string().try_into().unwrap(),
+        scope: Scopes {
+          allow: Some(allowed.clone()),
+          deny: None,
+        },
+      });
+    }
+    permissions.extend(
+      shell_child_permissions
+        .into_iter()
+        .map(shell_permission_ref),
+    );
   }
 
   if allowlist.all
@@ -1013,6 +1037,99 @@ mod test {
         .as_bool()
         .unwrap()
     );
+  }
+
+  fn permission_identifiers(allowlist: serde_json::Value) -> Vec<String> {
+    super::allowlist_to_permissions(serde_json::from_value(allowlist).unwrap())
+      .iter()
+      .map(|p| p.identifier().get().to_string())
+      .collect()
+  }
+
+  #[test]
+  fn migrate_allowlist_permissions() {
+    let permissions = permission_identifiers(serde_json::json!({
+      "fs": { "readFile": true, "writeFile": true },
+      "window": { "create": true },
+      "shell": { "execute": true }
+    }));
+    for permission in [
+      "fs:allow-read-file",
+      "fs:allow-read-text-file",
+      "fs:allow-write-file",
+      "fs:allow-write-text-file",
+      "core:window:allow-create",
+      "core:webview:allow-create-webview-window",
+      "shell:allow-execute",
+      "shell:allow-spawn",
+      "shell:allow-kill",
+      "shell:allow-stdin-write",
+    ] {
+      assert!(
+        permissions.contains(&permission.to_string()),
+        "missing {permission} in {permissions:?}"
+      );
+    }
+  }
+
+  #[test]
+  fn migrate_shell_scope_permissions() {
+    let permissions = super::allowlist_to_permissions(
+      serde_json::from_value(serde_json::json!({
+        "shell": {
+          "execute": true,
+          "scope": [{ "name": "sh", "cmd": "sh", "args": true }]
+        }
+      }))
+      .unwrap(),
+    );
+
+    let scope_of = |identifier: &str| {
+      permissions.iter().find_map(|p| match p {
+        tauri_utils::acl::capability::PermissionEntry::ExtendedPermission {
+          identifier: i,
+          scope,
+        } if i.get() == identifier => Some(scope.clone()),
+        _ => None,
+      })
+    };
+    let execute_scope = scope_of("shell:allow-execute").expect("missing scoped execute");
+    assert_eq!(scope_of("shell:allow-spawn"), Some(execute_scope));
+    assert!(
+      permissions
+        .iter()
+        .any(|p| p.identifier().get() == "shell:allow-kill")
+    );
+    assert!(
+      permissions
+        .iter()
+        .any(|p| p.identifier().get() == "shell:allow-stdin-write")
+    );
+  }
+
+  #[test]
+  fn migrate_asset_protocol_enable() {
+    for allowlist in [
+      serde_json::json!({ "all": true }),
+      serde_json::json!({ "protocol": { "all": true } }),
+      serde_json::json!({ "protocol": { "asset": true } }),
+    ] {
+      let original = serde_json::json!({ "tauri": { "allowlist": allowlist } });
+      let migrated = migrate(&original);
+      assert_eq!(
+        migrated["app"]["security"]["assetProtocol"]["enable"], true,
+        "asset protocol not enabled for {allowlist}"
+      );
+      assert!(
+        migrated["app"]["security"]["assetProtocol"]
+          .get("scope")
+          .is_none()
+      );
+    }
+
+    let original = serde_json::json!({ "tauri": { "allowlist": {} } });
+    let migrated = migrate(&original);
+    assert!(migrated["app"]["security"].get("assetProtocol").is_none());
   }
 
   #[test]

@@ -37,7 +37,7 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         let stdout = String::from_utf8_lossy(&output.stdout);
         let info: YarnVersionInfo =
           serde_json::from_str(&stdout).context("failed to parse yarn info")?;
-        Ok(Some(info.data.last().unwrap().to_string()))
+        Ok(Some(info.data.last().unwrap().clone()))
       } else {
         Ok(None)
       }

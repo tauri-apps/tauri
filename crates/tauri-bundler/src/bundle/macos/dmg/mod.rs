@@ -67,9 +67,9 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   for path in &[&support_directory_path, &output_path] {
     if path.exists() {
-      fs::remove_dir_all(path).fs_context("failed to remove old dmg", path.to_path_buf())?;
+      fs::remove_dir_all(path).fs_context("failed to remove old dmg", (*path).clone())?;
     }
-    fs::create_dir_all(path).fs_context("failed to create output directory", path.to_path_buf())?;
+    fs::create_dir_all(path).fs_context("failed to create output directory", (*path).clone())?;
   }
 
   // create paths for script

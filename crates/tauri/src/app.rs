@@ -436,7 +436,7 @@ impl<R: Runtime> AppHandle<R> {
     let runtime_handle = self.runtime_handle.clone();
 
     self.run_on_main_thread(move || {
-      let cloned_lock = lock.clone();
+      let cloned_lock = Arc::clone(&lock);
       if let Err(err) = runtime_handle.fetch_data_store_identifiers(move |ids| {
         if let Some(tx) = cloned_lock.lock().unwrap().take() {
           let _ = tx.send(Ok(ids));
@@ -459,7 +459,7 @@ impl<R: Runtime> AppHandle<R> {
     let runtime_handle = self.runtime_handle.clone();
 
     self.run_on_main_thread(move || {
-      let cloned_lock = lock.clone();
+      let cloned_lock = Arc::clone(&lock);
       if let Err(err) = runtime_handle.remove_data_store(uuid, move |result| {
         if let Some(tx) = cloned_lock.lock().unwrap().take() {
           let _ = tx.send(result);
@@ -478,8 +478,8 @@ impl<R: Runtime> Clone for AppHandle<R> {
   fn clone(&self) -> Self {
     Self {
       runtime_handle: self.runtime_handle.clone(),
-      manager: self.manager.clone(),
-      event_loop: self.event_loop.clone(),
+      manager: Arc::clone(&self.manager),
+      event_loop: Arc::clone(&self.event_loop),
     }
   }
 }
@@ -718,7 +718,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   }
 
   fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.manager.clone()
+    Arc::clone(&self.manager)
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
@@ -774,7 +774,7 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 
   fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.manager.clone()
+    Arc::clone(&self.manager)
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
@@ -2547,7 +2547,7 @@ tauri::Builder::default()
     let app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
-      manager: manager.clone(),
+      manager: Arc::clone(&manager),
       handle: AppHandle {
         runtime_handle,
         manager,

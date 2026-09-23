@@ -184,7 +184,7 @@ const _: () = {
 impl<TSend> Clone for Channel<TSend> {
   fn clone(&self) -> Self {
     Self {
-      inner: self.inner.clone(),
+      inner: Arc::clone(&self.inner),
       phantom: self.phantom,
     }
   }
@@ -258,7 +258,7 @@ impl JavaScriptChannelId {
     let callback_id = callback_fn.0;
 
     let counter = Arc::new(AtomicUsize::new(0));
-    let counter_clone = counter.clone();
+    let counter_clone = Arc::clone(&counter);
     let webview_clone = webview.clone();
 
     Channel::new_with_id(

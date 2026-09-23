@@ -28,8 +28,9 @@ pub fn create_icns_file(out_dir: &Path, settings: &Settings) -> crate::Result<Op
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
     if icon_path.extension() == Some(OsStr::new("icns")) {
-      let mut dest_path = out_dir.to_path_buf();
-      dest_path.push(icon_path.file_name().expect("Could not get icon filename"));
+      let dest_path = out_dir
+        .to_path_buf()
+        .join(icon_path.file_name().expect("Could not get icon filename"));
       fs_utils::copy_file(&icon_path, &dest_path)?;
       return Ok(Some(dest_path));
     }
@@ -92,8 +93,7 @@ pub fn create_icns_file(out_dir: &Path, settings: &Settings) -> crate::Result<Op
 
   if !family.is_empty() {
     fs::create_dir_all(out_dir)?;
-    let mut dest_path = out_dir.to_path_buf();
-    dest_path.push(settings.product_name());
+    let mut dest_path = out_dir.to_path_buf().join(settings.product_name());
     dest_path.set_extension("icns");
     let icns_file = BufWriter::new(File::create(&dest_path)?);
     family.write(icns_file)?;

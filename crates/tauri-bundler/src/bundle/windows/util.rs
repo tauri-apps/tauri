@@ -217,8 +217,7 @@ fn glob_path(path: &Path, pattern: &str) -> String {
 /// The executable is written to a temporary file so callers do not depend on a system-installed
 /// `vswhere.exe`.
 pub fn vswhere_path() -> Option<PathBuf> {
-  let mut vswhere = std::env::temp_dir();
-  vswhere.push("vswhere.exe");
+  let vswhere = std::env::temp_dir().join("vswhere.exe");
 
   if !vswhere.exists() {
     let mut file = std::fs::File::create(&vswhere).ok()?;

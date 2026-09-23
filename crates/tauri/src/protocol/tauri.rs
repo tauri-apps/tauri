@@ -96,7 +96,7 @@ pub fn get<R: Runtime>(
   });
 
   Box::new(move |_, request, responder| {
-    let context = context.clone();
+    let context = Arc::clone(&context);
     crate::async_runtime::spawn(async move {
       match get_response(&context, request).await {
         Ok(response) => responder.respond(response),

@@ -1180,7 +1180,7 @@ impl MockRuntime {
     let is_running = Arc::new(AtomicBool::new(false));
     let (tx, rx) = sync_channel(256);
     let context = RuntimeContext {
-      is_running: is_running.clone(),
+      is_running: Arc::clone(&is_running),
       windows: Default::default(),
       shortcuts: Default::default(),
       run_tx: tx,

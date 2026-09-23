@@ -276,7 +276,7 @@ fn sign_updaters(
     std::fs::read_to_string(maybe_path)
       .fs_context("failed to read pubkey from file", maybe_path.to_path_buf())?
   } else {
-    pubkey.to_string()
+    pubkey.clone()
   };
 
   // if no password provided we use an empty string

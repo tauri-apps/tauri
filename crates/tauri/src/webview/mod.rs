@@ -397,7 +397,7 @@ async fn create_window(app: tauri::AppHandle) {
 
     if let Some(data_directory) = &config.data_directory {
       let resolve_data_dir_res = dirs::data_local_dir()
-        .or({
+        .or_else(|| {
           #[cfg(feature = "tracing")]
           tracing::error!("failed to resolve data directory");
           None
@@ -1454,11 +1454,11 @@ impl<R: Runtime> std::fmt::Debug for Webview<R> {
 impl<R: Runtime> Clone for Webview<R> {
   fn clone(&self) -> Self {
     Self {
-      window: self.window.clone(),
+      window: Arc::clone(&self.window),
       webview: self.webview.clone(),
-      manager: self.manager.clone(),
+      manager: Arc::clone(&self.manager),
       app_handle: self.app_handle.clone(),
-      resources_table: self.resources_table.clone(),
+      resources_table: Arc::clone(&self.resources_table),
       use_https_scheme: self.use_https_scheme,
     }
   }
@@ -1488,7 +1488,7 @@ impl<R: Runtime> Webview<R> {
     use_https_scheme: bool,
   ) -> Self {
     Self {
-      manager: window.manager.clone(),
+      manager: Arc::clone(&window.manager),
       app_handle: window.app_handle.clone(),
       window: Arc::new(Mutex::new(window)),
       webview,
@@ -2033,7 +2033,7 @@ tauri::Builder::default()
     #[cfg(mobile)]
     let app_handle = self.app_handle.clone();
 
-    let message = InvokeMessage::new(self, request.cmd.to_string(), request.body, request.headers);
+    let message = InvokeMessage::new(self, request.cmd.clone(), request.body, request.headers);
 
     let acl_origin = if is_local {
       Origin::Local
@@ -2573,7 +2573,7 @@ impl<R: Runtime> ManagerBase<R> for Webview<R> {
   }
 
   fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.manager.clone()
+    Arc::clone(&self.manager)
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {

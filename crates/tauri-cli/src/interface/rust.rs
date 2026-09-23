@@ -179,7 +179,7 @@ impl Rust {
   }
 
   pub fn app_settings(&self) -> Arc<RustAppSettings> {
-    self.app_settings.clone()
+    Arc::clone(&self.app_settings)
   }
 
   pub fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
@@ -227,7 +227,7 @@ impl Rust {
         &options.additional_watch_folders,
         &merge_configs,
         |rust: &mut Rust, _config| {
-          let on_exit = on_exit.clone();
+          let on_exit = Arc::clone(&on_exit);
           rust
             .run_dev(options.clone(), &run_args, move |status, reason| {
               on_exit(status, reason)
@@ -385,8 +385,7 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 }
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
-  let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".tauri");
+  let mut default_gitignore = std::env::temp_dir().join(".tauri");
   let _ = std::fs::create_dir_all(&default_gitignore);
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
@@ -989,9 +988,9 @@ impl AppSettings for RustAppSettings {
 
     for (name, path) in binaries_paths {
       // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
-      let bin_exists = binaries
-        .iter()
-        .any(|bin| bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string())));
+      let bin_exists = binaries.iter().any(|bin| {
+        bin.name() == name || path.ends_with(bin.src_path().map(String::as_str).unwrap_or(""))
+      });
       let bin_disabled = disabled_bins
         .iter()
         .any(|bin| bin.matches_src_bin(&name, &path));

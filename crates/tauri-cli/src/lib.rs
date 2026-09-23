@@ -366,7 +366,7 @@ impl CommandExt for Command {
 
     let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
     let stdout_lines = Arc::new(Mutex::new(Vec::new()));
-    let stdout_lines_ = stdout_lines.clone();
+    let stdout_lines_ = Arc::clone(&stdout_lines);
     std::thread::spawn(move || {
       let mut line = String::new();
       if let Ok(mut lines) = stdout_lines_.lock() {
@@ -386,7 +386,7 @@ impl CommandExt for Command {
 
     let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
     let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-    let stderr_lines_ = stderr_lines.clone();
+    let stderr_lines_ = Arc::clone(&stderr_lines);
     std::thread::spawn(move || {
       let mut line = String::new();
       if let Ok(mut lines) = stderr_lines_.lock() {

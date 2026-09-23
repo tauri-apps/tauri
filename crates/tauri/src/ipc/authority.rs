@@ -506,8 +506,8 @@ pub struct ScopeValue<T: ScopeObject> {
 impl<T: ScopeObject> ScopeValue<T> {
   fn clone(&self) -> Self {
     Self {
-      allow: self.allow.clone(),
-      deny: self.deny.clone(),
+      allow: Arc::clone(&self.allow),
+      deny: Arc::clone(&self.deny),
     }
   }
 
@@ -547,10 +547,10 @@ impl<T: ScopeObject> CommandScope<T> {
         .get_command_scope_typed::<R, T>(webview.app_handle(), &scope_id)?;
 
       for s in scope.allows() {
-        allow.push(s.clone());
+        allow.push(Arc::clone(s));
       }
       for s in scope.denies() {
-        deny.push(s.clone());
+        deny.push(Arc::clone(s));
       }
     }
 
@@ -839,6 +839,8 @@ impl ScopeManager {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::BTreeMap;
+
   use glob::Pattern;
   use tauri_utils::acl::{
     ExecutionContext,
@@ -859,9 +861,7 @@ mod tests {
       windows: vec![Pattern::new(window).unwrap()],
       ..Default::default()
     }];
-    let allowed_commands = [(command.to_string(), resolved_cmd.clone())]
-      .into_iter()
-      .collect();
+    let allowed_commands = BTreeMap::from([(command.to_string(), resolved_cmd.clone())]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -893,9 +893,7 @@ mod tests {
       webviews: vec![Pattern::new(webview).unwrap()],
       ..Default::default()
     }];
-    let allowed_commands = [(command.to_string(), resolved_cmd.clone())]
-      .into_iter()
-      .collect();
+    let allowed_commands = BTreeMap::from([(command.to_string(), resolved_cmd.clone())]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -930,9 +928,7 @@ mod tests {
       },
       ..Default::default()
     }];
-    let allowed_commands = [(command.to_string(), resolved_cmd.clone())]
-      .into_iter()
-      .collect();
+    let allowed_commands = BTreeMap::from([(command.to_string(), resolved_cmd.clone())]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -969,9 +965,7 @@ mod tests {
       },
       ..Default::default()
     }];
-    let allowed_commands = [(command.to_string(), resolved_cmd.clone())]
-      .into_iter()
-      .collect();
+    let allowed_commands = BTreeMap::from([(command.to_string(), resolved_cmd.clone())]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -1004,7 +998,7 @@ mod tests {
       windows: vec![Pattern::new(window).unwrap()],
       ..Default::default()
     }];
-    let allowed_commands = [(command.to_string(), resolved_cmd)].into_iter().collect();
+    let allowed_commands = BTreeMap::from([(command.to_string(), resolved_cmd)]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -1034,24 +1028,20 @@ mod tests {
     let window = "main";
     let webview = "main";
     let windows = vec![Pattern::new(window).unwrap()];
-    let allowed_commands = [(
+    let allowed_commands = BTreeMap::from([(
       command.to_string(),
       vec![ResolvedCommand {
         windows: windows.clone(),
         ..Default::default()
       }],
-    )]
-    .into_iter()
-    .collect();
-    let denied_commands = [(
+    )]);
+    let denied_commands = BTreeMap::from([(
       command.to_string(),
       vec![ResolvedCommand {
         windows,
         ..Default::default()
       }],
-    )]
-    .into_iter()
-    .collect();
+    )]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -1078,7 +1068,7 @@ mod tests {
     let windows = vec![Pattern::new(window).unwrap()];
 
     // the command is allowed on both the local app and the remote URL
-    let allowed_commands = [(
+    let allowed_commands = BTreeMap::from([(
       command.to_string(),
       vec![
         ResolvedCommand {
@@ -1093,12 +1083,10 @@ mod tests {
           ..Default::default()
         },
       ],
-    )]
-    .into_iter()
-    .collect();
+    )]);
 
     // but it is only denied on the remote URL
-    let denied_commands = [(
+    let denied_commands = BTreeMap::from([(
       command.to_string(),
       vec![ResolvedCommand {
         windows,
@@ -1107,9 +1095,7 @@ mod tests {
         },
         ..Default::default()
       }],
-    )]
-    .into_iter()
-    .collect();
+    )]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -1151,7 +1137,7 @@ mod tests {
     let windows = vec![Pattern::new(window).unwrap()];
 
     // the command is allowed on both the local app and the remote URL
-    let allowed_commands = [(
+    let allowed_commands = BTreeMap::from([(
       command.to_string(),
       vec![
         ResolvedCommand {
@@ -1166,20 +1152,16 @@ mod tests {
           ..Default::default()
         },
       ],
-    )]
-    .into_iter()
-    .collect();
+    )]);
 
     // but it is only denied on the local app
-    let denied_commands = [(
+    let denied_commands = BTreeMap::from([(
       command.to_string(),
       vec![ResolvedCommand {
         windows,
         ..Default::default()
       }],
-    )]
-    .into_iter()
-    .collect();
+    )]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -1234,7 +1216,7 @@ mod tests {
       url: remote_url.parse().unwrap(),
     };
 
-    let allowed_commands = [(
+    let allowed_commands = BTreeMap::from([(
       command.clone(),
       vec![
         ResolvedCommand {
@@ -1255,12 +1237,10 @@ mod tests {
           ..Default::default()
         },
       ],
-    )]
-    .into_iter()
-    .collect();
+    )]);
 
     // one capability denies the command locally, another denies it on the remote URL
-    let denied_commands = [(
+    let denied_commands = BTreeMap::from([(
       command,
       vec![
         ResolvedCommand {
@@ -1281,9 +1261,7 @@ mod tests {
           ..Default::default()
         },
       ],
-    )]
-    .into_iter()
-    .collect();
+    )]);
 
     let authority = RuntimeAuthority::new(
       Default::default(),
@@ -1389,7 +1367,7 @@ mod tests {
     .collect();
 
     let authority = RuntimeAuthority::new(
-      [(
+      BTreeMap::from([(
         plugin_name.to_string(),
         Manifest {
           default_permission: None,
@@ -1397,9 +1375,7 @@ mod tests {
           permission_sets: Default::default(),
           global_scope_schema: None,
         },
-      )]
-      .into_iter()
-      .collect(),
+      )]),
       Resolved {
         allowed_commands,
         ..Default::default()

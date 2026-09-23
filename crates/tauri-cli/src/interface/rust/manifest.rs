@@ -104,7 +104,7 @@ pub fn serialize_manifest(manifest: &DocumentMut) -> String {
 
 pub fn toml_array(features: &HashSet<String>) -> Array {
   let mut f = Array::default();
-  let mut features: Vec<String> = features.iter().map(|f| f.to_string()).collect();
+  let mut features: Vec<String> = features.iter().cloned().collect();
   features.sort();
   for feature in features {
     f.push(feature.as_str());
@@ -205,7 +205,7 @@ fn inject_features_table<D: TableLike, F: Fn(&str) -> bool>(
     for feat in f.iter() {
       if let Value::String(feature) = feat {
         if !is_managed_feature(feature.value().as_str()) {
-          features.insert(feature.value().to_string());
+          features.insert(feature.value().clone());
         }
       }
     }

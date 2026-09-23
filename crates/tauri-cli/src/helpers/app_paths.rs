@@ -32,8 +32,7 @@ static FRONTEND_DIR: OnceLock<PathBuf> = OnceLock::new();
 static TAURI_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn walk_builder(path: &Path) -> WalkBuilder {
-  let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".gitignore");
+  let default_gitignore = std::env::temp_dir().join(".gitignore");
   if !default_gitignore.exists() {
     if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
       use std::io::Write;

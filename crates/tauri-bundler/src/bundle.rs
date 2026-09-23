@@ -274,10 +274,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
             true => std::fs::remove_dir_all(app_bundle_path),
             false => std::fs::remove_file(app_bundle_path),
           }
-          .fs_context(
-            "failed to clean the app bundle",
-            app_bundle_path.to_path_buf(),
-          )?;
+          .fs_context("failed to clean the app bundle", app_bundle_path.clone())?;
         }
       }
     }

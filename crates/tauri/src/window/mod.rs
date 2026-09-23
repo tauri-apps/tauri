@@ -1040,11 +1040,11 @@ impl<R: Runtime> Clone for Window<R> {
   fn clone(&self) -> Self {
     Self {
       window: self.window.clone(),
-      manager: self.manager.clone(),
+      manager: Arc::clone(&self.manager),
       app_handle: self.app_handle.clone(),
       #[cfg(desktop)]
-      menu: self.menu.clone(),
-      resources_table: self.resources_table.clone(),
+      menu: Arc::clone(&self.menu),
+      resources_table: Arc::clone(&self.resources_table),
     }
   }
 }
@@ -1079,7 +1079,7 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
   }
 
   fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.manager.clone()
+    Arc::clone(&self.manager)
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {

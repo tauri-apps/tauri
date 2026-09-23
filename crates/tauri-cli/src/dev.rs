@@ -229,9 +229,6 @@ pub fn setup(
     options.runner = config.build.runner.clone();
   }
 
-  let mut cargo_features = config.build.features.clone().unwrap_or_default();
-  cargo_features.extend(options.features.clone());
-
   let mut dev_url = config.build.dev_url.clone();
   let frontend_dist = config.build.frontend_dist.clone();
   if !options.no_dev_server && dev_url.is_none() {
@@ -239,7 +236,7 @@ pub fn setup(
       if path.exists() {
         let path = path
           .canonicalize()
-          .fs_context("failed to canonicalize path", path.to_path_buf())?;
+          .fs_context("failed to canonicalize path", path.clone())?;
 
         let ip = options.host.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
 
@@ -353,8 +350,7 @@ pub fn kill_before_dev_process() {
     #[cfg(unix)]
     {
       use std::io::Write;
-      let mut kill_children_script_path = std::env::temp_dir();
-      kill_children_script_path.push("tauri-stop-dev-processes.sh");
+      let kill_children_script_path = std::env::temp_dir().join("tauri-stop-dev-processes.sh");
 
       if !kill_children_script_path.exists() {
         if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {

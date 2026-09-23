@@ -246,9 +246,12 @@ impl Listeners {
   ) {
     let event = event.into_owned();
     let mut listeners = self.inner.js_event_listeners.lock().unwrap();
+    if !listeners.contains_key(source_webview_label) {
+      listeners.insert(source_webview_label.into(), Default::default());
+    }
     listeners
-      .entry(source_webview_label.to_string())
-      .or_default()
+      .get_mut(source_webview_label)
+      .unwrap()
       .entry(event)
       .or_default()
       .insert(JsHandler::new(target, id));

@@ -84,7 +84,7 @@ pub fn get<R: Runtime>(
       responder.respond(
         http::Response::builder()
           .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-          .body("failed to get response".as_bytes())
+          .body(b"failed to get response")
           .unwrap(),
       );
     }

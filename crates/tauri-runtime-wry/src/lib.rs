@@ -373,7 +373,7 @@ impl<T: UserEvent> Context<T> {
     let webview_id = self.next_webview_id();
 
     let window_id_wrapper = Arc::new(Mutex::new(window_id));
-    let window_id_wrapper_ = window_id_wrapper.clone();
+    let window_id_wrapper_ = Arc::clone(&window_id_wrapper);
 
     let (tx, rx) = channel();
     self.send_user_message(Message::CreateWebview(
@@ -867,7 +867,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     }
 
     window = window
-      .title(config.title.to_string())
+      .title(config.title.clone())
       .focused(config.focus)
       .focusable(config.focusable)
       .visible(config.visible)
@@ -2942,7 +2942,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       let webview = create_webview(
         WebviewKind::WindowChild,
         &window,
-        window_id_wrapper.clone(),
+        Arc::clone(&window_id_wrapper),
         webview_id,
         &self.context,
         pending,
@@ -3237,7 +3237,7 @@ fn handle_user_message<T: UserEvent>(
           w.inner.clone(),
           w.webviews.clone(),
           w.has_children.load(Ordering::Relaxed),
-          w.window_event_listeners.clone(),
+          Arc::clone(&w.window_event_listeners),
           focused_webview,
         )
       });
@@ -4038,7 +4038,7 @@ fn handle_user_message<T: UserEvent>(
           WindowWrapper {
             label,
             has_children: AtomicBool::new(false),
-            inner: Some(window.clone()),
+            inner: Some(Arc::clone(&window)),
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
             #[cfg(windows)]
@@ -4179,7 +4179,7 @@ fn handle_event_loop<T: UserEvent>(
       if let Some(window) = windows_ref.get(&window_id) {
         if let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id) {
           let label = webview.label.clone();
-          let webview_event_listeners = webview.webview_event_listeners.clone();
+          let webview_event_listeners = Arc::clone(&webview.webview_event_listeners);
 
           drop(windows_ref);
 
@@ -4206,7 +4206,7 @@ fn handle_event_loop<T: UserEvent>(
         let window = windows_ref.get(&window_id);
         if let Some(window) = window {
           let label = window.label.clone();
-          let window_event_listeners = window.window_event_listeners.clone();
+          let window_event_listeners = Arc::clone(&window.window_event_listeners);
 
           drop(windows_ref);
 
@@ -4233,7 +4233,7 @@ fn handle_event_loop<T: UserEvent>(
           if let Some(window) = windows_ref.get(&window_id) {
             if let Some(event) = WindowEventWrapper::parse(window, &event).0 {
               let label = window.label.clone();
-              let window_event_listeners = window.window_event_listeners.clone();
+              let window_event_listeners = Arc::clone(&window.window_event_listeners);
 
               drop(windows_ref);
 
@@ -4373,7 +4373,7 @@ fn on_close_requested<'a, T: UserEvent>(
   let windows_ref = windows.0.borrow();
   if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
-    let window_event_listeners = w.window_event_listeners.clone();
+    let window_event_listeners = Arc::clone(&w.window_event_listeners);
 
     drop(windows_ref);
 
@@ -4798,7 +4798,7 @@ You may have it installed on another user account, but it is not available for t
 
   if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();
-    let window_id_ = window_id.clone();
+    let window_id_ = Arc::clone(&window_id);
     webview_builder = webview_builder.with_drag_drop_handler(move |event| {
       let event = match event {
         WryDragDropEvent::Enter {
@@ -4953,7 +4953,7 @@ You may have it installed on another user account, but it is not available for t
   };
 
   if let Some(download_handler) = pending.download_handler {
-    let download_handler_ = download_handler.clone();
+    let download_handler_ = Arc::clone(&download_handler);
     webview_builder = webview_builder.with_download_started_handler(move |url, path| {
       if let Ok(url) = url.parse() {
         download_handler_(DownloadEvent::Requested {
@@ -5069,7 +5069,7 @@ You may have it installed on another user account, but it is not available for t
     } else {
       log::debug!("web content process terminated");
       let context_ = context.clone();
-      let window_id_ = window_id.clone();
+      let window_id_ = Arc::clone(&window_id);
       webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
         if let Ok(windows) = &context_.main_thread.windows.0.try_borrow() {
           if let Some(window) = windows.get(&*window_id_.lock().unwrap()) {
@@ -5274,7 +5274,7 @@ You may have it installed on another user account, but it is not available for t
     label,
     id,
     inner: Rc::new(webview),
-    context_store: context.main_thread.web_context.clone(),
+    context_store: Arc::clone(&context.main_thread.web_context),
     webview_event_listeners: Default::default(),
     context_key: if automation_enabled {
       None
@@ -5299,7 +5299,7 @@ fn create_ipc_handler<T: UserEvent>(
         DetachedWebview {
           label: label.clone(),
           dispatcher: WryWebviewDispatcher {
-            window_id: window_id.clone(),
+            window_id: Arc::clone(&window_id),
             webview_id,
             context: context.clone(),
           },

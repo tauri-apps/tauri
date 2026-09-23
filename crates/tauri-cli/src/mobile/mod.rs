@@ -27,7 +27,7 @@ use std::{
   ffi::OsString,
   fmt::{Display, Write},
   fs::{read_to_string, write},
-  net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
+  net::{AddrParseError, IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
   path::{Path, PathBuf},
   process::{ExitStatus, exit},
   str::FromStr,
@@ -222,6 +222,15 @@ struct DevUrlConfig {
   no_dev_server_wait: bool,
 }
 
+fn is_localhost_url(url: &url::Url) -> bool {
+  match url.host() {
+    Some(url::Host::Domain(d)) => d == "localhost",
+    Some(url::Host::Ipv4(i)) => i == Ipv4Addr::LOCALHOST || i == Ipv4Addr::UNSPECIFIED,
+    Some(url::Host::Ipv6(i)) => i == Ipv6Addr::LOCALHOST || i == Ipv6Addr::UNSPECIFIED,
+    None => false,
+  }
+}
+
 fn use_network_address_for_dev_url(
   config: &mut ConfigMetadata,
   dev_options: &mut crate::dev::Options,
@@ -231,13 +240,7 @@ fn use_network_address_for_dev_url(
   let mut dev_url = config.build.dev_url.clone();
 
   let ip = if let Some(url) = &mut dev_url {
-    let localhost = match url.host() {
-      Some(url::Host::Domain(d)) => d == "localhost",
-      Some(url::Host::Ipv4(i)) => i == Ipv4Addr::LOCALHOST || i == Ipv4Addr::UNSPECIFIED,
-      _ => false,
-    };
-
-    if localhost {
+    if is_localhost_url(url) {
       let ip = dev_options
         .host
         .unwrap_or_else(|| *local_ip_address(force_ip_prompt));
@@ -246,14 +249,10 @@ fn use_network_address_for_dev_url(
         "If your frontend is not listening on that address, try configuring your development server to use the `TAURI_DEV_HOST` environment variable or 0.0.0.0 as host"
       );
 
-      let url_str = format!(
-        "{}://{}{}",
-        url.scheme(),
-        SocketAddr::new(ip, url.port_or_known_default().unwrap()),
-        url.path()
-      );
-      *url =
-        url::Url::parse(&url_str).with_context(|| format!("failed to parse URL: {url_str}"))?;
+      // only replace the host so the port, path, query and fragment are preserved
+      if url.set_ip_host(ip).is_err() {
+        crate::error::bail!("failed to set the host of {url} to {ip}");
+      }
 
       dev_options
         .config
@@ -638,5 +637,46 @@ fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
     }
 
     log::info!(action = "Finished"; "{} {}{} at:\n{}", outputs.len(), kind, if outputs.len() == 1 { "" } else { "s" }, printable_paths);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::is_localhost_url;
+  use std::net::{IpAddr, Ipv4Addr};
+
+  #[test]
+  fn detects_localhost_dev_urls() {
+    for url in [
+      "http://localhost:1420",
+      "http://127.0.0.1:1420",
+      "http://0.0.0.0:1420",
+      "http://[::1]:1420",
+      "http://[::]:1420",
+    ] {
+      assert!(is_localhost_url(&url.parse().unwrap()), "{url}");
+    }
+
+    for url in [
+      "http://192.168.0.10:1420",
+      "http://example.com",
+      "http://[fe80::1]:1420",
+    ] {
+      assert!(!is_localhost_url(&url.parse().unwrap()), "{url}");
+    }
+  }
+
+  #[test]
+  fn replacing_dev_url_host_keeps_query_and_fragment() {
+    let mut url: url::Url = "http://[::1]:5173/app/index.html?foo=bar#/route"
+      .parse()
+      .unwrap();
+    url
+      .set_ip_host(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 10)))
+      .unwrap();
+    assert_eq!(
+      url.as_str(),
+      "http://192.168.0.10:5173/app/index.html?foo=bar#/route"
+    );
   }
 }

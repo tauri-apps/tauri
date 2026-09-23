@@ -22,7 +22,14 @@ pub struct Options {
 }
 
 fn completions_for(shell: Shell, manager: &'static str, cmd: Command) -> Vec<u8> {
-  let tauri = cmd.name("tauri");
+  let tauri_bin_name = match manager {
+    "npm" | "bun" => format!("{manager} run tauri"),
+    "deno" => format!("{manager} task tauri"),
+    _ => format!("{manager} tauri"),
+  };
+  // override the bin name inherited from how the CLI was invoked (e.g. `cargo-tauri`),
+  // clap_complete resolves subcommands from the words of the bin name
+  let tauri = cmd.name("tauri").bin_name(tauri_bin_name);
   let mut command = if manager == "npm" || manager == "bun" {
     Command::new(manager)
       .bin_name(manager)
@@ -40,25 +47,25 @@ fn completions_for(shell: Shell, manager: &'static str, cmd: Command) -> Vec<u8>
   buf
 }
 
+// Bash completions for the commands that invoke the Tauri CLI directly.
+//
+// Bash completion functions are registered per command name, so registering one for the package
+// managers (`cargo`, `npm`...) would replace their own completions; those are not registered.
+fn bash_completions(cmd: Command) -> String {
+  let mut command = cmd.name("tauri").bin_name("tauri");
+  let mut buf = Vec::new();
+  generate(Shell::Bash, &mut command, "tauri", &mut buf);
+  // use a function name that does not clash with other completions (clap names it `_tauri`)
+  // and also register it for the `cargo-tauri` binary
+  String::from_utf8_lossy(&buf)
+    .replace("_tauri() {", "_tauri_cli() {")
+    .replace("complete -F _tauri ", "complete -F _tauri_cli ")
+    .replace(" -o default tauri\n", " -o default tauri cargo-tauri\n")
+}
+
 fn get_completions(shell: Shell, cmd: Command) -> Result<String> {
   let completions = if shell == Shell::Bash {
-    let mut completions =
-      String::from_utf8_lossy(&completions_for(shell, "cargo", cmd)).into_owned();
-    for &manager in PKG_MANAGERS {
-      completions.push_str(&format!(
-        "complete -F _cargo -o bashdefault -o default {} tauri\n",
-        if manager == "npm" {
-          "npm run"
-        } else if manager == "bun" {
-          "bun run"
-        } else if manager == "deno" {
-          "deno task"
-        } else {
-          manager
-        }
-      ));
-    }
-    completions
+    bash_completions(cmd)
   } else {
     let mut buffer = String::new();
 
@@ -100,4 +107,48 @@ pub fn command(options: Options, cmd: Command) -> Result<()> {
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use clap::CommandFactory;
+
+  #[test]
+  fn bash_completions_do_not_hijack_other_commands() {
+    for bin_name in ["cargo-tauri", "cargo tauri", "tauri"] {
+      let completions =
+        get_completions(Shell::Bash, crate::Cli::command().bin_name(bin_name)).unwrap();
+      assert!(completions.contains("_tauri_cli() {"));
+      assert!(!completions.contains("_tauri() {"));
+      assert!(!completions.contains("_cargo"));
+
+      let registrations: Vec<_> = completions
+        .lines()
+        .filter(|line| line.trim_start().starts_with("complete "))
+        .collect();
+      assert!(!registrations.is_empty());
+      for registration in registrations {
+        assert!(
+          registration
+            .trim_start()
+            .starts_with("complete -F _tauri_cli ")
+        );
+        assert!(registration.ends_with(" -o default tauri cargo-tauri"));
+      }
+    }
+  }
+
+  #[test]
+  fn completions_generate_for_every_shell() {
+    for shell in [Shell::Zsh, Shell::Fish, Shell::PowerShell, Shell::Elvish] {
+      for bin_name in ["cargo-tauri", "cargo tauri", "tauri"] {
+        assert!(
+          !get_completions(shell, crate::Cli::command().bin_name(bin_name))
+            .unwrap()
+            .is_empty()
+        );
+      }
+    }
+  }
 }

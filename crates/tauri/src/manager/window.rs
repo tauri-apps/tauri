@@ -87,7 +87,7 @@ impl<R: Runtime> WindowManager<R> {
     #[cfg(desktop)] menu: Option<crate::window::WindowMenu<R>>,
   ) -> Window<R> {
     let window = Window::new(
-      app_handle.manager.clone(),
+      Arc::clone(&app_handle.manager),
       window,
       app_handle,
       #[cfg(desktop)]
@@ -95,7 +95,7 @@ impl<R: Runtime> WindowManager<R> {
     );
 
     let window_ = window.clone();
-    let window_event_listeners = self.event_listeners.clone();
+    let window_event_listeners = Arc::clone(&self.event_listeners);
     window.on_window_event(move |event| {
       let _ = on_window_event(&window_, event);
       for handler in window_event_listeners.iter() {
@@ -111,7 +111,7 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     // let plugins know that a new window has been added to the manager
-    let manager = window.manager.clone();
+    let manager = Arc::clone(&window.manager);
     let window_ = window.clone();
     // run on main thread so the plugin store doesn't dead lock with the event loop handler in App
     let _ = window.run_on_main_thread(move || {

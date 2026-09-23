@@ -90,6 +90,7 @@ collapsible_if = "allow"
 
 assigning_clones = "warn"
 collection_is_never_read = "warn"
+clone_on_ref_ptr = "warn"
 or_fun_call = "warn"
 pathbuf_init_then_push = "warn"
 redundant_clone = "warn"

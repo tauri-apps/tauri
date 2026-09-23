@@ -85,7 +85,7 @@ impl<R: Runtime> TrayManager<R> {
   {
     let rid = self.tray_resource_by_id(id)?;
     let icon = app.resources_table().take::<TrayIcon<R>>(rid).ok()?;
-    let icon_to_return = icon.clone();
+    let icon_to_return = Arc::clone(&icon);
     icon.close();
     Some(Arc::unwrap_or_clone(icon_to_return))
   }

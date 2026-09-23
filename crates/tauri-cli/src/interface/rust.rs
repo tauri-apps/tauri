@@ -179,7 +179,7 @@ impl Rust {
   }
 
   pub fn app_settings(&self) -> Arc<RustAppSettings> {
-    self.app_settings.clone()
+    Arc::clone(&self.app_settings)
   }
 
   pub fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
@@ -227,7 +227,7 @@ impl Rust {
         &options.additional_watch_folders,
         &merge_configs,
         |rust: &mut Rust, _config| {
-          let on_exit = on_exit.clone();
+          let on_exit = Arc::clone(&on_exit);
           rust
             .run_dev(options.clone(), &run_args, move |status, reason| {
               on_exit(status, reason)

@@ -859,7 +859,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
       app
         .manager
         .webview
-        .register_uri_scheme_protocol(uri_scheme, protocol.clone())
+        .register_uri_scheme_protocol(uri_scheme, Arc::clone(protocol))
     }
     Ok(())
   }
@@ -1134,7 +1134,7 @@ mod tests {
   #[test]
   fn builder_cleanup_before_exit_hook_runs_on_app_cleanup() {
     let called = Arc::new(AtomicBool::new(false));
-    let called_ = called.clone();
+    let called_ = Arc::clone(&called);
     let plugin: TauriPlugin<MockRuntime> = Builder::new("cleanup-test")
       .on_cleanup_before_exit(move |_app| called_.store(true, Ordering::SeqCst))
       .build();

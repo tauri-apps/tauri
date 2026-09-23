@@ -1454,11 +1454,11 @@ impl<R: Runtime> std::fmt::Debug for Webview<R> {
 impl<R: Runtime> Clone for Webview<R> {
   fn clone(&self) -> Self {
     Self {
-      window: self.window.clone(),
+      window: Arc::clone(&self.window),
       webview: self.webview.clone(),
-      manager: self.manager.clone(),
+      manager: Arc::clone(&self.manager),
       app_handle: self.app_handle.clone(),
-      resources_table: self.resources_table.clone(),
+      resources_table: Arc::clone(&self.resources_table),
       use_https_scheme: self.use_https_scheme,
     }
   }
@@ -1488,7 +1488,7 @@ impl<R: Runtime> Webview<R> {
     use_https_scheme: bool,
   ) -> Self {
     Self {
-      manager: window.manager.clone(),
+      manager: Arc::clone(&window.manager),
       app_handle: window.app_handle.clone(),
       window: Arc::new(Mutex::new(window)),
       webview,
@@ -2573,7 +2573,7 @@ impl<R: Runtime> ManagerBase<R> for Webview<R> {
   }
 
   fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.manager.clone()
+    Arc::clone(&self.manager)
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {

@@ -295,7 +295,7 @@ impl<R: Runtime> Clone for InvokeResolver<R> {
   fn clone(&self) -> Self {
     Self {
       webview: self.webview.clone(),
-      responder: self.responder.clone(),
+      responder: Arc::clone(&self.responder),
       cmd: self.cmd.clone(),
       callback: self.callback,
       error: self.error,
@@ -562,7 +562,7 @@ impl<R: Runtime> InvokeMessage<R> {
   #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
   #[inline(always)]
   pub fn state(&self) -> Arc<StateManager> {
-    self.webview.manager.state.clone()
+    Arc::clone(&self.webview.manager.state)
   }
 
   // TODO: make private or remove in v3

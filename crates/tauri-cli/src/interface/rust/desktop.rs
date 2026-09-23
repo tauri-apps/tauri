@@ -113,7 +113,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   dev_cmd.args(run_args);
 
   let manually_killed_app = Arc::new(AtomicBool::default());
-  let manually_killed_app_ = manually_killed_app.clone();
+  let manually_killed_app_ = Arc::clone(&manually_killed_app);
 
   log::info!(action = "Running"; "DevCommand (`{} {}`)", dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
@@ -136,7 +136,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let dev_child_stderr = dev_child.take_stderr().unwrap();
   let mut stderr = BufReader::new(dev_child_stderr);
   let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-  let stderr_lines_ = stderr_lines.clone();
+  let stderr_lines_ = Arc::clone(&stderr_lines);
   std::thread::spawn(move || {
     let mut buf = Vec::new();
     let mut lines = stderr_lines_.lock().unwrap();
@@ -150,7 +150,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
       lines.push(String::from_utf8_lossy(&buf).into_owned());
     }
   });
-  let dev_child_ = dev_child.clone();
+  let dev_child_ = Arc::clone(&dev_child);
   std::thread::spawn(move || {
     let status = dev_child_.wait().expect("failed to build app");
 

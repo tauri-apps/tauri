@@ -506,8 +506,8 @@ pub struct ScopeValue<T: ScopeObject> {
 impl<T: ScopeObject> ScopeValue<T> {
   fn clone(&self) -> Self {
     Self {
-      allow: self.allow.clone(),
-      deny: self.deny.clone(),
+      allow: Arc::clone(&self.allow),
+      deny: Arc::clone(&self.deny),
     }
   }
 
@@ -547,10 +547,10 @@ impl<T: ScopeObject> CommandScope<T> {
         .get_command_scope_typed::<R, T>(webview.app_handle(), &scope_id)?;
 
       for s in scope.allows() {
-        allow.push(s.clone());
+        allow.push(Arc::clone(s));
       }
       for s in scope.denies() {
-        deny.push(s.clone());
+        deny.push(Arc::clone(s));
       }
     }
 

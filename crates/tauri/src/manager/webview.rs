@@ -231,7 +231,7 @@ impl<R: Runtime> WebviewManager<R> {
 
     for (uri_scheme, protocol) in &*self.uri_scheme_protocols.lock().unwrap() {
       registered_scheme_protocols.push(uri_scheme.clone());
-      let protocol = protocol.clone();
+      let protocol = Arc::clone(protocol);
       let app_handle = manager.app_handle().clone();
 
       pending.register_uri_scheme_protocol(uri_scheme, move |webview_id, request, responder| {
@@ -382,7 +382,7 @@ impl<R: Runtime> WebviewManager<R> {
       let protocol = crate::protocol::isolation::get(
         manager.manager_owned(),
         schema,
-        assets.clone(),
+        Arc::clone(assets),
         *crypto_keys.aes_gcm().raw(),
         window_origin,
         use_https_scheme,
@@ -598,7 +598,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     #[cfg(feature = "isolation")]
-    let pattern = app_manager.pattern.clone();
+    let pattern = Arc::clone(&app_manager.pattern);
     let navigation_handler = pending.navigation_handler.take();
     let app_manager = manager.manager_owned();
     let label = pending.label.clone();
@@ -640,7 +640,7 @@ impl<R: Runtime> WebviewManager<R> {
   ) -> Webview<R> {
     let webview = Webview::new(window, webview, use_https_scheme);
 
-    let webview_event_listeners = self.event_listeners.clone();
+    let webview_event_listeners = Arc::clone(&self.event_listeners);
     let webview_ = webview.clone();
     webview.on_webview_event(move |event| {
       let _ = on_webview_event(&webview_, event);

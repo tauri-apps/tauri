@@ -256,7 +256,7 @@ mod tests {
   fn test_no_drop_on_set() {
     let state = StateManager::new();
     let drop_flag = Arc::new(RwLock::new(false));
-    let dropping_struct = DroppingStruct(drop_flag.clone());
+    let dropping_struct = DroppingStruct(Arc::clone(&drop_flag));
 
     let _drop_flag_ignore = Arc::new(RwLock::new(false));
     let _dropping_struct_ignore = DroppingStruct(_drop_flag_ignore);
@@ -270,10 +270,10 @@ mod tests {
   #[test]
   fn drop_inners_on_drop() {
     let drop_flag_a = Arc::new(RwLock::new(false));
-    let dropping_struct_a = DroppingStruct(drop_flag_a.clone());
+    let dropping_struct_a = DroppingStruct(Arc::clone(&drop_flag_a));
 
     let drop_flag_b = Arc::new(RwLock::new(false));
-    let dropping_struct_b = DroppingStructWrap(DroppingStruct(drop_flag_b.clone()));
+    let dropping_struct_b = DroppingStructWrap(DroppingStruct(Arc::clone(&drop_flag_b)));
 
     {
       let state = StateManager::new();

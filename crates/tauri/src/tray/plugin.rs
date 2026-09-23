@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use serde::Deserialize;
@@ -65,7 +66,7 @@ fn new<R: Runtime>(
     };
   }
   if let Some(icon) = options.icon {
-    builder = builder.icon(icon.into_img(&resources_table)?.as_ref().clone());
+    builder = builder.icon(Arc::unwrap_or_clone(icon.into_img(&resources_table)?));
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -117,7 +118,7 @@ fn set_icon<R: Runtime>(
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   let webview_resources_table = webview.resources_table();
   let icon = match icon {
-    Some(i) => Some(i.into_img(&webview_resources_table)?.as_ref().clone()),
+    Some(i) => Some(Arc::unwrap_or_clone(i.into_img(&webview_resources_table)?)),
     None => None,
   };
   tray.set_icon(icon)
@@ -214,7 +215,7 @@ fn set_icon_with_as_template<R: Runtime>(
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   let webview_resources_table = webview.resources_table();
   let icon = match icon {
-    Some(i) => Some(i.into_img(&webview_resources_table)?.as_ref().clone()),
+    Some(i) => Some(Arc::unwrap_or_clone(i.into_img(&webview_resources_table)?)),
     None => None,
   };
   tray.set_icon_with_as_template(icon, as_template)

@@ -45,10 +45,9 @@ impl SafePathBuf {
   /// Validates the path for directory traversal vulnerabilities and returns a new [`SafePathBuf`] instance if it is safe.
   pub fn new(path: PathBuf) -> std::result::Result<Self, &'static str> {
     if path.components().any(|x| matches!(x, Component::ParentDir)) {
-      Err("cannot traverse directory, rewrite the path without the use of `../`")
-    } else {
-      Ok(Self(path))
+      return Err("cannot traverse directory, rewrite the path without the use of `../`");
     }
+    Ok(Self(path))
   }
 
   /// Returns an object that implements [`std::fmt::Display`] for safely printing paths.

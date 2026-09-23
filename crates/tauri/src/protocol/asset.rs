@@ -202,7 +202,7 @@ async fn get_response(
             .await?;
 
           // write the separator to indicate the start of the range body
-          buf.write_all("\r\n".as_bytes()).await?;
+          buf.write_all(b"\r\n").await?;
 
           // calculate number of bytes needed to be read
           let nbytes = end + 1 - start;

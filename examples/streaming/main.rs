@@ -128,7 +128,7 @@ fn get_stream_response(
         buf.write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())?;
 
         // write the separator to indicate the start of the range body
-        buf.write_all("\r\n".as_bytes())?;
+        buf.write_all(b"\r\n")?;
 
         // calculate number of bytes needed to be read
         let bytes_to_read = end + 1 - start;

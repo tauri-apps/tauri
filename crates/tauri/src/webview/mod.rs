@@ -232,7 +232,7 @@ macro_rules! unstable_struct {
 
       #[cfg(not(any(test, feature = "unstable")))]
       pub(crate) $($tokens)*
-  }
+    }
 }
 
 unstable_struct!(

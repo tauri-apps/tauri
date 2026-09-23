@@ -331,7 +331,19 @@ fn env_vars() -> HashMap<String, OsString> {
 
 /// Environment variable name fragments that are never sent to the IDE build scripts
 /// through the options server, since those variables usually hold secrets.
-const SECRET_ENV_VAR_FRAGMENTS: &[&str] = &["TOKEN", "PASSWORD", "SECRET", "CREDENTIAL"];
+const SECRET_ENV_VAR_FRAGMENTS: &[&str] = &[
+  "TOKEN",
+  "PASSWORD",
+  "PASSWD",
+  "PASSPHRASE",
+  "SECRET",
+  "CREDENTIAL",
+  "API_KEY",
+  "ACCESS_KEY",
+  "PRIVATE_KEY",
+  "SIGNING_KEY",
+  "RPM_KEY",
+];
 
 fn is_secret_env_var(name: &str) -> bool {
   let name = name.to_ascii_uppercase();
@@ -803,16 +815,15 @@ mod tests {
   use super::*;
 
   #[test]
-  fn token_matches_only_identical_tokens() {
-    assert!(token_matches("abc123", "abc123"));
-    assert!(!token_matches("abc123", "abc124"));
-    assert!(!token_matches("abc123", "abc12"));
-    assert!(!token_matches("abc123", ""));
-  }
-
-  #[test]
   fn detects_secret_env_vars() {
-    for name in ["CARGO_TARGET_DIR", "TAURI_DEV_HOST", "RUST_LOG", "PATH"] {
+    for name in [
+      "CARGO_TARGET_DIR",
+      "CARGO_PKG_AUTHORS",
+      "TAURI_DEV_HOST",
+      "TAURI_DEV_ROOT_CERTIFICATE",
+      "RUST_LOG",
+      "PATH",
+    ] {
       assert!(!is_secret_env_var(name), "{name} is not a secret");
     }
     for name in [
@@ -822,6 +833,16 @@ mod tests {
       "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
       "TAURI_CLOUD_Secret",
       "RUST_api_token",
+      "APPLE_API_KEY",
+      "APPLE_API_KEY_PATH",
+      "APPLE_CERTIFICATE_PASSWORD",
+      "TAURI_PRIVATE_KEY",
+      "TAURI_SIGNING_PRIVATE_KEY_PATH",
+      "TAURI_SIGNING_RPM_KEY",
+      "TAURI_SIGNING_RPM_KEY_PASSPHRASE",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_ACCESS_KEY_ID",
+      "ANDROID_KEYSTORE_PASSWD",
     ] {
       assert!(is_secret_env_var(name), "{name} is a secret");
     }

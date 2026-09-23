@@ -1020,6 +1020,10 @@ impl AppSettings for RustAppSettings {
     Ok(binaries)
   }
 
+  fn target_triple(&self) -> &str {
+    &self.target_triple
+  }
+
   fn app_name(&self) -> Option<String> {
     self
       .manifest

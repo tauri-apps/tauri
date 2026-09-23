@@ -18,6 +18,12 @@ class ExamplePlugin: Plugin {
     try args.onEvent?.send(["kind": "ping"])
     invoke.resolve(["value": args.value ?? ""])
   }
+
+  @objc public func jsValues(_ invoke: Invoke) throws {
+    let array: JSArray = ["a", 1, true]
+    let obj: JSObject = ["kind": "object", "nested": [1, 2] as JSArray]
+    invoke.resolve(["array": array, "obj": obj])
+  }
 }
 
 @_cdecl("init_plugin_sample")

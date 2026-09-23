@@ -8,6 +8,7 @@ links = "tauri-plugin-sample"
 tauri = { workspace = true }
 log = "0.4"
 serde = "1"
+serde_json = "1"
 thiserror = "2"
 
 [target.'cfg(any(target_os = "ios", target_os = "android"))'.dependencies]

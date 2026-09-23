@@ -138,7 +138,7 @@ mod resources;
 mod vibrancy;
 pub mod webview;
 pub mod window;
-use tauri_runtime as runtime;
+use tauri_runtime::{self as runtime};
 pub mod image;
 #[cfg(target_os = "ios")]
 mod ios;
@@ -806,6 +806,36 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .unwrap()
       .add_capability(capability)
   }
+
+  /// Runs the given closure on the main thread.
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+    use tauri_runtime::RuntimeHandle;
+
+    self
+      .app_handle()
+      .runtime_handle
+      .run_on_main_thread(f)
+      .map_err(Into::into)
+  }
+
+  /// Runs the given closure on the main thread and returns the result.
+  ///
+  /// Uses an [`mpsc::sync_channel`](std::sync::mpsc::sync_channel) to communicate the result back to the caller.
+  fn run_on_main_thread_blocking<Ret, F>(&self, f: F) -> crate::Result<Ret>
+  where
+    F: FnOnce() -> Ret + Send + 'static,
+    Ret: Send + 'static,
+  {
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    self.app_handle().run_on_main_thread(move || {
+      let res = f();
+      if let Err(_e) = tx.send(res) {
+        #[cfg(feature = "tracing")]
+        tracing::error!("failed to send result back: {:?}", _e);
+      }
+    })?;
+    rx.recv().map_err(|_| Error::FailedToReceiveMessage)
+  }
 }
 
 /// Listen to events.
@@ -1067,24 +1097,6 @@ impl<T> UnsafeSend<T> {
     self.0
   }
 }
-
-#[cfg(desktop)]
-macro_rules! run_main_thread {
-  ($handle:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-    let task = move || {
-      let f = $ex;
-      let _ = tx.send(f());
-    };
-    $handle
-      .run_on_main_thread(task)
-      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
-  }};
-}
-
-#[cfg(desktop)]
-pub(crate) use run_main_thread;
 
 #[cfg(any(test, feature = "test"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "test")))]

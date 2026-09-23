@@ -3,16 +3,18 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  ConfigValue, Error, Result,
+  ConfigValue, Result,
   error::{Context, ErrorExt},
   helpers::config::{Config as TauriConfig, ConfigMetadata, reload_config},
   interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
 };
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
-use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
+use jsonrpsee::server::{HttpRequest, HttpResponse, RpcModule, ServerBuilder, ServerHandle};
+use jsonrpsee::types::ErrorObjectOwned;
 use jsonrpsee_client_transport::ws::WsTransportClientBuilder;
-use jsonrpsee_core::rpc_params;
+use jsonrpsee_core::{BoxError, rpc_params};
+use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 
 use cargo_mobile2::{
@@ -23,18 +25,22 @@ use cargo_mobile2::{
 };
 use std::{
   collections::HashMap,
-  env::{set_var, temp_dir},
+  env::set_var,
   ffi::OsString,
   fmt::{Display, Write},
-  fs::{read_to_string, write},
+  fs::{OpenOptions, create_dir_all, read_to_string, remove_file},
+  future::Future,
+  io::Write as _,
   net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
   path::{Path, PathBuf},
+  pin::Pin,
   process::{ExitStatus, exit},
   str::FromStr,
   sync::{
     Arc, OnceLock,
     atomic::{AtomicBool, Ordering},
   },
+  task::Poll,
 };
 use tokio::runtime::Runtime;
 
@@ -323,23 +329,156 @@ fn env_vars() -> HashMap<String, OsString> {
   vars
 }
 
+/// Environment variable name fragments that are never sent to the IDE build scripts
+/// through the options server, since those variables usually hold secrets.
+const SECRET_ENV_VAR_FRAGMENTS: &[&str] = &["TOKEN", "PASSWORD", "SECRET", "CREDENTIAL"];
+
+fn is_secret_env_var(name: &str) -> bool {
+  let name = name.to_ascii_uppercase();
+  SECRET_ENV_VAR_FRAGMENTS
+    .iter()
+    .any(|fragment| name.contains(fragment))
+}
+
 fn env() -> std::result::Result<Env, EnvError> {
   let env = Env::new()?.explicit_env_vars(env_vars());
   Ok(env)
 }
 
-pub struct OptionsHandle(#[allow(unused)] Runtime, #[allow(unused)] ServerHandle);
+/// JSON-RPC error code returned when the options request carries an invalid token.
+const INVALID_TOKEN_ERROR_CODE: i32 = -32001;
+
+/// Connection details of the options server, stored in [`options_server_file`].
+#[derive(Serialize, Deserialize)]
+struct OptionsServerInfo {
+  addr: SocketAddr,
+  token: String,
+}
+
+/// Path of the file the `dev` and `build` commands use to share the options server details
+/// with the Xcode and Android Studio build scripts.
+fn options_server_file(target: Target, tauri_dir: &Path) -> PathBuf {
+  let project_dir = match target {
+    Target::Android => "android",
+    #[cfg(target_os = "macos")]
+    Target::Ios => "apple",
+  };
+  tauri_dir
+    .join("gen")
+    .join(project_dir)
+    .join(".tauri")
+    .join("cli-options-server.json")
+}
+
+fn write_options_server_file(path: &Path, contents: &str) -> Result<()> {
+  let dir = path
+    .parent()
+    .context("options server file has no parent directory")?;
+  create_dir_all(dir).fs_context("failed to create directory", dir.to_path_buf())?;
+  let gitignore = dir.join(".gitignore");
+  if !gitignore.exists() {
+    std::fs::write(&gitignore, "*\n").fs_context("failed to write .gitignore", gitignore)?;
+  }
+
+  // never write through a stale file or symlink left at this path
+  if path.symlink_metadata().is_ok() {
+    remove_file(path).fs_context(
+      "failed to remove stale options server file",
+      path.to_path_buf(),
+    )?;
+  }
+
+  let mut open_options = OpenOptions::new();
+  open_options.write(true).create_new(true);
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::OpenOptionsExt;
+    open_options.mode(0o600);
+  }
+  open_options
+    .open(path)
+    .and_then(|mut file| file.write_all(contents.as_bytes()))
+    .fs_context("failed to write options server file", path.to_path_buf())
+}
+
+/// Compares two tokens in constant time (for tokens of the same length).
+fn token_matches(expected: &str, provided: &str) -> bool {
+  let (expected, provided) = (expected.as_bytes(), provided.as_bytes());
+  expected.len() == provided.len()
+    && expected
+      .iter()
+      .zip(provided)
+      .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+      == 0
+}
+
+/// HTTP middleware that rejects requests carrying an `Origin` header.
+///
+/// Browsers always send it on WebSocket upgrades, so web pages can't reach the options server,
+/// while the CLI client started by the IDE build scripts never sends it.
+#[derive(Clone)]
+struct RejectOrigin<S>(S);
+
+impl<S> tower::Service<HttpRequest> for RejectOrigin<S>
+where
+  S: tower::Service<HttpRequest, Response = HttpResponse, Error = BoxError>,
+  S::Future: Send + 'static,
+{
+  type Response = HttpResponse;
+  type Error = BoxError;
+  type Future = Pin<Box<dyn Future<Output = std::result::Result<HttpResponse, BoxError>> + Send>>;
+
+  fn poll_ready(
+    &mut self,
+    cx: &mut std::task::Context<'_>,
+  ) -> Poll<std::result::Result<(), BoxError>> {
+    self.0.poll_ready(cx)
+  }
+
+  fn call(&mut self, request: HttpRequest) -> Self::Future {
+    if request.headers().contains_key("origin") {
+      Box::pin(std::future::ready(Ok(
+        jsonrpsee::server::http::response::denied(),
+      )))
+    } else {
+      Box::pin(self.0.call(request))
+    }
+  }
+}
+
+pub struct OptionsHandle {
+  _runtime: Runtime,
+  _server: ServerHandle,
+  server_file: PathBuf,
+  server_file_contents: String,
+}
+
+impl Drop for OptionsHandle {
+  fn drop(&mut self) {
+    // leave the file alone if another CLI session replaced it
+    if read_to_string(&self.server_file).is_ok_and(|contents| contents == self.server_file_contents)
+    {
+      let _ = remove_file(&self.server_file);
+    }
+  }
+}
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
 pub fn write_options(
-  config: &ConfigMetadata,
+  target: Target,
+  tauri_dir: &Path,
   mut options: CliOptions,
 ) -> crate::Result<OptionsHandle> {
   options.vars.extend(env_vars());
+  options.vars.retain(|name, _| !is_secret_env_var(name));
 
-  let runtime = Runtime::new().unwrap();
+  let token = Alphanumeric.sample_string(&mut rand::rng(), 32);
+  let server_token = token.clone();
+
+  let runtime = Runtime::new().context("failed to create async runtime")?;
   let r: crate::Result<(ServerHandle, SocketAddr)> = runtime.block_on(async move {
     let server = ServerBuilder::default()
+      .set_http_middleware(tower::ServiceBuilder::new().layer_fn(RejectOrigin))
       .build("127.0.0.1:0")
       .await
       .context("failed to build WebSocket server")?;
@@ -347,7 +486,18 @@ pub fn write_options(
 
     let mut module = RpcModule::new(());
     module
-      .register_method("options", move |_, _, _| Some(options.clone()))
+      .register_method("options", move |params, _, _| {
+        let token: String = params.one()?;
+        if token_matches(&server_token, &token) {
+          Ok(options.clone())
+        } else {
+          Err(ErrorObjectOwned::owned(
+            INVALID_TOKEN_ERROR_CODE,
+            "invalid options server token",
+            None::<()>,
+          ))
+        }
+      })
       .context("failed to register options method")?;
 
     let handle = server.start(module);
@@ -356,56 +506,63 @@ pub fn write_options(
   });
   let (handle, addr) = r?;
 
-  let server_addr_path = temp_dir().join(format!(
-    "{}-server-addr",
-    config
-      .original_identifier()
-      .context("app configuration is missing an identifier")?
-  ));
+  let server_file = options_server_file(target, tauri_dir);
+  let server_file_contents = serde_json::to_string(&OptionsServerInfo { addr, token })
+    .context("failed to serialize options server details")?;
+  write_options_server_file(&server_file, &server_file_contents)?;
 
-  write(&server_addr_path, addr.to_string())
-    .fs_context("failed to write server address file", server_addr_path)?;
-
-  Ok(OptionsHandle(runtime, handle))
+  Ok(OptionsHandle {
+    _runtime: runtime,
+    _server: handle,
+    server_file,
+    server_file_contents,
+  })
 }
 
-fn read_options(config: &ConfigMetadata) -> CliOptions {
-  let runtime = tokio::runtime::Runtime::new().unwrap();
-  let options = runtime
-    .block_on(async move {
-      let addr_path = temp_dir().join(format!(
-        "{}-server-addr",
-        config
-          .original_identifier()
-          .context("app configuration is missing an identifier")?
-      ));
-      let (tx, rx) = WsTransportClientBuilder::default()
-        .build(
-          format!(
-            "ws://{}",
-            read_to_string(&addr_path).unwrap_or_else(|e| panic!(
-              "failed to read missing addr file {}: {e}",
-              addr_path.display()
-            ))
-          )
-          .parse()
-          .unwrap(),
-        )
-        .await
-        .context("failed to build WebSocket client")?;
-      let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
-      let options: CliOptions = client
-        .request("options", rpc_params![])
-        .await
-        .context("failed to request options")?;
-      Ok::<CliOptions, Error>(options)
-    })
-    .expect("failed to read CLI options");
+/// Requests the CLI options from the `dev` or `build` command that started the IDE build.
+fn fetch_options(target: Target, tauri_dir: &Path) -> Result<CliOptions> {
+  let not_running = move || {
+    format!(
+      "the `tauri {0} dev` or `tauri {0} build` command must be running while {1} builds the app",
+      target.command_name(),
+      target.ide_name()
+    )
+  };
 
+  let server_file = options_server_file(target, tauri_dir);
+  let contents = read_to_string(&server_file).with_context(|| {
+    format!(
+      "failed to read {}; {}",
+      server_file.display(),
+      not_running()
+    )
+  })?;
+  let info: OptionsServerInfo = serde_json::from_str(&contents)
+    .with_context(|| format!("failed to parse {}", server_file.display()))?;
+
+  let runtime = Runtime::new().context("failed to create async runtime")?;
+  runtime.block_on(async move {
+    let url = format!("ws://{}", info.addr)
+      .parse()
+      .context("failed to parse options server URL")?;
+    let (tx, rx) = WsTransportClientBuilder::default()
+      .build(url)
+      .await
+      .with_context(|| format!("failed to connect to the Tauri CLI; {}", not_running()))?;
+    let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
+    client
+      .request("options", rpc_params![info.token])
+      .await
+      .context("failed to request options from the Tauri CLI")
+  })
+}
+
+fn read_options(target: Target, tauri_dir: &Path) -> Result<CliOptions> {
+  let options = fetch_options(target, tauri_dir)?;
   for (k, v) in &options.vars {
     unsafe { set_var(k, v) };
   }
-  options
+  Ok(options)
 }
 
 pub fn get_app(
@@ -638,5 +795,127 @@ fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
     }
 
     log::info!(action = "Finished"; "{} {}{} at:\n{}", outputs.len(), kind, if outputs.len() == 1 { "" } else { "s" }, printable_paths);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn token_matches_only_identical_tokens() {
+    assert!(token_matches("abc123", "abc123"));
+    assert!(!token_matches("abc123", "abc124"));
+    assert!(!token_matches("abc123", "abc12"));
+    assert!(!token_matches("abc123", ""));
+  }
+
+  #[test]
+  fn detects_secret_env_vars() {
+    for name in ["CARGO_TARGET_DIR", "TAURI_DEV_HOST", "RUST_LOG", "PATH"] {
+      assert!(!is_secret_env_var(name), "{name} is not a secret");
+    }
+    for name in [
+      "CARGO_REGISTRY_TOKEN",
+      "CARGO_REGISTRIES_MY_REGISTRY_TOKEN",
+      "CARGO_REGISTRY_CREDENTIAL_PROVIDER",
+      "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
+      "TAURI_CLOUD_Secret",
+      "RUST_api_token",
+    ] {
+      assert!(is_secret_env_var(name), "{name} is a secret");
+    }
+  }
+
+  #[test]
+  fn options_server_requires_token_and_rejects_origin() {
+    let tauri_dir = tempfile::tempdir().unwrap();
+    let target = Target::Android;
+    let server_file = options_server_file(target, tauri_dir.path());
+
+    let handle = write_options(
+      target,
+      tauri_dir.path(),
+      CliOptions {
+        args: vec!["--test-arg".into()],
+        vars: HashMap::from([
+          ("CARGO_REGISTRY_TOKEN".into(), "secret".into()),
+          ("TAURI_TEST_VAR".into(), "value".into()),
+        ]),
+        ..Default::default()
+      },
+    )
+    .unwrap();
+
+    #[cfg(unix)]
+    {
+      use std::os::unix::fs::PermissionsExt;
+      let mode = server_file.metadata().unwrap().permissions().mode();
+      assert_eq!(mode & 0o777, 0o600);
+    }
+
+    let options = fetch_options(target, tauri_dir.path()).unwrap();
+    assert_eq!(options.args, vec!["--test-arg".to_string()]);
+    assert_eq!(
+      options.vars.get("TAURI_TEST_VAR"),
+      Some(&OsString::from("value"))
+    );
+    assert!(!options.vars.contains_key("CARGO_REGISTRY_TOKEN"));
+
+    let info: OptionsServerInfo =
+      serde_json::from_str(&read_to_string(&server_file).unwrap()).unwrap();
+    let runtime = Runtime::new().unwrap();
+    runtime.block_on(async {
+      let (tx, rx) = WsTransportClientBuilder::default()
+        .build(format!("ws://{}", info.addr).parse().unwrap())
+        .await
+        .unwrap();
+      let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
+      let wrong_token = "x".repeat(info.token.len());
+      assert!(
+        client
+          .request::<CliOptions, _>("options", rpc_params![wrong_token])
+          .await
+          .is_err()
+      );
+      assert!(
+        client
+          .request::<CliOptions, _>("options", rpc_params![])
+          .await
+          .is_err()
+      );
+
+      // browsers always send an Origin header on WebSocket upgrades
+      let mut headers = jsonrpsee_client_transport::ws::HeaderMap::new();
+      headers.insert("origin", "https://example.com".parse().unwrap());
+      assert!(
+        WsTransportClientBuilder::default()
+          .set_headers(headers)
+          .build(format!("ws://{}", info.addr).parse().unwrap())
+          .await
+          .is_err()
+      );
+    });
+
+    drop(handle);
+    assert!(!server_file.exists());
+    assert!(fetch_options(target, tauri_dir.path()).is_err());
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn options_server_file_does_not_follow_symlinks() {
+    let dir = tempfile::tempdir().unwrap();
+    let victim = dir.path().join("victim");
+    std::fs::write(&victim, "untouched").unwrap();
+    let path = dir.path().join(".tauri").join("cli-options-server.json");
+    create_dir_all(path.parent().unwrap()).unwrap();
+    std::os::unix::fs::symlink(&victim, &path).unwrap();
+
+    write_options_server_file(&path, "contents").unwrap();
+
+    assert_eq!(read_to_string(&victim).unwrap(), "untouched");
+    assert!(!path.symlink_metadata().unwrap().file_type().is_symlink());
+    assert_eq!(read_to_string(&path).unwrap(), "contents");
   }
 }

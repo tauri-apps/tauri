@@ -8,7 +8,7 @@ use minisign::{
 };
 use std::{
   fs::{self, File, OpenOptions},
-  io::{BufReader, BufWriter, Write},
+  io::{BufReader, Write},
   path::{Path, PathBuf},
   str,
   time::{SystemTime, UNIX_EPOCH},
@@ -23,20 +23,32 @@ pub struct KeyPair {
   pub sk: String,
 }
 
-fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
-  if let Some(parent) = path.parent() {
-    fs::create_dir_all(parent).fs_context("failed to create directory", parent.to_path_buf())?;
-  }
-  let file = File::create(path).fs_context("failed to create file", path.to_path_buf())?;
-  Ok(BufWriter::new(file))
+/// Writes `contents` to a new temporary file in `dir`.
+///
+/// On Unix the file is created with mode 0o600 so it is only readable by the current user.
+fn write_temp_file(dir: &Path, contents: &str) -> crate::Result<tempfile::NamedTempFile> {
+  let mut file = tempfile::NamedTempFile::new_in(dir)
+    .fs_context("failed to create temporary file", dir.to_path_buf())?;
+  file
+    .write_all(contents.as_bytes())
+    .and_then(|_| file.flush())
+    .fs_context("failed to write temporary file", file.path().to_path_buf())?;
+  Ok(file)
 }
 
 /// Generate base64 encoded keypair
 pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
-  let KP { pk, sk } = KP::generate_encrypted_keypair(password).unwrap();
+  let KP { pk, sk } =
+    KP::generate_encrypted_keypair(password).context("failed to generate key pair")?;
 
-  let pk_box_str = pk.to_box().unwrap().to_string();
-  let sk_box_str = sk.to_box(None).unwrap().to_string();
+  let pk_box_str = pk
+    .to_box()
+    .context("failed to encode public key")?
+    .to_string();
+  let sk_box_str = sk
+    .to_box(None)
+    .context("failed to encode secret key")?
+    .to_string();
 
   let encoded_pk = base64::engine::general_purpose::STANDARD.encode(pk_box_str);
   let encoded_sk = base64::engine::general_purpose::STANDARD.encode(sk_box_str);
@@ -72,33 +84,43 @@ where
   let pubkey_path = format!("{}.pub", sk_path.display());
   let pk_path = Path::new(&pubkey_path);
 
-  if sk_path.exists() {
-    if !force {
-      crate::error::bail!(
-        "Key generation aborted:\n{} already exists\nIf you really want to overwrite the existing key pair, add the --force switch to force this operation.",
-        sk_path.display()
-      );
-    } else {
-      std::fs::remove_file(sk_path)
-        .fs_context("failed to remove secret key file", sk_path.to_path_buf())?;
+  if !force {
+    for path in [sk_path, pk_path] {
+      if path.exists() {
+        crate::error::bail!(
+          "Key generation aborted:\n{} already exists\nIf you really want to overwrite the existing key pair, add the --force switch to force this operation.",
+          path.display()
+        );
+      }
     }
   }
 
-  if pk_path.exists() {
-    std::fs::remove_file(pk_path)
-      .fs_context("failed to remove public key file", pk_path.to_path_buf())?;
+  let dir = match sk_path.parent() {
+    Some(parent) if !parent.as_os_str().is_empty() => parent,
+    _ => Path::new("."),
+  };
+  fs::create_dir_all(dir).fs_context("failed to create directory", dir.to_path_buf())?;
+
+  // write both keys to temporary files first and then rename them over the destination,
+  // so a failure never leaves the existing key pair deleted or half written
+  let sk_file = write_temp_file(dir, key)?;
+  let pk_file = write_temp_file(dir, pubkey)?;
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(pk_file.path(), fs::Permissions::from_mode(0o644)).fs_context(
+      "failed to set public key permissions",
+      pk_file.path().to_path_buf(),
+    )?;
   }
 
-  let write_file = |mut writer: BufWriter<File>, contents: &str| -> std::io::Result<()> {
-    write!(writer, "{contents:}")?;
-    writer.flush()?;
-    Ok(())
-  };
-
-  write_file(create_file(sk_path)?, key)
+  sk_file
+    .persist(sk_path)
+    .map_err(|e| e.error)
     .fs_context("failed to write secret key", sk_path.to_path_buf())?;
-
-  write_file(create_file(pk_path)?, pubkey)
+  pk_file
+    .persist(pk_path)
+    .map_err(|e| e.error)
     .fs_context("failed to write public key", pk_path.to_path_buf())?;
 
   Ok((
@@ -139,14 +161,19 @@ where
     bin_path.with_extension("sig")
   };
 
-  let mut trusted_comment = format!(
-    "timestamp:{}\tfile:{}",
-    unix_timestamp(),
-    bin_path.file_name().unwrap().to_string_lossy()
-  );
+  let file_name = bin_path
+    .file_name()
+    .with_context(|| format!("{} is not a file path", bin_path.display()))?
+    .to_string_lossy();
+  // the trusted comment is a single line of tab separated fields, so a value carrying
+  // either separator would produce a signature we cannot parse back
+  if file_name.contains(['\t', '\r', '\n']) {
+    crate::error::bail!(
+      "the file {file_name:?} cannot be signed because its name contains a tab or newline"
+    );
+  }
+  let mut trusted_comment = format!("timestamp:{}\tfile:{file_name}", unix_timestamp());
   if let Some(version) = version {
-    // the trusted comment is a single line of tab separated fields, so a version carrying
-    // either separator would produce a signature we cannot parse back
     if version.contains(['\t', '\r', '\n']) {
       crate::error::bail!(
         "the app version {version:?} cannot be signed because it contains a tab or newline"
@@ -282,6 +309,45 @@ mod tests {
       secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
     assert!(sign_file(&secret_key, &path, Some("1.0.0\ttampered")).is_err());
     assert!(sign_file(&secret_key, &path, Some("1.0.0\ntampered")).is_err());
+  }
+
+  #[test]
+  fn rejects_file_name_that_breaks_the_trusted_comment() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("app\tfile:evil.txt");
+    std::fs::write(&path, b"TAURI").expect("failed to write test file");
+
+    let secret_key =
+      secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
+    assert!(sign_file(&secret_key, &path, None).is_err());
+  }
+
+  #[test]
+  fn save_keypair_refuses_to_overwrite_without_force() {
+    let dir = tempfile::tempdir().unwrap();
+    let sk_path = dir.path().join("key");
+    let pk_path = dir.path().join("key.pub");
+
+    // only the public key exists: it must be kept
+    std::fs::write(&pk_path, "old public").unwrap();
+    assert!(save_keypair(false, &sk_path, "secret", "public").is_err());
+    assert_eq!(std::fs::read_to_string(&pk_path).unwrap(), "old public");
+    assert!(!sk_path.exists());
+
+    save_keypair(true, &sk_path, "secret", "public").unwrap();
+    assert_eq!(std::fs::read_to_string(&sk_path).unwrap(), "secret");
+    assert_eq!(std::fs::read_to_string(&pk_path).unwrap(), "public");
+
+    assert!(save_keypair(false, &sk_path, "secret2", "public2").is_err());
+    assert_eq!(std::fs::read_to_string(&sk_path).unwrap(), "secret");
+
+    #[cfg(unix)]
+    {
+      use std::os::unix::fs::PermissionsExt;
+      let mode = |p: &Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+      assert_eq!(mode(&sk_path), 0o600);
+      assert_eq!(mode(&pk_path), 0o644);
+    }
   }
 
   // This tests the newly generated keys with empty string password works

@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::{Path, PathBuf};
+use std::{
+  io::IsTerminal,
+  path::{Path, PathBuf},
+};
 
 use crate::{
   Result,
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::updater_signature::{secret_key, sign_file},
 };
 use base64::Engine;
@@ -84,7 +87,10 @@ pub fn command(mut options: Options) -> Result<()> {
   options = backward_env_vars(options);
 
   options.private_key = if let Some(private_key) = options.private_key_path {
-    Some(std::fs::read_to_string(Path::new(&private_key)).expect("Unable to extract private key"))
+    Some(
+      std::fs::read_to_string(Path::new(&private_key))
+        .fs_context("failed to read private key file", private_key)?,
+    )
   } else {
     options.private_key
   };
@@ -95,7 +101,13 @@ pub fn command(mut options: Options) -> Result<()> {
   };
 
   if options.password.is_none() {
-    println!("Signing without password.");
+    if std::io::stdin().is_terminal() {
+      println!("Decrypting private key, expect a prompt for password.");
+    } else {
+      // the password prompt needs a terminal, so assume the key has no password
+      println!("Signing without password.");
+      options.password.replace(String::new());
+    }
   }
 
   if options.app_version.is_none() {

@@ -127,7 +127,7 @@ impl Resolved {
   /// Resolves the ACL for the given plugin permissions and app capabilities.
   ///
   /// Command scope ids are assigned sequentially starting from `1`.
-  /// See [`Self::resolve_with_base_scope_id`] to start from a different id.
+  /// See [`Self::resolve_with_base_scope_id`] to assign them past a different id.
   // TODO: Take `base_scope_id` here and remove `resolve_with_base_scope_id` in v3,
   // so that callers merging into an already resolved ACL cannot forget to offset the scope ids.
   pub fn resolve(
@@ -135,14 +135,14 @@ impl Resolved {
     capabilities: BTreeMap<String, Capability>,
     target: Target,
   ) -> Result<Self, Error> {
-    Self::resolve_with_base_scope_id(acl, capabilities, target, 1)
+    Self::resolve_with_base_scope_id(acl, capabilities, target, 0)
   }
 
   /// Resolves the ACL for the given plugin permissions and app capabilities,
-  /// assigning command scope ids sequentially starting from `base_scope_id`.
+  /// assigning command scope ids sequentially after `base_scope_id` (starting from `base_scope_id + 1`).
   ///
   /// This is useful when the result is merged into an already resolved ACL:
-  /// pass an id past the existing ones so the new [`Self::command_scope`] keys do not collide.
+  /// pass its highest scope id so the new [`Self::command_scope`] keys do not collide.
   pub fn resolve_with_base_scope_id(
     acl: &BTreeMap<String, Manifest>,
     mut capabilities: BTreeMap<String, Capability>,
@@ -152,7 +152,7 @@ impl Resolved {
     let mut allowed_commands = BTreeMap::new();
     let mut denied_commands = BTreeMap::new();
 
-    let mut next_scope_id = base_scope_id;
+    let mut current_scope_id = base_scope_id;
     let mut command_scope = BTreeMap::new();
     let mut global_scope: BTreeMap<String, Vec<Scopes>> = BTreeMap::new();
 
@@ -174,16 +174,15 @@ impl Resolved {
             global_scope.entry(key).or_default().push(scope);
           } else {
             let scope_id = if scope.allow.is_some() || scope.deny.is_some() {
-              let scope_id = next_scope_id;
-              next_scope_id += 1;
+              current_scope_id += 1;
               command_scope.insert(
-                scope_id,
+                current_scope_id,
                 ResolvedScope {
                   allow: scope.allow.unwrap_or_default(),
                   deny: scope.deny.unwrap_or_default(),
                 },
               );
-              Some(scope_id)
+              Some(current_scope_id)
             } else {
               None
             };
@@ -779,11 +778,11 @@ mod tests {
       Resolved::resolve_with_base_scope_id(&acl, capabilities, Target::current(), 10).unwrap();
     assert_eq!(
       resolved.command_scope.keys().copied().collect::<Vec<_>>(),
-      vec![10]
+      vec![11]
     );
     assert_eq!(
       resolved.allowed_commands["plugin:http|fetch"][0].scope_id,
-      Some(10)
+      Some(11)
     );
   }
 }

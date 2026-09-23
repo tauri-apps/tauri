@@ -175,7 +175,7 @@ impl RuntimeAuthority {
       &self.acl,
       capabilities,
       tauri_utils::platform::Target::current(),
-      self.scope_manager.next_scope_id(),
+      self.scope_manager.last_scope_id(),
     )
     .unwrap();
 
@@ -195,7 +195,8 @@ impl RuntimeAuthority {
       self
         .scope_manager
         .command_cache
-        .insert(scope_id, StateManager::new());
+        .entry(scope_id)
+        .or_insert_with(StateManager::new);
       self
         .scope_manager
         .command_scope
@@ -751,14 +752,10 @@ pub trait ScopeObjectMatch: ScopeObject {
 }
 
 impl ScopeManager {
-  /// The next command scope id that is free to be assigned.
+  /// The highest assigned command scope id, or `0` if there are none.
   #[cfg(feature = "dynamic-acl")]
-  fn next_scope_id(&self) -> ScopeKey {
-    self
-      .command_scope
-      .keys()
-      .next_back()
-      .map_or(1, |last| last + 1)
+  fn last_scope_id(&self) -> ScopeKey {
+    self.command_scope.keys().next_back().copied().unwrap_or(0)
   }
 
   pub(crate) fn get_global_scope_typed<R: Runtime, T: ScopeObject>(

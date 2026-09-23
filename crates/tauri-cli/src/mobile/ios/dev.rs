@@ -334,7 +334,7 @@ fn run_dev(
   interface.mobile_dev(
     &mut tauri_config,
     MobileOptions {
-      debug: true,
+      debug: !options.release_mode,
       features: options.features,
       args: options.args,
       config: dev_options.config.clone(),

@@ -40,9 +40,6 @@ impl<R: Runtime> Sample<R> {
   }
 
   pub fn js_values(&self) -> crate::Result<serde_json::Value> {
-    self
-      .0
-      .run_mobile_plugin("jsValues", ())
-      .map_err(Into::into)
+    self.0.run_mobile_plugin("jsValues", ()).map_err(Into::into)
   }
 }

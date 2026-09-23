@@ -133,7 +133,14 @@ fn exec(
 
   map.insert("tauri-binary", binary);
   map.insert("tauri-binary-args", &build_args);
-  map.insert("tauri-binary-args-str", build_args.join(" "));
+  map.insert(
+    "tauri-binary-args-str",
+    build_args
+      .iter()
+      .map(|arg| shell_escape(arg))
+      .collect::<Vec<_>>()
+      .join(" "),
+  );
 
   let app = match target {
     // Generate Android Studio project
@@ -197,6 +204,7 @@ fn handlebars(app: &App) -> (Handlebars<'static>, JsonMap) {
     "quote-and-join-colon-prefix",
     Box::new(quote_and_join_colon_prefix),
   );
+  h.register_helper("shell-escape", Box::new(shell_escape_helper));
   h.register_helper("snake-case", Box::new(snake_case));
   h.register_helper("escape-kotlin-keyword", Box::new(escape_kotlin_keyword));
   // don't mix these up or very bad things will happen to all of us
@@ -233,6 +241,31 @@ fn html_escape(
 ) -> HelperResult {
   out
     .write(&handlebars::html_escape(get_str(helper)))
+    .map_err(Into::into)
+}
+
+/// Quotes a string so it is interpreted as a single word by a POSIX shell.
+fn shell_escape(s: &str) -> String {
+  if !s.is_empty()
+    && s
+      .chars()
+      .all(|c| c.is_ascii_alphanumeric() || "-_./:@%+=,".contains(c))
+  {
+    s.to_string()
+  } else {
+    format!("'{}'", s.replace('\'', r"'\''"))
+  }
+}
+
+fn shell_escape_helper(
+  helper: &Helper,
+  _: &Handlebars,
+  _: &Context,
+  _: &mut RenderContext,
+  out: &mut dyn Output,
+) -> HelperResult {
+  out
+    .write(&shell_escape(get_str(helper)))
     .map_err(Into::into)
 }
 
@@ -411,4 +444,25 @@ fn is_pnpm_dlx() -> bool {
       }
       false
     })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::shell_escape;
+
+  #[test]
+  fn shell_escape_words() {
+    assert_eq!(shell_escape("cargo"), "cargo");
+    assert_eq!(shell_escape("xcode-script"), "xcode-script");
+    assert_eq!(
+      shell_escape("/Users/me/node_modules/.bin/tauri"),
+      "/Users/me/node_modules/.bin/tauri"
+    );
+    assert_eq!(
+      shell_escape("/Users/me/My Projects/tauri"),
+      "'/Users/me/My Projects/tauri'"
+    );
+    assert_eq!(shell_escape("it's $HOME"), r"'it'\''s $HOME'");
+    assert_eq!(shell_escape(""), "''");
+  }
 }

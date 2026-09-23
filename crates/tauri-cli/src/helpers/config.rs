@@ -207,9 +207,10 @@ fn load_config(
   // so we actually need to change the current working directory here
   let current_dir = current_dir().context("failed to resolve current directory")?;
   set_current_dir(config_path.parent().unwrap()).context("failed to set current directory")?;
-  let config: Config = serde_json::from_value(config).context("failed to parse config")?;
-  // revert to previous working directory
+  let config: serde_json::Result<Config> = serde_json::from_value(config);
+  // revert to previous working directory, even if parsing failed
   set_current_dir(current_dir).context("failed to set current directory")?;
+  let config = config.context("failed to parse config")?;
 
   for (plugin, conf) in &config.plugins.0 {
     unsafe {

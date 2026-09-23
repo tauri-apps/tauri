@@ -37,23 +37,25 @@ async fn get_response(
 ) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   // skip leading `/`
   let path = percent_encoding::percent_decode(&request.uri().path().as_bytes()[1..])
-    .decode_utf8_lossy()
-    .to_string();
+    .decode_utf8_lossy();
 
   let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
 
-  if let Err(e) = SafePathBuf::new(path.clone().into()) {
-    log::error!("asset protocol path \"{path}\" is not valid: {e}");
-    return resp.status(403).body(Vec::new().into()).map_err(Into::into);
-  }
+  let safe_path = match SafePathBuf::new(path.as_ref().into()) {
+    Ok(path) => path,
+    Err(e) => {
+      log::error!("asset protocol path \"{path}\" is not valid: {e}");
+      return resp.status(403).body(Vec::new().into()).map_err(Into::into);
+    }
+  };
 
-  if !scope.is_allowed(&path) {
+  if !scope.is_allowed(&safe_path) {
     log::error!("asset protocol not configured to allow the path: {path}");
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
   // Separate block for easier error handling
-  let mut file = match File::open(path.clone()).await {
+  let mut file = match File::open(&safe_path).await {
     Ok(file) => file,
     Err(e) => {
       #[cfg(target_os = "android")]
@@ -97,7 +99,7 @@ async fn get_response(
   let response = if let Some(range_header) = request
     .headers()
     .get("range")
-    .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
+    .and_then(|r| r.to_str().ok())
   {
     resp = resp.header(ACCEPT_RANGES, "bytes");
     resp = resp.header(ACCESS_CONTROL_EXPOSE_HEADERS, "content-range");
@@ -205,10 +207,9 @@ async fn get_response(
           // calculate number of bytes needed to be read
           let nbytes = end + 1 - start;
 
-          let mut local_buf = Vec::with_capacity(nbytes as usize);
+          buf.reserve(nbytes as usize);
           file.seek(SeekFrom::Start(start)).await?;
-          (&mut file).take(nbytes).read_to_end(&mut local_buf).await?;
-          buf.extend_from_slice(&local_buf);
+          (&mut file).take(nbytes).read_to_end(&mut buf).await?;
         }
         // all ranges have been written, write the closing boundary
         buf.write_all(boundary_closer.as_bytes()).await?;

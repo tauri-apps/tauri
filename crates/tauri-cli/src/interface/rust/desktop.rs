@@ -297,7 +297,7 @@ fn cargo_command(
     build_cmd.arg(features.join(","));
   }
 
-  if !options.debug && !options.args.contains(&"--profile".to_string()) {
+  if !options.debug && super::get_cargo_option(&options.args, "--profile").is_none() {
     build_cmd.arg("--release");
   }
 
@@ -458,5 +458,29 @@ mod terminal {
 
       None
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{Options, cargo_command};
+
+  fn release_args(args: &[&str]) -> Vec<String> {
+    let options = Options {
+      args: args.iter().map(ToString::to_string).collect(),
+      ..Default::default()
+    };
+    cargo_command(false, options, &mut None, Vec::new())
+      .unwrap()
+      .get_args()
+      .map(|a| a.to_string_lossy().into_owned())
+      .collect()
+  }
+
+  #[test]
+  fn release_flag_respects_profile() {
+    assert!(release_args(&[]).contains(&"--release".to_string()));
+    assert!(!release_args(&["--profile", "custom"]).contains(&"--release".to_string()));
+    assert!(!release_args(&["--profile=custom"]).contains(&"--release".to_string()));
   }
 }

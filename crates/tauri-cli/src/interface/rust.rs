@@ -976,11 +976,7 @@ impl AppSettings for RustAppSettings {
       })
       .unwrap_or_default();
 
-    if !binaries_paths
-      .iter()
-      .any(|(_name, path)| path == Path::new("src/main.rs"))
-      && tauri_dir.join("src/main.rs").exists()
-    {
+    if tauri_dir.join("src/main.rs").exists() {
       binaries_paths.push((
         self.cargo_package_settings.name.clone(),
         tauri_dir.join("src/main.rs"),
@@ -989,9 +985,12 @@ impl AppSettings for RustAppSettings {
 
     for (name, path) in binaries_paths {
       // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
-      let bin_exists = binaries
-        .iter()
-        .any(|bin| bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string())));
+      let bin_exists = binaries.iter().any(|bin| {
+        bin.name() == name
+          || bin
+            .src_path()
+            .is_some_and(|src_path| path.ends_with(src_path))
+      });
       let bin_disabled = disabled_bins
         .iter()
         .any(|bin| bin.matches_src_bin(&name, &path));
@@ -1821,6 +1820,31 @@ mod tests {
       )
       .unwrap();
     assert!(binaries.iter().any(|bin| bin.name() == "generate-bindings"));
+  }
+
+  #[test]
+  fn get_binaries_keeps_src_bin_when_bin_has_no_path() {
+    let cargo_toml = r#"
+      [package]
+      name = "app"
+      version = "0.1.0"
+      default-run = "app"
+
+      [[bin]]
+      name = "other"
+    "#;
+
+    let (temp_dir, app_settings) = app_settings_with_manifest(cargo_toml);
+    let tauri_dir = temp_dir.path();
+
+    let binaries = app_settings
+      .get_binaries(&Options::default(), tauri_dir)
+      .unwrap();
+    let names = binaries.iter().map(|bin| bin.name()).collect::<Vec<_>>();
+    assert!(names.contains(&"other"), "{names:?}");
+    assert!(names.contains(&"app"), "{names:?}");
+    assert!(names.contains(&"generate-bindings"), "{names:?}");
+    assert_eq!(names.len(), 3, "{names:?}");
   }
 
   #[test]

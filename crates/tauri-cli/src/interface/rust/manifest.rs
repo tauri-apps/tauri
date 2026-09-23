@@ -122,15 +122,15 @@ fn find_dependency<'a>(
     DependencyKind::Normal => "dependencies",
   };
 
+  let mut matching_deps = Vec::new();
   let m = manifest.as_table_mut();
   for (k, v) in m.iter_mut() {
     if let Some(t) = v.as_table_mut() {
       if k == table {
         if let Some(item) = t.get_mut(name) {
-          return vec![item];
+          matching_deps.push(item);
         }
       } else if k == "target" {
-        let mut matching_deps = Vec::new();
         for (_, target_value) in t.iter_mut() {
           if let Some(target_table) = target_value.as_table_mut() {
             if let Some(deps) = target_table.get_mut(table) {
@@ -140,12 +140,11 @@ fn find_dependency<'a>(
             }
           }
         }
-        return matching_deps;
       }
     }
   }
 
-  Vec::new()
+  matching_deps
 }
 
 fn write_features<F: Fn(&str) -> bool>(
@@ -242,6 +241,9 @@ fn inject_features(
   for dependency in dependencies {
     let name = dependency.name.clone();
     let items = find_dependency(manifest, &dependency.name, dependency.kind);
+    // features collected from all matching sections,
+    // each section only gets its own non CLI-managed features
+    let mut all_features = dependency.features.clone();
 
     for item in items {
       // do not rewrite if dependency uses workspace inheritance
@@ -259,14 +261,17 @@ fn inject_features(
         let is_managed_feature: Box<dyn Fn(&str) -> bool> =
           Box::new(move |feature| all_cli_managed_features.contains(&feature));
 
-        let should_write =
-          write_features(&name, item, is_managed_feature, &mut dependency.features)?;
+        let mut features = dependency.features.clone();
+        let should_write = write_features(&name, item, is_managed_feature, &mut features)?;
+        all_features.extend(features);
 
         if !persist {
           persist = should_write;
         }
       }
     }
+
+    dependency.features = all_features;
   }
 
   Ok(persist)
@@ -345,8 +350,9 @@ mod tests {
 
     let mut expected = HashMap::new();
     for dep in &dependencies {
-      let mut features = dep.features.clone();
+      let mut expected_per_item = Vec::new();
       for item in super::find_dependency(&mut manifest, &dep.name, dep.kind) {
+        let mut features = dep.features.clone();
         let item_table = if let Some(table) = item.as_table() {
           Some(table.clone())
         } else if let Some(toml_edit::Value::InlineTable(table)) = item.as_value() {
@@ -362,15 +368,18 @@ mod tests {
             }
           }
         }
+        expected_per_item.push(features);
       }
-      expected.insert(dep.name.clone(), features);
+      expected.insert(dep.name.clone(), expected_per_item);
     }
 
     super::inject_features(&mut manifest, &mut dependencies).expect("failed to migrate manifest");
 
     for dep in dependencies {
-      let expected_features = expected.get(&dep.name).unwrap();
-      for item in super::find_dependency(&mut manifest, &dep.name, dep.kind) {
+      let expected_per_item = expected.get(&dep.name).unwrap();
+      let items = super::find_dependency(&mut manifest, &dep.name, dep.kind);
+      assert_eq!(items.len(), expected_per_item.len());
+      for (item, expected_features) in items.into_iter().zip(expected_per_item) {
         let item_table = if let Some(table) = item.as_table() {
           table.clone()
         } else if let Some(toml_edit::Value::InlineTable(table)) = item.as_value() {
@@ -461,6 +470,54 @@ mod tests {
         tauri_build_dependency(HashSet::from_iter(vec!["isolation".into()])),
       ],
     );
+  }
+
+  #[test]
+  fn find_dependency_in_all_sections() {
+    for toml in [
+      r#"
+    [target."cfg(windows)".dependencies]
+    tauri = { version = "2", features = ["a"] }
+
+    [dependencies]
+    tauri = { version = "2" }
+"#,
+      r#"
+    [dependencies]
+    tauri = { version = "2" }
+
+    [target."cfg(windows)".dependencies]
+    tauri = { version = "2", features = ["a"] }
+"#,
+    ] {
+      let mut manifest = toml.parse::<toml_edit::DocumentMut>().unwrap();
+      assert_eq!(
+        super::find_dependency(&mut manifest, "tauri", DependencyKind::Normal).len(),
+        2
+      );
+
+      let mut dependencies = vec![tauri_dependency(HashSet::from_iter(vec![
+        "isolation".into(),
+      ]))];
+      super::inject_features(&mut manifest, &mut dependencies).unwrap();
+
+      let main_features = manifest["dependencies"]["tauri"]["features"]
+        .as_array()
+        .expect("features not injected in [dependencies]");
+      // target-only features must not leak into the main section
+      assert_eq!(
+        main_features.iter().map(|f| f.as_str()).collect::<Vec<_>>(),
+        vec![Some("isolation")]
+      );
+      let target_features = manifest["target"]["cfg(windows)"]["dependencies"]["tauri"]["features"]
+        .as_array()
+        .unwrap();
+      assert!(
+        target_features
+          .iter()
+          .any(|f| f.as_str() == Some("isolation"))
+      );
+    }
   }
 
   #[test]

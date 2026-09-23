@@ -105,7 +105,7 @@ macro_rules! gen_wrappers {
       impl<R: $crate::Runtime> $type<R> {
         /// Returns a unique identifier associated with this menu item.
         pub fn id(&self) -> &MenuId {
-        self.0.inner.id()
+          self.0.inner.id()
         }
 
 

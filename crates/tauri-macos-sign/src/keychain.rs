@@ -193,7 +193,7 @@ impl Keychain {
   pub fn signing_identity(&self) -> String {
     match &self.signing_identity {
       SigningIdentity::Team(t) => t.certificate_name(),
-      SigningIdentity::Identifier(i) => i.to_string(),
+      SigningIdentity::Identifier(i) => i.clone(),
     }
   }
 

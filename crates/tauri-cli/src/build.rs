@@ -224,7 +224,7 @@ pub fn setup(
     }
     if web_asset_path
       .canonicalize()
-      .fs_context("failed to canonicalize path", web_asset_path.to_path_buf())?
+      .fs_context("failed to canonicalize path", web_asset_path.clone())?
       .file_name()
       == Some(std::ffi::OsStr::new("src-tauri"))
     {

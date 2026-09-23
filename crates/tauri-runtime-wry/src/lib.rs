@@ -867,7 +867,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     }
 
     window = window
-      .title(config.title.to_string())
+      .title(config.title.clone())
       .focused(config.focus)
       .focusable(config.focusable)
       .visible(config.visible)

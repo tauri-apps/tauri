@@ -146,8 +146,7 @@ impl<R: Runtime> IconMenuItem<R> {
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
 
     let item = run_main_thread!(handle, move || {
-      let item =
-        muda::IconMenuItem::with_id_and_native_icon(id, text, enabled, icon, accelerator);
+      let item = muda::IconMenuItem::with_id_and_native_icon(id, text, enabled, icon, accelerator);
       IconMenuItemInner::new(app_handle, item)
     })?;
 

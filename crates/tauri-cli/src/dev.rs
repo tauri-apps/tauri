@@ -236,7 +236,7 @@ pub fn setup(
       if path.exists() {
         let path = path
           .canonicalize()
-          .fs_context("failed to canonicalize path", path.to_path_buf())?;
+          .fs_context("failed to canonicalize path", path.clone())?;
 
         let ip = options.host.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
 

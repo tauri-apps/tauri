@@ -496,7 +496,7 @@ fn build_nsis_app_installer(
 
   let resources = generate_resource_data(settings)?;
   let resources_dirs =
-    std::collections::HashSet::<PathBuf>::from_iter(resources.values().map(|r| r.0.to_owned()));
+    std::collections::HashSet::<PathBuf>::from_iter(resources.values().map(|r| r.0.clone()));
 
   let mut resources_ancestors = resources_dirs
     .iter()
@@ -902,7 +902,7 @@ fn generate_estimated_size(
     size += std::fs::metadata(k)
       .map_err(|error| Error::Fs {
         context: "when getting size of",
-        path: k.to_path_buf(),
+        path: k.clone(),
         error,
       })?
       .len();

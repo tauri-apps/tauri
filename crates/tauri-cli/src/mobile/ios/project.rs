@@ -179,7 +179,7 @@ pub fn generate(
   if let Some(template_path) = tauri_config.bundle.ios.template.as_ref() {
     let template = std::fs::read_to_string(template_path).fs_context(
       "failed to read custom Xcode project template",
-      template_path.to_path_buf(),
+      template_path.clone(),
     )?;
     let mut output_file = std::fs::File::create(dest.join("project.yml")).fs_context(
       "failed to create project.yml file",
@@ -197,7 +197,7 @@ pub fn generate(
 
   // Create all required project directories if they don't already exist
   for dir in &dirs_to_create {
-    std::fs::create_dir_all(dir).fs_context("failed to create directory", dir.to_path_buf())?;
+    std::fs::create_dir_all(dir).fs_context("failed to create directory", dir.clone())?;
   }
 
   // Note that Xcode doesn't always reload the project nicely; reopening is

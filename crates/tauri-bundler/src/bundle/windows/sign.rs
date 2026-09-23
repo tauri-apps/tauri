@@ -20,19 +20,14 @@ impl Settings {
       digest_algorithm: self
         .windows()
         .digest_algorithm
-        .as_ref()
-        .map(|algorithm| algorithm.to_string())
+        .clone()
         .unwrap_or_else(|| "sha256".to_string()),
       certificate_thumbprint: self
         .windows()
         .certificate_thumbprint
         .clone()
         .unwrap_or_default(),
-      timestamp_url: self
-        .windows()
-        .timestamp_url
-        .as_ref()
-        .map(|url| url.to_string()),
+      timestamp_url: self.windows().timestamp_url.clone(),
       tsp: self.windows().tsp,
       sign_command: self.windows().sign_command.clone(),
     }

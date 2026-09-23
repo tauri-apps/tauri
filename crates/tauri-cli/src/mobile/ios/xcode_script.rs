@@ -314,7 +314,7 @@ pub fn command(options: Options) -> Result<()> {
 
     std::fs::copy(&lib_path, externals_lib_dir.join(lib_output_file_name)).fs_context(
       "failed to copy mobile lib file to Externals directory",
-      lib_path.to_path_buf(),
+      lib_path.clone(),
     )?;
   }
   Ok(())

@@ -480,7 +480,7 @@ pub fn generate_allowed_commands(
       let allowed_command_names = &permission.permission.commands.allow;
       for allowed_command in allowed_command_names {
         let command_name = if plugin_name == crate::acl::APP_ACL_KEY {
-          allowed_command.to_string()
+          allowed_command.clone()
         } else if let Some(core_plugin_name) = plugin_name.strip_prefix("core:") {
           format!("plugin:{core_plugin_name}|{allowed_command}")
         } else {

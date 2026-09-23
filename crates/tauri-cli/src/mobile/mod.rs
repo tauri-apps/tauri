@@ -451,7 +451,7 @@ pub fn get_app(
 
   let app_settings = interface.app_settings();
   let tauri_dir = tauri_dir.to_path_buf();
-  App::from_raw(tauri_dir.to_path_buf(), raw)
+  App::from_raw(tauri_dir.clone(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
       app_settings

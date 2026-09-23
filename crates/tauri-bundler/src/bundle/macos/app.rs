@@ -305,24 +305,16 @@ fn create_info_plist(
             let mut dict = plist::Dictionary::new();
             dict.insert(
               "CFBundleURLSchemes".into(),
-              plist::Value::Array(
-                protocol
-                  .schemes
-                  .iter()
-                  .map(|s| s.to_string().into())
-                  .collect(),
-              ),
+              plist::Value::Array(protocol.schemes.iter().map(|s| s.clone().into()).collect()),
             );
             dict.insert(
               "CFBundleURLName".into(),
               protocol
                 .name
                 .clone()
-                .unwrap_or_else(|| format!(
-                  "{} {}",
-                  settings.bundle_identifier(),
-                  protocol.schemes[0]
-                ))
+                .unwrap_or_else(|| {
+                  format!("{} {}", settings.bundle_identifier(), protocol.schemes[0])
+                })
                 .into(),
             );
             dict.insert("CFBundleTypeRole".into(), protocol.role.to_string().into());

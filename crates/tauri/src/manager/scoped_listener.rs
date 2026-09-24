@@ -57,9 +57,14 @@ impl<E> ScopedEventListeners<E> {
 
   /// Runs the listeners registered for the given label.
   pub(crate) fn dispatch(&self, label: &str, event: &E) {
-    let listeners = self.listeners.lock().expect("poisoned scoped listeners");
+    // the map lock is released before any handler runs: a handler is free to `add` or
+    // `remove`, for this label or any other, and holding it here would deadlock them
+    let handlers = {
+      let listeners = self.listeners.lock().expect("poisoned scoped listeners");
+      listeners.get(label).cloned()
+    };
 
-    if let Some(handlers) = listeners.get(label).cloned() {
+    if let Some(handlers) = handlers {
       let handlers = handlers.lock().expect("poisoned scoped event listeners");
       for handler in handlers.iter() {
         handler(event);
@@ -67,8 +72,10 @@ impl<E> ScopedEventListeners<E> {
     }
 
     // Add any pending listeners that were parked while dispatching.
-    let mut pending = self.pending.lock().expect("poisoned pending  listeners");
-    let pending = std::mem::take(&mut *pending);
+    let pending = {
+      let mut pending = self.pending.lock().expect("poisoned pending listeners");
+      std::mem::take(&mut *pending)
+    };
     for (label, handler) in pending {
       self.add(&label, handler);
     }

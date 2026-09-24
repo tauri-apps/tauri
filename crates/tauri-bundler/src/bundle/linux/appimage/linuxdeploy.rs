@@ -213,7 +213,7 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     let data = download(&format!(
       "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-{arch}"
     ))?;
-    write_and_make_executable(&apprun, data)?;
+    write_and_make_executable(&apprun, &data)?;
   }
 
   let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
@@ -224,22 +224,18 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     let data = download(&format!(
       "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}/linuxdeploy-{linuxdeploy_arch}.AppImage"
     ))?;
-    write_and_make_executable(&linuxdeploy, data)?;
+    write_and_make_executable(&linuxdeploy, &data)?;
   }
 
-  let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
+   let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
   if !gtk.exists() {
-    let data = download(
-      "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh",
-    )?;
+    let data = include_bytes!("./linuxdeploy-plugin-gtk.sh");
     write_and_make_executable(&gtk, data)?;
   }
 
-  let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
+   let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
   if !gstreamer.exists() {
-    let data = download(
-      "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh",
-    )?;
+    let data = include_bytes!("./linuxdeploy-plugin-gstreamer.sh");
     write_and_make_executable(&gstreamer, data)?;
   }
 
@@ -251,7 +247,7 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
       "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"
     ));
     match data {
-      Ok(data) => write_and_make_executable(&appimage, data)?,
+      Ok(data) => write_and_make_executable(&appimage, &data)?,
       Err(err) => {
         log::error!("Download of AppImage plugin failed. Using older built-in version instead.");
         if verbose {

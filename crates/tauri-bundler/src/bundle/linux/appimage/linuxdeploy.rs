@@ -227,13 +227,13 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     write_and_make_executable(&linuxdeploy, &data)?;
   }
 
-   let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
+  let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
   if !gtk.exists() {
     let data = include_bytes!("./linuxdeploy-plugin-gtk.sh");
     write_and_make_executable(&gtk, data)?;
   }
 
-   let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
+  let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
   if !gstreamer.exists() {
     let data = include_bytes!("./linuxdeploy-plugin-gstreamer.sh");
     write_and_make_executable(&gstreamer, data)?;

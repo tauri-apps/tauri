@@ -57,9 +57,7 @@ pub fn resolve_tauri_path<P: AsRef<Path>>(path: P, crate_name: &str) -> PathBuf 
 }
 
 pub fn cross_command(bin: &str) -> Command {
-  // Resolve the actual executable (e.g. `npm.cmd`, `bun.exe`) instead of going through `cmd /c`,
-  // which would let cmd.exe interpret `>`, `&`, `|` and `^` in the arguments.
-  // std applies proper argument escaping when the program is a `.bat`/`.cmd` file.
+  // Resolve the actual executable (e.g. `npm.cmd`, `bun.exe`)
   #[cfg(target_os = "windows")]
   let cmd = Command::new(which::which(bin).unwrap_or_else(|_| bin.into()));
   #[cfg(not(target_os = "windows"))]

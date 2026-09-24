@@ -3745,9 +3745,7 @@ fn handle_user_message<T: UserEvent>(
               b.y_rate = position.y / window_size.height;
             }
 
-            if let Err(e) = webview.set_bounds(bounds) {
-              log::error!("failed to set webview size: {e}");
-            }
+            set_webview_bounds(&webview, bounds);
           }
           WebviewMessage::SetSize(size) => match webview.bounds() {
             Ok(mut bounds) => {
@@ -3762,9 +3760,7 @@ fn handle_user_message<T: UserEvent>(
                 b.height_rate = size.height / window_size.height;
               }
 
-              if let Err(e) = webview.set_bounds(bounds) {
-                log::error!("failed to set webview size: {e}");
-              }
+              set_webview_bounds(&webview, bounds);
             }
             Err(e) => {
               log::error!("failed to get webview bounds: {e}");
@@ -3783,9 +3779,7 @@ fn handle_user_message<T: UserEvent>(
                 b.y_rate = position.y / window_size.height;
               }
 
-              if let Err(e) = webview.set_bounds(bounds) {
-                log::error!("failed to set webview position: {e}");
-              }
+              set_webview_bounds(&webview, bounds);
             }
             Err(e) => {
               log::error!("failed to get webview bounds: {e}");
@@ -4660,6 +4654,120 @@ struct WebviewBounds {
   height_rate: f32,
 }
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+thread_local! {
+  static GTK_FIXED_CHILDREN: std::cell::RefCell<
+    std::collections::HashMap<String, (gtk::Fixed, gtk::Widget)>,
+  > = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+// Positions/resizes a child webview mounted in a `gtk::Fixed`.
+//
+// `wry` reports the position of GTK webviews as `(0, 0)` and resizes them via
+// `size_allocate`, which makes `GtkFixed` snap them to the top-left corner.
+//
+// Because the child's size request must stay negligible (see
+// `apply_gtk_bounds`), `GtkFixed` re-allocates the child to its minimum on every
+// container layout pass. The target geometry is therefore stored and re-applied
+// whenever the container allocates.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+thread_local! {
+  static GTK_FIXED_TARGETS: std::cell::RefCell<
+    std::collections::HashMap<String, (gtk::Fixed, gtk::Widget, gtk::Allocation)>,
+  > = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn reapply_gtk_target(label: &str) {
+  use gtk::prelude::*;
+  GTK_FIXED_TARGETS.with(|targets| {
+    let targets = targets.borrow();
+    if let Some((fixed, widget, alloc)) = targets.get(label) {
+      let current = widget.allocation();
+      // Re-allocating unconditionally makes every layout pass repaint the
+      // webview, which reads as a flash while resizing. GtkFixed only resets the
+      // child to its minimum size, so position is usually still correct.
+      if fixed.child_x(widget) != alloc.x() || fixed.child_y(widget) != alloc.y() {
+        fixed.move_(widget, alloc.x(), alloc.y());
+      }
+      if current.width() != alloc.width() || current.height() != alloc.height() {
+        widget.size_allocate(alloc);
+      }
+    }
+  });
+}
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn apply_gtk_bounds(label: &str, bounds: wry::Rect) -> bool {
+  use gtk::prelude::*;
+  let Some((fixed, widget)) = GTK_FIXED_CHILDREN.with(|children| {
+    children.borrow().get(label).map(|(f, w)| (f.clone(), w.clone()))
+  }) else {
+    return false;
+  };
+
+  let scale = widget.scale_factor() as f64;
+  let size = bounds.size.to_logical::<i32>(scale);
+  let position = bounds.position.to_logical::<i32>(scale);
+  let alloc = gtk::Allocation::new(position.x, position.y, size.width, size.height);
+
+  GTK_FIXED_TARGETS.with(|targets| {
+    targets
+      .borrow_mut()
+      .insert(label.to_string(), (fixed.clone(), widget.clone(), alloc));
+  });
+
+  // A GtkFixed derives its own minimum size from the size *requests* of its
+  // children, and a GtkWindow inherits that as a hard minimum. Requesting the
+  // real size would therefore make the window impossible to shrink: growing
+  // raises the minimum permanently. Keep the request negligible and drive the
+  // actual geometry with an explicit allocation instead.
+  widget.set_size_request(1, 1);
+  widget.size_allocate(&alloc);
+  fixed.move_(&widget, position.x, position.y);
+  true
+}
+
+fn set_webview_bounds(webview: &WebviewWrapper, bounds: wry::Rect) {
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  if apply_gtk_bounds(&webview.label, bounds) {
+    return;
+  }
+  if let Err(e) = webview.set_bounds(bounds) {
+    log::error!("failed to set webview bounds: {e}");
+  }
+}
+
 fn create_webview<T: UserEvent>(
   kind: WebviewKind,
   window: &Window,
@@ -5163,9 +5271,42 @@ You may have it installed on another user account, but it is not available for t
       target_os = "android"
     )))]
     WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
+      use gtk::prelude::*;
       let vbox = window.default_vbox().unwrap();
-      webview_builder.build_gtk(vbox)
+      // A GtkBox ignores child coordinates and stacks webviews, which makes
+      // multiwebview layouts impossible on Linux. Mount child webviews in a
+      // gtk::Fixed so absolute positions/sizes are honored.
+      let fixed = vbox
+        .children()
+        .into_iter()
+        .find_map(|child| child.downcast::<gtk::Fixed>().ok())
+        .unwrap_or_else(|| {
+          let fixed = gtk::Fixed::new();
+          // Deliberately no `hexpand`/`vexpand`: a child of an expanding Fixed is
+          // stretched to the container and its own size request behaves as a
+          // minimum, which lets a webview grow with the window but never shrink.
+          // Without expansion the children keep exactly the size we allocate.
+          vbox.pack_start(&fixed, true, true, 0);
+          // The vbox is already realized, so a newly added child stays hidden
+          // until explicitly shown.
+          fixed.show();
+          fixed
+        });
+      let built = webview_builder.build_gtk(&fixed);
+      if built.is_ok() {
+        if let Some(widget) = fixed.children().last().cloned() {
+          GTK_FIXED_CHILDREN
+            .with(|children| children.borrow_mut().insert(label.clone(), (fixed.clone(), widget)));
+          // The child's size request is negligible, so GtkFixed allocates it to
+          // its minimum on every container layout pass. Re-apply the target
+          // geometry right after each pass.
+          let label_for_alloc = label.clone();
+          fixed.connect_size_allocate(move |_, _| {
+            reapply_gtk_target(&label_for_alloc);
+          });
+        }
+      }
+      built
     }
     #[cfg(any(
       target_os = "windows",

@@ -2972,11 +2972,7 @@ mod tests {
     let app = mock_app();
     let window = WindowBuilder::new(&app, "main").build().unwrap();
     let webview = window
-      .add_child(
-        WebviewBuilder::new("main-webview", Default::default()),
-        crate::LogicalPosition::new(0, 0),
-        window.inner_size().unwrap(),
-      )
+      .add_child(WebviewBuilder::new("main-webview", Default::default()))
       .unwrap();
 
     let count = Arc::new(Mutex::new(0));

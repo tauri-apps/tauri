@@ -408,7 +408,7 @@ fn build_nsis_app_installer(
     if let Some(minimum_webview2_version) = nsis
       .minimum_webview2_version
       .as_ref()
-      .or(settings.windows().minimum_webview2_version.as_ref())
+      .or_else(|| settings.windows().minimum_webview2_version.as_ref())
     {
       data.insert(
         "minimum_webview2_version",

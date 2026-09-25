@@ -228,12 +228,7 @@ pub fn command(mut options: Options) -> Result<()> {
       to_json(options.before_build_command),
     );
 
-    let mut config = serde_json::from_str(
-      &handlebars
-        .render_template(TAURI_CONF_TEMPLATE, &data)
-        .expect("Failed to render tauri.conf.json template"),
-    )
-    .unwrap();
+    let mut config = render_tauri_config(&data)?;
     if option_env!("TARGET") == Some("node") {
       let mut dir = current_dir().expect("failed to read cwd");
       let mut count = 0;
@@ -290,6 +285,25 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
+/// Renders the `tauri.conf.json` template.
+///
+/// Every value in the template is interpolated inside a JSON string literal,
+/// so values are JSON-escaped to keep quotes and backslashes in user input
+/// (e.g. `vite --host "0.0.0.0"` or `..\dist`) from breaking the document.
+fn render_tauri_config(
+  data: &BTreeMap<&'static str, serde_json::Value>,
+) -> Result<serde_json::Value> {
+  let mut handlebars = Handlebars::new();
+  handlebars.register_escape_fn(|value| {
+    let quoted = serde_json::Value::String(value.into()).to_string();
+    quoted[1..quoted.len() - 1].to_string()
+  });
+  let config = handlebars
+    .render_template(TAURI_CONF_TEMPLATE, data)
+    .context("failed to render tauri.conf.json template")?;
+  serde_json::from_str(&config).context("failed to parse rendered tauri.conf.json template")
+}
+
 /// Builds the template variables for the Tauri crate dependencies of the generated `Cargo.toml`.
 ///
 /// `tauri_dep` and `tauri_build_dep` are always set.
@@ -331,6 +345,34 @@ fn tauri_dependencies_data(
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn tauri_config_escapes_values() {
+    let mut data = BTreeMap::new();
+    data.insert("app_name", to_json(r#"My "quoted" App"#));
+    data.insert("window_title", to_json("Tauri\tApp"));
+    data.insert("frontend_dist", to_json(r"..\dist"));
+    data.insert("dev_url", to_json("http://localhost:1420"));
+    data.insert("before_dev_command", to_json(r#"vite --host "0.0.0.0""#));
+    data.insert(
+      "before_build_command",
+      to_json(r"npm run build -- -D ..\dist"),
+    );
+
+    let config = render_tauri_config(&data).unwrap();
+    assert_eq!(config["productName"], r#"My "quoted" App"#);
+    assert_eq!(config["app"]["windows"][0]["title"], "Tauri\tApp");
+    assert_eq!(config["build"]["frontendDist"], r"..\dist");
+    assert_eq!(config["build"]["devUrl"], "http://localhost:1420");
+    assert_eq!(
+      config["build"]["beforeDevCommand"],
+      r#"vite --host "0.0.0.0""#
+    );
+    assert_eq!(
+      config["build"]["beforeBuildCommand"],
+      r"npm run build -- -D ..\dist"
+    );
+  }
 
   /// The version metadata shipped with the CLI, the same source `command` uses.
   fn metadata() -> VersionMetadata {

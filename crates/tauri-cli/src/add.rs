@@ -59,16 +59,23 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
 
   let plugin_snake_case = plugin.replace('-', "_");
   let crate_name = format!("tauri-plugin-{plugin}");
-  let npm_name = if is_known {
-    format!("@tauri-apps/plugin-{plugin}")
-  } else {
-    format!("tauri-plugin-{plugin}-api")
-  };
+  let npm_name = format!("@tauri-apps/plugin-{plugin}");
 
-  if !is_known && (options.tag.is_some() || options.rev.is_some() || options.branch.is_some()) {
-    crate::error::bail!(
-      "Git options --tag, --rev and --branch can only be used with official Tauri plugins"
-    );
+  let git_ref = git_ref(
+    options.tag.as_deref(),
+    options.rev.as_deref(),
+    options.branch.as_deref(),
+  )?;
+
+  if git_ref.is_some() {
+    if !is_known {
+      crate::error::bail!(
+        "Git options --tag, --rev and --branch can only be used with official Tauri plugins"
+      );
+    }
+    if version.is_some() {
+      crate::error::bail!("A version cannot be used together with --tag, --rev or --branch");
+    }
   }
 
   let frontend_dir = resolve_frontend_dir();
@@ -82,7 +89,12 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
         .then_some(r#"cfg(any(target_os = "android", target_os = "ios"))"#)
     });
 
-  let cargo_version_req = version.or(metadata.version_req.as_deref());
+  // a git dependency cannot also have a registry version requirement
+  let cargo_version_req = if git_ref.is_some() {
+    None
+  } else {
+    version.or(metadata.version_req.as_deref())
+  };
 
   cargo::install_one(cargo::CargoInstallOptions {
     name: &crate_name,
@@ -95,27 +107,22 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
   })?;
 
   if !metadata.rust_only {
-    if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
-      let npm_version_req = version
+    // npm and crates.io are separate namespaces, so a community plugin's crate name says nothing
+    // about who owns a similarly named npm package: only install the JS bindings of known plugins
+    if !is_known {
+      log::info!(
+        "If `{crate_name}` has JavaScript bindings, install them with your package manager, see the plugin's documentation for the package name."
+      );
+    } else if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
+      let npm_spec = if let Some(git_ref) = git_ref {
+        format!("tauri-apps/tauri-plugin-{plugin}#{git_ref}")
+      } else if let Some(version_req) = version
         .map(ToString::to_string)
-        .or(metadata.version_req.as_ref().map(|v| match manager {
-          PackageManager::Npm => format!(">={v}"),
-          _ => format!("~{v}"),
-        }));
-
-      let npm_spec = match (npm_version_req, options.tag, options.rev, options.branch) {
-        (Some(version_req), _, _, _) => format!("{npm_name}@{version_req}"),
-        (None, Some(tag), None, None) => {
-          format!("tauri-apps/tauri-plugin-{plugin}#{tag}")
-        }
-        (None, None, Some(rev), None) => {
-          format!("tauri-apps/tauri-plugin-{plugin}#{rev}")
-        }
-        (None, None, None, Some(branch)) => {
-          format!("tauri-apps/tauri-plugin-{plugin}#{branch}")
-        }
-        (None, None, None, None) => npm_name,
-        _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
+        .or_else(|| metadata.version_req.as_ref().map(|v| format!("~{v}")))
+      {
+        format!("{npm_name}@{version_req}")
+      } else {
+        npm_name
       };
       manager.install(&[npm_spec], dirs.frontend)?;
     }
@@ -216,6 +223,19 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
   Ok(())
 }
 
+/// Returns the single git ref given with `--tag`, `--rev` or `--branch`, if any.
+fn git_ref<'a>(
+  tag: Option<&'a str>,
+  rev: Option<&'a str>,
+  branch: Option<&'a str>,
+) -> Result<Option<&'a str>> {
+  match (tag, rev, branch) {
+    (Some(r), None, None) | (None, Some(r), None) | (None, None, Some(r)) => Ok(Some(r)),
+    (None, None, None) => Ok(None),
+    _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
+  }
+}
+
 /// Turns on the updater's signed version check for a project adopting the plugin now.
 ///
 /// An update endpoint response is not signed, so the version it announces does not by itself
@@ -283,7 +303,7 @@ fn set_require_signed_version(config: &mut JsonValue) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use super::set_require_signed_version;
+  use super::{git_ref, set_require_signed_version};
   use serde_json::json;
 
   #[test]
@@ -324,5 +344,16 @@ mod tests {
     let mut config = json!({ "plugins": { "updater": "not an object" } });
     assert!(!set_require_signed_version(&mut config));
     assert_eq!(config["plugins"]["updater"], "not an object");
+  }
+
+  #[test]
+  fn accepts_at_most_one_git_ref() {
+    assert_eq!(git_ref(None, None, None).unwrap(), None);
+    assert_eq!(git_ref(Some("v2"), None, None).unwrap(), Some("v2"));
+    assert_eq!(git_ref(None, Some("abc"), None).unwrap(), Some("abc"));
+    assert_eq!(git_ref(None, None, Some("dev")).unwrap(), Some("dev"));
+    assert!(git_ref(Some("v2"), Some("abc"), None).is_err());
+    assert!(git_ref(Some("v2"), None, Some("dev")).is_err());
+    assert!(git_ref(None, Some("abc"), Some("dev")).is_err());
   }
 }

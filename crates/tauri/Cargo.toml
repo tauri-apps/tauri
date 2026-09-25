@@ -90,7 +90,7 @@ muda = { version = "0.20", default-features = false, features = [
 ] }
 tray-icon = { version = "0.25", default-features = false, features = [
   "serde",
-  "muda-gtk3",
+  "libappindicator",
 ], optional = true }
 
 # linux

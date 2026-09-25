@@ -341,7 +341,7 @@ fn run_dev(
       no_watch: options.no_watch,
       additional_watch_folders: options.additional_watch_folders,
     },
-    |options, tauri_config| {
+    |options, _tauri_config| {
       let cli_options = CliOptions {
         dev: true,
         features: options.features.clone(),
@@ -351,7 +351,7 @@ fn run_dev(
         config: dev_options.config.clone(),
         target_device: None,
       };
-      let _handle = write_options(tauri_config, cli_options)?;
+      let _handle = write_options(MobileTarget::Ios, dirs.tauri, cli_options)?;
 
       let open_xcode = || {
         if !set_host {

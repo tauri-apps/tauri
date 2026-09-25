@@ -416,6 +416,24 @@ impl<R: Runtime> Context<R> {
   }
 
   /// A mutable reference to the config the application was prepared with.
+  ///
+  /// This allows changing the configuration at runtime before the app is built,
+  /// for instance to set the `app > appDirectoriesOverride` config from an environment variable:
+  ///
+  /// ```rust,no_run
+  /// use tauri::utils::config::AppDirectoriesOverride;
+  ///
+  /// let mut context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
+  ///
+  /// if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
+  ///   context.config_mut().app.app_directories_override =
+  ///     Some(AppDirectoriesOverride::Root(data_dir.into()));
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .run(context)
+  ///   .expect("error while running tauri application");
+  /// ```
   #[inline(always)]
   pub fn config_mut(&mut self) -> &mut Config {
     &mut self.config

@@ -8,857 +8,1289 @@ Pbxproj {
             build_settings: [
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 262,
+                    location: Existing {
+                        line_number: 262,
+                        end_line_number: 262,
+                    },
                     key: "ALWAYS_SEARCH_USER_PATHS",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 263,
+                    location: Existing {
+                        line_number: 263,
+                        end_line_number: 263,
+                    },
                     key: "CLANG_ANALYZER_NONNULL",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 264,
+                    location: Existing {
+                        line_number: 264,
+                        end_line_number: 264,
+                    },
                     key: "CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION",
                     value: "YES_AGGRESSIVE",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 265,
+                    location: Existing {
+                        line_number: 265,
+                        end_line_number: 265,
+                    },
                     key: "CLANG_CXX_LANGUAGE_STANDARD",
                     value: "\"gnu++14\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 266,
+                    location: Existing {
+                        line_number: 266,
+                        end_line_number: 266,
+                    },
                     key: "CLANG_CXX_LIBRARY",
                     value: "\"libc++\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 267,
+                    location: Existing {
+                        line_number: 267,
+                        end_line_number: 267,
+                    },
                     key: "CLANG_ENABLE_MODULES",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 268,
+                    location: Existing {
+                        line_number: 268,
+                        end_line_number: 268,
+                    },
                     key: "CLANG_ENABLE_OBJC_ARC",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 269,
+                    location: Existing {
+                        line_number: 269,
+                        end_line_number: 269,
+                    },
                     key: "CLANG_ENABLE_OBJC_WEAK",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 270,
+                    location: Existing {
+                        line_number: 270,
+                        end_line_number: 270,
+                    },
                     key: "CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 271,
+                    location: Existing {
+                        line_number: 271,
+                        end_line_number: 271,
+                    },
                     key: "CLANG_WARN_BOOL_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 272,
+                    location: Existing {
+                        line_number: 272,
+                        end_line_number: 272,
+                    },
                     key: "CLANG_WARN_COMMA",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 273,
+                    location: Existing {
+                        line_number: 273,
+                        end_line_number: 273,
+                    },
                     key: "CLANG_WARN_CONSTANT_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 274,
+                    location: Existing {
+                        line_number: 274,
+                        end_line_number: 274,
+                    },
                     key: "CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 275,
+                    location: Existing {
+                        line_number: 275,
+                        end_line_number: 275,
+                    },
                     key: "CLANG_WARN_DIRECT_OBJC_ISA_USAGE",
                     value: "YES_ERROR",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 276,
+                    location: Existing {
+                        line_number: 276,
+                        end_line_number: 276,
+                    },
                     key: "CLANG_WARN_DOCUMENTATION_COMMENTS",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 277,
+                    location: Existing {
+                        line_number: 277,
+                        end_line_number: 277,
+                    },
                     key: "CLANG_WARN_EMPTY_BODY",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 278,
+                    location: Existing {
+                        line_number: 278,
+                        end_line_number: 278,
+                    },
                     key: "CLANG_WARN_ENUM_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 279,
+                    location: Existing {
+                        line_number: 279,
+                        end_line_number: 279,
+                    },
                     key: "CLANG_WARN_INFINITE_RECURSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 280,
+                    location: Existing {
+                        line_number: 280,
+                        end_line_number: 280,
+                    },
                     key: "CLANG_WARN_INT_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 281,
+                    location: Existing {
+                        line_number: 281,
+                        end_line_number: 281,
+                    },
                     key: "CLANG_WARN_NON_LITERAL_NULL_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 282,
+                    location: Existing {
+                        line_number: 282,
+                        end_line_number: 282,
+                    },
                     key: "CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 283,
+                    location: Existing {
+                        line_number: 283,
+                        end_line_number: 283,
+                    },
                     key: "CLANG_WARN_OBJC_LITERAL_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 284,
+                    location: Existing {
+                        line_number: 284,
+                        end_line_number: 284,
+                    },
                     key: "CLANG_WARN_OBJC_ROOT_CLASS",
                     value: "YES_ERROR",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 285,
+                    location: Existing {
+                        line_number: 285,
+                        end_line_number: 285,
+                    },
                     key: "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 286,
+                    location: Existing {
+                        line_number: 286,
+                        end_line_number: 286,
+                    },
                     key: "CLANG_WARN_RANGE_LOOP_ANALYSIS",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 287,
+                    location: Existing {
+                        line_number: 287,
+                        end_line_number: 287,
+                    },
                     key: "CLANG_WARN_STRICT_PROTOTYPES",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 288,
+                    location: Existing {
+                        line_number: 288,
+                        end_line_number: 288,
+                    },
                     key: "CLANG_WARN_SUSPICIOUS_MOVE",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 289,
+                    location: Existing {
+                        line_number: 289,
+                        end_line_number: 289,
+                    },
                     key: "CLANG_WARN_UNGUARDED_AVAILABILITY",
                     value: "YES_AGGRESSIVE",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 290,
+                    location: Existing {
+                        line_number: 290,
+                        end_line_number: 290,
+                    },
                     key: "CLANG_WARN_UNREACHABLE_CODE",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 291,
+                    location: Existing {
+                        line_number: 291,
+                        end_line_number: 291,
+                    },
                     key: "CLANG_WARN__DUPLICATE_METHOD_MATCH",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 292,
+                    location: Existing {
+                        line_number: 292,
+                        end_line_number: 292,
+                    },
                     key: "COPY_PHASE_STRIP",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 293,
+                    location: Existing {
+                        line_number: 293,
+                        end_line_number: 293,
+                    },
                     key: "DEBUG_INFORMATION_FORMAT",
                     value: "\"dwarf-with-dsym\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 294,
+                    location: Existing {
+                        line_number: 294,
+                        end_line_number: 294,
+                    },
                     key: "ENABLE_NS_ASSERTIONS",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 295,
+                    location: Existing {
+                        line_number: 295,
+                        end_line_number: 295,
+                    },
                     key: "ENABLE_STRICT_OBJC_MSGSEND",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 296,
+                    location: Existing {
+                        line_number: 296,
+                        end_line_number: 296,
+                    },
                     key: "GCC_C_LANGUAGE_STANDARD",
                     value: "gnu11",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 297,
+                    location: Existing {
+                        line_number: 297,
+                        end_line_number: 297,
+                    },
                     key: "GCC_NO_COMMON_BLOCKS",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 298,
+                    location: Existing {
+                        line_number: 298,
+                        end_line_number: 298,
+                    },
                     key: "GCC_WARN_64_TO_32_BIT_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 299,
+                    location: Existing {
+                        line_number: 299,
+                        end_line_number: 299,
+                    },
                     key: "GCC_WARN_ABOUT_RETURN_TYPE",
                     value: "YES_ERROR",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 300,
+                    location: Existing {
+                        line_number: 300,
+                        end_line_number: 300,
+                    },
                     key: "GCC_WARN_UNDECLARED_SELECTOR",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 301,
+                    location: Existing {
+                        line_number: 301,
+                        end_line_number: 301,
+                    },
                     key: "GCC_WARN_UNINITIALIZED_AUTOS",
                     value: "YES_AGGRESSIVE",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 302,
+                    location: Existing {
+                        line_number: 302,
+                        end_line_number: 302,
+                    },
                     key: "GCC_WARN_UNUSED_FUNCTION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 303,
+                    location: Existing {
+                        line_number: 303,
+                        end_line_number: 303,
+                    },
                     key: "GCC_WARN_UNUSED_VARIABLE",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 304,
+                    location: Existing {
+                        line_number: 304,
+                        end_line_number: 304,
+                    },
                     key: "IPHONEOS_DEPLOYMENT_TARGET",
                     value: "14.0",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 305,
+                    location: Existing {
+                        line_number: 305,
+                        end_line_number: 305,
+                    },
                     key: "MTL_ENABLE_DEBUG_INFO",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 306,
+                    location: Existing {
+                        line_number: 306,
+                        end_line_number: 306,
+                    },
                     key: "MTL_FAST_MATH",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 307,
+                    location: Existing {
+                        line_number: 307,
+                        end_line_number: 307,
+                    },
                     key: "PRODUCT_NAME",
                     value: "\"$(TARGET_NAME)\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 308,
+                    location: Existing {
+                        line_number: 308,
+                        end_line_number: 308,
+                    },
                     key: "SDKROOT",
                     value: "iphoneos",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 309,
+                    location: Existing {
+                        line_number: 309,
+                        end_line_number: 309,
+                    },
                     key: "SWIFT_COMPILATION_MODE",
                     value: "wholemodule",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 310,
+                    location: Existing {
+                        line_number: 310,
+                        end_line_number: 310,
+                    },
                     key: "SWIFT_OPTIMIZATION_LEVEL",
                     value: "\"-O\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 311,
+                    location: Existing {
+                        line_number: 311,
+                        end_line_number: 311,
+                    },
                     key: "SWIFT_VERSION",
                     value: "5.0",
                 },
             ],
+            build_settings_end_line_number: Some(
+                312,
+            ),
         },
         "B6AD77E490F315562F75D3D7": XCBuildConfiguration {
             build_settings: [
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 318,
+                    location: Existing {
+                        line_number: 318,
+                        end_line_number: 318,
+                    },
                     key: "ALWAYS_SEARCH_USER_PATHS",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 319,
+                    location: Existing {
+                        line_number: 319,
+                        end_line_number: 319,
+                    },
                     key: "CLANG_ANALYZER_NONNULL",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 320,
+                    location: Existing {
+                        line_number: 320,
+                        end_line_number: 320,
+                    },
                     key: "CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION",
                     value: "YES_AGGRESSIVE",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 321,
+                    location: Existing {
+                        line_number: 321,
+                        end_line_number: 321,
+                    },
                     key: "CLANG_CXX_LANGUAGE_STANDARD",
                     value: "\"gnu++14\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 322,
+                    location: Existing {
+                        line_number: 322,
+                        end_line_number: 322,
+                    },
                     key: "CLANG_CXX_LIBRARY",
                     value: "\"libc++\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 323,
+                    location: Existing {
+                        line_number: 323,
+                        end_line_number: 323,
+                    },
                     key: "CLANG_ENABLE_MODULES",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 324,
+                    location: Existing {
+                        line_number: 324,
+                        end_line_number: 324,
+                    },
                     key: "CLANG_ENABLE_OBJC_ARC",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 325,
+                    location: Existing {
+                        line_number: 325,
+                        end_line_number: 325,
+                    },
                     key: "CLANG_ENABLE_OBJC_WEAK",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 326,
+                    location: Existing {
+                        line_number: 326,
+                        end_line_number: 326,
+                    },
                     key: "CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 327,
+                    location: Existing {
+                        line_number: 327,
+                        end_line_number: 327,
+                    },
                     key: "CLANG_WARN_BOOL_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 328,
+                    location: Existing {
+                        line_number: 328,
+                        end_line_number: 328,
+                    },
                     key: "CLANG_WARN_COMMA",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 329,
+                    location: Existing {
+                        line_number: 329,
+                        end_line_number: 329,
+                    },
                     key: "CLANG_WARN_CONSTANT_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 330,
+                    location: Existing {
+                        line_number: 330,
+                        end_line_number: 330,
+                    },
                     key: "CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 331,
+                    location: Existing {
+                        line_number: 331,
+                        end_line_number: 331,
+                    },
                     key: "CLANG_WARN_DIRECT_OBJC_ISA_USAGE",
                     value: "YES_ERROR",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 332,
+                    location: Existing {
+                        line_number: 332,
+                        end_line_number: 332,
+                    },
                     key: "CLANG_WARN_DOCUMENTATION_COMMENTS",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 333,
+                    location: Existing {
+                        line_number: 333,
+                        end_line_number: 333,
+                    },
                     key: "CLANG_WARN_EMPTY_BODY",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 334,
+                    location: Existing {
+                        line_number: 334,
+                        end_line_number: 334,
+                    },
                     key: "CLANG_WARN_ENUM_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 335,
+                    location: Existing {
+                        line_number: 335,
+                        end_line_number: 335,
+                    },
                     key: "CLANG_WARN_INFINITE_RECURSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 336,
+                    location: Existing {
+                        line_number: 336,
+                        end_line_number: 336,
+                    },
                     key: "CLANG_WARN_INT_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 337,
+                    location: Existing {
+                        line_number: 337,
+                        end_line_number: 337,
+                    },
                     key: "CLANG_WARN_NON_LITERAL_NULL_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 338,
+                    location: Existing {
+                        line_number: 338,
+                        end_line_number: 338,
+                    },
                     key: "CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 339,
+                    location: Existing {
+                        line_number: 339,
+                        end_line_number: 339,
+                    },
                     key: "CLANG_WARN_OBJC_LITERAL_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 340,
+                    location: Existing {
+                        line_number: 340,
+                        end_line_number: 340,
+                    },
                     key: "CLANG_WARN_OBJC_ROOT_CLASS",
                     value: "YES_ERROR",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 341,
+                    location: Existing {
+                        line_number: 341,
+                        end_line_number: 341,
+                    },
                     key: "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 342,
+                    location: Existing {
+                        line_number: 342,
+                        end_line_number: 342,
+                    },
                     key: "CLANG_WARN_RANGE_LOOP_ANALYSIS",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 343,
+                    location: Existing {
+                        line_number: 343,
+                        end_line_number: 343,
+                    },
                     key: "CLANG_WARN_STRICT_PROTOTYPES",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 344,
+                    location: Existing {
+                        line_number: 344,
+                        end_line_number: 344,
+                    },
                     key: "CLANG_WARN_SUSPICIOUS_MOVE",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 345,
+                    location: Existing {
+                        line_number: 345,
+                        end_line_number: 345,
+                    },
                     key: "CLANG_WARN_UNGUARDED_AVAILABILITY",
                     value: "YES_AGGRESSIVE",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 346,
+                    location: Existing {
+                        line_number: 346,
+                        end_line_number: 346,
+                    },
                     key: "CLANG_WARN_UNREACHABLE_CODE",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 347,
+                    location: Existing {
+                        line_number: 347,
+                        end_line_number: 347,
+                    },
                     key: "CLANG_WARN__DUPLICATE_METHOD_MATCH",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 348,
+                    location: Existing {
+                        line_number: 348,
+                        end_line_number: 348,
+                    },
                     key: "COPY_PHASE_STRIP",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 349,
+                    location: Existing {
+                        line_number: 349,
+                        end_line_number: 349,
+                    },
                     key: "DEBUG_INFORMATION_FORMAT",
                     value: "dwarf",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 350,
+                    location: Existing {
+                        line_number: 350,
+                        end_line_number: 350,
+                    },
                     key: "ENABLE_STRICT_OBJC_MSGSEND",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 351,
+                    location: Existing {
+                        line_number: 351,
+                        end_line_number: 351,
+                    },
                     key: "ENABLE_TESTABILITY",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 352,
+                    location: Existing {
+                        line_number: 352,
+                        end_line_number: 352,
+                    },
                     key: "GCC_C_LANGUAGE_STANDARD",
                     value: "gnu11",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 353,
+                    location: Existing {
+                        line_number: 353,
+                        end_line_number: 353,
+                    },
                     key: "GCC_DYNAMIC_NO_PIC",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 354,
+                    location: Existing {
+                        line_number: 354,
+                        end_line_number: 354,
+                    },
                     key: "GCC_NO_COMMON_BLOCKS",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 355,
+                    location: Existing {
+                        line_number: 355,
+                        end_line_number: 355,
+                    },
                     key: "GCC_OPTIMIZATION_LEVEL",
                     value: "0",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 356,
+                    location: Existing {
+                        line_number: 356,
+                        end_line_number: 359,
+                    },
                     key: "GCC_PREPROCESSOR_DEFINITIONS",
                     value: "(\t\t\t\t\t\"$(inherited)\",\n\t\t\t\t\t\"DEBUG=1\",\n\t\t\t\t);\n",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 360,
+                    location: Existing {
+                        line_number: 360,
+                        end_line_number: 360,
+                    },
                     key: "GCC_WARN_64_TO_32_BIT_CONVERSION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 361,
+                    location: Existing {
+                        line_number: 361,
+                        end_line_number: 361,
+                    },
                     key: "GCC_WARN_ABOUT_RETURN_TYPE",
                     value: "YES_ERROR",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 362,
+                    location: Existing {
+                        line_number: 362,
+                        end_line_number: 362,
+                    },
                     key: "GCC_WARN_UNDECLARED_SELECTOR",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 363,
+                    location: Existing {
+                        line_number: 363,
+                        end_line_number: 363,
+                    },
                     key: "GCC_WARN_UNINITIALIZED_AUTOS",
                     value: "YES_AGGRESSIVE",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 364,
+                    location: Existing {
+                        line_number: 364,
+                        end_line_number: 364,
+                    },
                     key: "GCC_WARN_UNUSED_FUNCTION",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 365,
+                    location: Existing {
+                        line_number: 365,
+                        end_line_number: 365,
+                    },
                     key: "GCC_WARN_UNUSED_VARIABLE",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 366,
+                    location: Existing {
+                        line_number: 366,
+                        end_line_number: 366,
+                    },
                     key: "IPHONEOS_DEPLOYMENT_TARGET",
                     value: "14.0",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 367,
+                    location: Existing {
+                        line_number: 367,
+                        end_line_number: 367,
+                    },
                     key: "MTL_ENABLE_DEBUG_INFO",
                     value: "INCLUDE_SOURCE",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 368,
+                    location: Existing {
+                        line_number: 368,
+                        end_line_number: 368,
+                    },
                     key: "MTL_FAST_MATH",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 369,
+                    location: Existing {
+                        line_number: 369,
+                        end_line_number: 369,
+                    },
                     key: "ONLY_ACTIVE_ARCH",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 370,
+                    location: Existing {
+                        line_number: 370,
+                        end_line_number: 370,
+                    },
                     key: "PRODUCT_NAME",
                     value: "\"$(TARGET_NAME)\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 371,
+                    location: Existing {
+                        line_number: 371,
+                        end_line_number: 371,
+                    },
                     key: "SDKROOT",
                     value: "iphoneos",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 372,
+                    location: Existing {
+                        line_number: 372,
+                        end_line_number: 372,
+                    },
                     key: "SWIFT_ACTIVE_COMPILATION_CONDITIONS",
                     value: "DEBUG",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 373,
+                    location: Existing {
+                        line_number: 373,
+                        end_line_number: 373,
+                    },
                     key: "SWIFT_OPTIMIZATION_LEVEL",
                     value: "\"-Onone\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 374,
+                    location: Existing {
+                        line_number: 374,
+                        end_line_number: 374,
+                    },
                     key: "SWIFT_VERSION",
                     value: "5.0",
                 },
             ],
+            build_settings_end_line_number: Some(
+                375,
+            ),
         },
         "BF284FE6E7AE0C8DDCCE398B": XCBuildConfiguration {
             build_settings: [
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 381,
+                    location: Existing {
+                        line_number: 381,
+                        end_line_number: 381,
+                    },
                     key: "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 382,
+                    location: Existing {
+                        line_number: 382,
+                        end_line_number: 384,
+                    },
                     key: "ARCHS",
                     value: "(\t\t\t\t\tarm64,\n\t\t\t\t);\n",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 385,
+                    location: Existing {
+                        line_number: 385,
+                        end_line_number: 385,
+                    },
                     key: "ASSETCATALOG_COMPILER_APPICON_NAME",
                     value: "AppIcon",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 386,
+                    location: Existing {
+                        line_number: 386,
+                        end_line_number: 386,
+                    },
                     key: "CODE_SIGN_ENTITLEMENTS",
                     value: "api_iOS/api_iOS.entitlements",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 387,
+                    location: Existing {
+                        line_number: 387,
+                        end_line_number: 387,
+                    },
                     key: "CODE_SIGN_IDENTITY",
                     value: "\"iPhone Developer\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 388,
+                    location: Existing {
+                        line_number: 388,
+                        end_line_number: 388,
+                    },
                     key: "DEVELOPMENT_TEAM",
                     value: "Q93MBH6S2F",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 389,
+                    location: Existing {
+                        line_number: 389,
+                        end_line_number: 389,
+                    },
                     key: "ENABLE_BITCODE",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 390,
+                    location: Existing {
+                        line_number: 390,
+                        end_line_number: 390,
+                    },
                     key: "\"EXCLUDED_ARCHS[sdk=iphoneos*]\"",
                     value: "\"x86_64\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 391,
+                    location: Existing {
+                        line_number: 391,
+                        end_line_number: 394,
+                    },
                     key: "FRAMEWORK_SEARCH_PATHS",
                     value: "(\t\t\t\t\t\"$(inherited)\",\n\t\t\t\t\t\"\\\".\\\"\",\n\t\t\t\t);\n",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 395,
+                    location: Existing {
+                        line_number: 395,
+                        end_line_number: 395,
+                    },
                     key: "INFOPLIST_FILE",
                     value: "api_iOS/Info.plist",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 396,
+                    location: Existing {
+                        line_number: 396,
+                        end_line_number: 399,
+                    },
                     key: "LD_RUNPATH_SEARCH_PATHS",
                     value: "(\t\t\t\t\t\"$(inherited)\",\n\t\t\t\t\t\"@executable_path/Frameworks\",\n\t\t\t\t);\n",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 400,
+                    location: Existing {
+                        line_number: 400,
+                        end_line_number: 400,
+                    },
                     key: "\"LIBRARY_SEARCH_PATHS[arch=arm64]\"",
                     value: "\"$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 401,
+                    location: Existing {
+                        line_number: 401,
+                        end_line_number: 401,
+                    },
                     key: "\"LIBRARY_SEARCH_PATHS[arch=x86_64]\"",
                     value: "\"$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 402,
+                    location: Existing {
+                        line_number: 402,
+                        end_line_number: 402,
+                    },
                     key: "PRODUCT_BUNDLE_IDENTIFIER",
                     value: "com.tauri.api",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 403,
+                    location: Existing {
+                        line_number: 403,
+                        end_line_number: 403,
+                    },
                     key: "PRODUCT_NAME",
                     value: "\"Tauri API\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 404,
+                    location: Existing {
+                        line_number: 404,
+                        end_line_number: 404,
+                    },
                     key: "SDKROOT",
                     value: "iphoneos",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 405,
+                    location: Existing {
+                        line_number: 405,
+                        end_line_number: 405,
+                    },
                     key: "TARGETED_DEVICE_FAMILY",
                     value: "\"1,2\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 406,
+                    location: Existing {
+                        line_number: 406,
+                        end_line_number: 406,
+                    },
                     key: "VALID_ARCHS",
                     value: "\"arm64\"",
                 },
             ],
+            build_settings_end_line_number: Some(
+                407,
+            ),
         },
         "DB_0E254D0FD84970B57F6410": XCBuildConfiguration {
             build_settings: [
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 413,
+                    location: Existing {
+                        line_number: 413,
+                        end_line_number: 413,
+                    },
                     key: "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES",
                     value: "YES",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 414,
+                    location: Existing {
+                        line_number: 414,
+                        end_line_number: 416,
+                    },
                     key: "ARCHS",
                     value: "(\t\t\t\t\tarm64,\n\t\t\t\t);\n",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 417,
+                    location: Existing {
+                        line_number: 417,
+                        end_line_number: 417,
+                    },
                     key: "ASSETCATALOG_COMPILER_APPICON_NAME",
                     value: "AppIcon",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 418,
+                    location: Existing {
+                        line_number: 418,
+                        end_line_number: 418,
+                    },
                     key: "CODE_SIGN_ENTITLEMENTS",
                     value: "api_iOS/api_iOS.entitlements",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 419,
+                    location: Existing {
+                        line_number: 419,
+                        end_line_number: 419,
+                    },
                     key: "CODE_SIGN_IDENTITY",
                     value: "\"iPhone Developer\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 420,
+                    location: Existing {
+                        line_number: 420,
+                        end_line_number: 420,
+                    },
                     key: "DEVELOPMENT_TEAM",
                     value: "Q93MBH6S2F",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 421,
+                    location: Existing {
+                        line_number: 421,
+                        end_line_number: 421,
+                    },
                     key: "ENABLE_BITCODE",
                     value: "NO",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 422,
+                    location: Existing {
+                        line_number: 422,
+                        end_line_number: 422,
+                    },
                     key: "\"EXCLUDED_ARCHS[sdk=iphoneos*]\"",
                     value: "\"x86_64\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 423,
+                    location: Existing {
+                        line_number: 423,
+                        end_line_number: 426,
+                    },
                     key: "FRAMEWORK_SEARCH_PATHS",
                     value: "(\t\t\t\t\t\"$(inherited)\",\n\t\t\t\t\t\"\\\".\\\"\",\n\t\t\t\t);\n",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 427,
+                    location: Existing {
+                        line_number: 427,
+                        end_line_number: 427,
+                    },
                     key: "INFOPLIST_FILE",
                     value: "api_iOS/Info.plist",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 428,
+                    location: Existing {
+                        line_number: 428,
+                        end_line_number: 431,
+                    },
                     key: "LD_RUNPATH_SEARCH_PATHS",
                     value: "(\t\t\t\t\t\"$(inherited)\",\n\t\t\t\t\t\"@executable_path/Frameworks\",\n\t\t\t\t);\n",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 432,
+                    location: Existing {
+                        line_number: 432,
+                        end_line_number: 432,
+                    },
                     key: "\"LIBRARY_SEARCH_PATHS[arch=arm64]\"",
                     value: "\"$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 433,
+                    location: Existing {
+                        line_number: 433,
+                        end_line_number: 433,
+                    },
                     key: "\"LIBRARY_SEARCH_PATHS[arch=x86_64]\"",
                     value: "\"$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 434,
+                    location: Existing {
+                        line_number: 434,
+                        end_line_number: 434,
+                    },
                     key: "PRODUCT_BUNDLE_IDENTIFIER",
                     value: "com.tauri.api",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 435,
+                    location: Existing {
+                        line_number: 435,
+                        end_line_number: 435,
+                    },
                     key: "PRODUCT_NAME",
                     value: "\"Tauri API\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 436,
+                    location: Existing {
+                        line_number: 436,
+                        end_line_number: 436,
+                    },
                     key: "SDKROOT",
                     value: "iphoneos",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 437,
+                    location: Existing {
+                        line_number: 437,
+                        end_line_number: 437,
+                    },
                     key: "TARGETED_DEVICE_FAMILY",
                     value: "\"1,2\"",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
-                    line_number: 438,
+                    location: Existing {
+                        line_number: 438,
+                        end_line_number: 438,
+                    },
                     key: "VALID_ARCHS",
                     value: "\"arm64\"",
                 },
             ],
+            build_settings_end_line_number: Some(
+                439,
+            ),
         },
     },
     xc_configuration_list: {

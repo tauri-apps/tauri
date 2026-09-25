@@ -384,11 +384,16 @@ pub(crate) enum AppDirectory {
 
 impl AppDirectory {
   /// The subdirectory this directory resolves to when a single root overrides all app directories.
-  fn root_override_subdirectory(self) -> Option<&'static str> {
+  ///
+  /// None of the app directories resolve to the root itself, so the scopes of app directories
+  /// (e.g. `$APPDATA/**`) never cover other files stored in the root, such as the executable of a portable app.
+  fn root_override_subdirectory(self) -> &'static str {
     match self {
-      Self::Cache => Some("caches"),
-      Self::Log => Some("logs"),
-      Self::Config | Self::Data | Self::LocalData => None,
+      Self::Config => "config",
+      Self::Data => "data",
+      Self::LocalData => "local-data",
+      Self::Cache => "caches",
+      Self::Log => "logs",
     }
   }
 }
@@ -413,7 +418,7 @@ impl<R: Runtime> PathResolver<R> {
     };
 
     let (path, subdirectory) = match config {
-      AppDirectoriesOverride::Root(root) => (root, dir.root_override_subdirectory()),
+      AppDirectoriesOverride::Root(root) => (root, Some(dir.root_override_subdirectory())),
       AppDirectoriesOverride::Directories(directories) => {
         let path = match dir {
           AppDirectory::Config => &directories.config,
@@ -429,12 +434,59 @@ impl<R: Runtime> PathResolver<R> {
       }
     };
 
-    let mut path = self.resolve_override_path(path)?;
+    let (mut resolved, base_directory) = self.resolve_override_path(path)?;
     if let Some(subdirectory) = subdirectory {
-      path.push(subdirectory);
+      resolved.push(subdirectory);
     }
 
-    Ok(Some(path))
+    self.check_override_is_dedicated(path, &resolved, base_directory.as_deref())?;
+
+    Ok(Some(resolved))
+  }
+
+  /// Rejects an override that resolves to a directory holding unrelated files:
+  /// the base directory it is relative to, the directory containing the executable, the home directory, or a parent of them.
+  ///
+  /// App directories are granted to the webview through scopes such as `$APPDATA/**`,
+  /// so such an override would expose these files to the webview, e.g. let it replace the executable of a portable app.
+  fn check_override_is_dedicated(
+    &self,
+    path: &Path,
+    resolved: &Path,
+    base_directory: Option<&Path>,
+  ) -> Result<()> {
+    let resolved = lexically_normalize(resolved);
+
+    #[cfg(desktop)]
+    let binary_dir = self.app_binary_dir().ok();
+    #[cfg(mobile)]
+    let binary_dir: Option<PathBuf> = None;
+
+    let protected = [
+      (
+        base_directory.map(Path::to_path_buf),
+        "the base directory it is relative to",
+      ),
+      (binary_dir, "the directory containing the executable"),
+      (self.home_dir().ok(), "the home directory"),
+    ];
+
+    for (directory, description) in protected {
+      let Some(directory) = directory else {
+        continue;
+      };
+      if lexically_normalize(&directory).starts_with(&resolved) {
+        return Err(Error::InvalidAppDirectoriesOverride(
+          path.to_path_buf(),
+          format!(
+            "resolves to `{}`, which is {description} or one of its parents; app directories must be dedicated to the app, use a subdirectory instead",
+            resolved.display()
+          ),
+        ));
+      }
+    }
+
+    Ok(())
   }
 
   /// Resolves a path from the `app > appDirectoriesOverride` config:
@@ -443,7 +495,9 @@ impl<R: Runtime> PathResolver<R> {
   /// - an absolute path is used as is,
   /// - any other path is resolved relative to the app binary directory on desktop,
   ///   and rejected on mobile where the app bundle is read-only.
-  fn resolve_override_path(&self, path: &Path) -> Result<PathBuf> {
+  ///
+  /// Returns the resolved path and the directory it is relative to, if any.
+  fn resolve_override_path(&self, path: &Path) -> Result<(PathBuf, Option<PathBuf>)> {
     let mut components = path.components();
     let first = components.next();
 
@@ -456,29 +510,45 @@ impl<R: Runtime> PathResolver<R> {
           )
         })?;
 
-        if matches!(
-          base_directory,
+        match base_directory {
           BaseDirectory::AppConfig
-            | BaseDirectory::AppData
-            | BaseDirectory::AppLocalData
-            | BaseDirectory::AppCache
-            | BaseDirectory::AppLog
-        ) {
-          return Err(Error::InvalidAppDirectoriesOverride(
-            path.to_path_buf(),
-            format!("`{variable}` refers to an app directory, which is what is being overridden"),
-          ));
+          | BaseDirectory::AppData
+          | BaseDirectory::AppLocalData
+          | BaseDirectory::AppCache
+          | BaseDirectory::AppLog => {
+            return Err(Error::InvalidAppDirectoriesOverride(
+              path.to_path_buf(),
+              format!("`{variable}` refers to an app directory, which is what is being overridden"),
+            ));
+          }
+          // the config deserializer rejects these too, but the config can also be modified through `Context::config_mut`
+          BaseDirectory::Resource => {
+            return Err(Error::InvalidAppDirectoriesOverride(
+              path.to_path_buf(),
+              "`$RESOURCE` is read-only in bundled apps".into(),
+            ));
+          }
+          #[cfg(not(target_os = "android"))]
+          BaseDirectory::Executable
+          | BaseDirectory::Font
+          | BaseDirectory::Runtime
+          | BaseDirectory::Template => {
+            return Err(Error::InvalidAppDirectoriesOverride(
+              path.to_path_buf(),
+              format!("`{variable}` is not available on every desktop platform"),
+            ));
+          }
+          _ => {}
         }
 
         // unlike `parse`, `resolve` keeps `..` components
-        return self
-          .resolve(components.as_path(), base_directory)
-          .map(normalize);
+        let base = self.resolve(Path::new(""), base_directory).map(normalize)?;
+        return Ok((normalize(base.join(components.as_path())), Some(base)));
       }
     }
 
     if path.is_absolute() {
-      return Ok(normalize(path));
+      return Ok((normalize(path), None));
     }
 
     // Windows root-relative (`\foo`) and drive-relative (`C:foo`) paths would replace the base directory on join
@@ -491,7 +561,8 @@ impl<R: Runtime> PathResolver<R> {
 
     #[cfg(desktop)]
     {
-      Ok(normalize(self.app_binary_dir()?.join(path)))
+      let binary_dir = self.app_binary_dir()?;
+      Ok((normalize(binary_dir.join(path)), Some(binary_dir)))
     }
     #[cfg(mobile)]
     {
@@ -506,6 +577,24 @@ impl<R: Runtime> PathResolver<R> {
 /// Removes `.` components and trailing separators from a path, keeping `..` components.
 fn normalize(path: impl AsRef<Path>) -> PathBuf {
   path.as_ref().components().collect()
+}
+
+/// Like [`normalize`], but also removes `..` components along with the component they refer to,
+/// without accessing the file system, so symbolic links are not taken into account.
+fn lexically_normalize(path: &Path) -> PathBuf {
+  let mut normalized = PathBuf::new();
+  for component in path.components() {
+    match component {
+      Component::CurDir => {}
+      Component::ParentDir => {
+        if !normalized.pop() {
+          normalized.push(component);
+        }
+      }
+      _ => normalized.push(component),
+    }
+  }
+  normalized
 }
 
 #[cfg(test)]

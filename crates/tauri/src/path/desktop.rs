@@ -235,7 +235,8 @@ impl<R: Runtime> PathResolver<R> {
   /// Returns the path to the suggested directory for your app's config files.
   ///
   /// Resolves to [`config_dir`](Self::config_dir)`/${bundle_identifier}`,
-  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/config`).
   pub fn app_config_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::Config, || {
       dirs::config_dir()
@@ -247,7 +248,8 @@ impl<R: Runtime> PathResolver<R> {
   /// Returns the path to the suggested directory for your app's data files.
   ///
   /// Resolves to [`data_dir`](Self::data_dir)`/${bundle_identifier}`,
-  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/data`).
   pub fn app_data_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::Data, || {
       dirs::data_dir()
@@ -259,7 +261,8 @@ impl<R: Runtime> PathResolver<R> {
   /// Returns the path to the suggested directory for your app's local data files.
   ///
   /// Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}`,
-  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/local-data`).
   ///
   /// On Windows and Linux this is also the default data directory of the webviews.
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
@@ -415,9 +418,12 @@ mod tests {
 
     let app = app_with(Some(AppDirectoriesOverride::Root("./".into())));
     let path = app.path();
-    assert_eq!(path.app_config_dir().unwrap(), binary_dir);
-    assert_eq!(path.app_data_dir().unwrap(), binary_dir);
-    assert_eq!(path.app_local_data_dir().unwrap(), binary_dir);
+    assert_eq!(path.app_config_dir().unwrap(), binary_dir.join("config"));
+    assert_eq!(path.app_data_dir().unwrap(), binary_dir.join("data"));
+    assert_eq!(
+      path.app_local_data_dir().unwrap(),
+      binary_dir.join("local-data")
+    );
     assert_eq!(path.app_cache_dir().unwrap(), binary_dir.join("caches"));
     assert_eq!(path.app_log_dir().unwrap(), binary_dir.join("logs"));
     // the `.` component must not leak into the resolved path
@@ -429,14 +435,17 @@ mod tests {
         .any(|c| c == Component::CurDir)
     );
 
-    let app = app_with(Some(AppDirectoriesOverride::Root("data".into())));
-    assert_eq!(app.path().app_data_dir().unwrap(), binary_dir.join("data"));
-
-    // `..` components are kept
-    let app = app_with(Some(AppDirectoriesOverride::Root("../data".into())));
+    let app = app_with(Some(AppDirectoriesOverride::Root("my-app".into())));
     assert_eq!(
       app.path().app_data_dir().unwrap(),
-      binary_dir.join("../data")
+      binary_dir.join("my-app/data")
+    );
+
+    // `..` components are kept
+    let app = app_with(Some(AppDirectoriesOverride::Root("../my-app".into())));
+    assert_eq!(
+      app.path().app_data_dir().unwrap(),
+      binary_dir.join("../my-app/data")
     );
   }
 
@@ -445,9 +454,9 @@ mod tests {
     let root = normalize(std::env::temp_dir().join("tauri-app-directories-override"));
     let app = app_with(Some(AppDirectoriesOverride::Root(root.clone())));
     let path = app.path();
-    assert_eq!(path.app_config_dir().unwrap(), root);
-    assert_eq!(path.app_data_dir().unwrap(), root);
-    assert_eq!(path.app_local_data_dir().unwrap(), root);
+    assert_eq!(path.app_config_dir().unwrap(), root.join("config"));
+    assert_eq!(path.app_data_dir().unwrap(), root.join("data"));
+    assert_eq!(path.app_local_data_dir().unwrap(), root.join("local-data"));
     assert_eq!(path.app_cache_dir().unwrap(), root.join("caches"));
     assert_eq!(path.app_log_dir().unwrap(), root.join("logs"));
   }
@@ -458,22 +467,47 @@ mod tests {
 
     let app = app_with(Some(AppDirectoriesOverride::Root("$DATA/my-app".into())));
     let path = app.path();
-    assert_eq!(path.app_config_dir().unwrap(), data_dir.join("my-app"));
+    assert_eq!(
+      path.app_config_dir().unwrap(),
+      data_dir.join("my-app/config")
+    );
     assert_eq!(
       path.app_cache_dir().unwrap(),
       data_dir.join("my-app/caches")
     );
     assert_eq!(path.app_log_dir().unwrap(), data_dir.join("my-app/logs"));
 
+    // a bare base directory is fine as a root, since every app directory is a subdirectory of it
     let app = app_with(Some(AppDirectoriesOverride::Root("$DATA".into())));
-    assert_eq!(app.path().app_data_dir().unwrap(), data_dir);
+    assert_eq!(app.path().app_data_dir().unwrap(), data_dir.join("data"));
 
     // `..` components are kept, unlike `PathResolver::parse`
     let app = app_with(Some(AppDirectoriesOverride::Root("$DATA/../my-app".into())));
     assert_eq!(
       app.path().app_data_dir().unwrap(),
-      data_dir.join("../my-app")
+      data_dir.join("../my-app/data")
     );
+  }
+
+  /// With a root override, the scope of an app directory must not cover the executable.
+  #[test]
+  fn root_override_scope_excludes_binary() {
+    let app = app_with(Some(AppDirectoriesOverride::Root("./".into())));
+    let scope = crate::scope::fs::Scope::new(
+      app.handle(),
+      &tauri_utils::config::FsScope::AllowedPaths(vec![
+        "$APPCONFIG/**".into(),
+        "$APPDATA/**".into(),
+        "$APPLOCALDATA/**".into(),
+        "$APPCACHE/**".into(),
+        "$APPLOG/**".into(),
+      ]),
+    )
+    .unwrap();
+
+    let binary = crate::utils::platform::current_exe().unwrap();
+    assert!(!scope.is_allowed(&binary));
+    assert!(scope.is_allowed(app.path().app_data_dir().unwrap().join("file")));
   }
 
   #[test]
@@ -510,6 +544,71 @@ mod tests {
       path.app_local_data_dir().unwrap(),
       dirs::data_local_dir().unwrap().join(IDENTIFIER)
     );
+  }
+
+  #[test]
+  fn rejects_directories_holding_unrelated_files() {
+    let rejected = [
+      // the base directory itself or one of its parents
+      "$DATA",
+      "$DATA/",
+      "$DATA/my-app/..",
+      "$DATA/..",
+      "$DOCUMENT",
+      // the directory containing the executable or one of its parents
+      "./",
+      "..",
+      "../..",
+      // the home directory
+      "$HOME",
+    ];
+    for directory in rejected {
+      let app = app_with(Some(AppDirectoriesOverride::Directories(
+        AppDirectoryOverrides {
+          data: Some(directory.into()),
+          ..Default::default()
+        },
+      )));
+      let err = app.path().app_data_dir().unwrap_err();
+      assert!(
+        matches!(err, Error::InvalidAppDirectoriesOverride(..)),
+        "{directory}: {err}"
+      );
+    }
+
+    let app = app_with(Some(AppDirectoriesOverride::Directories(
+      AppDirectoryOverrides {
+        data: Some(binary_dir()),
+        config: Some(dirs::home_dir().unwrap().parent().unwrap().to_path_buf()),
+        ..Default::default()
+      },
+    )));
+    assert!(app.path().app_data_dir().is_err());
+    assert!(app.path().app_config_dir().is_err());
+
+    // a root can point to such a directory, since every app directory is a subdirectory of the root
+    let app = app_with(Some(AppDirectoriesOverride::Root(
+      binary_dir()
+        .join("..")
+        .join(binary_dir().file_name().unwrap()),
+    )));
+    assert!(app.path().app_data_dir().is_ok());
+    let app = app_with(Some(AppDirectoriesOverride::Root("data/..".into())));
+    assert!(app.path().app_data_dir().is_ok());
+  }
+
+  #[test]
+  fn rejects_unsupported_variables() {
+    for variable in ["$RESOURCE", "$EXE", "$FONT", "$RUNTIME", "$TEMPLATE"] {
+      let app = app_with(Some(AppDirectoriesOverride::Root(
+        format!("{variable}/my-app").into(),
+      )));
+      let err = app.path().app_data_dir().unwrap_err();
+      assert!(
+        matches!(err, Error::InvalidAppDirectoriesOverride(..)),
+        "{variable}: {err}"
+      );
+    }
   }
 
   #[test]

@@ -140,7 +140,8 @@ impl<R: Runtime> PathResolver<R> {
   /// Returns the path to the suggested directory for your app's config files.
   ///
   /// Resolves to [`config_dir`]`/${bundle_identifier}`,
-  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/config`).
   pub fn app_config_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::Config, || self.call_resolve("getConfigDir"))
   }
@@ -148,7 +149,8 @@ impl<R: Runtime> PathResolver<R> {
   /// Returns the path to the suggested directory for your app's data files.
   ///
   /// Resolves to [`data_dir`]`/${bundle_identifier}`,
-  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/data`).
   pub fn app_data_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::Data, || self.call_resolve("getDataDir"))
   }
@@ -156,7 +158,8 @@ impl<R: Runtime> PathResolver<R> {
   /// Returns the path to the suggested directory for your app's local data files.
   ///
   /// Resolves to [`local_data_dir`]`/${bundle_identifier}`,
-  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/local-data`).
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
     self.app_dir(AppDirectory::LocalData, || self.call_resolve("getDataDir"))
   }

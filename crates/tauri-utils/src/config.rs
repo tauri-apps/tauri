@@ -3232,8 +3232,9 @@ fn validate_app_directory_override(path: &Path) -> Result<(), String> {
 pub enum AppDirectoriesOverride {
   /// A single directory that holds all app directories.
   ///
-  /// The config, data and local data directories resolve to this path,
-  /// the cache directory resolves to `<path>/caches` and the log directory to `<path>/logs`.
+  /// The config directory resolves to `<path>/config`, the data directory to `<path>/data`,
+  /// the local data directory to `<path>/local-data`, the cache directory to `<path>/caches`
+  /// and the log directory to `<path>/logs`.
   Root(PathBuf),
   /// Overrides for individual app directories.
   ///
@@ -3410,9 +3411,17 @@ pub struct AppConfig {
   /// though a distinct `identifier` for development builds achieves that while keeping the production directory layout.
   ///
   /// The value is either a single path used as the root of every app directory
-  /// (config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),
+  /// (config resolves to `<root>/config`, data to `<root>/data`, local data to `<root>/local-data`,
+  /// cache to `<root>/caches` and log to `<root>/logs`),
   /// or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),
   /// each resolving to exactly the configured path. Directories that are not listed in the object keep their default location.
+  ///
+  /// Scopes and permissions that refer to the app directories, such as `$APPDATA/**` in the file system plugin's
+  /// default permissions, follow the override. An app directory must therefore be dedicated to the app:
+  /// resolving to the directory containing the executable, the home directory, the base directory the path is relative to
+  /// (e.g. `$DOCUMENT`) or a parent of them is an error, since it would give the webview access to unrelated files,
+  /// such as the executable of a portable app. A root override never resolves to such a directory,
+  /// since every app directory is a subdirectory of the root.
   ///
   /// Each path is resolved as follows:
   ///

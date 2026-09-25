@@ -155,7 +155,7 @@ enum BaseDirectory {
 /**
  * Returns the path to the suggested directory for your app's config files.
  * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`,
- * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config.
+ * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config (a single root override resolves to `${root}/config`).
  * @example
  * ```typescript
  * import { appConfigDir } from '@tauri-apps/api/path';
@@ -173,7 +173,7 @@ async function appConfigDir(): Promise<string> {
 /**
  * Returns the path to the suggested directory for your app's data files.
  * Resolves to `${dataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`,
- * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config.
+ * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config (a single root override resolves to `${root}/data`).
  * @example
  * ```typescript
  * import { appDataDir } from '@tauri-apps/api/path';
@@ -191,7 +191,7 @@ async function appDataDir(): Promise<string> {
 /**
  * Returns the path to the suggested directory for your app's local data files.
  * Resolves to `${localDataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`,
- * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config.
+ * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config (a single root override resolves to `${root}/local-data`).
  * @example
  * ```typescript
  * import { appLocalDataDir } from '@tauri-apps/api/path';

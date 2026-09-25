@@ -25,7 +25,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt::{self, Debug},
-  sync::Arc,
+  sync::{Arc, Mutex, PoisonError},
 };
 
 /// Mobile APIs.
@@ -33,7 +33,12 @@ use std::{
 pub mod mobile;
 
 /// The plugin interface.
-pub trait Plugin<R: Runtime>: Send {
+///
+/// Except for [`Self::initialize`], the hooks take `&self` and may run concurrently on different threads,
+/// so a plugin that needs mutable state must use interior mutability.
+/// No lock is held while they run, so a hook can use any Tauri API,
+/// including adding or removing plugins and exiting the app.
+pub trait Plugin<R: Runtime>: Send + Sync {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
@@ -70,42 +75,42 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Callback invoked when the window is created.
   #[allow(unused_variables)]
-  fn window_created(&mut self, window: Window<R>) {}
+  fn window_created(&self, window: Window<R>) {}
 
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn webview_created(&mut self, webview: Webview<R>) {}
+  fn webview_created(&self, webview: Webview<R>) {}
 
   /// Callback invoked when webview tries to navigate to the given Url. Returning false cancels navigation.
   #[allow(unused_variables)]
-  fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
+  fn on_navigation(&self, webview: &Webview<R>, url: &Url) -> bool {
     true
   }
 
   /// Callback invoked when the webview performs a navigation to a page.
   #[allow(unused_variables)]
-  fn on_page_load(&mut self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {}
+  fn on_page_load(&self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {}
 
   /// Callback invoked when the event loop receives a new event.
   #[allow(unused_variables)]
-  fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
+  fn on_event(&self, app: &AppHandle<R>, event: &RunEvent) {}
 
   /// Runs the given invoke against the plugin's commands, extending [`crate::Builder::invoke_handler`].
   ///
   /// Returns whether the invoke message was handled or not.
   #[allow(unused_variables)]
-  fn run_invoke_handler(&mut self, invoke: Invoke<R>) -> bool {
+  fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
     false
   }
 }
 
 type SetupHook<R, C> =
   dyn FnOnce(&AppHandle<R>, PluginApi<R, C>) -> Result<(), Box<dyn std::error::Error>> + Send;
-type OnWindowReady<R> = dyn FnMut(Window<R>) + Send;
-type OnWebviewReady<R> = dyn FnMut(Webview<R>) + Send;
-type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
-type OnNavigation<R> = dyn Fn(&Webview<R>, &Url) -> bool + Send;
-type OnPageLoad<R> = dyn FnMut(&Webview<R>, &PageLoadPayload<'_>) + Send;
+type OnWindowReady<R> = dyn Fn(Window<R>) + Send + Sync;
+type OnWebviewReady<R> = dyn Fn(Webview<R>) + Send + Sync;
+type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
+type OnNavigation<R> = dyn Fn(&Webview<R>, &Url) -> bool + Send + Sync;
+type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// A handle to a plugin.
@@ -444,7 +449,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_navigation<F>(mut self, on_navigation: F) -> Self
   where
-    F: Fn(&Webview<R>, &Url) -> bool + Send + 'static,
+    F: Fn(&Webview<R>, &Url) -> bool + Send + Sync + 'static,
   {
     self.on_navigation = Box::new(on_navigation);
     self
@@ -468,7 +473,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: FnMut(&Webview<R>, &PageLoadPayload<'_>) + Send + 'static,
+    F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
@@ -492,7 +497,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_window_ready<F>(mut self, on_window_ready: F) -> Self
   where
-    F: FnMut(Window<R>) + Send + 'static,
+    F: Fn(Window<R>) + Send + Sync + 'static,
   {
     self.on_window_ready = Box::new(on_window_ready);
     self
@@ -516,7 +521,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
   where
-    F: FnMut(Webview<R>) + Send + 'static,
+    F: Fn(Webview<R>) + Send + Sync + 'static,
   {
     self.on_webview_ready = Box::new(on_webview_ready);
     self
@@ -548,7 +553,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_event<F>(mut self, on_event: F) -> Self
   where
-    F: FnMut(&AppHandle<R>, &RunEvent) + Send + 'static,
+    F: Fn(&AppHandle<R>, &RunEvent) + Send + Sync + 'static,
   {
     self.on_event = Box::new(on_event);
     self
@@ -720,14 +725,14 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       name: self.name,
       app: None,
       invoke_handler: self.invoke_handler,
-      setup: self.setup,
+      setup: Mutex::new(self.setup),
       initialization_script: self.initialization_script,
       on_navigation: self.on_navigation,
       on_page_load: self.on_page_load,
       on_window_ready: self.on_window_ready,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
-      on_drop: self.on_drop,
+      on_drop: Mutex::new(self.on_drop),
       uri_scheme_protocols: self.uri_scheme_protocols,
     })
   }
@@ -747,20 +752,27 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   app: Option<AppHandle<R>>,
   invoke_handler: Box<InvokeHandler<R>>,
-  setup: Option<Box<SetupHook<R, C>>>,
+  // the `FnOnce` hooks are only taken through `&mut self`,
+  // the `Mutex` makes the plugin `Sync` without requiring it from the closures
+  setup: Mutex<Option<Box<SetupHook<R, C>>>>,
   initialization_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
-  on_drop: Option<Box<OnDrop<R>>>,
+  on_drop: Mutex<Option<Box<OnDrop<R>>>>,
   uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
 }
 
 impl<R: Runtime, C: DeserializeOwned> Drop for TauriPlugin<R, C> {
   fn drop(&mut self) {
-    if let (Some(on_drop), Some(app)) = (self.on_drop.take(), self.app.take()) {
+    let on_drop = self
+      .on_drop
+      .get_mut()
+      .unwrap_or_else(PoisonError::into_inner)
+      .take();
+    if let (Some(on_drop), Some(app)) = (on_drop, self.app.take()) {
       on_drop(app);
     }
   }
@@ -777,7 +789,12 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     config: JsonValue,
   ) -> Result<(), Box<dyn std::error::Error>> {
     self.app.replace(app.clone());
-    if let Some(s) = self.setup.take() {
+    if let Some(s) = self
+      .setup
+      .get_mut()
+      .unwrap_or_else(PoisonError::into_inner)
+      .take()
+    {
       (s)(
         app,
         PluginApi {
@@ -807,39 +824,42 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     self.initialization_script.clone()
   }
 
-  fn window_created(&mut self, window: Window<R>) {
+  fn window_created(&self, window: Window<R>) {
     (self.on_window_ready)(window)
   }
 
-  fn webview_created(&mut self, webview: Webview<R>) {
+  fn webview_created(&self, webview: Webview<R>) {
     (self.on_webview_ready)(webview)
   }
 
-  fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
+  fn on_navigation(&self, webview: &Webview<R>, url: &Url) -> bool {
     (self.on_navigation)(webview, url)
   }
 
-  fn on_page_load(&mut self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
+  fn on_page_load(&self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
     (self.on_page_load)(webview, payload)
   }
 
-  fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
+  fn on_event(&self, app: &AppHandle<R>, event: &RunEvent) {
     (self.on_event)(app, event)
   }
 
-  fn run_invoke_handler(&mut self, invoke: Invoke<R>) -> bool {
+  fn run_invoke_handler(&self, invoke: Invoke<R>) -> bool {
     (self.invoke_handler)(invoke)
   }
 }
 
 /// Plugin collection type.
+///
+/// The plugins are kept in a copy-on-write list and the hooks run on a snapshot of it, so no lock is held
+/// while plugin code runs and a plugin callback can add or remove plugins or exit the app.
 pub(crate) struct PluginStore<R: Runtime = crate::DynRuntime> {
-  store: Vec<Box<dyn Plugin<R>>>,
+  store: Mutex<Arc<Vec<Arc<dyn Plugin<R>>>>>,
 }
 
 impl<R: Runtime> fmt::Debug for PluginStore<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let plugins: Vec<&str> = self.store.iter().map(|plugins| plugins.name()).collect();
+    let plugins: Vec<&str> = self.snapshot().iter().map(|p| p.name()).collect();
     f.debug_struct("PluginStore")
       .field("plugins", &plugins)
       .finish()
@@ -848,55 +868,67 @@ impl<R: Runtime> fmt::Debug for PluginStore<R> {
 
 impl<R: Runtime> Default for PluginStore<R> {
   fn default() -> Self {
-    Self { store: Vec::new() }
+    Self {
+      store: Default::default(),
+    }
   }
 }
 
 impl<R: Runtime> PluginStore<R> {
+  fn snapshot(&self) -> Arc<Vec<Arc<dyn Plugin<R>>>> {
+    // no plugin code runs under the lock, so it cannot be poisoned by a plugin panic
+    self
+      .store
+      .lock()
+      .unwrap_or_else(PoisonError::into_inner)
+      .clone()
+  }
+
+  /// Removes the plugins with the given name and adds `plugin`, if any.
+  ///
+  /// The removed plugins are returned so they are dropped after the lock is released,
+  /// since their `on_drop` hook may use the store.
+  fn replace(&self, name: &str, plugin: Option<Arc<dyn Plugin<R>>>) -> Vec<Arc<dyn Plugin<R>>> {
+    let mut store = self.store.lock().unwrap_or_else(PoisonError::into_inner);
+    let store = Arc::make_mut(&mut store);
+    let (removed, kept) = std::mem::take(store)
+      .into_iter()
+      .partition(|p| p.name() == name);
+    *store = kept;
+    store.extend(plugin);
+    removed
+  }
+
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
-  pub fn register(&mut self, plugin: Box<dyn Plugin<R>>) -> bool {
-    let len = self.store.len();
-    self.store.retain(|p| p.name() != plugin.name());
-    let result = len != self.store.len();
-    self.store.push(plugin);
-    result
+  pub fn register(&self, plugin: Box<dyn Plugin<R>>) -> bool {
+    !self.replace(plugin.name(), Some(plugin.into())).is_empty()
   }
 
   /// Removes the plugin with the given name from the store.
-  pub fn unregister(&mut self, plugin: &str) -> bool {
-    let len = self.store.len();
-    self.store.retain(|p| p.name() != plugin);
-    len != self.store.len()
+  pub fn unregister(&self, plugin: &str) -> bool {
+    !self.replace(plugin, None).is_empty()
   }
 
-  /// Initializes the given plugin.
-  pub(crate) fn initialize(
-    &self,
-    plugin: &mut Box<dyn Plugin<R>>,
-    app: &AppHandle<R>,
-    config: &PluginConfig,
-  ) -> crate::Result<()> {
-    initialize(plugin, app, config)
-  }
-
-  /// Initializes all plugins in the store.
+  /// Initializes the given plugins in order, adding each one to the store once it is initialized.
   pub(crate) fn initialize_all(
-    &mut self,
+    &self,
+    plugins: Vec<Box<dyn Plugin<R>>>,
     app: &AppHandle<R>,
     config: &PluginConfig,
   ) -> crate::Result<()> {
-    self
-      .store
-      .iter_mut()
-      .try_for_each(|plugin| initialize(plugin, app, config))
+    for mut plugin in plugins {
+      initialize(&mut plugin, app, config)?;
+      self.register(plugin);
+    }
+    Ok(())
   }
 
   /// Generates an initialization script from all plugins in the store.
   pub(crate) fn initialization_script(&self) -> Vec<InitializationScript> {
     self
-      .store
+      .snapshot()
       .iter()
       .filter_map(|p| p.initialization_script())
       .map(
@@ -912,8 +944,8 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Runs the created hook for all plugins in the store.
-  pub(crate) fn window_created(&mut self, window: Window<R>) {
-    self.store.iter_mut().for_each(|plugin| {
+  pub(crate) fn window_created(&self, window: Window<R>) {
+    self.snapshot().iter().for_each(|plugin| {
       #[cfg(feature = "tracing")]
       let _span = tracing::trace_span!("plugin::hooks::created", name = plugin.name()).entered();
       plugin.window_created(window.clone())
@@ -921,15 +953,15 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Runs the webview created hook for all plugins in the store.
-  pub(crate) fn webview_created(&mut self, webview: Webview<R>) {
+  pub(crate) fn webview_created(&self, webview: Webview<R>) {
     self
-      .store
-      .iter_mut()
+      .snapshot()
+      .iter()
       .for_each(|plugin| plugin.webview_created(webview.clone()))
   }
 
-  pub(crate) fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
-    for plugin in self.store.iter_mut() {
+  pub(crate) fn on_navigation(&self, webview: &Webview<R>, url: &Url) -> bool {
+    for plugin in self.snapshot().iter() {
       #[cfg(feature = "tracing")]
       let _span =
         tracing::trace_span!("plugin::hooks::on_navigation", name = plugin.name()).entered();
@@ -941,8 +973,8 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
-  pub(crate) fn on_page_load(&mut self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
-    self.store.iter_mut().for_each(|plugin| {
+  pub(crate) fn on_page_load(&self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
+    self.snapshot().iter().for_each(|plugin| {
       #[cfg(feature = "tracing")]
       let _span =
         tracing::trace_span!("plugin::hooks::on_page_load", name = plugin.name()).entered();
@@ -951,23 +983,21 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Runs the on_event hook for all plugins in the store.
-  pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
+  pub(crate) fn on_event(&self, app: &AppHandle<R>, event: &RunEvent) {
     self
-      .store
-      .iter_mut()
+      .snapshot()
+      .iter()
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
   /// Runs the plugin [`Plugin::run_invoke_handler`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
-  pub(crate) fn run_invoke_handler(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
-    for p in self.store.iter_mut() {
-      if p.name() == plugin {
-        #[cfg(feature = "tracing")]
-        let _span = tracing::trace_span!("plugin::hooks::ipc", name = plugin).entered();
-        return p.run_invoke_handler(invoke);
-      }
+  pub(crate) fn run_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
+    if let Some(p) = self.snapshot().iter().find(|p| p.name() == plugin) {
+      #[cfg(feature = "tracing")]
+      let _span = tracing::trace_span!("plugin::hooks::ipc", name = plugin).entered();
+      return p.run_invoke_handler(invoke);
     }
     invoke.resolver.reject(format!("plugin {plugin} not found"));
     true
@@ -1036,5 +1066,45 @@ impl<'de> Deserialize<'de> for PermissionState {
       "prompt-with-rationale" => Ok(Self::PromptWithRationale),
       _ => Err(DeError::custom(format!("unknown permission state '{s}'"))),
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::Builder;
+  use crate::test::{MockRuntime, mock_builder, mock_context, noop_assets};
+
+  // plugin hooks used to run with the plugin store locked,
+  // so a plugin that used an API accessing the store from one of them deadlocked
+  #[test]
+  fn plugin_hooks_can_access_the_plugin_store() {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+      let app = mock_builder()
+        .plugin(
+          Builder::<MockRuntime, ()>::new("outer")
+            .setup(|app, _api| {
+              app.plugin(
+                Builder::<_, ()>::new("inner")
+                  .on_drop(|app| {
+                    app.remove_plugin("outer");
+                  })
+                  .build(),
+              )?;
+              assert!(app.remove_plugin("inner"));
+              Ok(())
+            })
+            .build(),
+        )
+        .build(mock_context(noop_assets()))
+        .unwrap();
+      let _ = tx.send(app.handle().remove_plugin("outer"));
+    });
+
+    let outer_registered = rx
+      .recv_timeout(std::time::Duration::from_secs(30))
+      .expect("deadlocked on the plugin store");
+    // `outer` is only added to the store after its setup, so `inner`'s on_drop did not find it
+    assert!(outer_registered);
   }
 }

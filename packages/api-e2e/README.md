@@ -64,14 +64,14 @@ pnpm build:cli    # examples/api's `tauri` script uses the local native CLI
 
 Platform driver dependencies:
 
-| Platform      | Requirement                                                                                                               |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| macOS         | `CN_API_KEY` env var (CrabNebula Cloud). The automation plugin and test-runner-backend are wired up already.              |
-| Linux (wry)   | `webkit2gtk-driver` package (provides `WebKitWebDriver`).                                                                 |
-| Windows (wry) | `msedgedriver.exe` matching your Edge version, on `PATH`. Run the suite unelevated.                                       |
-| CEF (any OS)  | `CN_API_KEY` env var, and `libpipewire-0.3` on Linux (the driver links it). The `cef` crate downloads CEF on first build. |
-| Android  | The usual Tauri Android setup (`ANDROID_HOME`, `NDK_HOME`, a JDK), plus a running emulator or a connected device with USB debugging. Network access the first time, for the chromedriver download.                 |
-| iOS      | macOS with Xcode and an iOS simulator runtime. `tauri ios init` installs [xcodegen](https://github.com/yonaskolb/XcodeGen) through Homebrew if missing. The first session compiles WebDriverAgent (a few minutes). |
+| Platform      | Requirement                                                                                                                                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| macOS         | `CN_API_KEY` env var (CrabNebula Cloud). The automation plugin and test-runner-backend are wired up already.                                                                                                       |
+| Linux (wry)   | `webkit2gtk-driver` package (provides `WebKitWebDriver`).                                                                                                                                                          |
+| Windows (wry) | `msedgedriver.exe` matching your Edge version, on `PATH`. Run the suite unelevated.                                                                                                                                |
+| CEF (any OS)  | `CN_API_KEY` env var, and `libpipewire-0.3` on Linux (the driver links it). The `cef` crate downloads CEF on first build.                                                                                          |
+| Android       | The usual Tauri Android setup (`ANDROID_HOME`, `NDK_HOME`, a JDK), plus a running emulator or a connected device with USB debugging. Network access the first time, for the chromedriver download.                 |
+| iOS           | macOS with Xcode and an iOS simulator runtime. `tauri ios init` installs [xcodegen](https://github.com/yonaskolb/XcodeGen) through Homebrew if missing. The first session compiles WebDriverAgent (a few minutes). |
 
 On Linux the app also needs a tray host: it registers a tray icon at startup, which is a
 StatusNotifierItem on the session bus, and fails to start when nothing owns

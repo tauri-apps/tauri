@@ -563,6 +563,10 @@ mod tests {
       "$HOME",
     ];
     for directory in rejected {
+      // XDG user directories are unset on some systems (e.g. CI runners)
+      if directory == "$DOCUMENT" && dirs::document_dir().is_none() {
+        continue;
+      }
       let app = app_with(Some(AppDirectoriesOverride::Directories(
         AppDirectoryOverrides {
           data: Some(directory.into()),

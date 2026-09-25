@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  io::IsTerminal,
-  path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use crate::{
   Result,
@@ -99,16 +96,6 @@ pub fn command(mut options: Options) -> Result<()> {
   } else {
     crate::error::bail!("Key generation aborted: Unable to find the private key");
   };
-
-  if options.password.is_none() {
-    if std::io::stdin().is_terminal() {
-      println!("Decrypting private key, expect a prompt for password.");
-    } else {
-      // the password prompt needs a terminal, so assume the key has no password
-      println!("Signing without password.");
-      options.password.replace(String::new());
-    }
-  }
 
   if options.app_version.is_none() {
     println!(

@@ -8,7 +8,7 @@ use minisign::{
 };
 use std::{
   fs::{self, File, OpenOptions},
-  io::{BufReader, Write},
+  io::{BufReader, IsTerminal, Write},
   path::{Path, PathBuf},
   str,
   time::{SystemTime, UNIX_EPOCH},
@@ -23,17 +23,24 @@ pub struct KeyPair {
   pub sk: String,
 }
 
-/// Writes `contents` to a new temporary file in `dir`.
-///
-/// On Unix the file is created with mode 0o600 so it is only readable by the current user.
-fn write_temp_file(dir: &Path, contents: &str) -> crate::Result<tempfile::NamedTempFile> {
-  let mut file = tempfile::NamedTempFile::new_in(dir)
-    .fs_context("failed to create temporary file", dir.to_path_buf())?;
-  file
-    .write_all(contents.as_bytes())
-    .and_then(|_| file.flush())
-    .fs_context("failed to write temporary file", file.path().to_path_buf())?;
-  Ok(file)
+/// Writes the secret key to `path`, making sure it is only readable by the current user on Unix.
+fn write_secret_key(path: &Path, contents: &str) -> std::io::Result<()> {
+  let mut options = OpenOptions::new();
+  options.write(true).create(true).truncate(true);
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::OpenOptionsExt;
+    options.mode(0o600);
+  }
+  let mut file = options.open(path)?;
+  // the mode above only applies to newly created files, so also restrict an existing one
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+    file.set_permissions(fs::Permissions::from_mode(0o600))?;
+  }
+  file.write_all(contents.as_bytes())?;
+  file.flush()
 }
 
 /// Generate base64 encoded keypair
@@ -95,33 +102,12 @@ where
     }
   }
 
-  let dir = match sk_path.parent() {
-    Some(parent) if !parent.as_os_str().is_empty() => parent,
-    _ => Path::new("."),
-  };
-  fs::create_dir_all(dir).fs_context("failed to create directory", dir.to_path_buf())?;
-
-  // write both keys to temporary files first and then rename them over the destination,
-  // so a failure never leaves the existing key pair deleted or half written
-  let sk_file = write_temp_file(dir, key)?;
-  let pk_file = write_temp_file(dir, pubkey)?;
-  #[cfg(unix)]
-  {
-    use std::os::unix::fs::PermissionsExt;
-    fs::set_permissions(pk_file.path(), fs::Permissions::from_mode(0o644)).fs_context(
-      "failed to set public key permissions",
-      pk_file.path().to_path_buf(),
-    )?;
+  if let Some(parent) = sk_path.parent() {
+    fs::create_dir_all(parent).fs_context("failed to create directory", parent.to_path_buf())?;
   }
 
-  sk_file
-    .persist(sk_path)
-    .map_err(|e| e.error)
-    .fs_context("failed to write secret key", sk_path.to_path_buf())?;
-  pk_file
-    .persist(pk_path)
-    .map_err(|e| e.error)
-    .fs_context("failed to write public key", pk_path.to_path_buf())?;
+  write_secret_key(sk_path, key).fs_context("failed to write secret key", sk_path.to_path_buf())?;
+  fs::write(pk_path, pubkey).fs_context("failed to write public key", pk_path.to_path_buf())?;
 
   Ok((
     fs::canonicalize(sk_path).fs_context(
@@ -208,14 +194,24 @@ where
 
 /// Gets the updater secret key from the given private key and password.
 ///
-/// If `password` is `None`, a password is going to be prompted interactively.
+/// If `password` is `None`, a password is going to be prompted interactively,
+/// or an empty password is assumed when stdin is not a terminal.
 pub fn secret_key<S: AsRef<[u8]>>(
   private_key: S,
-  password: Option<String>,
+  mut password: Option<String>,
 ) -> crate::Result<SecretKey> {
   let decoded_secret = decode_key(private_key).context("failed to decode base64 secret key")?;
   let sk_box =
     SecretKeyBox::from_string(&decoded_secret).context("failed to load updater private key")?;
+  if password.is_none() {
+    if std::io::stdin().is_terminal() {
+      log::info!("Decrypting updater private key, expect a prompt for password");
+    } else {
+      // the password prompt needs a terminal, so assume the key has no password
+      log::info!("No updater private key password provided, assuming an empty password");
+      password.replace(String::new());
+    }
+  }
   let sk = sk_box
     .into_secret_key(password)
     .context("incorrect updater private key password")?;
@@ -314,12 +310,16 @@ mod tests {
   #[test]
   fn rejects_file_name_that_breaks_the_trusted_comment() {
     let dir = tempfile::tempdir().unwrap();
+    // the name is validated before the file is opened, so it does not need to exist
+    // (Windows does not allow tabs in file names at all)
     let path = dir.path().join("app\tfile:evil.txt");
-    std::fs::write(&path, b"TAURI").expect("failed to write test file");
 
     let secret_key =
       secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
-    assert!(sign_file(&secret_key, &path, None).is_err());
+    let Err(error) = sign_file(&secret_key, &path, None) else {
+      panic!("expected signing to fail");
+    };
+    assert!(error.to_string().contains("tab or newline"), "{error}");
   }
 
   #[test]

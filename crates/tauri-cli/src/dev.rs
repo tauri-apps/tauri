@@ -88,6 +88,13 @@ pub struct Options {
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
+  /// Run the app with Windows package identity, so APIs that require it (notifications,
+  /// share targets, app URI handlers, Windows App SDK) work during development.
+  ///
+  /// Requires Microsoft's `winapp` CLI (`npm i -D @microsoft/winappcli`) and a
+  /// `Package.appxmanifest` in the Tauri directory, created by `winapp init`.
+  #[clap(long)]
+  pub packaged: bool,
   /// Specify port for the built-in dev server for static files. Defaults to 1430.
   #[clap(long, env = "TAURI_CLI_PORT")]
   pub port: Option<u16>,

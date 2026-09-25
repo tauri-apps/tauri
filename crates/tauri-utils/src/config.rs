@@ -42,7 +42,7 @@ use std::{
   collections::{BTreeMap, HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
-  path::PathBuf,
+  path::{Component, Path, PathBuf},
   str::FromStr,
 };
 
@@ -1573,7 +1573,7 @@ pub enum V1Compatible {
 ///
 /// See more: <https://v2.tauri.app/reference/config/#bundleconfig>
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BundleConfig {
@@ -2270,9 +2270,13 @@ pub struct WindowConfig {
   )]
   pub disable_input_accessory_view: bool,
   /// Set a custom path for the webview's data directory (localStorage, cache, etc.),
-  /// **relative to the app data directory (`appDataDir()`), followed by the window label**.
+  /// **relative to the local data directory (`localDataDir()`), followed by the window label**.
   ///
   /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
+  ///
+  /// This path is not affected by the `app > appDirectoriesOverride` config.
+  /// To keep the webview data in an overridden directory, leave this unset (the webview then uses the app local data directory)
+  /// or resolve a path from `app.path().app_local_data_dir()` and set it with `WebviewWindowBuilder::data_directory`.
   ///
   /// #### Platform-specific:
   ///
@@ -3164,6 +3168,140 @@ pub enum PatternKind {
   },
 }
 
+/// The base directory variables an [`AppDirectoriesOverride`] path can start with.
+///
+/// `$RESOURCE` is excluded because the resource directory is read-only in bundled apps,
+/// `$EXE`, `$FONT`, `$RUNTIME` and `$TEMPLATE` because they are not available on every desktop platform,
+/// and the `$APP*` variables because they refer to the directories being overridden.
+const APP_DIRECTORIES_OVERRIDE_VARIABLES: &[&str] = &[
+  "$AUDIO",
+  "$CACHE",
+  "$CONFIG",
+  "$DATA",
+  "$LOCALDATA",
+  "$DESKTOP",
+  "$DOCUMENT",
+  "$DOWNLOAD",
+  "$HOME",
+  "$PICTURE",
+  "$PUBLIC",
+  "$TEMP",
+  "$VIDEO",
+];
+
+/// Validates a path used to override an app directory, see [`AppDirectoriesOverride`].
+fn validate_app_directory_override(path: &Path) -> Result<(), String> {
+  let mut components = path.components();
+  let first = components.next();
+
+  if let Some(Component::Normal(first)) = first {
+    if let Some(variable) = first.to_str().filter(|s| s.starts_with('$')) {
+      if !APP_DIRECTORIES_OVERRIDE_VARIABLES.contains(&variable) {
+        return Err(format!(
+          "`{}` starts with the unsupported base directory variable `{variable}`, expected one of {}",
+          path.display(),
+          APP_DIRECTORIES_OVERRIDE_VARIABLES
+            .iter()
+            .map(|v| format!("`{v}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+        ));
+      }
+      return Ok(());
+    }
+  }
+
+  // Windows root-relative (`\foo`) and drive-relative (`C:foo`) paths are neither absolute
+  // nor relative to the executable, so they cannot be resolved predictably
+  if !path.is_absolute() && (path.has_root() || matches!(first, Some(Component::Prefix(_)))) {
+    return Err(format!(
+      "`{}` must be an absolute path, a path relative to the executable or a path starting with a base directory variable",
+      path.display()
+    ));
+  }
+
+  Ok(())
+}
+
+/// Overrides the directories returned by the `app_*_dir` path APIs.
+///
+/// See the `app > appDirectoriesOverride` config for how each path is resolved.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum AppDirectoriesOverride {
+  /// A single directory that holds all app directories.
+  ///
+  /// The config, data and local data directories resolve to this path,
+  /// the cache directory resolves to `<path>/caches` and the log directory to `<path>/logs`.
+  Root(PathBuf),
+  /// Overrides for individual app directories.
+  ///
+  /// Directories that are not listed keep their default location.
+  Directories(AppDirectoryOverrides),
+}
+
+impl AppDirectoriesOverride {
+  /// The paths configured by this override.
+  fn paths(&self) -> impl Iterator<Item = &PathBuf> {
+    match self {
+      Self::Root(root) => vec![Some(root)],
+      Self::Directories(directories) => vec![
+        directories.config.as_ref(),
+        directories.data.as_ref(),
+        directories.local_data.as_ref(),
+        directories.cache.as_ref(),
+        directories.log.as_ref(),
+      ],
+    }
+    .into_iter()
+    .flatten()
+  }
+}
+
+impl<'de> Deserialize<'de> for AppDirectoriesOverride {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let value = UntaggedEnumVisitor::new()
+      .string(|path| Ok(Self::Root(PathBuf::from(path))))
+      .map(|map| {
+        map
+          .deserialize::<AppDirectoryOverrides>()
+          .map(Self::Directories)
+      })
+      .deserialize(deserializer)?;
+
+    for path in value.paths() {
+      validate_app_directory_override(path).map_err(DeError::custom)?;
+    }
+
+    Ok(value)
+  }
+}
+
+/// Overrides for individual app directories.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppDirectoryOverrides {
+  /// Overrides the app config directory (`app_config_dir`, `$APPCONFIG`).
+  pub config: Option<PathBuf>,
+  /// Overrides the app data directory (`app_data_dir`, `$APPDATA`).
+  pub data: Option<PathBuf>,
+  /// Overrides the app local data directory (`app_local_data_dir`, `$APPLOCALDATA`).
+  ///
+  /// On Windows and Linux this is also the default data directory of the webviews.
+  #[serde(alias = "local-data", alias = "local_data")]
+  pub local_data: Option<PathBuf>,
+  /// Overrides the app cache directory (`app_cache_dir`, `$APPCACHE`).
+  pub cache: Option<PathBuf>,
+  /// Overrides the app log directory (`app_log_dir`, `$APPLOG`).
+  pub log: Option<PathBuf>,
+}
+
 /// The App configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#appconfig>
@@ -3257,6 +3395,105 @@ pub struct AppConfig {
   /// - **Windows / macOS / Android / iOS**: Unsupported.
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
+  /// Overrides the directories returned by the `app_*_dir` path APIs (`app_config_dir`, `app_data_dir`,
+  /// `app_local_data_dir`, `app_cache_dir` and `app_log_dir`) and the matching `$APPCONFIG`, `$APPDATA`,
+  /// `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.
+  ///
+  /// This is useful for portable apps that keep all of their data next to the executable,
+  /// and for apps that want their app directories in a location they choose, such as `$DOCUMENT/my-app`.
+  /// Everything that resolves paths through these APIs follows the override, including Tauri itself
+  /// (the default webview data directory on Windows and Linux) and plugins,
+  /// so the storage locations do not need to be configured one by one.
+  /// The only exception is a window's `dataDirectory` config, which is not affected.
+  ///
+  /// It can also isolate the data of a development build from an installed version of the app,
+  /// though a distinct `identifier` for development builds achieves that while keeping the production directory layout.
+  ///
+  /// The value is either a single path used as the root of every app directory
+  /// (config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),
+  /// or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),
+  /// each resolving to exactly the configured path. Directories that are not listed in the object keep their default location.
+  ///
+  /// Each path is resolved as follows:
+  ///
+  /// - A path starting with a base directory variable is resolved relative to that directory.
+  ///   The supported variables are `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`,
+  ///   `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.
+  ///   `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.
+  /// - An absolute path is used as is.
+  /// - Any other path is resolved relative to the directory containing the executable,
+  ///   which must be writable, see the platform-specific notes below.
+  ///
+  /// ## Examples
+  ///
+  /// Keep all data next to the executable, for a portable build:
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "appDirectoriesOverride": "./"
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Only move the logs and the cache:
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "appDirectoriesOverride": {
+  ///       "log": "$DATA/my-app/logs",
+  ///       "cache": "$CACHE/my-app"
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Set the override at runtime, for instance from an environment variable, a command line flag
+  /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
+  /// before building the app:
+  ///
+  /// ```rust
+  /// use tauri::utils::config::AppDirectoriesOverride;
+  ///
+  /// fn main() {
+  ///   let mut context = tauri::generate_context!();
+  ///
+  ///   if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
+  ///     context.config_mut().app.app_directories_override =
+  ///       Some(AppDirectoriesOverride::Root(data_dir.into()));
+  ///   }
+  ///
+  ///   tauri::Builder::default()
+  ///     .run(context)
+  ///     .expect("error while running tauri application");
+  /// }
+  /// ```
+  ///
+  /// ## Platform-specific
+  ///
+  /// A path relative to the executable only works where the executable's directory is writable:
+  /// portable builds, `tauri dev` builds in the `target` directory and the cases listed below.
+  /// Everywhere else every write to an app directory fails at runtime, so installed apps should use
+  /// a base directory variable or an absolute path instead. Unless every distribution of the app is portable,
+  /// keep relative paths out of the shared configuration and apply them to the portable build flavor only,
+  /// for instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:
+  ///
+  /// ```sh
+  /// tauri build --config '{ "app": { "appDirectoriesOverride": "./" } }'
+  /// ```
+  ///
+  /// - **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,
+  ///   as long as it is kept in a writable directory. `.deb` and `.rpm` packages install the executable to `/usr/bin`.
+  /// - **macOS**: Relative paths are resolved next to the `.app` bundle. This does not work for installed apps,
+  ///   since `/Applications` is not writable for standard users, nor for bundles downloaded from the internet,
+  ///   which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.
+  /// - **Windows**: Relative paths also work for per-user NSIS installers,
+  ///   but not for per-machine installers in `Program Files`.
+  /// - **Android / iOS**: Relative paths are not supported, since there is no writable directory next to the executable.
+  ///   Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.
+  #[serde(alias = "app-directories-override")]
+  pub app_directories_override: Option<AppDirectoriesOverride>,
 }
 
 impl AppConfig {
@@ -3389,9 +3626,193 @@ impl Default for IosConfig {
   }
 }
 
+/// Configuration for Android Activity Embedding, which splits activities
+/// side by side on large screens.
+///
+/// When enabled with at least one split rule, the build script generates the Gradle
+/// dependencies, the Android manifest entries and a `TauriSplitInitializer` Kotlin class.
+/// Each secondary activity is declared in the manifest automatically, and a default
+/// `TauriActivity` subclass is generated for it unless the app sources already define
+/// a class with that name in the application package.
+///
+/// See <https://developer.android.com/guide/topics/large-screens/activity-embedding>
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ActivityEmbeddingConfig {
+  /// When `false`, Tauri does not generate embedding Gradle entries, manifest updates, or `TauriSplitInitializer`.
+  #[serde(default = "default_true")]
+  pub enabled: bool,
+  /// Split pair rules defining how activities are laid out side by side.
+  #[serde(alias = "split-rules", default)]
+  pub split_rules: Vec<SplitPairRule>,
+}
+
+/// A split pair rule for Android Activity Embedding.
+///
+/// Defines how a primary and secondary activity are displayed side by side
+/// on screens that satisfy the configured minimum dimensions.
+///
+/// Mirrors the fields of [`androidx.window.embedding.SplitPairRule.Builder`] and
+/// the [`SplitPairFilter`] it accepts. Only [`primary`](Self::primary) and
+/// [`secondary`](Self::secondary) are required; all other fields fall back to
+/// the Android SDK defaults when omitted.
+///
+/// [`androidx.window.embedding.SplitPairRule.Builder`]: https://developer.android.com/reference/androidx/window/embedding/SplitPairRule.Builder
+/// [`SplitPairFilter`]: https://developer.android.com/reference/androidx/window/embedding/SplitPairFilter
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SplitPairRule {
+  /// The primary activity class name, relative to the application package
+  /// (e.g. `"MainActivity"` or a fully-qualified name like
+  /// `"com.example.MainActivity"`). The activity must exist and be declared
+  /// in the Android manifest, as `MainActivity` is by default.
+  pub primary: String,
+  /// The secondary activity class name, relative to the application package
+  /// (e.g. `"DetailActivity"` or a fully-qualified name).
+  ///
+  /// Secondary activities are declared in the Android manifest automatically
+  /// unless the manifest already declares them. When no source file with this
+  /// name exists in the application package, a default class extending
+  /// `TauriActivity` is generated. A custom implementation must extend
+  /// `TauriActivity` so it can host a webview window.
+  pub secondary: String,
+  /// Optional intent action used to match the secondary activity when it is
+  /// started via an implicit intent.
+  #[serde(alias = "secondary-intent-action")]
+  pub secondary_intent_action: Option<String>,
+
+  /// How the parent window is split. When omitted, the SDK uses an equal
+  /// 50/50 ratio.
+  #[serde(alias = "split-type")]
+  pub split_type: Option<SplitType>,
+  /// The layout direction of the primary/secondary containers. Defaults to
+  /// the system locale direction.
+  #[serde(alias = "layout-direction")]
+  pub layout_direction: Option<SplitLayoutDirection>,
+
+  /// Minimum parent window width in dp for the split to apply. Defaults to the
+  /// SDK value (`600`).
+  #[serde(alias = "min-width-dp")]
+  pub min_width_dp: Option<u32>,
+  /// Minimum parent window height in dp for the split to apply. Defaults to the
+  /// SDK value (`600`).
+  #[serde(alias = "min-height-dp")]
+  pub min_height_dp: Option<u32>,
+  /// Minimum smallest width of the parent window in dp for the split to apply.
+  /// Defaults to the SDK value (`600`).
+  #[serde(alias = "min-smallest-width-dp")]
+  pub min_smallest_width_dp: Option<u32>,
+
+  /// Maximum height/width aspect ratio (portrait) for which the split applies.
+  #[serde(alias = "max-aspect-ratio-in-portrait")]
+  pub max_aspect_ratio_in_portrait: Option<EmbeddingAspectRatio>,
+  /// Maximum height/width aspect ratio (landscape) for which the split applies.
+  #[serde(alias = "max-aspect-ratio-in-landscape")]
+  pub max_aspect_ratio_in_landscape: Option<EmbeddingAspectRatio>,
+
+  /// Behavior of the primary container when all activities in the secondary
+  /// container finish. Defaults to [`SplitFinishBehavior::Never`].
+  #[serde(alias = "finish-primary-with-secondary")]
+  pub finish_primary_with_secondary: Option<SplitFinishBehavior>,
+  /// Behavior of the secondary container when all activities in the primary
+  /// container finish. Defaults to [`SplitFinishBehavior::Always`].
+  #[serde(alias = "finish-secondary-with-primary")]
+  pub finish_secondary_with_primary: Option<SplitFinishBehavior>,
+
+  /// Whether the existing secondary container and all activities in it should
+  /// be destroyed when a new split is created using this rule.
+  #[serde(alias = "clear-top")]
+  pub clear_top: Option<bool>,
+
+  /// Optional tag used to identify this rule at runtime.
+  pub tag: Option<String>,
+}
+
+/// How the parent window is split between primary and secondary containers.
+///
+/// Mirrors [`androidx.window.embedding.SplitAttributes.SplitType`].
+///
+/// [`androidx.window.embedding.SplitAttributes.SplitType`]: https://developer.android.com/reference/androidx/window/embedding/SplitAttributes.SplitType
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum SplitType {
+  /// Splits the parent into two containers with the given weight
+  /// for the primary container. Must be greater than `0.0` and less
+  /// than `1.0`; other values fail the build.
+  Ratio(f64),
+  /// The secondary container expands to cover the entire parent window.
+  Expand,
+  /// The split aligns with the device hinge/fold. Cannot be used as a
+  /// default split type without hinge-aware devices.
+  Hinge,
+}
+
+/// A layout direction for an activity embedding split.
+///
+/// Mirrors [`androidx.window.embedding.SplitAttributes.LayoutDirection`].
+///
+/// [`androidx.window.embedding.SplitAttributes.LayoutDirection`]: https://developer.android.com/reference/androidx/window/embedding/SplitAttributes.LayoutDirection
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum SplitLayoutDirection {
+  /// Use the system locale's layout direction.
+  Locale,
+  /// Primary on the left, secondary on the right.
+  LeftToRight,
+  /// Primary on the right, secondary on the left.
+  RightToLeft,
+  /// Primary on top, secondary on the bottom.
+  TopToBottom,
+  /// Primary on the bottom, secondary on top.
+  BottomToTop,
+}
+
+/// Describes how an activity container should finish when the linked
+/// container finishes.
+///
+/// Mirrors [`androidx.window.embedding.SplitRule.FinishBehavior`].
+///
+/// [`androidx.window.embedding.SplitRule.FinishBehavior`]: https://developer.android.com/reference/androidx/window/embedding/SplitRule.FinishBehavior
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum SplitFinishBehavior {
+  /// Never finish the container when the linked container finishes.
+  Never,
+  /// Always finish the container when the linked container finishes.
+  Always,
+  /// Finish the container only when the linked container finishes
+  /// while they are displayed side-by-side.
+  Adjacent,
+}
+
+/// Maximum aspect ratio (height / width) of the parent window for which
+/// activity embedding should apply.
+///
+/// Mirrors [`androidx.window.embedding.EmbeddingAspectRatio`].
+///
+/// [`androidx.window.embedding.EmbeddingAspectRatio`]: https://developer.android.com/reference/androidx/window/embedding/EmbeddingAspectRatio
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum EmbeddingAspectRatio {
+  /// Embedding always applies regardless of aspect ratio.
+  AlwaysAllow,
+  /// Embedding never applies in this orientation.
+  AlwaysDisallow,
+  /// Embedding applies when the parent window aspect ratio is less than or
+  /// equal to this value. Must be greater than `1.0`; other values fail the build.
+  Ratio(f64),
+}
+
 /// General configuration for the Android target.
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AndroidConfig {
@@ -3424,6 +3845,14 @@ pub struct AndroidConfig {
   /// Example: ".debug" will make debug builds use "com.example.app.debug" as the application ID.
   #[serde(alias = "debug-application-id-suffix")]
   pub debug_application_id_suffix: Option<String>,
+
+  /// Activity embedding for large screens (tablets, foldables).
+  ///
+  /// When set and enabled, Tauri generates the Gradle dependencies, Android manifest entries,
+  /// a `TauriSplitInitializer` Kotlin class and a default `TauriActivity` subclass for each
+  /// secondary activity the app sources do not define.
+  #[serde(alias = "activity-embedding")]
+  pub activity_embedding: Option<ActivityEmbeddingConfig>,
 }
 
 impl Default for AndroidConfig {
@@ -3433,6 +3862,7 @@ impl Default for AndroidConfig {
       version_code: None,
       auto_increment_version_code: false,
       debug_application_id_suffix: None,
+      activity_embedding: None,
     }
   }
 }
@@ -4644,6 +5074,40 @@ mod build {
     }
   }
 
+  impl ToTokens for AppDirectoryOverrides {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let config = opt_lit_owned(self.config.as_ref().map(path_buf_lit));
+      let data = opt_lit_owned(self.data.as_ref().map(path_buf_lit));
+      let local_data = opt_lit_owned(self.local_data.as_ref().map(path_buf_lit));
+      let cache = opt_lit_owned(self.cache.as_ref().map(path_buf_lit));
+      let log = opt_lit_owned(self.log.as_ref().map(path_buf_lit));
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::AppDirectoryOverrides,
+        config,
+        data,
+        local_data,
+        cache,
+        log
+      );
+    }
+  }
+
+  impl ToTokens for AppDirectoriesOverride {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::AppDirectoriesOverride };
+
+      tokens.append_all(match self {
+        Self::Root(root) => {
+          let root = path_buf_lit(root);
+          quote! { #prefix::Root(#root) }
+        }
+        Self::Directories(directories) => quote! { #prefix::Directories(#directories) },
+      })
+    }
+  }
+
   impl ToTokens for AppConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
@@ -4652,6 +5116,7 @@ mod build {
       let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
+      let app_directories_override = opt_lit(self.app_directories_override.as_ref());
 
       literal_struct!(
         tokens,
@@ -4661,7 +5126,8 @@ mod build {
         tray_icon,
         macos_private_api,
         with_global_tauri,
-        enable_gtk_app_id
+        enable_gtk_app_id,
+        app_directories_override
       );
     }
   }
@@ -4747,6 +5213,7 @@ mod test {
       macos_private_api: false,
       with_global_tauri: false,
       enable_gtk_app_id: false,
+      app_directories_override: None,
     };
 
     // create a build config
@@ -4793,6 +5260,150 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, bundle);
     assert_eq!(d_windows, app.windows);
+  }
+
+  #[test]
+  fn app_directories_override_root() {
+    let config: AppDirectoriesOverride = serde_json::from_str(r#""./""#).unwrap();
+    assert_eq!(config, AppDirectoriesOverride::Root("./".into()));
+
+    let config: AppDirectoriesOverride = serde_json::from_str(r#""$DATA/my-app""#).unwrap();
+    assert_eq!(config, AppDirectoriesOverride::Root("$DATA/my-app".into()));
+  }
+
+  #[test]
+  fn app_directories_override_directories() {
+    let config: AppDirectoriesOverride = serde_json::from_str(
+      r#"{ "log": "$DATA/logs", "cache": "$CACHE/my-app", "local-data": "data" }"#,
+    )
+    .unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+        config: None,
+        data: None,
+        local_data: Some("data".into()),
+        cache: Some("$CACHE/my-app".into()),
+        log: Some("$DATA/logs".into()),
+      })
+    );
+
+    let config: AppDirectoriesOverride =
+      serde_json::from_str(r#"{ "config": "conf", "data": "data", "localData": "local" }"#)
+        .unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+        config: Some("conf".into()),
+        data: Some("data".into()),
+        local_data: Some("local".into()),
+        cache: None,
+        log: None,
+      })
+    );
+
+    let config: AppDirectoriesOverride = serde_json::from_str("{}").unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides::default())
+    );
+  }
+
+  #[test]
+  fn app_directories_override_rejects_unknown_directories() {
+    let err = serde_json::from_str::<AppDirectoriesOverride>(r#"{ "logs": "x" }"#).unwrap_err();
+    assert!(err.to_string().contains("unknown field `logs`"), "{err}");
+  }
+
+  #[test]
+  fn app_directories_override_accepts_supported_variables() {
+    for variable in APP_DIRECTORIES_OVERRIDE_VARIABLES {
+      for path in [
+        variable.to_string(),
+        format!("{variable}/my-app"),
+        format!("{variable}/../my-app"),
+      ] {
+        let json = serde_json::to_string(&path).unwrap();
+        let config: AppDirectoriesOverride = serde_json::from_str(&json).unwrap();
+        assert_eq!(config, AppDirectoriesOverride::Root(path.into()));
+      }
+    }
+  }
+
+  #[test]
+  fn app_directories_override_rejects_unsupported_variables() {
+    for variable in [
+      "$APPCONFIG",
+      "$APPDATA",
+      "$APPLOCALDATA",
+      "$APPCACHE",
+      "$APPLOG",
+      "$EXE",
+      "$FONT",
+      "$RESOURCE",
+      "$RUNTIME",
+      "$TEMPLATE",
+      "$UNKNOWN",
+    ] {
+      let err = serde_json::from_str::<AppDirectoriesOverride>(&format!(r#""{variable}/my-app""#))
+        .unwrap_err();
+      assert!(
+        err
+          .to_string()
+          .contains(&format!("unsupported base directory variable `{variable}`")),
+        "{variable}: {err}"
+      );
+
+      let err =
+        serde_json::from_str::<AppDirectoriesOverride>(&format!(r#"{{ "log": "{variable}" }}"#))
+          .unwrap_err();
+      assert!(
+        err
+          .to_string()
+          .contains("unsupported base directory variable"),
+        "{variable}: {err}"
+      );
+    }
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn app_directories_override_rejects_root_relative_paths() {
+    for path in [r"\my-app", "C:my-app"] {
+      let json = serde_json::to_string(path).unwrap();
+      let err = serde_json::from_str::<AppDirectoriesOverride>(&json).unwrap_err();
+      assert!(
+        err.to_string().contains("must be an absolute path"),
+        "{path}: {err}"
+      );
+    }
+  }
+
+  #[cfg(feature = "build")]
+  #[test]
+  fn app_directories_override_to_tokens() {
+    use quote::ToTokens;
+
+    let tokens = AppDirectoriesOverride::Root("./".into())
+      .to_token_stream()
+      .to_string()
+      .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AppDirectoriesOverride::Root(::std::path::PathBuf::from("./"))"#
+    );
+
+    let tokens = AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+      log: Some("$DATA/logs".into()),
+      ..Default::default()
+    })
+    .to_token_stream()
+    .to_string()
+    .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AppDirectoriesOverride::Directories(::tauri::utils::config::AppDirectoryOverrides{config:::core::option::Option::None,data:::core::option::Option::None,local_data:::core::option::Option::None,cache:::core::option::Option::None,log:::core::option::Option::Some(::std::path::PathBuf::from("$DATA/logs"))})"#
+    );
   }
 
   #[test]

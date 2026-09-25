@@ -83,12 +83,36 @@ fn java_major_version() -> Option<u32> {
 
 /// Resolves the active JDK home directory, preferring `JAVA_HOME` and otherwise
 /// deriving it from the `java` binary on `PATH` (`<home>/bin/java` -> `<home>`).
+/// Symlinks are resolved first so shims such as Linux alternatives
+/// (`/usr/bin/java` -> `/usr/lib/jvm/<jdk>/bin/java`) point at the actual JDK.
 fn java_home_dir() -> Option<PathBuf> {
   if let Some(home) = std::env::var_os("JAVA_HOME") {
     return Some(PathBuf::from(home));
   }
-  let java = which::which("java").ok()?;
-  java.parent()?.parent().map(Path::to_path_buf)
+  let java = dunce::canonicalize(which::which("java").ok()?).ok()?;
+  let home = java.parent()?.parent().map(Path::to_path_buf)?;
+
+  // on macOS `/usr/bin/java` is a stub binary that launches the JDK selected by `java_home`
+  #[cfg(target_os = "macos")]
+  if !home.join("release").exists() {
+    return macos_java_home();
+  }
+
+  Some(home)
+}
+
+/// Asks `/usr/libexec/java_home` for the default JDK home directory.
+#[cfg(target_os = "macos")]
+fn macos_java_home() -> Option<PathBuf> {
+  let output = std::process::Command::new("/usr/libexec/java_home")
+    .output()
+    .ok()?;
+  if !output.status.success() {
+    return None;
+  }
+  let home = String::from_utf8(output.stdout).ok()?;
+  let home = home.trim();
+  (!home.is_empty()).then(|| PathBuf::from(home))
 }
 
 /// Parses the major (feature) version out of a quoted Java version string (the

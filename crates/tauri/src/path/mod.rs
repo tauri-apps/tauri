@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::Runtime;
+use tauri_utils::config::AppDirectoriesOverride;
 
 use serde::{Deserialize, Deserializer, Serialize, de::Error as DeError};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -135,20 +136,24 @@ pub enum BaseDirectory {
   /// Resolves to [`std::env::temp_dir`].
   Temp = 12,
   /// The default app config directory.
-  /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
+  /// Resolves to [`crate::path::PathResolver::app_config_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppConfig = 13,
   /// The default app data directory.
-  /// Resolves to [`BaseDirectory::Data`]`/{bundle_identifier}`.
+  /// Resolves to [`crate::path::PathResolver::app_data_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppData = 14,
   /// The default app local data directory.
-  /// Resolves to [`BaseDirectory::LocalData`]`/{bundle_identifier}`.
+  /// Resolves to [`crate::path::PathResolver::app_local_data_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppLocalData = 15,
   /// The default app cache directory.
-  /// Resolves to [`BaseDirectory::Cache`]`/{bundle_identifier}`.
+  /// Resolves to [`crate::path::PathResolver::app_cache_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppCache = 16,
   /// The default app log directory.
-  /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
-  /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
+  /// Resolves to [`crate::path::PathResolver::app_log_dir`],
+  /// which can be overridden with the `app > appDirectoriesOverride` config.
   AppLog = 17,
   /// The Desktop directory.
   /// Resolves to [`crate::path::PathResolver::desktop_dir`].
@@ -365,6 +370,142 @@ fn resolve_path<R: Runtime>(
   }
 
   Ok(base_dir_path)
+}
+
+/// An app-specific directory that can be overridden with the `app > appDirectoriesOverride` config.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AppDirectory {
+  Config,
+  Data,
+  LocalData,
+  Cache,
+  Log,
+}
+
+impl AppDirectory {
+  /// The subdirectory this directory resolves to when a single root overrides all app directories.
+  fn root_override_subdirectory(self) -> Option<&'static str> {
+    match self {
+      Self::Cache => Some("caches"),
+      Self::Log => Some("logs"),
+      Self::Config | Self::Data | Self::LocalData => None,
+    }
+  }
+}
+
+impl<R: Runtime> PathResolver<R> {
+  /// Resolves an app directory, honoring the `app > appDirectoriesOverride` config.
+  pub(crate) fn app_dir(
+    &self,
+    dir: AppDirectory,
+    default: impl FnOnce() -> Result<PathBuf>,
+  ) -> Result<PathBuf> {
+    match self.app_directory_override(dir)? {
+      Some(path) => Ok(path),
+      None => default(),
+    }
+  }
+
+  /// Resolves the override configured for the given app directory, if any.
+  fn app_directory_override(&self, dir: AppDirectory) -> Result<Option<PathBuf>> {
+    let Some(config) = &self.app_handle().config().app.app_directories_override else {
+      return Ok(None);
+    };
+
+    let (path, subdirectory) = match config {
+      AppDirectoriesOverride::Root(root) => (root, dir.root_override_subdirectory()),
+      AppDirectoriesOverride::Directories(directories) => {
+        let path = match dir {
+          AppDirectory::Config => &directories.config,
+          AppDirectory::Data => &directories.data,
+          AppDirectory::LocalData => &directories.local_data,
+          AppDirectory::Cache => &directories.cache,
+          AppDirectory::Log => &directories.log,
+        };
+        match path {
+          Some(path) => (path, None),
+          None => return Ok(None),
+        }
+      }
+    };
+
+    let mut path = self.resolve_override_path(path)?;
+    if let Some(subdirectory) = subdirectory {
+      path.push(subdirectory);
+    }
+
+    Ok(Some(path))
+  }
+
+  /// Resolves a path from the `app > appDirectoriesOverride` config:
+  ///
+  /// - a path starting with a base directory variable (e.g. `$DATA/my-app`) is resolved against that directory,
+  /// - an absolute path is used as is,
+  /// - any other path is resolved relative to the app binary directory on desktop,
+  ///   and rejected on mobile where the app bundle is read-only.
+  fn resolve_override_path(&self, path: &Path) -> Result<PathBuf> {
+    let mut components = path.components();
+    let first = components.next();
+
+    if let Some(Component::Normal(first)) = first {
+      if let Some(variable) = first.to_str().filter(|s| s.starts_with('$')) {
+        let base_directory = BaseDirectory::from_variable(variable).ok_or_else(|| {
+          Error::InvalidAppDirectoriesOverride(
+            path.to_path_buf(),
+            format!("unknown base directory variable `{variable}`"),
+          )
+        })?;
+
+        if matches!(
+          base_directory,
+          BaseDirectory::AppConfig
+            | BaseDirectory::AppData
+            | BaseDirectory::AppLocalData
+            | BaseDirectory::AppCache
+            | BaseDirectory::AppLog
+        ) {
+          return Err(Error::InvalidAppDirectoriesOverride(
+            path.to_path_buf(),
+            format!("`{variable}` refers to an app directory, which is what is being overridden"),
+          ));
+        }
+
+        // unlike `parse`, `resolve` keeps `..` components
+        return self
+          .resolve(components.as_path(), base_directory)
+          .map(normalize);
+      }
+    }
+
+    if path.is_absolute() {
+      return Ok(normalize(path));
+    }
+
+    // Windows root-relative (`\foo`) and drive-relative (`C:foo`) paths would replace the base directory on join
+    if path.has_root() || matches!(first, Some(Component::Prefix(_))) {
+      return Err(Error::InvalidAppDirectoriesOverride(
+        path.to_path_buf(),
+        "root-relative and drive-relative paths are not supported".into(),
+      ));
+    }
+
+    #[cfg(desktop)]
+    {
+      Ok(normalize(self.app_binary_dir()?.join(path)))
+    }
+    #[cfg(mobile)]
+    {
+      Err(Error::InvalidAppDirectoriesOverride(
+        path.to_path_buf(),
+        "relative paths are not supported on Android and iOS, use a base directory variable or an absolute path".into(),
+      ))
+    }
+  }
+}
+
+/// Removes `.` components and trailing separators from a path, keeping `..` components.
+fn normalize(path: impl AsRef<Path>) -> PathBuf {
+  path.as_ref().components().collect()
 }
 
 #[cfg(test)]

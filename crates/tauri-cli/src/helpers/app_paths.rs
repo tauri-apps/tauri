@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  cmp::Ordering,
   env::current_dir,
   ffi::OsStr,
   path::{Path, PathBuf},
   sync::OnceLock,
 };
 
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, gitignore::GitignoreBuilder};
 
 use tauri_utils::{
   config::parse::{ConfigFormat, folder_has_configuration_file, is_configuration_file},
@@ -32,21 +31,29 @@ static FRONTEND_DIR: OnceLock<PathBuf> = OnceLock::new();
 static TAURI_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn walk_builder(path: &Path) -> WalkBuilder {
-  let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".gitignore");
-  if !default_gitignore.exists() {
-    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      use std::io::Write;
-      let _ = file.write_all(TAURI_GITIGNORE);
-    }
-  }
-
   let mut builder = WalkBuilder::new(path);
   builder.add_custom_ignore_filename(".taurignore");
   builder.git_global(false);
   builder.parents(false);
-  let _ = builder.add_ignore(default_gitignore);
+  skip_ignored_entries(&mut builder, path, TAURI_GITIGNORE);
   builder
+}
+
+/// Skips the walked entries matching the given `.gitignore`-style rules.
+///
+/// The rules are matched in memory instead of being written to a temporary ignore file,
+/// which could be tampered with by other users.
+pub fn skip_ignored_entries(builder: &mut WalkBuilder, root: &Path, rules: &[u8]) {
+  let mut gitignore = GitignoreBuilder::new(root);
+  for line in String::from_utf8_lossy(rules).lines() {
+    let _ = gitignore.add_line(None, line);
+  }
+  if let Ok(gitignore) = gitignore.build() {
+    builder.filter_entry(move |entry| {
+      let is_dir = entry.file_type().is_some_and(|t| t.is_dir());
+      !gitignore.matched(entry.path(), is_dir).is_ignore()
+    });
+  }
 }
 
 fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
@@ -62,12 +69,12 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
         })
         .unwrap_or(3),
     ))
-    .sort_by_file_path(|a, _| {
-      if a.extension().is_some() {
-        Ordering::Less
-      } else {
-        Ordering::Greater
-      }
+    // entries with an extension (files) first
+    .sort_by_file_path(|a, b| {
+      a.extension()
+        .is_none()
+        .cmp(&b.extension().is_none())
+        .then_with(|| a.cmp(b))
     });
 
   for entry in builder.build().flatten() {
@@ -164,4 +171,71 @@ pub fn resolve_frontend_dir() -> Option<PathBuf> {
     }
   })
   .map(|p| p.parent().unwrap().to_path_buf())
+}
+
+#[cfg(test)]
+mod tests {
+  use std::{cell::RefCell, fs, path::PathBuf};
+
+  #[test]
+  fn walk_builder_skips_default_ignored_entries() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    for path in [
+      "node_modules/pkg/package.json",
+      "target/debug/app",
+      "src/main.rs",
+    ] {
+      let path = root.join(path);
+      fs::create_dir_all(path.parent().unwrap()).unwrap();
+      fs::write(path, "").unwrap();
+    }
+
+    let paths = super::walk_builder(root)
+      .require_git(false)
+      .build()
+      .flatten()
+      .map(|entry| entry.path().strip_prefix(root).unwrap().to_path_buf())
+      .collect::<Vec<_>>();
+
+    assert!(paths.contains(&PathBuf::from("src/main.rs")), "{paths:?}");
+    assert!(
+      !paths
+        .iter()
+        .any(|p| p.starts_with("node_modules") || p.starts_with("target")),
+      "{paths:?}"
+    );
+  }
+
+  #[test]
+  fn lookup_visits_files_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join("a/b")).unwrap();
+    fs::write(root.join("a/b/tauri.conf.json"), "").unwrap();
+    fs::write(root.join("z.json"), "").unwrap();
+    fs::write(root.join("c.json"), "").unwrap();
+
+    let visited = RefCell::new(Vec::new());
+    super::lookup(root, |path| {
+      visited
+        .borrow_mut()
+        .push(path.strip_prefix(root).unwrap().to_path_buf());
+      false
+    });
+    let visited = visited.into_inner();
+
+    // the walk root comes first, then the files of each directory before its subdirectories
+    assert_eq!(
+      visited,
+      vec![
+        PathBuf::from(""),
+        PathBuf::from("c.json"),
+        PathBuf::from("z.json"),
+        PathBuf::from("a"),
+        PathBuf::from("a/b"),
+        PathBuf::from("a/b/tauri.conf.json"),
+      ]
+    );
+  }
 }

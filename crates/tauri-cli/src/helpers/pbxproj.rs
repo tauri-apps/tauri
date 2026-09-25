@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::BTreeMap,
+  collections::{BTreeMap, BTreeSet},
   fmt,
   path::{Path, PathBuf},
 };
@@ -21,6 +21,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
     xc_build_configuration: BTreeMap::new(),
     xc_configuration_list: BTreeMap::new(),
     additions: BTreeMap::new(),
+    removed_lines: BTreeSet::new(),
     has_changes: false,
   };
 
@@ -47,6 +48,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
             id.clone(),
             XCBuildConfiguration {
               build_settings: Vec::new(),
+              build_settings_end_line_number: None,
             },
           );
           state = State::XCBuildConfigurationObject { id };
@@ -62,14 +64,21 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
       State::XCBuildConfigurationObjectBuildSettings { id } => {
         if let Some((identation, token)) = split_at_identation(line) {
           if token == "};" {
+            proj
+              .xc_build_configuration
+              .get_mut(id)
+              .unwrap()
+              .build_settings_end_line_number = Some(line_number);
             state = State::XCBuildConfigurationObject { id: id.clone() };
           } else {
             let assignment = token.trim_end_matches(';');
             if let Some((key, value)) = assignment.split_once(" = ") {
+              let mut end_line_number = line_number;
               // multiline value
               let value = if value == "(" {
                 let mut value = value.to_string();
-                for (_next_line_number, next_line) in iter.by_ref() {
+                for (next_line_number, next_line) in iter.by_ref() {
+                  end_line_number = next_line_number;
                   value.push_str(next_line);
                   value.push('\n');
 
@@ -91,7 +100,10 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
                 .build_settings
                 .push(BuildSettings {
                   identation: identation.into(),
-                  line_number,
+                  location: BuildSettingLocation::Existing {
+                    line_number,
+                    end_line_number,
+                  },
                   key: key.trim().into(),
                   value,
                 });
@@ -151,6 +163,34 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
   Ok(proj)
 }
 
+/// Quotes a value so it can be used as a string in a pbxproj file.
+pub fn quote(value: &str) -> String {
+  format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Reverts [`quote`], returning the raw value of a (possibly quoted) pbxproj string.
+pub fn unquote(value: &str) -> String {
+  let Some(inner) = value
+    .strip_prefix('"')
+    .and_then(|value| value.strip_suffix('"'))
+  else {
+    return value.to_string();
+  };
+
+  let mut unquoted = String::with_capacity(inner.len());
+  let mut chars = inner.chars();
+  while let Some(c) = chars.next() {
+    if c == '\\' {
+      if let Some(next) = chars.next() {
+        unquoted.push(next);
+      }
+    } else {
+      unquoted.push(c);
+    }
+  }
+  unquoted
+}
+
 fn split_at_identation(s: &str) -> Option<(&str, &str)> {
   s.chars()
     .position(|c| !c.is_ascii_whitespace())
@@ -175,8 +215,10 @@ pub struct Pbxproj {
   pub xc_build_configuration: BTreeMap<String, XCBuildConfiguration>,
   pub xc_configuration_list: BTreeMap<String, XCConfigurationList>,
 
-  // maps the line number to the line to add
-  additions: BTreeMap<usize, String>,
+  // maps the line number to the lines to add before it, in order
+  additions: BTreeMap<usize, Vec<String>>,
+  // lines that were replaced by a new value (continuation of multiline values)
+  removed_lines: BTreeSet<usize>,
 
   has_changes: bool,
 }
@@ -200,9 +242,15 @@ impl Pbxproj {
     let last_line_number = self.raw_lines.len() - 1;
 
     for (number, line) in self.raw_lines.iter().enumerate() {
-      if let Some(new) = self.additions.get(&number) {
-        proj.push_str(new);
-        proj.push('\n');
+      if let Some(additions) = self.additions.get(&number) {
+        for new in additions {
+          proj.push_str(new);
+          proj.push('\n');
+        }
+      }
+
+      if self.removed_lines.contains(&number) {
+        continue;
       }
 
       proj.push_str(line);
@@ -230,27 +278,61 @@ impl Pbxproj {
       .find(|s| s.key == key)
     {
       if build_setting.value != value {
-        let Some(line) = self.raw_lines.get_mut(build_setting.line_number) else {
-          return;
-        };
-
-        *line = format!("{}{key} = {value};", build_setting.identation);
+        let new_line = format!("{}{key} = {value};", build_setting.identation);
+        match build_setting.location {
+          BuildSettingLocation::Existing {
+            line_number,
+            end_line_number,
+          } => {
+            let Some(line) = self.raw_lines.get_mut(line_number) else {
+              return;
+            };
+            *line = new_line;
+            // drop the remaining lines of a multiline value
+            self.removed_lines.extend(line_number + 1..=end_line_number);
+          }
+          BuildSettingLocation::Added { anchor, index } => {
+            let Some(line) = self
+              .additions
+              .get_mut(&anchor)
+              .and_then(|additions| additions.get_mut(index))
+            else {
+              return;
+            };
+            *line = new_line;
+          }
+        }
+        build_setting.value = value.to_string();
         self.has_changes = true;
       }
     } else {
-      let Some(last_build_setting) = build_configuration.build_settings.last().cloned() else {
+      // new settings are added right before the buildSettings closing brace
+      let Some(anchor) = build_configuration.build_settings_end_line_number else {
         return;
       };
+      let identation = match build_configuration.build_settings.last() {
+        Some(last_build_setting) => last_build_setting.identation.clone(),
+        None => {
+          let closing_brace = self.raw_lines.get(anchor).map(String::as_str);
+          let closing_identation = closing_brace
+            .and_then(split_at_identation)
+            .map(|(identation, _)| identation)
+            .unwrap_or_default();
+          format!("{closing_identation}\t")
+        }
+      };
+
+      let additions = self.additions.entry(anchor).or_default();
+      additions.push(format!("{identation}{key} = {value};"));
       build_configuration.build_settings.push(BuildSettings {
-        identation: last_build_setting.identation.clone(),
-        line_number: last_build_setting.line_number + 1,
+        identation,
+        location: BuildSettingLocation::Added {
+          anchor,
+          index: additions.len() - 1,
+        },
         key: key.to_string(),
         value: value.to_string(),
       });
-      self.additions.insert(
-        last_build_setting.line_number + 1,
-        format!("{}{key} = {value};", last_build_setting.identation),
-      );
     }
   }
 }
@@ -258,6 +340,8 @@ impl Pbxproj {
 #[derive(Debug)]
 pub struct XCBuildConfiguration {
   build_settings: Vec<BuildSettings>,
+  // line number of the buildSettings closing brace
+  build_settings_end_line_number: Option<usize>,
 }
 
 impl XCBuildConfiguration {
@@ -269,9 +353,20 @@ impl XCBuildConfiguration {
 #[derive(Debug, Clone)]
 pub struct BuildSettings {
   identation: String,
-  line_number: usize,
+  location: BuildSettingLocation,
   pub key: String,
   pub value: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum BuildSettingLocation {
+  /// A setting present in the parsed file, spanning `line_number..=end_line_number`.
+  Existing {
+    line_number: usize,
+    end_line_number: usize,
+  },
+  /// A setting added by [`Pbxproj::set_build_settings`], stored in `additions[anchor][index]`.
+  Added { anchor: usize, index: usize },
 }
 
 #[derive(Debug, Clone)]
@@ -323,5 +418,101 @@ mod tests {
     pbxproj.set_build_settings("DB_0E254D0FD84970B57F6410", "UNKNOWN", "9283j49238h");
 
     insta::assert_snapshot!("project-modified.pbxproj", pbxproj.serialize());
+  }
+
+  const RELEASE: &str = "DB_0E254D0FD84970B57F6410";
+
+  fn fixture() -> super::Pbxproj {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    super::parse(
+      manifest_dir
+        .join("tests")
+        .join("fixtures")
+        .join("pbxproj")
+        .join("project.pbxproj"),
+    )
+    .expect("failed to parse pbxproj")
+  }
+
+  /// Returns the trimmed lines of the buildSettings dictionary of the given build configuration.
+  fn build_settings_lines(serialized: &str, build_configuration_id: &str) -> Vec<String> {
+    serialized
+      .lines()
+      .skip_while(|l| !l.trim_start().starts_with(build_configuration_id))
+      .skip_while(|l| !l.contains("buildSettings = {"))
+      .skip(1)
+      .take_while(|l| l.trim() != "};")
+      .map(|l| l.trim().to_string())
+      .collect()
+  }
+
+  #[test]
+  fn add_multiple_settings() {
+    let mut pbxproj = fixture();
+    pbxproj.set_build_settings(RELEASE, "NEW_A", "a");
+    pbxproj.set_build_settings(RELEASE, "NEW_B", "b");
+    pbxproj.set_build_settings(RELEASE, "NEW_C", "c");
+
+    let serialized = pbxproj.serialize();
+    let lines = build_settings_lines(&serialized, RELEASE);
+    assert_eq!(
+      &lines[lines.len() - 4..],
+      [
+        "VALID_ARCHS = \"arm64\";",
+        "NEW_A = a;",
+        "NEW_B = b;",
+        "NEW_C = c;"
+      ]
+    );
+    // the new settings stay inside the buildSettings dictionary
+    assert!(serialized.contains("\t\t\t\tNEW_C = c;\n\t\t\t};\n\t\t\tname = release;\n\t\t};"));
+  }
+
+  #[test]
+  fn update_added_setting() {
+    let mut pbxproj = fixture();
+    pbxproj.set_build_settings(RELEASE, "NEW_A", "a");
+    pbxproj.set_build_settings(RELEASE, "NEW_B", "b");
+    pbxproj.set_build_settings(RELEASE, "NEW_A", "a2");
+
+    let serialized = pbxproj.serialize();
+    let lines = build_settings_lines(&serialized, RELEASE);
+    assert_eq!(&lines[lines.len() - 2..], ["NEW_A = a2;", "NEW_B = b;"]);
+    assert!(serialized.contains("\t\t\t\tNEW_B = b;\n\t\t\t};\n\t\t\tname = release;\n\t\t};"));
+    assert_eq!(
+      serialized.lines().count(),
+      fixture().serialize().lines().count() + 2
+    );
+  }
+
+  #[test]
+  fn update_multiline_setting() {
+    let mut pbxproj = fixture();
+    pbxproj.set_build_settings(RELEASE, "ARCHS", "arm64");
+
+    let serialized = pbxproj.serialize();
+    let lines = build_settings_lines(&serialized, RELEASE);
+    assert_eq!(lines[1], "ARCHS = arm64;");
+    assert_eq!(lines[2], "ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;");
+    assert_eq!(
+      serialized.lines().count(),
+      fixture().serialize().lines().count() - 2
+    );
+  }
+
+  #[test]
+  fn quote() {
+    let product_name = r#"My "App" \ Name"#;
+    let quoted = super::quote(product_name);
+    assert_eq!(quoted, r#""My \"App\" \\ Name""#);
+    assert_eq!(super::unquote(&quoted), product_name);
+
+    let mut pbxproj = fixture();
+    pbxproj.set_build_settings(RELEASE, "PRODUCT_NAME", &quoted);
+    assert!(
+      pbxproj
+        .serialize()
+        .contains(r#"PRODUCT_NAME = "My \"App\" \\ Name";"#)
+    );
   }
 }

@@ -404,7 +404,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(&tauri_config, cli_options)?;
+  let handle = write_options(MobileTarget::Ios, dirs.tauri, cli_options)?;
 
   if options.open {
     return Ok(handle);

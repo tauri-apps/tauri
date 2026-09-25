@@ -396,12 +396,12 @@ async fn create_window(app: tauri::AppHandle) {
     let mut config = config.to_owned();
 
     if let Some(data_directory) = &config.data_directory {
-      let resolve_data_dir_res = dirs::data_local_dir()
-        .or({
-          #[cfg(feature = "tracing")]
-          tracing::error!("failed to resolve data directory");
-          None
-        })
+      let local_dir = dirs::data_local_dir();
+      if local_dir.is_none() {
+        #[cfg(feature = "tracing")]
+        tracing::error!("failed to resolve data directory");
+      }
+      let resolve_data_dir_res = local_dir
         .and_then(|local_dir| {
           SafePathBuf::new(data_directory.clone())
             .inspect_err(|_err| {
@@ -1481,6 +1481,17 @@ impl<R: Runtime> PartialEq for Webview<R> {
 
 /// Base webview functions.
 impl<R: Runtime> Webview<R> {
+  /// Whether this webview instance is still registered on the manager.
+  ///
+  /// Returns false once the webview is closed, even if a new webview with the same label exists.
+  pub(crate) fn is_registered(&self) -> bool {
+    self
+      .manager
+      .get_webview(self.label())
+      // clones share the resources table, so it identifies the webview instance
+      .is_some_and(|w| Arc::ptr_eq(&w.resources_table, &self.resources_table))
+  }
+
   /// Create a new webview that is attached to the window.
   pub(crate) fn new(
     window: Window<R>,

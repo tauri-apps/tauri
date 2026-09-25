@@ -43,6 +43,7 @@ jsonrpsee = { version = "0.26", features = ["server"] }
 jsonrpsee-core = "0.26"
 jsonrpsee-client-transport = { version = "0.26", features = ["ws"] }
 jsonrpsee-ws-client = { version = "0.26", default-features = false }
+tower = { version = "0.5", default-features = false }
 sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }

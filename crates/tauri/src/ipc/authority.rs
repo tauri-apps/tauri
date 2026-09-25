@@ -171,10 +171,11 @@ impl RuntimeAuthority {
       }
     }
 
-    let resolved = Resolved::resolve(
+    let resolved = Resolved::resolve_with_base_scope_id(
       &self.acl,
       capabilities,
       tauri_utils::platform::Target::current(),
+      self.scope_manager.last_scope_id(),
     )
     .unwrap();
 
@@ -188,6 +189,20 @@ impl RuntimeAuthority {
       self.scope_manager.global_scope_cache = StateManager::new();
     }
 
+    // fill command scope
+    // the scope ids were assigned past the existing ones, so these are all new entries
+    for (scope_id, command_scope) in resolved.command_scope {
+      self
+        .scope_manager
+        .command_cache
+        .entry(scope_id)
+        .or_insert_with(StateManager::new);
+      self
+        .scope_manager
+        .command_scope
+        .insert(scope_id, command_scope);
+    }
+
     // denied commands
     for (cmd_key, resolved_cmds) in resolved.denied_commands {
       let entry = self.denied_commands.entry(cmd_key).or_default();
@@ -196,28 +211,6 @@ impl RuntimeAuthority {
 
     // allowed commands
     for (cmd_key, resolved_cmds) in resolved.allowed_commands {
-      // fill command scope
-      for resolved_cmd in &resolved_cmds {
-        if let Some(scope_id) = resolved_cmd.scope_id {
-          let command_scope = resolved.command_scope.get(&scope_id).unwrap();
-
-          let command_scope_entry = self
-            .scope_manager
-            .command_scope
-            .entry(scope_id)
-            .or_default();
-          command_scope_entry
-            .allow
-            .extend(command_scope.allow.clone());
-          command_scope_entry.deny.extend(command_scope.deny.clone());
-
-          self
-            .scope_manager
-            .command_cache
-            .insert(scope_id, StateManager::new());
-        }
-      }
-
       let entry = self.allowed_commands.entry(cmd_key).or_default();
       entry.extend(resolved_cmds);
     }
@@ -759,6 +752,12 @@ pub trait ScopeObjectMatch: ScopeObject {
 }
 
 impl ScopeManager {
+  /// The highest assigned command scope id, or `0` if there are none.
+  #[cfg(feature = "dynamic-acl")]
+  fn last_scope_id(&self) -> ScopeKey {
+    self.command_scope.keys().next_back().copied().unwrap_or(0)
+  }
+
   pub(crate) fn get_global_scope_typed<R: Runtime, T: ScopeObject>(
     &self,
     app: &AppHandle<R>,
@@ -1481,5 +1480,138 @@ mod tests {
       ),
       "myplugin.my-command-webview-window not allowed on window \"main-*\", webview \"webview-*\", URL: http://localhost:123/\n\nallowed on: [windows: \"main-*\", webviews: \"webview-*\", URL: local], [windows: \"main-*\", webviews: \"webview-*\", URL: http://localhost:8080]\n\nreferenced by: capability: maincap, permission: allow-command || capability: maincap, permission: allow-command"
     );
+  }
+
+  #[cfg(feature = "dynamic-acl")]
+  #[test]
+  fn add_capability_assigns_fresh_scope_ids() {
+    use serde_json::json;
+    use std::collections::{BTreeMap, BTreeSet};
+    use tauri_utils::acl::{
+      Permission,
+      capability::{Capability, CapabilityFile},
+      manifest::Manifest,
+    };
+
+    fn manifest(permission: serde_json::Value) -> Manifest {
+      let permission: Permission = serde_json::from_value(permission).unwrap();
+      Manifest {
+        permissions: [(permission.identifier.clone(), permission)].into(),
+        ..Default::default()
+      }
+    }
+
+    fn capability(identifier: &str, permission: &str) -> Capability {
+      serde_json::from_value(json!({
+        "identifier": identifier,
+        "windows": ["main"],
+        "permissions": [permission]
+      }))
+      .unwrap()
+    }
+
+    fn scope_ids(authority: &RuntimeAuthority, command: &str) -> BTreeSet<u64> {
+      authority.allowed_commands[command]
+        .iter()
+        .filter_map(|cmd| cmd.scope_id)
+        .collect()
+    }
+
+    // the scope values the command resolves to, see `CommandScope::resolve`
+    fn allowed_scope(authority: &RuntimeAuthority, command: &str) -> Vec<serde_json::Value> {
+      scope_ids(authority, command)
+        .iter()
+        .flat_map(|id| &authority.scope_manager.command_scope[id].allow)
+        .cloned()
+        .map(serde_json::Value::from)
+        .collect()
+    }
+
+    let acl: BTreeMap<String, Manifest> = [
+      (
+        "opener".to_string(),
+        manifest(json!({
+          "identifier": "allow-open-path",
+          "commands": { "allow": ["open_path"] },
+          "scope": { "allow": [{ "path": "/tmp/**" }] }
+        })),
+      ),
+      (
+        "http".to_string(),
+        manifest(json!({
+          "identifier": "allow-fetch",
+          "commands": { "allow": ["fetch", "fetch_send"] },
+          "scope": { "allow": [{ "url": "https://example.com" }] }
+        })),
+      ),
+    ]
+    .into();
+
+    // build time ACL, the opener scope gets id 1
+    let baked = Resolved::resolve(
+      &acl,
+      [(
+        "baked".to_string(),
+        capability("baked", "opener:allow-open-path"),
+      )]
+      .into(),
+      tauri_utils::platform::Target::current(),
+    )
+    .unwrap();
+    let mut authority = RuntimeAuthority::new(acl, baked);
+    assert_eq!(scope_ids(&authority, "plugin:opener|open_path"), [1].into());
+
+    // a runtime capability for another plugin must not be merged into scope 1
+    authority
+      .add_capability_inner(CapabilityFile::Capability(capability(
+        "runtime",
+        "http:allow-fetch",
+      )))
+      .unwrap();
+
+    assert_eq!(
+      authority
+        .scope_manager
+        .command_scope
+        .keys()
+        .copied()
+        .collect::<Vec<_>>(),
+      vec![1, 2]
+    );
+    assert!(authority.scope_manager.command_cache.contains_key(&2));
+    assert_eq!(
+      allowed_scope(&authority, "plugin:opener|open_path"),
+      vec![json!({ "path": "/tmp/**" })]
+    );
+    // fetch and fetch_send share the scope, and it must not be duplicated
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch"), [2].into());
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch_send"), [2].into());
+    assert_eq!(
+      allowed_scope(&authority, "plugin:http|fetch"),
+      vec![json!({ "url": "https://example.com" })]
+    );
+
+    // the next runtime capability continues past the previous one
+    authority
+      .add_capability_inner(CapabilityFile::Capability(capability(
+        "runtime-2",
+        "opener:allow-open-path",
+      )))
+      .unwrap();
+    assert_eq!(
+      authority
+        .scope_manager
+        .command_scope
+        .keys()
+        .copied()
+        .collect::<Vec<_>>(),
+      vec![1, 2, 3]
+    );
+    assert!(authority.scope_manager.command_cache.contains_key(&3));
+    assert_eq!(
+      scope_ids(&authority, "plugin:opener|open_path"),
+      [1, 3].into()
+    );
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch"), [2].into());
   }
 }

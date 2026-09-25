@@ -193,7 +193,7 @@ pub fn crate_version(
     }
 
     // multiple versions of the crate are locked, list them all
-    if crate_lock_packages.len() > 1 {
+    if !crate_lock_packages.is_empty() {
       let lock_version = crate_lock_packages
         .iter()
         .map(|p| p.version.clone())

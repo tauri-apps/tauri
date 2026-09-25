@@ -738,6 +738,8 @@ tauri::Builder::default()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
     let webview_builder = WebviewBuilder::new("core", tauri::WebviewUrl::App("index.html".into()))
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap())
       .on_permission_request(|webview, kind| {
         match kind {
           PermissionKind::Geolocation => PermissionResponse::Allow,
@@ -745,7 +747,7 @@ tauri::Builder::default()
           _ => PermissionResponse::Default,
         }
       });
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -1747,9 +1749,9 @@ tauri::Builder::default()
     let second = tauri::Window::builder(app, "second").build()?;
 
     let webview = first.add_child(
-      tauri::webview::WebviewBuilder::new("child", WebviewUrl::App(Default::default())),
-      LogicalPosition::new(0., 0.),
-      LogicalSize::new(800., 600.),
+      tauri::webview::WebviewBuilder::new("child", WebviewUrl::App(Default::default()))
+        .position(LogicalPosition::new(0., 0.))
+        .size(LogicalSize::new(800., 600.)),
     )?;
 
     // move the webview to the second window

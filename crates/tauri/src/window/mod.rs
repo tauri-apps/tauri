@@ -1215,9 +1215,9 @@ impl<R: Runtime> Window<R> {
   ///
   ///     let _left = window.add_child(
   ///       tauri::webview::WebviewBuilder::new("left", WebviewUrl::App(Default::default()))
+  ///         .position(LogicalPosition::new(0., 0.))
+  ///         .size(LogicalSize::new(width / 2., height))
   ///         .auto_resize(),
-  ///       LogicalPosition::new(0., 0.),
-  ///       LogicalSize::new(width / 2., height),
   ///     )?;
   ///
   ///     let _right = window.add_child(
@@ -1225,9 +1225,9 @@ impl<R: Runtime> Window<R> {
   ///         "right",
   ///         WebviewUrl::External("https://tauri.app".parse().unwrap()),
   ///       )
+  ///       .position(LogicalPosition::new(width / 2., 0.))
+  ///       .size(LogicalSize::new(width / 2., height))
   ///       .auto_resize(),
-  ///       LogicalPosition::new(width / 2., 0.),
-  ///       LogicalSize::new(width / 2., height),
   ///     )?;
   ///
   ///     Ok(())

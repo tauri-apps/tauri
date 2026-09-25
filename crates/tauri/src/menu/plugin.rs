@@ -9,7 +9,7 @@ use tauri_runtime::dpi::Position;
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{
-  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window, command,
+  Manager, ResourceTable, RunEvent, Runtime, Webview, Window, command,
   image::JsImage,
   ipc::{Channel, channel::JavaScriptChannelId},
   plugin::{Builder, TauriPlugin},
@@ -160,12 +160,7 @@ impl CheckMenuItemPayload {
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
-      webview
-        .state::<MenuChannels>()
-        .0
-        .lock()
-        .unwrap()
-        .insert(item.id().clone(), handler);
+      add_menu_channel(webview, item.id().clone(), item.channel_key(), handler);
     }
 
     Ok(item)
@@ -216,12 +211,7 @@ impl IconMenuItemPayload {
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
-      webview
-        .state::<MenuChannels>()
-        .0
-        .lock()
-        .unwrap()
-        .insert(item.id().clone(), handler);
+      add_menu_channel(webview, item.id().clone(), item.channel_key(), handler);
     }
 
     Ok(item)
@@ -255,12 +245,7 @@ impl MenuItemPayload {
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
-      webview
-        .state::<MenuChannels>()
-        .0
-        .lock()
-        .unwrap()
-        .insert(item.id().clone(), handler);
+      add_menu_channel(webview, item.id().clone(), item.channel_key(), handler);
     }
 
     Ok(item)
@@ -361,13 +346,12 @@ fn new<R: Runtime>(
   webview: Webview<R>,
   kind: ItemKind,
   options: Option<NewOptions>,
-  channels: State<'_, MenuChannels>,
   handler: Channel<MenuId>,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
   let mut resources_table = webview.resources_table();
 
-  let (rid, id) = match kind {
+  let (rid, id, key) = match kind {
     ItemKind::Menu => {
       let mut builder = MenuBuilder::new(&webview);
       if let Some(id) = options.id {
@@ -380,9 +364,10 @@ fn new<R: Runtime>(
       }
       let menu = builder.build()?;
       let id = menu.id().clone();
+      let key = menu.channel_key();
       let rid = resources_table.add(menu);
 
-      (rid, id)
+      (rid, id, key)
     }
 
     ItemKind::Submenu => {
@@ -395,9 +380,10 @@ fn new<R: Runtime>(
       }
       .create_item(&webview, &resources_table)?;
       let id = submenu.id().clone();
+      let key = submenu.channel_key();
       let rid = resources_table.add(submenu);
 
-      (rid, id)
+      (rid, id, key)
     }
 
     ItemKind::MenuItem => {
@@ -411,8 +397,9 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
+      let key = item.channel_key();
       let rid = resources_table.add(item);
-      (rid, id)
+      (rid, id, key)
     }
 
     ItemKind::Predefined => {
@@ -424,8 +411,9 @@ fn new<R: Runtime>(
       }
       .create_item(&webview, &resources_table)?;
       let id = item.id().clone();
+      let key = item.channel_key();
       let rid = resources_table.add(item);
-      (rid, id)
+      (rid, id, key)
     }
 
     ItemKind::Check => {
@@ -440,8 +428,9 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
+      let key = item.channel_key();
       let rid = resources_table.add(item);
-      (rid, id)
+      (rid, id, key)
     }
 
     ItemKind::Icon => {
@@ -456,12 +445,13 @@ fn new<R: Runtime>(
       }
       .create_item(&webview, &resources_table)?;
       let id = item.id().clone();
+      let key = item.channel_key();
       let rid = resources_table.add(item);
-      (rid, id)
+      (rid, id, key)
     }
   };
 
-  channels.0.lock().unwrap().insert(id.clone(), handler);
+  add_menu_channel(&webview, id.clone(), key, handler);
 
   Ok((rid, id))
 }
@@ -886,11 +876,40 @@ fn set_icon<R: Runtime>(
   )
 }
 
-struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);
+/// JS event handlers tagged with the owning item's [`channel_key`](Menu::channel_key)
+type KeyedChannels = Vec<(usize, Channel<MenuId>)>;
+
+/// JS event handlers by menu id, keyed per item since ids are not unique
+struct MenuChannels(Mutex<HashMap<MenuId, KeyedChannels>>);
+
+fn add_menu_channel<R: Runtime, M: Manager<R>>(
+  manager: &M,
+  id: MenuId,
+  key: usize,
+  channel: Channel<MenuId>,
+) {
+  manager
+    .state::<MenuChannels>()
+    .0
+    .lock()
+    .unwrap()
+    .entry(id)
+    .or_default()
+    .push((key, channel));
+}
 
 // Called in `Menu`'s `Drop` to clean up the event handlers
-pub(crate) fn remove_menu_channel<R: Runtime>(app: &AppHandle<R>, id: &MenuId) {
-  app.state::<MenuChannels>().0.lock().unwrap().remove(id);
+pub(crate) fn remove_menu_channel<R: Runtime>(app: &AppHandle<R>, id: &MenuId, key: usize) {
+  let Some(channels) = app.try_state::<MenuChannels>() else {
+    return;
+  };
+  let mut channels = channels.0.lock().unwrap();
+  if let Some(handlers) = channels.get_mut(id) {
+    handlers.retain(|(k, _)| *k != key);
+    if handlers.is_empty() {
+      channels.remove(id);
+    }
+  }
 }
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -901,15 +920,18 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     })
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
-        // Cloning the channel out in case the menu gets dropped during the channel send through `channel_interceptor`
-        let channel = app
+        // Cloning the channels out in case the menu gets dropped during the channel send through `channel_interceptor`
+        let channels: Vec<_> = app
           .state::<MenuChannels>()
           .0
           .lock()
           .unwrap()
           .get(&e.id)
-          .cloned();
-        if let Some(channel) = channel {
+          .into_iter()
+          .flatten()
+          .map(|(_, channel)| channel.clone())
+          .collect();
+        for channel in channels {
           let _ = channel.send(e.id.clone());
         }
       }
@@ -944,23 +966,51 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
 
 #[cfg(test)]
 mod tests {
-  use super::{ItemKind, NewOptions};
-  use crate::{Manager, ipc::Channel, test::mock_app};
+  use super::{ItemKind, MenuChannels, NewOptions};
+  use crate::{Manager, ipc::Channel, menu::MenuId, resources::ResourceId, test::mock_app};
 
   fn new_item(
     webview: &crate::WebviewWindow<crate::test::MockRuntime>,
     kind: ItemKind,
     options: serde_json::Value,
-  ) -> crate::Result<()> {
+  ) -> crate::Result<ResourceId> {
     let options: NewOptions = serde_json::from_value(options).unwrap();
     super::new(
       webview.as_ref().clone(),
       kind,
       Some(options),
-      webview.state(),
       Channel::new(|_| Ok(())),
     )
-    .map(|_| ())
+    .map(|(rid, _)| rid)
+  }
+
+  #[test]
+  fn dropping_item_keeps_handlers_of_items_with_same_id() {
+    let app = mock_app();
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    let handler_count = || {
+      app
+        .state::<MenuChannels>()
+        .0
+        .lock()
+        .unwrap()
+        .get(&MenuId::new("dup"))
+        .map_or(0, |handlers| handlers.len())
+    };
+
+    let options = serde_json::json!({ "id": "dup", "text": "item" });
+    let first = new_item(&webview, ItemKind::MenuItem, options.clone()).unwrap();
+    let second = new_item(&webview, ItemKind::MenuItem, options).unwrap();
+    assert_eq!(handler_count(), 2);
+
+    webview.resources_table().close(first).unwrap();
+    assert_eq!(handler_count(), 1);
+
+    webview.resources_table().close(second).unwrap();
+    assert_eq!(handler_count(), 0);
   }
 
   #[test]

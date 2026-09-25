@@ -10,7 +10,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::interface::rust::get_workspace_dir;
+use crate::{error::Context, interface::rust::get_workspace_dir};
 
 #[derive(Clone, Deserialize)]
 pub struct CargoLockPackage {
@@ -128,13 +128,24 @@ struct CrateIoGetResponse {
   krate: CrateMetadata,
 }
 
-pub fn crate_latest_version(name: &str) -> Option<String> {
+/// Fetches the default version of the given crate from crates.io.
+///
+/// Returns `Ok(None)` if crates.io does not report a default version for the crate.
+pub fn crate_latest_version(name: &str) -> crate::Result<Option<semver::Version>> {
   // Reference: https://github.com/rust-lang/crates.io/blob/98c83c8231cbcd15d6b8f06d80a00ad462f71585/src/controllers/krate/metadata.rs#L88
   let url = format!("https://crates.io/api/v1/crates/{name}?include");
-  let mut response = super::http::get(&url).ok()?;
-  let metadata: CrateIoGetResponse =
-    serde_json::from_reader(response.body_mut().as_reader()).ok()?;
-  metadata.krate.default_version
+  let mut response =
+    super::http::get(&url).with_context(|| format!("failed to fetch crate metadata from {url}"))?;
+  let metadata: CrateIoGetResponse = serde_json::from_reader(response.body_mut().as_reader())
+    .with_context(|| format!("failed to parse crate metadata from {url}"))?;
+  metadata
+    .krate
+    .default_version
+    .map(|version| {
+      semver::Version::parse(&version)
+        .with_context(|| format!("failed to parse version `{version}` of crate `{name}`"))
+    })
+    .transpose()
 }
 
 pub fn crate_version(

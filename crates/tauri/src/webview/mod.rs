@@ -396,12 +396,12 @@ async fn create_window(app: tauri::AppHandle) {
     let mut config = config.to_owned();
 
     if let Some(data_directory) = &config.data_directory {
-      let resolve_data_dir_res = dirs::data_local_dir()
-        .or({
-          #[cfg(feature = "tracing")]
-          tracing::error!("failed to resolve data directory");
-          None
-        })
+      let local_dir = dirs::data_local_dir();
+      if local_dir.is_none() {
+        #[cfg(feature = "tracing")]
+        tracing::error!("failed to resolve data directory");
+      }
+      let resolve_data_dir_res = local_dir
         .and_then(|local_dir| {
           SafePathBuf::new(data_directory.clone())
             .inspect_err(|_err| {

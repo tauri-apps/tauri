@@ -553,9 +553,7 @@ mod tests {
   use std::str::FromStr;
 
   use super::*;
-  use crate::{
-    StateManager, ipc::InvokeBody, manager::AppManager, test::MockRuntime,
-  };
+  use crate::{StateManager, ipc::InvokeBody, manager::AppManager, test::MockRuntime};
   use http::header::*;
   use serde_json::json;
   use tauri_macros::generate_context;

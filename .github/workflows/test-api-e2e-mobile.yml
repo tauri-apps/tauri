@@ -41,11 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: install Rust 1.90
+      - name: install Rust 1.95
         # The MSRV, as the other jobs building the CLI use. The compiler version is part of
         # the rust-cache key, so a floating `stable` would also invalidate the entry below on
         # every Rust release.
-        uses: dtolnay/rust-toolchain@1.90
+        uses: dtolnay/rust-toolchain@1.95
         with:
           targets: x86_64-linux-android
 
@@ -135,11 +135,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: install Rust 1.90
+      - name: install Rust 1.95
         # The MSRV, as the other jobs building the CLI use. The compiler version is part of
         # the rust-cache key, so a floating `stable` would also invalidate the entry below on
         # every Rust release.
-        uses: dtolnay/rust-toolchain@1.90
+        uses: dtolnay/rust-toolchain@1.95
         with:
           targets: aarch64-apple-ios-sim
 

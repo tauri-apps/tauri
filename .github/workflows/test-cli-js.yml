@@ -38,9 +38,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: install Rust 1.90
+      - name: install Rust 1.95
         # the MSRV, so this job restores the `tauri-cli` cache entry saved by test-cli-rs
-        uses: dtolnay/rust-toolchain@1.90
+        uses: dtolnay/rust-toolchain@1.95
 
       - run: npm i -g --force corepack
       - name: setup node

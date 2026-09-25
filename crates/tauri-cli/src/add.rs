@@ -59,11 +59,7 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
 
   let plugin_snake_case = plugin.replace('-', "_");
   let crate_name = format!("tauri-plugin-{plugin}");
-  let npm_name = if is_known {
-    format!("@tauri-apps/plugin-{plugin}")
-  } else {
-    format!("tauri-plugin-{plugin}-api")
-  };
+  let npm_name = format!("@tauri-apps/plugin-{plugin}");
 
   if !is_known && (options.tag.is_some() || options.rev.is_some() || options.branch.is_some()) {
     crate::error::bail!(
@@ -95,7 +91,13 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
   })?;
 
   if !metadata.rust_only {
-    if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
+    // npm and crates.io are separate namespaces, so a community plugin's crate name says nothing
+    // about who owns a similarly named npm package: only install the JS bindings of known plugins
+    if !is_known {
+      log::info!(
+        "If `{crate_name}` has JavaScript bindings, install them with your package manager, see the plugin's documentation for the package name."
+      );
+    } else if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
       let npm_version_req = version.map(ToString::to_string).or_else(|| {
         metadata.version_req.as_ref().map(|v| match manager {
           PackageManager::Npm => format!(">={v}"),

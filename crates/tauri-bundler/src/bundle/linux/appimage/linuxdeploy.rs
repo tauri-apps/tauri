@@ -248,7 +248,7 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
   let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");
   if !appimage.exists() {
     // This is optional, linuxdeploy will fall back to its built-in version if the download failed.
-    // Since switchting to linuxdeploy-07333c6 this shouldn't be necessary anymore, but we keep it here for now just for fun.
+    // Since switching to linuxdeploy-07333c6 this shouldn't be necessary anymore, but we keep it here for now just for fun.
     let data = download(&format!(
       "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"
     ));

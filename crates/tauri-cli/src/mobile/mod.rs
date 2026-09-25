@@ -344,8 +344,25 @@ const SECRET_ENV_VAR_FRAGMENTS: &[&str] = &[
   "RPM_KEY",
 ];
 
+/// Cargo registry authentication variables that match [`SECRET_ENV_VAR_FRAGMENTS`] but are
+/// still forwarded, since the build scripts need them to build against private registries
+/// when the IDE doesn't inherit the CLI environment.
+fn is_cargo_registry_auth_var(name: &str) -> bool {
+  let is_registry_token = name == "CARGO_REGISTRY_TOKEN"
+    || (name.starts_with("CARGO_REGISTRIES_") && name.ends_with("_TOKEN"));
+  let is_credential_setting = name.starts_with("CARGO_")
+    && (name.ends_with("_CREDENTIAL_PROVIDER")
+      || name == "CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS"
+      || name.starts_with("CARGO_CREDENTIAL_ALIAS_")
+      || name.ends_with("_SECRET_KEY_SUBJECT"));
+  is_registry_token || is_credential_setting
+}
+
 fn is_secret_env_var(name: &str) -> bool {
   let name = name.to_ascii_uppercase();
+  if is_cargo_registry_auth_var(&name) {
+    return false;
+  }
   SECRET_ENV_VAR_FRAGMENTS
     .iter()
     .any(|fragment| name.contains(fragment))
@@ -859,13 +876,19 @@ mod tests {
       "TAURI_DEV_ROOT_CERTIFICATE",
       "RUST_LOG",
       "PATH",
+      "CARGO_REGISTRY_TOKEN",
+      "CARGO_REGISTRIES_MY_REGISTRY_TOKEN",
+      "CARGO_REGISTRY_CREDENTIAL_PROVIDER",
+      "CARGO_REGISTRIES_MY_REGISTRY_CREDENTIAL_PROVIDER",
+      "CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS",
+      "CARGO_CREDENTIAL_ALIAS_MY_PROVIDER",
+      "CARGO_REGISTRIES_MY_REGISTRY_SECRET_KEY_SUBJECT",
     ] {
       assert!(!is_secret_env_var(name), "{name} is not a secret");
     }
     for name in [
-      "CARGO_REGISTRY_TOKEN",
-      "CARGO_REGISTRIES_MY_REGISTRY_TOKEN",
-      "CARGO_REGISTRY_CREDENTIAL_PROVIDER",
+      "CARGO_REGISTRY_SECRET_KEY",
+      "CARGO_REGISTRIES_MY_REGISTRY_SECRET_KEY",
       "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
       "TAURI_CLOUD_Secret",
       "RUST_api_token",
@@ -896,7 +919,8 @@ mod tests {
       CliOptions {
         args: vec!["--test-arg".into()],
         vars: HashMap::from([
-          ("CARGO_REGISTRY_TOKEN".into(), "secret".into()),
+          ("CARGO_REGISTRY_TOKEN".into(), "registry-token".into()),
+          ("AWS_SECRET_ACCESS_KEY".into(), "secret".into()),
           ("TAURI_TEST_VAR".into(), "value".into()),
         ]),
         ..Default::default()
@@ -917,7 +941,11 @@ mod tests {
       options.vars.get("TAURI_TEST_VAR"),
       Some(&OsString::from("value"))
     );
-    assert!(!options.vars.contains_key("CARGO_REGISTRY_TOKEN"));
+    assert_eq!(
+      options.vars.get("CARGO_REGISTRY_TOKEN"),
+      Some(&OsString::from("registry-token"))
+    );
+    assert!(!options.vars.contains_key("AWS_SECRET_ACCESS_KEY"));
 
     let info: OptionsServerInfo =
       serde_json::from_str(&read_to_string(&server_file).unwrap()).unwrap();

@@ -57,8 +57,25 @@ impl ChannelDataIpcQueue {
   /// Stores the body for the given webview and returns its id.
   ///
   /// Ids are sequential per webview and only address that webview's entries.
+  #[cfg(test)]
   fn insert(&self, webview_label: &str, body: InvokeResponseBody) -> u32 {
+    self.insert_if(webview_label, body, || true).unwrap()
+  }
+
+  /// Stores the body for the given webview and returns its id, unless `is_alive` returns false.
+  ///
+  /// `is_alive` runs under the queue lock, so a webview closing concurrently either fails the check
+  /// or has the entry purged by [`Self::remove_webview_entries`] right after.
+  fn insert_if(
+    &self,
+    webview_label: &str,
+    body: InvokeResponseBody,
+    is_alive: impl FnOnce() -> bool,
+  ) -> Option<u32> {
     let mut cache = self.0.lock().unwrap();
+    if !is_alive() {
+      return None;
+    }
     let queue = cache.entry(webview_label.to_string()).or_default();
     let data_id = loop {
       let candidate = queue.next_id;
@@ -68,7 +85,7 @@ impl ChannelDataIpcQueue {
       }
     };
     queue.entries.insert(data_id, body);
-    data_id
+    Some(data_id)
   }
 
   /// Removes and returns the entry with the given id from the given webview's queue.
@@ -288,9 +305,15 @@ impl JavaScriptChannelId {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = webview
-              .state::<ChannelDataIpcQueue>()
-              .insert(webview.label(), body);
+            // the webview was closed (or replaced by a new one with the same label),
+            // so nothing would ever fetch this data
+            let Some(data_id) =
+              webview
+                .state::<ChannelDataIpcQueue>()
+                .insert_if(webview.label(), body, || webview.is_registered())
+            else {
+              return Ok(());
+            };
 
             webview.eval(format!(
               "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, {{ message: response, index: {current_index} }})).catch(console.error)",
@@ -404,9 +427,15 @@ impl<TSend> Channel<TSend> {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = webview
-              .state::<ChannelDataIpcQueue>()
-              .insert(webview.label(), body);
+            // the webview was closed (or replaced by a new one with the same label),
+            // so nothing would ever fetch this data
+            let Some(data_id) =
+              webview
+                .state::<ChannelDataIpcQueue>()
+                .insert_if(webview.label(), body, || webview.is_registered())
+            else {
+              return Ok(());
+            };
 
             webview.eval(format!(
               "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, response)).catch(console.error)",
@@ -526,5 +555,55 @@ mod tests {
 
     assert!(queue.remove("a", a).is_none());
     assert!(queue.remove("b", b).is_some());
+  }
+
+  #[test]
+  fn insert_is_skipped_for_dead_webviews() {
+    let queue = ChannelDataIpcQueue::default();
+    assert!(queue.insert_if("a", json_body("1"), || false).is_none());
+    assert!(queue.0.lock().unwrap().is_empty());
+  }
+
+  #[test]
+  fn channel_data_is_not_queued_after_the_webview_closes() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let queue = app.state::<ChannelDataIpcQueue>().inner().clone();
+    let queued = |label: &str| {
+      queue
+        .0
+        .lock()
+        .unwrap()
+        .get(label)
+        .map_or(0, |q| q.entries.len())
+    };
+    let large = || InvokeResponseBody::Raw(vec![0; MAX_RAW_DIRECT_EXECUTE_THRESHOLD]);
+    let open = || {
+      crate::WebviewWindowBuilder::new(&app, "main", crate::WebviewUrl::default())
+        .build()
+        .unwrap()
+    };
+    let channel_on = |window: &crate::WebviewWindow<_>| {
+      JavaScriptChannelId::from_str("__CHANNEL__:1")
+        .unwrap()
+        .channel_on::<_, InvokeResponseBody>(window.webview.clone())
+    };
+
+    let old_channel = channel_on(&open());
+    old_channel.send(large()).unwrap();
+    assert_eq!(queued("main"), 1);
+
+    app.handle().manager.on_window_close("main");
+    assert_eq!(queued("main"), 0);
+    old_channel.send(large()).unwrap();
+    assert_eq!(queued("main"), 0);
+
+    // a new webview reusing the label does not receive the old channel's data
+    let new_channel = channel_on(&open());
+    old_channel.send(large()).unwrap();
+    assert_eq!(queued("main"), 0);
+    new_channel.send(large()).unwrap();
+    assert_eq!(queued("main"), 1);
   }
 }

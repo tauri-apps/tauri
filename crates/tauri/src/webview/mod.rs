@@ -1481,6 +1481,17 @@ impl<R: Runtime> PartialEq for Webview<R> {
 
 /// Base webview functions.
 impl<R: Runtime> Webview<R> {
+  /// Whether this webview instance is still registered on the manager.
+  ///
+  /// Returns false once the webview is closed, even if a new webview with the same label exists.
+  pub(crate) fn is_registered(&self) -> bool {
+    self
+      .manager
+      .get_webview(self.label())
+      // clones share the resources table, so it identifies the webview instance
+      .is_some_and(|w| Arc::ptr_eq(&w.resources_table, &self.resources_table))
+  }
+
   /// Create a new webview that is attached to the window.
   pub(crate) fn new(
     window: Window<R>,

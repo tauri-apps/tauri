@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
   Result,
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::updater_signature::{secret_key, sign_file},
 };
 use base64::Engine;
@@ -84,7 +84,10 @@ pub fn command(mut options: Options) -> Result<()> {
   options = backward_env_vars(options);
 
   options.private_key = if let Some(private_key) = options.private_key_path {
-    Some(std::fs::read_to_string(Path::new(&private_key)).expect("Unable to extract private key"))
+    Some(
+      std::fs::read_to_string(Path::new(&private_key))
+        .fs_context("failed to read private key file", private_key)?,
+    )
   } else {
     options.private_key
   };
@@ -93,10 +96,6 @@ pub fn command(mut options: Options) -> Result<()> {
   } else {
     crate::error::bail!("Key generation aborted: Unable to find the private key");
   };
-
-  if options.password.is_none() {
-    println!("Signing without password.");
-  }
 
   if options.app_version.is_none() {
     println!(

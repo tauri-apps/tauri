@@ -32,8 +32,10 @@ pub use {
     PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
     UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
   },
-  windows::vswhere_path,
 };
+
+#[cfg(windows)]
+pub use windows::vswhere_path;
 
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information

@@ -8,18 +8,24 @@
   "scripts": {
     "e2e": "wdio run ./wdio.conf.ts",
     "e2e:skip-build": "cross-env E2E_SKIP_BUILD=true wdio run ./wdio.conf.ts",
+    "e2e:android": "wdio run ./wdio.android.conf.ts",
+    "e2e:ios": "wdio run ./wdio.ios.conf.ts",
     "ts:check": "tsc --noEmit"
   },
   "devDependencies": {
     "@crabnebula/tauri-driver": "^2.0.9",
-    "@crabnebula/test-runner-backend": "^0.2.9",
+    "@crabnebula/test-runner-backend": "^0.3.0",
     "@tauri-apps/api": "../api/dist",
     "@types/node": "^22.10.0",
+    "@wdio/appium-service": "^9.31.9",
     "@wdio/cli": "^9.31.9",
     "@wdio/globals": "^9.31.3",
     "@wdio/local-runner": "^9.31.9",
     "@wdio/mocha-framework": "^9.31.9",
     "@wdio/spec-reporter": "^9.31.2",
+    "appium": "^3.7.0",
+    "appium-uiautomator2-driver": "^8.7.0",
+    "appium-xcuitest-driver": "^12.12.4",
     "cross-env": "^10.1.0",
     "typescript": "^6.0.3",
     "webdriverio": "^9.31.9"

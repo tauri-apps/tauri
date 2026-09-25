@@ -26,7 +26,6 @@ pub struct ConfigMetadata {
   /// The current target.
   target: Target,
 
-  original_identifier: Option<String>,
   /// The actual configuration, merged with any extension.
   inner: Config,
   /// The config extensions (platform-specific config files or the config CLI argument).
@@ -44,12 +43,6 @@ impl std::ops::Deref for ConfigMetadata {
 }
 
 impl ConfigMetadata {
-  /// The original bundle identifier from the config file.
-  /// This does not take any extensions into account.
-  pub fn original_identifier(&self) -> Option<&str> {
-    self.original_identifier.as_deref()
-  }
-
   /// Checks which config is overwriting the bundle identifier.
   pub fn find_bundle_identifier_overwriter(&self) -> Option<OsString> {
     for (ext, config) in &self.extensions {
@@ -159,11 +152,6 @@ fn load_config(
   let config_file_name = config_path.file_name().unwrap();
   let mut extensions = HashMap::new();
 
-  let original_identifier = config
-    .as_object()
-    .and_then(|config| config.get("identifier")?.as_str())
-    .map(ToString::to_string);
-
   if let Some((platform_config, config_path)) =
     tauri_utils::config::parse::read_platform(target, tauri_dir)
       .context("failed to parse platform config")?
@@ -207,9 +195,10 @@ fn load_config(
   // so we actually need to change the current working directory here
   let current_dir = current_dir().context("failed to resolve current directory")?;
   set_current_dir(config_path.parent().unwrap()).context("failed to set current directory")?;
-  let config: Config = serde_json::from_value(config).context("failed to parse config")?;
-  // revert to previous working directory
+  let config: serde_json::Result<Config> = serde_json::from_value(config);
+  // revert to previous working directory, even if parsing failed
   set_current_dir(current_dir).context("failed to set current directory")?;
+  let config = config.context("failed to parse config")?;
 
   for (plugin, conf) in &config.plugins.0 {
     unsafe {
@@ -229,7 +218,6 @@ fn load_config(
 
   Ok(ConfigMetadata {
     target,
-    original_identifier,
     inner: config,
     extensions,
   })

@@ -129,12 +129,12 @@ enum Source {
 }
 
 impl Source {
-  fn resize_exact(&self, size: u32) -> DynamicImage {
+  fn resize_exact(&self, size: u32) -> Result<DynamicImage> {
     match self {
       Self::Svg { tree, fit } => rasterize_svg(tree, *fit, size),
       Self::DynamicImage(image) => {
         // image.resize_exact(size, size, FilterType::Lanczos3)
-        resize_image(image, size, size)
+        Ok(resize_image(image, size, size))
       }
     }
   }
@@ -184,7 +184,10 @@ fn read_source(path: PathBuf) -> Result<Source> {
         };
 
         let svg_data = std::fs::read(&path).fs_context("Failed to read source icon", &path)?;
-        usvg::Tree::from_data(&svg_data, &opt).unwrap()
+        usvg::Tree::from_data(&svg_data, &opt).context(format!(
+          "failed to parse SVG source icon {}",
+          path.display()
+        ))?
       };
 
       Ok(Source::Svg {
@@ -210,10 +213,10 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
   let bg_color = css_color::Srgb::from_str(bg_color_string)
     .map(|color| {
       Rgba([
-        (color.red * 255.) as u8,
-        (color.green * 255.) as u8,
-        (color.blue * 255.) as u8,
-        (color.alpha * 255.) as u8,
+        (color.red * 255.).round() as u8,
+        (color.green * 255.).round() as u8,
+        (color.blue * 255.).round() as u8,
+        (color.alpha * 255.).round() as u8,
       ])
     })
     .map_err(|_e| {
@@ -231,7 +234,7 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
 // final resolution, there is no intermediate bitmap and no quality loss — a
 // source declaring a tiny intrinsic size (e.g. `width="16"`) is just as crisp
 // as a large one.
-fn rasterize_svg(tree: &usvg::Tree, fit: Option<Fit>, size: u32) -> DynamicImage {
+fn rasterize_svg(tree: &usvg::Tree, fit: Option<Fit>, size: u32) -> Result<DynamicImage> {
   let native = tree.size();
   let (nw, nh) = (native.width(), native.height());
 
@@ -256,7 +259,9 @@ fn rasterize_svg(tree: &usvg::Tree, fit: Option<Fit>, size: u32) -> DynamicImage
   let transform =
     tiny_skia::Transform::from_scale(scale, scale).post_translate(-off_x * scale, -off_y * scale);
 
-  let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
+  let Some(mut pixmap) = tiny_skia::Pixmap::new(size, size) else {
+    crate::error::bail!("invalid icon size {size}x{size}");
+  };
   resvg::render(tree, transform, &mut pixmap.as_mut());
 
   // Switch to use `Pixmap::take_demultiplied` in the future when it's published
@@ -265,7 +270,7 @@ fn rasterize_svg(tree: &usvg::Tree, fit: Option<Fit>, size: u32) -> DynamicImage
     let pixel = pixmap.pixel(x, y).unwrap().demultiply();
     Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])
   });
-  DynamicImage::ImageRgba8(img_buffer)
+  Ok(DynamicImage::ImageRgba8(img_buffer))
 }
 
 // Convert a non-square source into a square one according to the `fit` mode.
@@ -311,6 +316,9 @@ pub fn command(options: Options) -> Result<()> {
     dirs.tauri.join("icons")
   });
   let png_icon_sizes = options.png.unwrap_or_default();
+  if png_icon_sizes.contains(&0) {
+    crate::error::bail!("PNG icon sizes must be greater than 0");
+  }
 
   create_dir_all(&out_dir).fs_context("Can't create output directory", &out_dir)?;
 
@@ -358,7 +366,7 @@ pub fn command(options: Options) -> Result<()> {
     ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
     png(&source, &out_dir, bg_color).context("Failed to generate png icons")?;
-    android(&source, &input, manifest, &bg_color_string, &out_dir)
+    android(&source, &input, manifest, bg_color, &out_dir)
       .context("Failed to generate android icons")?;
   } else {
     for target in png_icon_sizes.into_iter().map(|size| {
@@ -417,7 +425,7 @@ fn icns(source: &Source, out_dir: &Path) -> Result<()> {
     let size = entry.size;
     let mut buf = Vec::new();
 
-    let image = source.resize_exact(size);
+    let image = source.resize_exact(size)?;
 
     write_png(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
 
@@ -452,7 +460,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   let mut frames = Vec::new();
 
   for size in [16, 24, 32, 48, 64, 256] {
-    let image = source.resize_exact(size);
+    let image = source.resize_exact(size)?;
 
     // Only the 256px layer can be compressed according to the ico specs.
     if size == 256 {
@@ -490,7 +498,7 @@ fn android(
   source: &Source,
   input: &Path,
   manifest: Option<Manifest>,
-  bg_color: &String,
+  bg_color: Rgba<u8>,
   out_dir: &Path,
 ) -> Result<()> {
   fn android_entries(out_dir: &Path) -> Result<AndroidEntries> {
@@ -503,7 +511,7 @@ fn android(
     let targets = vec![
       AndroidEntry {
         name: "hdpi",
-        size: 49,
+        size: 72,
         foreground_size: 162,
       },
       AndroidEntry {
@@ -583,7 +591,8 @@ fn android(
       monochrome: monochrome_entries,
     })
   }
-  fn create_color_file(out_dir: &Path, color: &String) -> Result<()> {
+  fn create_color_file(out_dir: &Path, color: Rgba<u8>) -> Result<()> {
+    let color = android_color(color);
     let values_folder = out_dir.join("values");
     create_dir_all(&values_folder).fs_context(
       "Can't create Android values output directory",
@@ -741,6 +750,17 @@ fn android(
   Ok(())
 }
 
+// Format a color as an Android color resource value, which only accepts
+// `#RGB`, `#ARGB`, `#RRGGBB` and `#AARRGGBB`.
+fn android_color(color: Rgba<u8>) -> String {
+  let [r, g, b, a] = color.0;
+  if a == u8::MAX {
+    format!("#{r:02X}{g:02X}{b:02X}")
+  } else {
+    format!("#{a:02X}{r:02X}{g:02X}{b:02X}")
+  }
+}
+
 // Generate .png files in 32x32, 64x64, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
 fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
@@ -883,7 +903,7 @@ fn resize_png(
   bg: Option<Background>,
   scale_percent: Option<f32>,
 ) -> Result<DynamicImage> {
-  let mut image = source.resize_exact(size);
+  let mut image = source.resize_exact(size)?;
 
   match bg {
     Some(Background::Color(bg_color)) => {
@@ -897,7 +917,7 @@ fn resize_png(
       image = bg_img.into();
     }
     Some(Background::Image(bg_source)) => {
-      let mut bg = bg_source.resize_exact(size);
+      let mut bg = bg_source.resize_exact(size)?;
 
       let fg = scale_percent
         .map(|scale| resize_asset(&image, size, scale))
@@ -1115,7 +1135,7 @@ mod tests {
       fit: Some(Fit::Cover),
     };
     // rendered directly from the vector tree at the requested size
-    let image = source.resize_exact(64);
+    let image = source.resize_exact(64).unwrap();
     assert_eq!((image.width(), image.height()), (64, 64));
     // center of the cropped region stays opaque
     assert_eq!(image.get_pixel(32, 32)[3], 255);
@@ -1127,11 +1147,29 @@ mod tests {
       tree: svg_landscape(),
       fit: Some(Fit::Contain),
     };
-    let image = source.resize_exact(64);
+    let image = source.resize_exact(64).unwrap();
     assert_eq!((image.width(), image.height()), (64, 64));
     // top band is transparent padding, the centered content is opaque
     assert_eq!(image.get_pixel(32, 2)[3], 0);
     assert_eq!(image.get_pixel(32, 32)[3], 255);
+  }
+
+  #[test]
+  fn svg_zero_size_is_an_error() {
+    let source = Source::Svg {
+      tree: svg_landscape(),
+      fit: Some(Fit::Cover),
+    };
+    assert!(source.resize_exact(0).is_err());
+  }
+
+  #[test]
+  fn android_color_uses_argb_notation() {
+    let color = |s: &str| android_color(parse_bg_color(&s.to_string()).unwrap());
+    assert_eq!(color("white"), "#FFFFFF");
+    assert_eq!(color("rgb(0 0 0)"), "#000000");
+    assert_eq!(color("#11223380"), "#80112233");
+    assert_eq!(color("#fff"), "#FFFFFF");
   }
 
   #[test]

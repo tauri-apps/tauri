@@ -13,6 +13,13 @@
  * getCurrentWindow().listen("my-window-event", ({ event, payload }) => { });
  * ```
  *
+ * This package is also accessible with `window.__TAURI__.window` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
+ *
+ * @remarks `core:window:default` only enables the getters (sizes, positions,
+ * monitors, title, theme and the `is*` queries). Creating a window and every
+ * method that changes one needs its own permission, which each member documents,
+ * added to a capability in your app.
+ *
  * @module
  */
 
@@ -90,9 +97,20 @@ export interface Monitor {
   scaleFactor: number
 }
 
+/** The light or dark appearance of a window or of the system. */
 type Theme = 'light' | 'dark'
+
+/**
+ * The style of the window title bar. **macOS only**
+ *
+ * - `visible`: the standard title bar.
+ * - `transparent`: the title bar is transparent but the traffic lights stay in place.
+ * - `overlay`: the content extends under a transparent title bar, leaving only the
+ *   traffic lights visible.
+ */
 type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
 
+/** The edge or corner a resize drag started from, see {@link Window.startResizeDragging}. */
 type ResizeDirection =
   | 'East'
   | 'North'
@@ -135,6 +153,12 @@ enum UserAttentionType {
   Informational
 }
 
+/**
+ * The event passed to a {@link Window.onCloseRequested} handler.
+ *
+ * Call {@link CloseRequestedEvent.preventDefault} to keep the window open, for
+ * example to ask the user to save their work first.
+ */
 class CloseRequestedEvent {
   /** Event name */
   event: EventName
@@ -147,15 +171,29 @@ class CloseRequestedEvent {
     this.id = event.id
   }
 
+  /**
+   * Prevents the window from being closed.
+   *
+   * Must be called before the handler returns (await anything you need first),
+   * otherwise the window is destroyed as usual.
+   */
   preventDefault(): void {
     this._preventDefault = true
   }
 
+  /** Whether {@link CloseRequestedEvent.preventDefault} was called on this event. */
   isPreventDefault(): boolean {
     return this._preventDefault
   }
 }
 
+/**
+ * The cursor shape to display over a window, see {@link Window.setCursorIcon}.
+ *
+ * The names mirror the CSS `cursor` keywords in camelCase (e.g. `notAllowed` for
+ * `not-allowed`, `eResize` for `e-resize`). Support varies per platform and window
+ * manager; unsupported values fall back to the default arrow.
+ */
 export type CursorIcon =
   | 'default'
   | 'crosshair'
@@ -197,6 +235,11 @@ export type CursorIcon =
   | 'colResize'
   | 'rowResize'
 
+/**
+ * The state of the taskbar/dock progress bar, see {@link Window.setProgressBar}.
+ *
+ * @since 2.0.0
+ */
 export enum ProgressBarStatus {
   /**
    * Hide progress bar.
@@ -220,13 +263,40 @@ export enum ProgressBarStatus {
   Error = 'error'
 }
 
+/**
+ * Inner size constraints for a window, see {@link Window.setSizeConstraints}.
+ *
+ * Unlike {@link Window.setMinSize} and {@link Window.setMaxSize}, each dimension is
+ * independent: you can constrain only the width and leave the height free.
+ *
+ * All values are in **logical pixels**. Leave a field out (or set it to
+ * `undefined`) to remove that constraint.
+ *
+ * @example
+ * ```typescript
+ * import { getCurrentWindow } from '@tauri-apps/api/window';
+ * // at least 300 logical pixels wide, height unconstrained
+ * await getCurrentWindow().setSizeConstraints({ minWidth: 300 });
+ * ```
+ *
+ * @since 2.0.0
+ */
 export interface WindowSizeConstraints {
+  /** The minimum width, in logical pixels. */
   minWidth?: number
+  /** The minimum height, in logical pixels. */
   minHeight?: number
+  /** The maximum width, in logical pixels. */
   maxWidth?: number
+  /** The maximum height, in logical pixels. */
   maxHeight?: number
 }
 
+/**
+ * The taskbar/dock progress indicator state, see {@link Window.setProgressBar}.
+ *
+ * @since 2.0.0
+ */
 export interface ProgressBarState {
   /**
    * The progress bar status.
@@ -252,6 +322,9 @@ function getCurrentWindow(): Window {
 
 /**
  * Gets a list of instances of `Window` for all available windows.
+ *
+ * @remarks Uses the `core:window:allow-get-all-windows` permission, which is part
+ * of `core:window:default`.
  *
  * @since 1.0.0
  */
@@ -323,7 +396,11 @@ class Window {
    * ```
    *
    * @param label The unique window label. Must be alphanumeric: `a-zA-Z-/:_`.
+   * @param options The window configuration, see {@link WindowOptions}.
    * @returns The {@link Window} instance to communicate with the window.
+   *
+   * @remarks Requires the `core:window:allow-create` permission (not included in
+   * `core:window:default`).
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     this.label = label
@@ -405,14 +482,18 @@ class Window {
    *   console.log(`Got error: ${payload}`);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this window is destroyed,
+   * so you do not need to unlisten just because the window is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async listen<T>(
     event: EventName,
@@ -440,14 +521,17 @@ class Window {
    *   console.log(`Window initialized!`);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener removes itself after the first event and is also removed
+   * automatically when this window is destroyed. Do call the returned function if
+   * the listener's own scope ends before the event arrives.
    */
   async once<T>(
     event: EventName,
@@ -497,7 +581,7 @@ class Window {
    * @example
    * ```typescript
    * import { getCurrentWindow } from '@tauri-apps/api/window';
-   * await getCurrentWindow().emit('main', 'window-loaded', { loggedIn: true, token: 'authToken' });
+   * await getCurrentWindow().emitTo('main', 'window-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -850,12 +934,68 @@ class Window {
     })
   }
 
+  /**
+   * The name of the Android activity hosting this window.
+   *
+   * On Android each window is backed by its own activity. Use this to tell windows
+   * apart from native code, or to match a window with the activity declared in your
+   * `AndroidManifest.xml`.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** Supported.
+   * - **Windows / Linux / macOS / iOS:** Unsupported, the call rejects because the
+   *   command is not registered.
+   *
+   * See the [mobile multiwindow guide](https://tauri.app/learn/mobile-multiwindow/).
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const activity = await getCurrentWindow().activityName();
+   * ```
+   *
+   * @returns The activity name.
+   *
+   * @remarks Uses the `core:window:allow-activity-name` permission, which is part
+   * of `core:window:default`.
+   *
+   * @since 2.11.0
+   */
   async activityName(): Promise<string> {
     return invoke('plugin:window|activity_name', {
       label: this.label
     })
   }
 
+  /**
+   * The identifier of the iOS scene hosting this window.
+   *
+   * On iOS each window is backed by a `UIScene`. Use this to tell windows apart
+   * from native code, or to match a window with a scene configuration declared in
+   * your `Info.plist`.
+   *
+   * #### Platform-specific
+   *
+   * - **iOS:** Supported.
+   * - **Windows / Linux / macOS / Android:** Unsupported, the call rejects because
+   *   the command is not registered.
+   *
+   * See the [mobile multiwindow guide](https://tauri.app/learn/mobile-multiwindow/).
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const scene = await getCurrentWindow().sceneIdentifier();
+   * ```
+   *
+   * @returns The scene identifier.
+   *
+   * @remarks Uses the `core:window:allow-scene-identifier` permission, which is part
+   * of `core:window:default`.
+   *
+   * @since 2.11.0
+   */
   async sceneIdentifier(): Promise<string> {
     return invoke('plugin:window|scene_identifier', {
       label: this.label
@@ -873,6 +1013,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-center` permission (not included
+   * in `core:window:default`).
    */
   async center(): Promise<void> {
     return invoke('plugin:window|center', {
@@ -899,6 +1042,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-request-user-attention` permission (not included
+   * in `core:window:default`).
    */
   async requestUserAttention(
     requestType: UserAttentionType | null
@@ -927,6 +1073,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-resizable` permission (not included
+   * in `core:window:default`).
    */
   async setResizable(resizable: boolean): Promise<void> {
     return invoke('plugin:window|set_resizable', {
@@ -945,6 +1094,9 @@ class Window {
    *
    * @returns A promise indicating the success or failure of the operation.
    *
+   * @remarks Requires the `core:window:allow-set-enabled` permission (not included
+   * in `core:window:default`).
+   *
    * @since 2.0.0
    */
   async setEnabled(enabled: boolean): Promise<void> {
@@ -956,13 +1108,16 @@ class Window {
 
   /**
    * Whether the window is enabled or disabled.
+   *
+   * A disabled window ignores all user input; see {@link Window.setEnabled}.
+   *
    * @example
    * ```typescript
    * import { getCurrentWindow } from '@tauri-apps/api/window';
-   * await getCurrentWindow().setEnabled(false);
+   * const enabled = await getCurrentWindow().isEnabled();
    * ```
    *
-   * @returns A promise indicating the success or failure of the operation.
+   * @returns `true` when the window accepts user input, `false` when it is disabled.
    *
    * @since 2.0.0
    */
@@ -988,6 +1143,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-maximizable` permission (not included
+   * in `core:window:default`).
    */
   async setMaximizable(maximizable: boolean): Promise<void> {
     return invoke('plugin:window|set_maximizable', {
@@ -1010,6 +1168,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-minimizable` permission (not included
+   * in `core:window:default`).
    */
   async setMinimizable(minimizable: boolean): Promise<void> {
     return invoke('plugin:window|set_minimizable', {
@@ -1033,6 +1194,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-closable` permission (not included
+   * in `core:window:default`).
    */
   async setClosable(closable: boolean): Promise<void> {
     return invoke('plugin:window|set_closable', {
@@ -1051,6 +1215,9 @@ class Window {
    *
    * @param title The new title
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-title` permission (not included
+   * in `core:window:default`).
    */
   async setTitle(title: string): Promise<void> {
     return invoke('plugin:window|set_title', {
@@ -1068,6 +1235,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-maximize` permission (not included
+   * in `core:window:default`).
    */
   async maximize(): Promise<void> {
     return invoke('plugin:window|maximize', {
@@ -1084,6 +1254,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-unmaximize` permission (not included
+   * in `core:window:default`).
    */
   async unmaximize(): Promise<void> {
     return invoke('plugin:window|unmaximize', {
@@ -1100,6 +1273,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-toggle-maximize` permission (not included
+   * in `core:window:default`).
    */
   async toggleMaximize(): Promise<void> {
     return invoke('plugin:window|toggle_maximize', {
@@ -1116,6 +1292,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-minimize` permission (not included
+   * in `core:window:default`).
    */
   async minimize(): Promise<void> {
     return invoke('plugin:window|minimize', {
@@ -1132,6 +1311,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-unminimize` permission (not included
+   * in `core:window:default`).
    */
   async unminimize(): Promise<void> {
     return invoke('plugin:window|unminimize', {
@@ -1148,6 +1330,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-show` permission (not included
+   * in `core:window:default`).
    */
   async show(): Promise<void> {
     return invoke('plugin:window|show', {
@@ -1164,6 +1349,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-hide` permission (not included
+   * in `core:window:default`).
    */
   async hide(): Promise<void> {
     return invoke('plugin:window|hide', {
@@ -1182,6 +1370,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-close` permission (not included
+   * in `core:window:default`).
    */
   async close(): Promise<void> {
     return invoke('plugin:window|close', {
@@ -1198,6 +1389,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-destroy` permission (not included
+   * in `core:window:default`).
    */
   async destroy(): Promise<void> {
     return invoke('plugin:window|destroy', {
@@ -1215,6 +1409,9 @@ class Window {
    *
    * @param decorations Whether the window should have borders and bars.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-decorations` permission (not included
+   * in `core:window:default`).
    */
   async setDecorations(decorations: boolean): Promise<void> {
     return invoke('plugin:window|set_decorations', {
@@ -1241,6 +1438,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-shadow` permission (not included
+   * in `core:window:default`).
    */
   async setShadow(enable: boolean): Promise<void> {
     return invoke('plugin:window|set_shadow', {
@@ -1250,7 +1450,41 @@ class Window {
   }
 
   /**
-   * Set window effects.
+   * Applies platform-specific window effects such as Mica, Acrylic, Blur or the
+   * macOS vibrancy materials.
+   *
+   * Requires the window to be transparent, so create it with `transparent: true`
+   * (or set `transparent` in `tauri.conf.json`). Give the page a transparent or
+   * translucent background as well, otherwise the effect is hidden behind your own
+   * background color.
+   *
+   * Conflicting effects are resolved by applying the first supported one and
+   * ignoring the rest, so you can list a Windows and a macOS effect together.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows:** If the window uses decorations or shadows, you may need
+   *   [this workaround](https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891).
+   * - **Linux:** Unsupported.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow, Effect, EffectState } from '@tauri-apps/api/window';
+   *
+   * await getCurrentWindow().setEffects({
+   *   effects: [Effect.Mica, Effect.Acrylic, Effect.UnderWindowBackground],
+   *   state: EffectState.Active,
+   *   radius: 8
+   * });
+   * ```
+   *
+   * @param effects The effects to apply, see {@link Effects}.
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-effects` permission (not included
+   * in `core:window:default`).
+   *
+   * @since 2.0.0
    */
   async setEffects(effects: Effects): Promise<void> {
     return invoke('plugin:window|set_effects', {
@@ -1261,6 +1495,19 @@ class Window {
 
   /**
    * Clear any applied effects if possible.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().clearEffects();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-effects` permission (not included
+   * in `core:window:default`), the same one used by {@link Window.setEffects}.
+   *
+   * @since 2.0.0
    */
   async clearEffects(): Promise<void> {
     return invoke('plugin:window|set_effects', {
@@ -1279,6 +1526,9 @@ class Window {
    *
    * @param alwaysOnTop Whether the window should always be on top of other windows or not.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-always-on-top` permission (not included
+   * in `core:window:default`).
    */
   async setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {
     return invoke('plugin:window|set_always_on_top', {
@@ -1297,6 +1547,9 @@ class Window {
    *
    * @param alwaysOnBottom Whether the window should always be below other windows or not.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-always-on-bottom` permission (not included
+   * in `core:window:default`).
    */
   async setAlwaysOnBottom(alwaysOnBottom: boolean): Promise<void> {
     return invoke('plugin:window|set_always_on_bottom', {
@@ -1314,6 +1567,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-content-protected` permission (not included
+   * in `core:window:default`).
    */
   async setContentProtected(protected_: boolean): Promise<void> {
     return invoke('plugin:window|set_content_protected', {
@@ -1332,6 +1588,9 @@ class Window {
    *
    * @param size The logical or physical inner size.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-size` permission (not included
+   * in `core:window:default`).
    */
   async setSize(size: LogicalSize | PhysicalSize | Size): Promise<void> {
     return invoke('plugin:window|set_size', {
@@ -1350,6 +1609,9 @@ class Window {
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-min-size` permission (not included
+   * in `core:window:default`).
    */
   async setMinSize(
     size: LogicalSize | PhysicalSize | Size | null | undefined
@@ -1370,6 +1632,9 @@ class Window {
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-max-size` permission (not included
+   * in `core:window:default`).
    */
   async setMaxSize(
     size: LogicalSize | PhysicalSize | Size | null | undefined
@@ -1388,8 +1653,13 @@ class Window {
    * await getCurrentWindow().setSizeConstraints({ minWidth: 300 });
    * ```
    *
-   * @param constraints The logical or physical inner size, or `null` to unset the constraint.
+   * @param constraints The inner size constraints in **logical pixels**, or `null`
+   * to unset every constraint. Each field is optional and independent, so
+   * `{ minWidth: 300 }` constrains only the width.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-size-constraints` permission (not included
+   * in `core:window:default`).
    */
   async setSizeConstraints(
     constraints: WindowSizeConstraints | null | undefined
@@ -1419,6 +1689,9 @@ class Window {
    *
    * @param position The new position, in logical or physical pixels.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-position` permission (not included
+   * in `core:window:default`).
    */
   async setPosition(
     position: LogicalPosition | PhysicalPosition | Position
@@ -1439,6 +1712,9 @@ class Window {
    *
    * @param fullscreen Whether the window should go to fullscreen or not.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-fullscreen` permission (not included
+   * in `core:window:default`).
    */
   async setFullscreen(fullscreen: boolean): Promise<void> {
     return invoke('plugin:window|set_fullscreen', {
@@ -1463,6 +1739,9 @@ class Window {
    * @param position A physical position inside the target monitor, such as {@linkcode Monitor.position}.
    * @returns A promise indicating the success or failure of the operation.
    *
+   * @remarks Requires the `core:window:allow-set-fullscreen-on-monitor` permission (not included
+   * in `core:window:default`).
+   *
    * @since 2.12.0
    */
   async setFullscreenOnMonitor(position: PhysicalPosition): Promise<void> {
@@ -1473,13 +1752,24 @@ class Window {
   }
 
   /**
-   * On macOS, Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won’t work if the window was already in the native fullscreen).
+   * On macOS, Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
    * This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
    *
    * On other platforms, this is the same as {@link Window.setFullscreen}.
    *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setSimpleFullscreen(true);
+   * ```
+   *
    * @param fullscreen Whether the window should go to simple fullscreen or not.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-simple-fullscreen` permission (not included
+   * in `core:window:default`).
+   *
+   * @since 2.8.0
    */
   async setSimpleFullscreen(fullscreen: boolean): Promise<void> {
     return invoke('plugin:window|set_simple_fullscreen', {
@@ -1497,6 +1787,9 @@ class Window {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-focus` permission (not included
+   * in `core:window:default`).
    */
   async setFocus(): Promise<void> {
     return invoke('plugin:window|set_focus', {
@@ -1520,6 +1813,9 @@ class Window {
    *
    * @param focusable Whether the window can be focused.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-focusable` permission (not included
+   * in `core:window:default`).
    */
   async setFocusable(focusable: boolean): Promise<void> {
     return invoke('plugin:window|set_focusable', {
@@ -1545,6 +1841,9 @@ class Window {
    *
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-icon` permission (not included
+   * in `core:window:default`).
    */
   async setIcon(icon: JsImage): Promise<void> {
     return invoke('plugin:window|set_icon', {
@@ -1567,6 +1866,9 @@ class Window {
    *
    * @param skip true to hide window icon, false to show it.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-skip-taskbar` permission (not included
+   * in `core:window:default`).
    */
   async setSkipTaskbar(skip: boolean): Promise<void> {
     return invoke('plugin:window|set_skip_taskbar', {
@@ -1593,6 +1895,9 @@ class Window {
    *
    * @param grab `true` to grab the cursor icon, `false` to release it.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-cursor-grab` permission (not included
+   * in `core:window:default`).
    */
   async setCursorGrab(grab: boolean): Promise<void> {
     return invoke('plugin:window|set_cursor_grab', {
@@ -1617,6 +1922,9 @@ class Window {
    *
    * @param visible If `false`, this will hide the cursor. If `true`, this will show the cursor.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-cursor-visible` permission (not included
+   * in `core:window:default`).
    */
   async setCursorVisible(visible: boolean): Promise<void> {
     return invoke('plugin:window|set_cursor_visible', {
@@ -1635,6 +1943,9 @@ class Window {
    *
    * @param icon The new cursor icon.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-cursor-icon` permission (not included
+   * in `core:window:default`).
    */
   async setCursorIcon(icon: CursorIcon): Promise<void> {
     return invoke('plugin:window|set_cursor_icon', {
@@ -1651,12 +1962,31 @@ class Window {
    * - **Windows:** alpha channel is ignored.
    * - **iOS / Android:** Unsupported.
    *
+   * This sets the color of the window itself, which is what you see while the
+   * webview is still loading or behind a transparent page. To also change the
+   * webview background use {@link WebviewWindow.setBackgroundColor}.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setBackgroundColor('#2f2f2f');
+   * // also accepts an RGB/RGBA tuple or an object
+   * await getCurrentWindow().setBackgroundColor([47, 47, 47, 255]);
+   * ```
+   *
+   * @param color The new background color, see {@link Color}.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-background-color` permission (not included
+   * in `core:window:default`).
    *
    * @since 2.1.0
    */
   async setBackgroundColor(color: Color): Promise<void> {
-    return invoke('plugin:window|set_background_color', { color })
+    return invoke('plugin:window|set_background_color', {
+      label: this.label,
+      value: color
+    })
   }
 
   /**
@@ -1669,6 +1999,9 @@ class Window {
    *
    * @param position The new cursor position.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-cursor-position` permission (not included
+   * in `core:window:default`).
    */
   async setCursorPosition(
     position: LogicalPosition | PhysicalPosition | Position
@@ -1690,6 +2023,9 @@ class Window {
    *
    * @param ignore `true` to ignore the cursor events; `false` to process them as usual.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-ignore-cursor-events` permission (not included
+   * in `core:window:default`).
    */
   async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
     return invoke('plugin:window|set_ignore_cursor_events', {
@@ -1707,6 +2043,9 @@ class Window {
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-start-dragging` permission (not included
+   * in `core:window:default`).
    */
   async startDragging(): Promise<void> {
     return invoke('plugin:window|start_dragging', {
@@ -1723,6 +2062,9 @@ class Window {
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-start-resize-dragging` permission (not included
+   * in `core:window:default`).
    */
   async startResizeDragging(direction: ResizeDirection): Promise<void> {
     return invoke('plugin:window|start_resize_dragging', {
@@ -1736,7 +2078,7 @@ class Window {
    *
    * #### Platform-specific
    *
-   * - **Windows**: Unsupported. Use @{linkcode Window.setOverlayIcon} instead.
+   * - **Windows**: Unsupported. Use {@linkcode Window.setOverlayIcon} instead.
    *
    * @example
    * ```typescript
@@ -1746,6 +2088,9 @@ class Window {
    *
    * @param count The badge count. Use `undefined` to remove the badge.
    * @return A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-badge-count` permission (not included
+   * in `core:window:default`).
    */
   async setBadgeCount(count?: number): Promise<void> {
     return invoke('plugin:window|set_badge_count', {
@@ -1755,7 +2100,10 @@ class Window {
   }
 
   /**
-   * Sets the badge cont **macOS only**.
+   * Sets the badge label shown on the app's dock icon. **macOS only**
+   *
+   * Unlike {@linkcode Window.setBadgeCount}, which takes a number, this shows
+   * arbitrary short text. It is app-wide and not specific to this window.
    *
    * @example
    * ```typescript
@@ -1765,6 +2113,9 @@ class Window {
    *
    * @param label The badge label. Use `undefined` to remove the badge.
    * @return A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-badge-label` permission (not included
+   * in `core:window:default`).
    */
   async setBadgeLabel(label?: string): Promise<void> {
     return invoke('plugin:window|set_badge_label', {
@@ -1794,6 +2145,9 @@ class Window {
    *
    * @param icon Icon bytes or path to the icon file. Use `undefined` to remove the overlay icon.
    * @return A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-overlay-icon` permission (not included
+   * in `core:window:default`).
    */
   async setOverlayIcon(icon?: JsImage): Promise<void> {
     return invoke('plugin:window|set_overlay_icon', {
@@ -1820,6 +2174,9 @@ class Window {
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-progress-bar` permission (not included
+   * in `core:window:default`).
    */
   async setProgressBar(state: ProgressBarState): Promise<void> {
     return invoke('plugin:window|set_progress_bar', {
@@ -1835,6 +2192,18 @@ class Window {
    *
    * - **Windows / iOS / Android:** Unsupported.
    *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setVisibleOnAllWorkspaces(true);
+   * ```
+   *
+   * @param visible Whether the window should follow the user across workspaces.
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-visible-on-all-workspaces` permission (not included
+   * in `core:window:default`).
+   *
    * @since 2.0.0
    */
   async setVisibleOnAllWorkspaces(visible: boolean): Promise<void> {
@@ -1846,6 +2215,23 @@ class Window {
 
   /**
    * Sets the title bar style. **macOS only**.
+   *
+   * Use `transparent` or `overlay` to build a custom title bar: with `overlay` the
+   * page extends under the title bar and only the traffic lights remain, so leave
+   * room for them in your layout and pair it with {@link Window.startDragging} on a
+   * draggable region.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setTitleBarStyle('overlay');
+   * ```
+   *
+   * @param style The new title bar style, see {@link TitleBarStyle}.
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-title-bar-style` permission (not included
+   * in `core:window:default`).
    *
    * @since 2.0.0
    */
@@ -1863,6 +2249,23 @@ class Window {
    *
    * - **Linux / macOS**: Theme is app-wide and not specific to this window.
    * - **iOS / Android:** Unsupported.
+   *
+   * Use {@link Window.theme} to read the effective theme and
+   * {@link Window.onThemeChanged} to react to changes.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setTheme('dark');
+   * // follow the system theme again
+   * await getCurrentWindow().setTheme(null);
+   * ```
+   *
+   * @param theme The theme to apply, or `null`/`undefined` to follow the system theme.
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:window:allow-set-theme` permission (not included
+   * in `core:window:default`).
    *
    * @since 2.0.0
    */
@@ -1885,12 +2288,16 @@ class Window {
    *  console.log('Window resized', size);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this window is destroyed,
+   * so you do not need to unlisten just because the window is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
     return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
@@ -1909,12 +2316,16 @@ class Window {
    *  console.log('Window moved', position);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this window is destroyed,
+   * so you do not need to unlisten just because the window is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
     return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
@@ -1929,7 +2340,9 @@ class Window {
    * @example
    * ```typescript
    * import { getCurrentWindow } from "@tauri-apps/api/window";
-   * import { confirm } from '@tauri-apps/api/dialog';
+   * // `confirm` comes from the dialog plugin, which you have to add separately:
+   * // `pnpm tauri add dialog`
+   * import { confirm } from '@tauri-apps/plugin-dialog';
    * const unlisten = await getCurrentWindow().onCloseRequested(async (event) => {
    *   const confirmed = await confirm('Are you sure?');
    *   if (!confirmed) {
@@ -1938,12 +2351,16 @@ class Window {
    *   }
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this window is destroyed,
+   * so you do not need to unlisten just because the window is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void | Promise<void>
@@ -1965,7 +2382,7 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrentWindow } from "@tauri-apps/api/webview";
+   * import { getCurrentWindow } from "@tauri-apps/api/window";
    * const unlisten = await getCurrentWindow().onDragDropEvent((event) => {
    *  if (event.payload.type === 'over') {
    *    console.log('User hovering', event.payload.position);
@@ -1976,12 +2393,16 @@ class Window {
    *  }
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this window is destroyed,
+   * so you do not need to unlisten just because the window is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async onDragDropEvent(
     handler: EventCallback<DragDropEvent>
@@ -2054,12 +2475,16 @@ class Window {
    *  console.log('Focus changed, window is focused? ' + focused);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this window is destroyed,
+   * so you do not need to unlisten just because the window is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async onFocusChanged(handler: EventCallback<boolean>): Promise<UnlistenFn> {
     const unlistenFocus = await this.listen<PhysicalPosition>(
@@ -2094,12 +2519,16 @@ class Window {
    *  console.log('Scale changed', payload.scaleFactor, payload.size);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this window is destroyed,
+   * so you do not need to unlisten just because the window is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async onScaleChanged(
     handler: EventCallback<ScaleFactorChanged>
@@ -2120,12 +2549,16 @@ class Window {
    *  console.log('New theme: ' + theme);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this window is destroyed,
+   * so you do not need to unlisten just because the window is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async onThemeChanged(handler: EventCallback<Theme>): Promise<UnlistenFn> {
     return this.listen<Theme>(TauriEvent.WINDOW_THEME_CHANGED, handler)
@@ -2272,6 +2705,14 @@ enum Effect {
    */
   UnderPageBackground = 'underPageBackground',
   /**
+   *  **macOS 26.0+**
+   */
+  LiquidGlassRegular = 'liquidGlassRegular',
+  /**
+   *  **macOS 26.0+**
+   */
+  LiquidGlassClear = 'liquidGlassClear',
+  /**
    *  **Windows 11 Only**
    */
   Mica = 'mica',
@@ -2333,12 +2774,15 @@ enum EffectState {
  */
 interface Effects {
   /**
-   *  List of Window effects to apply to the Window.
-   * Conflicting effects will apply the first one and ignore the rest.
+   * List of Window effects to apply to the Window.
+   *
+   * Generally, conflicting effects will apply the first one and ignore the rest but
+   * on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time
+   * to make Tauri fallback to the latter on macOS 15 and below.
    */
   effects: Effect[]
   /**
-   * Window effect state **macOS Only**
+   * Window effect state **macOS Only**. Ignored for Liquid Glass Effects.
    */
   state?: EffectState
   /**
@@ -2346,17 +2790,35 @@ interface Effects {
    */
   radius?: number
   /**
-   *  Window effect color. Affects {@link Effect.Blur} and {@link Effect.Acrylic} only
+   *  Window effect color.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows**: Affects {@link Effect.Blur} and {@link Effect.Acrylic} only
    * on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
+   * - **macOS**: Only affects Liquid Glass effects.
    */
   color?: Color
+  /**
+   * Enables interactive glass behavior, which adds a visual response to user interactions.
+   *
+   * **macOS 27.0+**. Only affects Liquid Glass effects.
+   */
+  interactive?: boolean
 }
 
 /**
- * Minimum margin to work area
+ * An extra margin kept free around a window when
+ * {@link WindowOptions.preventOverflow} limits it to the working area.
+ *
+ * Values are in logical pixels.
+ *
+ * @since 2.5.0
  */
 interface PreventOverflowMargin {
+  /** The horizontal margin, in logical pixels. */
   width: number
+  /** The vertical margin, in logical pixels. */
   height: number
 }
 
@@ -2369,11 +2831,13 @@ interface WindowOptions {
   /** Show window in the center of the screen.. */
   center?: boolean
   /**
-   * The initial vertical position in logical pixels. Only applies if `y` is also set.
+   * The initial horizontal position in logical pixels, measured from the left edge
+   * of the screen. Only applies if `y` is also set.
    */
   x?: number
   /**
-   * The initial horizontal position in logical pixels. Only applies if `x` is also set.
+   * The initial vertical position in logical pixels, measured from the top edge of
+   * the screen. Only applies if `x` is also set.
    */
   y?: number
   /** The initial width in logical pixels. */
@@ -2697,6 +3161,20 @@ async function availableMonitors(): Promise<Monitor[]> {
  * or the top-left of the leftmost monitor on X11.
  *
  * The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+ *
+ * @example
+ * ```typescript
+ * import { cursorPosition } from '@tauri-apps/api/window';
+ * const position = await cursorPosition();
+ * console.log(position.x, position.y);
+ * ```
+ *
+ * @returns The cursor position, in physical pixels.
+ *
+ * @remarks Uses the `core:window:allow-cursor-position` permission, which is part
+ * of `core:window:default`.
+ *
+ * @since 2.0.0
  */
 async function cursorPosition(): Promise<PhysicalPosition> {
   return invoke<PhysicalPosition>('plugin:window|cursor_position').then(
@@ -2729,6 +3207,7 @@ export type {
   TitleBarStyle,
   ScaleFactorChanged,
   WindowOptions,
+  PreventOverflowMargin,
   Color,
   BackgroundThrottlingPolicy,
   DragDropEvent,

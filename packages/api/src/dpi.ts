@@ -2,6 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Size and position types for working with logical and physical pixels.
+ *
+ * Window and webview APIs report sizes and positions in **physical pixels** (actual
+ * screen pixels), while most browser APIs and the window creation options use
+ * **logical pixels** (physical pixels divided by the monitor scale factor). The
+ * classes in this module make the unit explicit and convert between the two.
+ *
+ * ```typescript
+ * import { getCurrentWindow } from '@tauri-apps/api/window';
+ *
+ * const appWindow = getCurrentWindow();
+ * const size = await appWindow.innerSize(); // PhysicalSize
+ * const logical = size.toLogical(await appWindow.scaleFactor());
+ * ```
+ *
+ * They also serialize into the shape `tauri::Size` / `tauri::Position` expect, so
+ * they can be passed straight to your own commands, see {@linkcode Size} and
+ * {@linkcode Position}.
+ *
+ * This package is also accessible with `window.__TAURI__.dpi` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
+ *
+ * @module
+ */
+
 import { SERIALIZE_TO_IPC_FN } from './core'
 
 /**
@@ -122,6 +147,8 @@ class PhysicalSize {
    * const size = await appWindow.innerSize(); // PhysicalSize
    * const logical = size.toLogical(factor);
    * ```
+   *
+   * @since 2.0.0
    */
   toLogical(scaleFactor: number): LogicalSize {
     return new LogicalSize(this.width / scaleFactor, this.height / scaleFactor)
@@ -178,12 +205,30 @@ class Size {
     this.size = size
   }
 
+  /**
+   * Converts the wrapped size to a logical one.
+   *
+   * Returns the inner value untouched when it already is a {@linkcode LogicalSize}.
+   *
+   * @param scaleFactor The monitor scale factor, e.g. `await appWindow.scaleFactor()`.
+   *
+   * @since 2.1.0
+   */
   toLogical(scaleFactor: number): LogicalSize {
     return this.size instanceof LogicalSize
       ? this.size
       : this.size.toLogical(scaleFactor)
   }
 
+  /**
+   * Converts the wrapped size to a physical one.
+   *
+   * Returns the inner value untouched when it already is a {@linkcode PhysicalSize}.
+   *
+   * @param scaleFactor The monitor scale factor, e.g. `await appWindow.scaleFactor()`.
+   *
+   * @since 2.1.0
+   */
   toPhysical(scaleFactor: number): PhysicalSize {
     return this.size instanceof PhysicalSize
       ? this.size
@@ -316,7 +361,7 @@ class PhysicalPosition {
    * const appWindow = getCurrentWindow();
    * const factor = await appWindow.scaleFactor();
    * const position = new PhysicalPosition(400, 500);
-   * const physical = position.toLogical(factor);
+   * const logical = position.toLogical(factor);
    * ```
    *
    * @since 2.0.0
@@ -341,7 +386,7 @@ class PhysicalPosition {
 /**
  * A position represented either in physical or in logical pixels.
  *
- * This type is basically a union type of {@linkcode LogicalSize} and {@linkcode PhysicalSize}
+ * This type is basically a union type of {@linkcode LogicalPosition} and {@linkcode PhysicalPosition}
  * but comes in handy when using `tauri::Position` in Rust as an argument to a command, as this class
  * automatically serializes into a valid format so it can be deserialized correctly into `tauri::Position`
  *
@@ -376,12 +421,30 @@ class Position {
     this.position = position
   }
 
+  /**
+   * Converts the wrapped position to a logical one.
+   *
+   * Returns the inner value untouched when it already is a {@linkcode LogicalPosition}.
+   *
+   * @param scaleFactor The monitor scale factor, e.g. `await appWindow.scaleFactor()`.
+   *
+   * @since 2.1.0
+   */
   toLogical(scaleFactor: number): LogicalPosition {
     return this.position instanceof LogicalPosition
       ? this.position
       : this.position.toLogical(scaleFactor)
   }
 
+  /**
+   * Converts the wrapped position to a physical one.
+   *
+   * Returns the inner value untouched when it already is a {@linkcode PhysicalPosition}.
+   *
+   * @param scaleFactor The monitor scale factor, e.g. `await appWindow.scaleFactor()`.
+   *
+   * @since 2.1.0
+   */
   toPhysical(scaleFactor: number): PhysicalPosition {
     return this.position instanceof PhysicalPosition
       ? this.position

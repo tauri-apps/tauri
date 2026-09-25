@@ -231,7 +231,7 @@ pub fn command(options: Options) -> Result<()> {
     let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri)?;
 
     let cflags = format!("CFLAGS_{env_triple}");
-    let cxxflags = format!("CFLAGS_{env_triple}");
+    let cxxflags = format!("CXXFLAGS_{env_triple}");
     let objc_include_path = format!("OBJC_INCLUDE_PATH_{env_triple}");
     let mut target_env = host_env.clone();
     target_env.insert(cflags.as_ref(), isysroot.as_ref());

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-js-values"
+description = "Enables the js_values command without any pre-configured scope."
+commands.allow = ["js_values"]
+
+[[permission]]
+identifier = "deny-js-values"
+description = "Denies the js_values command without any pre-configured scope."
+commands.deny = ["js_values"]

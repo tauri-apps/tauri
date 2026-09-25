@@ -38,8 +38,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: install Rust 1.90
+        # the MSRV, so this job restores the `tauri-cli` cache entry saved by test-cli-rs
+        uses: dtolnay/rust-toolchain@1.90
 
       - run: npm i -g --force corepack
       - name: setup node
@@ -55,11 +56,17 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Restore-only: test-cli-rs saves this entry on `dev`; see test-cli-rs.yml.
+          shared-key: tauri-cli
+          save-if: false
 
       - name: test
         timeout-minutes: 30
+        # The template test exercises the CLI, not its release profile. A debug build reuses
+        # the cached dependencies instead of a from-scratch LTO build (5-8 minutes per platform).
         run: |
           cd ./packages/cli
           pnpm i --frozen-lockfile
-          pnpm build
+          pnpm build:debug
           pnpm test

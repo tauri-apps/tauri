@@ -57,8 +57,25 @@ impl ChannelDataIpcQueue {
   /// Stores the body for the given webview and returns its id.
   ///
   /// Ids are sequential per webview and only address that webview's entries.
+  #[cfg(test)]
   fn insert(&self, webview_label: &str, body: InvokeResponseBody) -> u32 {
+    self.insert_if(webview_label, body, || true).unwrap()
+  }
+
+  /// Stores the body for the given webview and returns its id, unless `is_alive` returns false.
+  ///
+  /// `is_alive` runs under the queue lock, so a webview closing concurrently either fails the check
+  /// or has the entry purged by [`Self::remove_webview_entries`] right after.
+  fn insert_if(
+    &self,
+    webview_label: &str,
+    body: InvokeResponseBody,
+    is_alive: impl FnOnce() -> bool,
+  ) -> Option<u32> {
     let mut cache = self.0.lock().unwrap();
+    if !is_alive() {
+      return None;
+    }
     let queue = cache.entry(webview_label.to_string()).or_default();
     let data_id = loop {
       let candidate = queue.next_id;
@@ -68,7 +85,7 @@ impl ChannelDataIpcQueue {
       }
     };
     queue.entries.insert(data_id, body);
-    data_id
+    Some(data_id)
   }
 
   /// Removes and returns the entry with the given id from the given webview's queue.
@@ -88,7 +105,86 @@ impl ChannelDataIpcQueue {
   }
 }
 
-/// An IPC channel.
+/// An IPC channel, used to stream values from Rust to the frontend.
+///
+/// A command can only resolve once, so a channel is how you push an arbitrary number of messages
+/// to the JavaScript side after the command returned: download progress, log lines, streamed
+/// responses and so on. Each message is a `TSend` value, which must implement [`IpcResponse`]
+/// (automatically implemented for every [`serde::Serialize`] type) and is delivered to the
+/// `onmessage` handler of the matching `Channel` on the JavaScript side.
+///
+/// The usual flow is to create the channel on the frontend and pass it as a command argument,
+/// since [`Channel`] implements [`CommandArg`]:
+///
+/// ```javascript
+/// import { Channel, invoke } from '@tauri-apps/api/core'
+///
+/// const onProgress = new Channel()
+/// onProgress.onmessage = (message) => console.log(message)
+/// await invoke('download', { url, onProgress })
+/// ```
+///
+/// A channel can also be created on the Rust side with [`Channel::new`], or resolved from an id
+/// the frontend sent inside a bigger payload with [`JavaScriptChannelId::channel_on`].
+///
+/// Channels are cheap to clone (every clone refers to the same JavaScript callback) and can be
+/// stored in the app state or moved to another thread to send messages later. When the last clone
+/// of a channel created from the frontend is dropped, the JavaScript side is notified that no more
+/// messages will arrive and the callback is unregistered.
+///
+/// # Ordering
+///
+/// The channel automatically orders the messages: every message carries the index it was sent with,
+/// and the JavaScript side buffers out-of-order messages until the missing ones arrive, so the
+/// `onmessage` handler always observes messages in the same order [`Channel::send`] was called.
+/// See [`Builder::channel_interceptor`](crate::Builder::channel_interceptor) if you need to
+/// intercept or replace this delivery mechanism.
+///
+/// # Raw payloads
+///
+/// Any [`serde::Serialize`] value is sent as JSON. To stream binary data without the JSON overhead,
+/// send an [`InvokeResponseBody::Raw`] through a `Channel<InvokeResponseBody>` (the default type
+/// parameter) or a [`Response`]: the payload is then received in JavaScript as an `ArrayBuffer`.
+/// Note that a `Channel<Vec<u8>>` does *not* do this - `Vec<u8>` is `Serialize`,
+/// so it is sent as a JSON array of numbers.
+///
+/// # Examples
+///
+/// Streaming progress to the frontend from a command:
+///
+/// ```rust
+/// use tauri::ipc::Channel;
+///
+/// #[derive(Clone, serde::Serialize)]
+/// #[serde(rename_all = "camelCase")]
+/// struct DownloadProgress {
+///   downloaded: usize,
+///   content_length: usize,
+/// }
+///
+/// #[tauri::command]
+/// fn download(url: String, on_progress: Channel<DownloadProgress>) -> tauri::Result<()> {
+///   let content_length = 1000;
+///   for downloaded in (0..=content_length).step_by(100) {
+///     on_progress.send(DownloadProgress { downloaded, content_length })?;
+///   }
+///   Ok(())
+/// }
+/// ```
+///
+/// Streaming binary chunks, received as `ArrayBuffer`s in JavaScript:
+///
+/// ```rust
+/// use tauri::ipc::{Channel, InvokeResponseBody};
+///
+/// #[tauri::command]
+/// fn read_file(on_chunk: Channel<InvokeResponseBody>) -> tauri::Result<()> {
+///   for chunk in [vec![0u8; 16], vec![1u8; 16]] {
+///     on_chunk.send(InvokeResponseBody::Raw(chunk))?;
+///   }
+///   Ok(())
+/// }
+/// ```
 pub struct Channel<TSend = InvokeResponseBody> {
   inner: Arc<ChannelInner>,
   phantom: std::marker::PhantomData<TSend>,
@@ -209,9 +305,15 @@ impl JavaScriptChannelId {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = webview
-              .state::<ChannelDataIpcQueue>()
-              .insert(webview.label(), body);
+            // the webview was closed (or replaced by a new one with the same label),
+            // so nothing would ever fetch this data
+            let Some(data_id) =
+              webview
+                .state::<ChannelDataIpcQueue>()
+                .insert_if(webview.label(), body, || webview.is_registered())
+            else {
+              return Ok(());
+            };
 
             webview.eval(format!(
               "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, {{ message: response, index: {current_index} }})).catch(console.error)",
@@ -248,6 +350,31 @@ impl<'de> Deserialize<'de> for JavaScriptChannelId {
 
 impl<TSend> Channel<TSend> {
   /// Creates a new channel with the given message handler.
+  ///
+  /// This does not involve the frontend: the closure is called with the body of every message sent
+  /// through [`Channel::send`], and it is up to you to forward it. Use it to create a channel that
+  /// a plugin or a mobile command expects, or to consume channel messages in Rust.
+  ///
+  /// To push messages to a channel that was created by the frontend, receive the [`Channel`] as a
+  /// command argument (see [`CommandArg`]) or deserialize a [`JavaScriptChannelId`] and call
+  /// [`JavaScriptChannelId::channel_on`] with the target [`Webview`], which wires the messages
+  /// through the IPC for you.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::ipc::{Channel, InvokeResponseBody};
+  ///
+  /// let channel = Channel::new(|message: InvokeResponseBody| {
+  ///   match message {
+  ///     InvokeResponseBody::Json(json) => println!("channel message: {json}"),
+  ///     InvokeResponseBody::Raw(bytes) => println!("channel message: {} bytes", bytes.len()),
+  ///   }
+  ///   Ok(())
+  /// });
+  ///
+  /// channel.send("hello").unwrap();
+  /// ```
   pub fn new<F: Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync + 'static>(
     on_message: F,
   ) -> Self {
@@ -300,9 +427,15 @@ impl<TSend> Channel<TSend> {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = webview
-              .state::<ChannelDataIpcQueue>()
-              .insert(webview.label(), body);
+            // the webview was closed (or replaced by a new one with the same label),
+            // so nothing would ever fetch this data
+            let Some(data_id) =
+              webview
+                .state::<ChannelDataIpcQueue>()
+                .insert_if(webview.label(), body, || webview.is_registered())
+            else {
+              return Ok(());
+            };
 
             webview.eval(format!(
               "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, response)).catch(console.error)",
@@ -422,5 +555,55 @@ mod tests {
 
     assert!(queue.remove("a", a).is_none());
     assert!(queue.remove("b", b).is_some());
+  }
+
+  #[test]
+  fn insert_is_skipped_for_dead_webviews() {
+    let queue = ChannelDataIpcQueue::default();
+    assert!(queue.insert_if("a", json_body("1"), || false).is_none());
+    assert!(queue.0.lock().unwrap().is_empty());
+  }
+
+  #[test]
+  fn channel_data_is_not_queued_after_the_webview_closes() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let queue = app.state::<ChannelDataIpcQueue>().inner().clone();
+    let queued = |label: &str| {
+      queue
+        .0
+        .lock()
+        .unwrap()
+        .get(label)
+        .map_or(0, |q| q.entries.len())
+    };
+    let large = || InvokeResponseBody::Raw(vec![0; MAX_RAW_DIRECT_EXECUTE_THRESHOLD]);
+    let open = || {
+      crate::WebviewWindowBuilder::new(&app, "main", crate::WebviewUrl::default())
+        .build()
+        .unwrap()
+    };
+    let channel_on = |window: &crate::WebviewWindow<_>| {
+      JavaScriptChannelId::from_str("__CHANNEL__:1")
+        .unwrap()
+        .channel_on::<_, InvokeResponseBody>(window.webview.clone())
+    };
+
+    let old_channel = channel_on(&open());
+    old_channel.send(large()).unwrap();
+    assert_eq!(queued("main"), 1);
+
+    app.handle().manager.on_window_close("main");
+    assert_eq!(queued("main"), 0);
+    old_channel.send(large()).unwrap();
+    assert_eq!(queued("main"), 0);
+
+    // a new webview reusing the label does not receive the old channel's data
+    let new_channel = channel_on(&open());
+    old_channel.send(large()).unwrap();
+    assert_eq!(queued("main"), 0);
+    new_channel.send(large()).unwrap();
+    assert_eq!(queued("main"), 1);
   }
 }

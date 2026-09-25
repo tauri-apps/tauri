@@ -1,0 +1,247 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test `@tauri-apps/api` e2e (mobile)
+
+on:
+  workflow_dispatch:
+  # run before publishing, see covector-version-or-publish.yml
+  workflow_call:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '.github/workflows/test-api-e2e-mobile.yml'
+      - 'packages/api/**'
+      - 'packages/api-e2e/**'
+      - 'examples/api/**'
+      - 'crates/tauri/mobile/**'
+      - 'crates/tauri-cli/templates/mobile/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # keeps the target folder small for better cache efficiency
+  # Incremental artifacts are dropped from the cache anyway and only slow the builds down.
+  CARGO_INCREMENTAL: 0
+
+concurrency:
+  # `github.workflow` is the caller's name in a `workflow_call` run, so the suffix keeps the
+  # desktop and mobile suites from sharing (and cancelling) one group there.
+  group: ${{ github.workflow }}-api-e2e-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    env:
+      # The emulator runs the host architecture, so only that target is built.
+      E2E_ANDROID_TARGET: x86_64
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install Rust 1.90
+        # The MSRV, as the other jobs building the CLI use. The compiler version is part of
+        # the rust-cache key, so a floating `stable` would also invalidate the entry below on
+        # every Rust release.
+        uses: dtolnay/rust-toolchain@1.90
+        with:
+          targets: x86_64-linux-android
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      - name: use the preinstalled NDK
+        # The runner image ships NDK r29, the release the CLI installs itself when it finds
+        # none. setup-ndk downloaded it again on every run, or kept a 700 MB copy of it in
+        # the cache (per ref, next to the entries that actually save time), and its symlinks
+        # needed patching up.
+        run: echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+
+      # Hardware acceleration for the emulator.
+      - name: enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # The dependencies of the CLI (host, dev profile) and of the example app (Android
+          # target, dev profile). Only `dev` writes the entry: one saved from a pull request
+          # lives on its merge ref, where nothing else can restore it, and every write evicts
+          # a `dev` entry that other runs would have hit (10 GB repository limit, LRU
+          # eviction). Pull requests restore the `dev` entry, so they get everything but
+          # the workspace crates for free.
+          shared-key: api-e2e-android
+          save-if: ${{ github.ref == 'refs/heads/dev' }}
+          # A flaky spec on `dev` must not throw the build away.
+          cache-on-failure: true
+
+      - name: install dependencies
+        run: pnpm i --frozen-lockfile
+
+      - name: build @tauri-apps/api
+        run: pnpm build:api
+
+      - name: build @tauri-apps/cli
+        # Debug profile: the suite only drives the CLI, and a debug CLI reuses the cached
+        # dependencies instead of a from-scratch LTO build (5 minutes on this runner).
+        run: pnpm build:cli:debug
+
+      # Built before the emulator is up so it does not sit idle (and time out)
+      # during the Rust and Gradle builds; the suite then reuses the APK.
+      - name: build the APK
+        working-directory: ./examples/api
+        run: |
+          pnpm tauri android init --ci --skip-targets-install
+          pnpm tauri android build --debug --apk --target $E2E_ANDROID_TARGET
+
+      - name: run e2e tests
+        uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 60
+        with:
+          api-level: 35
+          arch: x86_64
+          # google_apis images ship an up-to-date Android System WebView.
+          target: google_apis
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: E2E_SKIP_BUILD=1 E2E_SPEC_RETRIES=1 pnpm test:api-e2e:android
+
+      - name: upload appium logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-appium-logs
+          path: packages/api-e2e/logs
+          if-no-files-found: ignore
+
+  ios:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install Rust 1.90
+        # The MSRV, as the other jobs building the CLI use. The compiler version is part of
+        # the rust-cache key, so a floating `stable` would also invalidate the entry below on
+        # every Rust release.
+        uses: dtolnay/rust-toolchain@1.90
+        with:
+          targets: aarch64-apple-ios-sim
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # The dependencies of the CLI (host, dev profile) and of the example app (simulator
+          # target, dev profile). Only `dev` writes the entry; see the Android job.
+          shared-key: api-e2e-ios
+          save-if: ${{ github.ref == 'refs/heads/dev' }}
+          cache-on-failure: true
+
+      - name: install dependencies
+        run: pnpm i --frozen-lockfile
+
+      # The simulator the suite runs on: the iPhone on the newest installed iOS runtime, as
+      # wdio.mobile.ts would pick it. Booted now so that it is ready once the app is built:
+      # a cold boot takes over a minute on the runner, and Appium otherwise does it as part
+      # of the first session.
+      - name: boot the iOS simulator
+        run: |
+          udid=$(xcrun simctl list devices available --json | jq -r '
+            .devices
+            | to_entries
+            | map(select(.key | contains(".iOS-")))
+            | sort_by(.key | capture("iOS-(?<major>[0-9]+)-(?<minor>[0-9]+)") | [(.major | tonumber), (.minor | tonumber)])
+            | reverse
+            | map(.value[] | select(.isAvailable and ((.deviceTypeIdentifier // .name) | contains("iPhone"))))
+            | .[0].udid
+          ')
+          echo "booting $udid"
+          xcrun simctl boot "$udid"
+          echo "E2E_IOS_DEVICE=$udid" >> "$GITHUB_ENV"
+
+      # Appium's release build of WebDriverAgent for the simulator. The XCUITest driver
+      # otherwise compiles it with xcodebuild in the first session, which took this runner
+      # 8-10 minutes: longer than the suite waits for a session, so that session always
+      # failed and its spec ran again once WDA was finally up. See E2E_IOS_WDA in
+      # packages/api-e2e/wdio.mobile.ts.
+      - name: download WebDriverAgent
+        working-directory: ./packages/api-e2e
+        env:
+          # where Appium looks for the driver; the suite sets the same
+          APPIUM_HOME: ${{ github.workspace }}/packages/api-e2e
+        run: |
+          pnpm exec appium driver run xcuitest download-wda -- --outdir "$RUNNER_TEMP/wda" --platform iOS --kind sim
+          echo "E2E_IOS_WDA=$RUNNER_TEMP/wda/WebDriverAgentRunner-Runner.app" >> "$GITHUB_ENV"
+
+      - name: build @tauri-apps/api
+        run: pnpm build:api
+
+      - name: build @tauri-apps/cli
+        # Debug profile: the suite only drives the CLI, and a debug CLI reuses the cached
+        # dependencies instead of a from-scratch LTO build (10 minutes on this runner).
+        run: pnpm build:cli:debug
+
+      # Simulator build (`aarch64-sim` on the Apple Silicon runners), unsigned.
+      # Built ahead of the suite for symmetry with the Android job.
+      - name: build the simulator app
+        working-directory: ./examples/api
+        run: |
+          pnpm tauri ios init --ci --skip-targets-install
+          pnpm tauri ios build --debug --target aarch64-sim --no-sign
+
+      - name: wait for the simulator
+        run: xcrun simctl bootstatus "$E2E_IOS_DEVICE" -b
+
+      # wdio.ios.conf runs on the simulator booted above (E2E_IOS_DEVICE) with the
+      # prebuilt WebDriverAgent (E2E_IOS_WDA).
+      - name: run e2e tests
+        timeout-minutes: 60
+        env:
+          E2E_SKIP_BUILD: '1'
+          E2E_SPEC_RETRIES: '1'
+        run: pnpm test:api-e2e:ios
+
+      - name: upload appium logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-appium-logs
+          path: packages/api-e2e/logs
+          if-no-files-found: ignore
+
+      - name: collect app crash reports
+        if: failure()
+        run: .scripts/ci/collect-macos-crash-reports.sh "$RUNNER_TEMP/crash-reports"
+
+      - name: upload app crash reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-crash-reports
+          path: ${{ runner.temp }}/crash-reports
+          if-no-files-found: ignore

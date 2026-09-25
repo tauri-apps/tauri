@@ -49,6 +49,12 @@ code.code-block {
   width: 18.75rem;
 }
 
+/* let window effects (vibrancy / Liquid Glass) show through the whole page */
+:root.window-effects #sidebar,
+:root.window-effects main {
+  background-color: transparent;
+}
+
 @media screen and (width < 640px) {
   #sidebar {
     --translate-x: -18.75rem;

@@ -9060,6 +9060,7 @@ dependencies = [
  "tokio",
  "toml 1.0.6+spec-1.1.0",
  "toml_edit 0.25.4+spec-1.1.0",
+ "tower",
  "ureq",
  "url",
  "uuid",

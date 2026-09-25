@@ -417,7 +417,9 @@ fn new<R: Runtime>(
 
     ItemKind::Predefined => {
       let item = PredefinedMenuItemPayload {
-        item: options.predefined_item.unwrap(),
+        item: options.predefined_item.ok_or_else(|| {
+          anyhow::anyhow!("the `item` option is required for a `Predefined` menu item")
+        })?,
         text: options.text,
       }
       .create_item(&webview, &resources_table)?;
@@ -938,4 +940,59 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_icon,
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{ItemKind, NewOptions};
+  use crate::{Manager, ipc::Channel, test::mock_app};
+
+  fn new_item(
+    webview: &crate::WebviewWindow<crate::test::MockRuntime>,
+    kind: ItemKind,
+    options: serde_json::Value,
+  ) -> crate::Result<()> {
+    let options: NewOptions = serde_json::from_value(options).unwrap();
+    super::new(
+      webview.as_ref().clone(),
+      kind,
+      Some(options),
+      webview.state(),
+      Channel::new(|_| Ok(())),
+    )
+    .map(|_| ())
+  }
+
+  #[test]
+  fn new_rejects_invalid_input_without_panicking() {
+    let app = mock_app();
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    // predefined item without the `item` option
+    let err = new_item(&webview, ItemKind::Predefined, serde_json::json!({}))
+      .unwrap_err()
+      .to_string();
+    assert!(err.contains("`item` option"), "unexpected error: {err}");
+
+    // submenu icon whose buffer does not match its dimensions
+    let res = new_item(
+      &webview,
+      ItemKind::Submenu,
+      serde_json::json!({ "icon": { "rgba": [1, 2, 3], "width": 100, "height": 100 } }),
+    );
+    assert!(res.is_err(), "invalid submenu icon should return an error");
+
+    // icon menu item with the same invalid icon
+    let res = new_item(
+      &webview,
+      ItemKind::Icon,
+      serde_json::json!({ "icon": { "rgba": [1, 2, 3], "width": 100, "height": 100 } }),
+    );
+    assert!(
+      res.is_err(),
+      "invalid menu item icon should return an error"
+    );
+  }
 }

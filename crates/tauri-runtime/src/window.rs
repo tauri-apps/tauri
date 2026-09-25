@@ -368,11 +368,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   ///
   /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
   /// creating a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
+  ///
+  /// Not gated on the `macos-private-api` feature so a runtime crate always implements it, even
+  /// when feature unification enables this crate's feature but not the runtime's. On macOS,
+  /// runtimes must make this a no-op unless their own `macos-private-api` feature is enabled.
   #[must_use]
   fn transparent(self, transparent: bool) -> Self;
 

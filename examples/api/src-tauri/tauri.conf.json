@@ -12,6 +12,7 @@
   },
   "app": {
     "withGlobalTauri": true,
+    "macOSPrivateApi": true,
     "security": {
       "pattern": {
         "use": "isolation",

@@ -1188,6 +1188,13 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  // Window transparency on macOS relies on private APIs, which must not be referenced from the
+  // binary unless this crate's `macos-private-api` feature is enabled.
+  #[cfg(all(target_os = "macos", not(feature = "macos-private-api")))]
+  fn transparent(self, _transparent: bool) -> Self {
+    self
+  }
+
   fn decorations(mut self, decorations: bool) -> Self {
     self.inner = self.inner.with_decorations(decorations);
     self

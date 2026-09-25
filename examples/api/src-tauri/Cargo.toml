@@ -37,6 +37,7 @@ features = [
   "image-ico",
   "image-png",
   "isolation",
+  "macos-private-api",
   "tray-icon",
 ]
 
@@ -57,8 +58,8 @@ features = ["test"]
 
 [features]
 default = ["wry"]
-wry = ["dep:tauri-runtime-wry"]
+wry = ["dep:tauri-runtime-wry", "tauri-runtime-wry/macos-private-api"]
 prod = ["tauri/custom-protocol"]
-cef = ["dep:tauri-runtime-cef"]
+cef = ["dep:tauri-runtime-cef", "tauri-runtime-cef/macos-private-api"]
 # Enables the WebDriver automation bridge; set by the e2e suite's build (packages/api-e2e).
 automation = ["dep:tauri-plugin-automation"]

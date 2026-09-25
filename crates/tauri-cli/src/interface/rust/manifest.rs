@@ -163,8 +163,10 @@ fn write_features<F: Fn(&str) -> bool>(
       }
       Value::String(version) => {
         let mut def = InlineTable::default();
-        def.get_or_insert("version", version.to_string().replace(['\"', ' '], ""));
+        def.get_or_insert("version", version.value().as_str());
         def.get_or_insert("features", Value::Array(toml_array(features)));
+        // keep the surrounding whitespace and trailing comment
+        *def.decor_mut() = version.decor().clone();
         *dep = Value::InlineTable(def);
       }
       _ => {
@@ -539,6 +541,35 @@ mod tests {
         ])),
         tauri_build_dependency(HashSet::from_iter(vec!["isolation".into()])),
       ],
+    );
+  }
+
+  #[test]
+  fn inject_features_string_keeps_version_value() {
+    let mut manifest = r#"[dependencies]
+tauri = "2" # pin
+tauri-build = '2.1'
+"#
+    .parse::<toml_edit::DocumentMut>()
+    .unwrap();
+
+    let mut dependencies = vec![
+      tauri_dependency(HashSet::from_iter(vec!["isolation".into()])),
+      DependencyAllowlist {
+        name: "tauri-build".into(),
+        kind: DependencyKind::Normal,
+        all_cli_managed_features: vec![],
+        features: HashSet::from_iter(vec!["codegen".into()]),
+      },
+    ];
+    super::inject_features(&mut manifest, &mut dependencies).unwrap();
+
+    assert_eq!(
+      manifest.to_string(),
+      r#"[dependencies]
+tauri = { version = "2", features = ["isolation"] } # pin
+tauri-build = { version = "2.1", features = ["codegen"] }
+"#
     );
   }
 

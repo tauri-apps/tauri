@@ -123,11 +123,7 @@ impl<R: Runtime> WebviewManager<R> {
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let app_manager = manager.manager();
 
-    let plugin_init_scripts = app_manager
-      .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .initialization_script();
+    let plugin_init_scripts = app_manager.plugins.initialization_script();
 
     let pattern_init = PatternJavascript {
       pattern: (&*app_manager.pattern).into(),
@@ -298,11 +294,7 @@ impl<R: Runtime> WebviewManager<R> {
             on_page_load(&w, &payload);
           }
 
-          app_manager_
-            .plugins
-            .lock()
-            .unwrap()
-            .on_page_load(&w, &payload);
+          app_manager_.plugins.on_page_load(&w, &payload);
         }
 
         if let Some(handler) = &on_page_load_handler {
@@ -639,11 +631,7 @@ impl<R: Runtime> WebviewManager<R> {
       }
       let webview = app_manager.webview.webviews_lock().get(&label).cloned();
       if let Some(w) = webview {
-        app_manager
-          .plugins
-          .lock()
-          .expect("poisoned plugin store")
-          .on_navigation(&w, url)
+        app_manager.plugins.on_navigation(&w, url)
       } else {
         true
       }
@@ -680,13 +668,9 @@ impl<R: Runtime> WebviewManager<R> {
     // let plugins know that a new webview has been added to the manager
     let manager = webview.manager_owned();
     let webview_ = webview.clone();
-    // run on main thread so the plugin store doesn't dead lock with the event loop handler in App
+    // plugins receive the created hooks on the main thread
     let _ = webview.run_on_main_thread(move || {
-      manager
-        .plugins
-        .lock()
-        .expect("poisoned plugin store")
-        .webview_created(webview_);
+      manager.plugins.webview_created(webview_);
     });
 
     #[cfg(target_os = "ios")]

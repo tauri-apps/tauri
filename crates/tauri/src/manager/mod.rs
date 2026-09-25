@@ -190,7 +190,7 @@ pub struct AppManager<R: Runtime = crate::DynRuntime> {
   #[cfg(desktop)]
   pub menu: menu::MenuManager<R>,
 
-  pub(crate) plugins: Mutex<PluginStore<R>>,
+  pub(crate) plugins: PluginStore<R>,
   pub listeners: Listeners,
   pub(crate) state: Arc<StateManager>,
   pub config: Config,
@@ -256,7 +256,6 @@ impl<R: Runtime> AppManager<R> {
   #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
     #[allow(unused_mut)] mut context: Context<R>,
-    plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
     on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
@@ -315,7 +314,7 @@ impl<R: Runtime> AppManager<R> {
         global_event_listeners: Mutex::new(menu_event_listener),
         event_listeners: Mutex::new(window_menu_event_listeners),
       },
-      plugins: Mutex::new(plugins),
+      plugins: PluginStore::default(),
       listeners: Listeners::default(),
       state: Arc::new(state),
       config: context.config,
@@ -476,19 +475,17 @@ impl<R: Runtime> AppManager<R> {
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
   pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
-    self
-      .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .run_invoke_handler(plugin, invoke)
+    self.plugins.run_invoke_handler(plugin, invoke)
   }
 
-  pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
+  pub fn initialize_plugins(
+    &self,
+    app: &AppHandle<R>,
+    plugins: Vec<Box<dyn crate::plugin::Plugin<R>>>,
+  ) -> crate::Result<()> {
     self
       .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .initialize_all(app, &self.config.plugins)
+      .initialize_all(plugins, app, &self.config.plugins)
   }
 
   pub fn config(&self) -> &Config {
@@ -752,7 +749,6 @@ mod test {
     Window,
     event::EventTarget,
     generate_context,
-    plugin::PluginStore,
     test::{MockRuntime, mock_app},
     webview::WebviewBuilder,
     window::WindowBuilder,
@@ -775,7 +771,6 @@ mod test {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
     let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
-      PluginStore::default(),
       Box::new(|_| false),
       None,                // on_page_load
       None,                // on_permission_request

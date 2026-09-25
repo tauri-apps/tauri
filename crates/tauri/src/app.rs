@@ -11,7 +11,7 @@ use crate::{
     channel::ChannelDataIpcQueue,
   },
   manager::{AppManager, Asset, webview::UriSchemeProtocol},
-  plugin::{Plugin, PluginStore},
+  plugin::Plugin,
   resources::ResourceTable,
   runtime::{
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
@@ -502,12 +502,11 @@ impl<R: Runtime> AppHandle<R> {
   /// This method is similar to [`Self::plugin`],
   /// but accepts a boxed trait object instead of a generic type.
   #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name())))]
-  pub fn plugin_boxed(&self, mut plugin: Box<dyn Plugin<R>>) -> crate::Result<()> {
-    let mut store = self.manager().plugins.lock().unwrap();
-    store.initialize(&mut plugin, self, &self.config().plugins)?;
-    store.register(plugin);
-
-    Ok(())
+  pub fn plugin_boxed(&self, plugin: Box<dyn Plugin<R>>) -> crate::Result<()> {
+    self
+      .manager()
+      .plugins
+      .initialize_all(vec![plugin], self, &self.config().plugins)
   }
 
   /// Removes the plugin with the given name.
@@ -536,7 +535,7 @@ impl<R: Runtime> AppHandle<R> {
   ///   });
   /// ```
   pub fn remove_plugin(&self, plugin: &str) -> bool {
-    self.manager().plugins.lock().unwrap().unregister(plugin)
+    self.manager().plugins.unregister(plugin)
   }
 
   /// Exits the app by triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`].
@@ -1534,8 +1533,8 @@ pub struct Builder<R: Runtime = crate::DynRuntime> {
   /// Web content process termination hook.
   on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
 
-  /// All passed plugins
-  plugins: PluginStore<R>,
+  /// All passed plugins, initialized in order when the app is built.
+  plugins: Vec<Box<dyn Plugin<R>>>,
 
   /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
@@ -1621,7 +1620,7 @@ impl<R: Runtime> Builder<R> {
       on_page_load: None,
       on_permission_request: None,
       on_web_content_process_terminate: None,
-      plugins: PluginStore::default(),
+      plugins: Vec::new(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       #[cfg(desktop)]
@@ -1976,7 +1975,8 @@ tauri::Builder::default()
   /// but accepts a boxed trait object instead of a generic type.
   #[must_use]
   pub fn plugin_boxed(mut self, plugin: Box<dyn Plugin<R>>) -> Self {
-    self.plugins.register(plugin);
+    self.plugins.retain(|p| p.name() != plugin.name());
+    self.plugins.push(plugin);
     self
   }
 
@@ -2428,7 +2428,6 @@ tauri::Builder::default()
 
     let manager = Arc::new(AppManager::with_handlers(
       context,
-      self.plugins,
       self.invoke_handler,
       self.on_page_load,
       self.on_permission_request,
@@ -2644,7 +2643,7 @@ tauri::Builder::default()
       }
     }
 
-    app.manager.initialize_plugins(handle)?;
+    app.manager.initialize_plugins(handle, self.plugins)?;
 
     Ok(app)
   }
@@ -2848,11 +2847,7 @@ fn on_event_loop_event<R: Runtime>(
     _ => unimplemented!(),
   };
 
-  manager
-    .plugins
-    .lock()
-    .expect("poisoned plugin store")
-    .on_event(app_handle, &event);
+  manager.plugins.on_event(app_handle, &event);
 
   event
 }

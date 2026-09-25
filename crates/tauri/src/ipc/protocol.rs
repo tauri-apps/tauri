@@ -554,7 +554,7 @@ mod tests {
 
   use super::*;
   use crate::{
-    StateManager, ipc::InvokeBody, manager::AppManager, plugin::PluginStore, test::MockRuntime,
+    StateManager, ipc::InvokeBody, manager::AppManager, test::MockRuntime,
   };
   use http::header::*;
   use serde_json::json;
@@ -565,7 +565,6 @@ mod tests {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
     let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
-      PluginStore::default(),
       Box::new(|_| false),
       None,
       None,
@@ -683,7 +682,6 @@ mod tests {
 
     let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
-      PluginStore::default(),
       Box::new(|_| false),
       None,
       None,

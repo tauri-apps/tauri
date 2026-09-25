@@ -219,38 +219,46 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   }
 
   if let Some(updater) = settings.updater() {
-    if package_types.iter().any(|package_type| {
-      if updater.v1_compatible {
+    // Targets the legacy v1 updater can consume once they are wrapped in a tar.gz / zip.
+    let has_v1_target = updater.v1_compatible
+      && package_types.iter().any(|package_type| {
         matches!(
           package_type,
           PackageType::AppImage
             | PackageType::MacOsBundle
             | PackageType::Nsis
             | PackageType::WindowsMsi
-            | PackageType::Deb
         )
-      } else {
-        matches!(package_type, PackageType::MacOsBundle)
-      }
-    }) {
+      });
+    // Targets the v2 updater plugin installs directly, no wrapping needed.
+    let has_self_contained_target = package_types.iter().any(|package_type| {
+      matches!(
+        package_type,
+        PackageType::AppImage
+          | PackageType::Nsis
+          | PackageType::WindowsMsi
+          | PackageType::Deb
+          | PackageType::Rpm
+      )
+    });
+
+    // the macOS app bundle is always archived, the other v1 targets only for the legacy updater
+    if package_types.contains(&PackageType::MacOsBundle) || has_v1_target {
       let updater_paths = updater_bundle::bundle_project(settings, &bundles)?;
       bundles.push(Bundle {
         package_type: PackageType::Updater,
         bundle_paths: updater_paths,
       });
-    } else if updater.v1_compatible
-      || !package_types.iter().any(|package_type| {
-        // Self contained updater, no need to zip
-        matches!(
-          package_type,
-          PackageType::AppImage | PackageType::Nsis | PackageType::WindowsMsi | PackageType::Deb
-        )
-      })
-    {
+    } else if updater.v1_compatible {
       log::warn!(
-        "The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis"
+        "No v1 compatible updater artifact was created: the legacy updater only supports the app, appimage, msi and nsis targets. deb and rpm bundles can only be installed by the v2 updater plugin."
+      );
+    } else if !has_self_contained_target {
+      log::warn!(
+        "The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, deb, rpm, msi, nsis"
       );
     }
+
     if updater.v1_compatible {
       log::warn!(
         "Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin"

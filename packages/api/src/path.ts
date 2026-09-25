@@ -154,7 +154,8 @@ enum BaseDirectory {
 
 /**
  * Returns the path to the suggested directory for your app's config files.
- * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`.
+ * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`,
+ * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config.
  * @example
  * ```typescript
  * import { appConfigDir } from '@tauri-apps/api/path';
@@ -171,7 +172,8 @@ async function appConfigDir(): Promise<string> {
 
 /**
  * Returns the path to the suggested directory for your app's data files.
- * Resolves to `${dataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`.
+ * Resolves to `${dataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`,
+ * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config.
  * @example
  * ```typescript
  * import { appDataDir } from '@tauri-apps/api/path';
@@ -188,7 +190,8 @@ async function appDataDir(): Promise<string> {
 
 /**
  * Returns the path to the suggested directory for your app's local data files.
- * Resolves to `${localDataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`.
+ * Resolves to `${localDataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`,
+ * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config.
  * @example
  * ```typescript
  * import { appLocalDataDir } from '@tauri-apps/api/path';
@@ -205,7 +208,8 @@ async function appLocalDataDir(): Promise<string> {
 
 /**
  * Returns the path to the suggested directory for your app's cache files.
- * Resolves to `${cacheDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`.
+ * Resolves to `${cacheDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`,
+ * unless overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config (a single root override resolves to `${root}/caches`).
  * @example
  * ```typescript
  * import { appCacheDir } from '@tauri-apps/api/path';
@@ -656,9 +660,11 @@ async function videoDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}/logs`.
+ * - **Linux:** Resolves to `${localDataDir}/${bundleIdentifier}/logs`.
  * - **macOS:** Resolves to `${homeDir}/Library/Logs/{bundleIdentifier}`
- * - **Windows:** Resolves to `${configDir}/${bundleIdentifier}/logs`.
+ * - **Windows:** Resolves to `${localDataDir}/${bundleIdentifier}/logs`.
+ *
+ * All of them can be overridden with the [`app > appDirectoriesOverride`](https://v2.tauri.app/reference/config/#appdirectoriesoverride) config (a single root override resolves to `${root}/logs`).
  * @example
  * ```typescript
  * import { appLogDir } from '@tauri-apps/api/path';

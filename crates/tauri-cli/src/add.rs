@@ -96,12 +96,12 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
 
   if !metadata.rust_only {
     if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
-      let npm_version_req = version
-        .map(ToString::to_string)
-        .or(metadata.version_req.as_ref().map(|v| match manager {
+      let npm_version_req = version.map(ToString::to_string).or_else(|| {
+        metadata.version_req.as_ref().map(|v| match manager {
           PackageManager::Npm => format!(">={v}"),
           _ => format!("~{v}"),
-        }));
+        })
+      });
 
       let npm_spec = match (npm_version_req, options.tag, options.rev, options.branch) {
         (Some(version_req), _, _, _) => format!("{npm_name}@{version_req}"),

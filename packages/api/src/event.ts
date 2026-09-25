@@ -6,6 +6,12 @@
  * The event system allows you to emit events to the backend and listen to events from it.
  *
  * This package is also accessible with `window.__TAURI__.event` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
+ *
+ * @remarks All commands used by this module (`core:event:allow-listen`,
+ * `allow-unlisten`, `allow-emit` and `allow-emit-to`) are part of the
+ * `core:event:default` permission set, which is enabled by default, so no extra
+ * capability configuration is needed.
+ *
  * @module
  */
 
@@ -19,6 +25,17 @@ declare global {
   }
 }
 
+/**
+ * The target of an event, used to filter which listeners receive it and which
+ * listeners a given emit reaches.
+ *
+ * - `Any`: matches every target (the default).
+ * - `AnyLabel`: matches any window, webview or webview window with the given label.
+ * - `App`: the application itself, i.e. listeners registered with `app.listen` on the Rust side.
+ * - `Window` / `Webview` / `WebviewWindow`: the specific target with that label.
+ *
+ * @since 2.0.0
+ */
 type EventTarget =
   | { kind: 'Any' }
   | { kind: 'AnyLabel'; label: string }
@@ -47,30 +64,82 @@ interface Options {
   /**
    * The event target to listen to, defaults to `{ kind: 'Any' }`, see {@link EventTarget}.
    *
-   * If a string is provided, {@link EventTarget.AnyLabel} is used.
+   * If a string is provided, it is used as the label of an `AnyLabel` target,
+   * i.e. `{ kind: 'AnyLabel', label: <the string> }`.
    */
   target?: string | EventTarget
 }
 
 /**
+ * The built-in event names emitted by Tauri itself.
+ *
+ * These are the raw names behind the `on*` helpers of the `Window` and `Webview`
+ * classes (e.g. `Window.onResized` listens to {@linkcode TauriEvent.WINDOW_RESIZED}).
+ * Prefer those helpers when one exists, since they also decode the payload into
+ * the matching class (`PhysicalSize`, `PhysicalPosition`, ...).
+ *
+ * @example
+ * ```typescript
+ * import { listen, TauriEvent } from '@tauri-apps/api/event';
+ * const unlisten = await listen(TauriEvent.WINDOW_DESTROYED, (event) => {
+ *   console.log('a window was destroyed', event.payload);
+ * });
+ * ```
+ *
  * @since 1.1.0
  */
 enum TauriEvent {
+  /** A window was resized. Payload: the new inner size, in physical pixels. See `Window.onResized`. */
   WINDOW_RESIZED = 'tauri://resize',
+  /** A window was moved. Payload: the new outer position, in physical pixels. See `Window.onMoved`. */
   WINDOW_MOVED = 'tauri://move',
+  /**
+   * The user requested a window to be closed (e.g. clicked the close button).
+   * See `Window.onCloseRequested`, which also handles preventing the close.
+   */
   WINDOW_CLOSE_REQUESTED = 'tauri://close-requested',
+  /** A window was destroyed, i.e. it is gone and its label can be reused. */
   WINDOW_DESTROYED = 'tauri://destroyed',
+  /** A window gained focus. See `Window.onFocusChanged`. */
   WINDOW_FOCUS = 'tauri://focus',
+  /** A window lost focus. See `Window.onFocusChanged`. */
   WINDOW_BLUR = 'tauri://blur',
+  /**
+   * The scale factor of the monitor a window is on changed, or the window moved to
+   * a monitor with a different scale factor. See `Window.onScaleChanged`.
+   */
   WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
+  /** The system or window theme changed. See `Window.onThemeChanged`. */
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
+  /** A new window was created. */
   WINDOW_CREATED = 'tauri://window-created',
+  /**
+   * The window's event loop was suspended.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** emitted when the activity is paused.
+   * - **Other platforms:** never emitted.
+   */
   WINDOW_SUSPENDED = 'tauri://suspended',
+  /**
+   * The window's event loop was resumed after being suspended.
+   *
+   * #### Platform-specific
+   *
+   * - **Android:** emitted when the activity is resumed.
+   * - **Other platforms:** never emitted.
+   */
   WINDOW_RESUMED = 'tauri://resumed',
+  /** A new webview was created. */
   WEBVIEW_CREATED = 'tauri://webview-created',
+  /** The user dragged files onto a webview. See `Webview.onDragDropEvent`. */
   DRAG_ENTER = 'tauri://drag-enter',
+  /** The user is moving dragged files over a webview. See `Webview.onDragDropEvent`. */
   DRAG_OVER = 'tauri://drag-over',
+  /** The user dropped files onto a webview. See `Webview.onDragDropEvent`. */
   DRAG_DROP = 'tauri://drag-drop',
+  /** The drag operation left the webview or was cancelled. See `Webview.onDragDropEvent`. */
   DRAG_LEAVE = 'tauri://drag-leave'
 }
 
@@ -100,7 +169,7 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
  *   console.log(`Got error, payload: ${event.payload}`);
  * });
  *
- * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+ * // call unlisten when your handler goes out of scope e.g. the component is unmounted
  * unlisten();
  * ```
  *
@@ -108,7 +177,13 @@ async function _unlisten(event: string, eventId: number): Promise<void> {
  * @param handler Event handler callback.
  * @param options Event listening options.
  * @returns A promise resolving to a function to unlisten to the event.
- * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+ *
+ * @remarks Listeners bound to a window or webview are removed automatically when
+ * that window or webview is destroyed, so you do not need to unlisten just to
+ * avoid leaking across a window close. You should still call the returned
+ * function when the listener's own scope ends — for example on page navigation
+ * or when a component unmounts — otherwise the handler keeps running for the
+ * lifetime of the webview.
  *
  * @since 1.0.0
  */
@@ -144,7 +219,7 @@ async function listen<T>(
  *   console.log(`App is loaded, loggedIn: ${event.payload.loggedIn}, token: ${event.payload.token}`);
  * });
  *
- * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+ * // call unlisten when your handler goes out of scope e.g. the component is unmounted
  * unlisten();
  * ```
  *
@@ -152,7 +227,11 @@ async function listen<T>(
  * @param handler Event handler callback.
  * @param options Event listening options.
  * @returns A promise resolving to a function to unlisten to the event.
- * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+ *
+ * @remarks The listener removes itself after the first event, and listeners bound
+ * to a window or webview are also removed automatically when that target is
+ * destroyed. Still call the returned function when the listener's own scope ends
+ * before the event arrives — for example on page navigation or component unmount.
  *
  * @since 1.0.0
  */

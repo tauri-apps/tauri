@@ -29,42 +29,6 @@ pub struct DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
-    let pid = self.dev_child.id();
-
-    #[cfg(windows)]
-    {
-      // `/T` terminates the whole process tree, `/F` forces it
-      let pid = pid.to_string();
-      let _ = Command::new("taskkill")
-        .args(["/T", "/F", "/PID", pid.as_str()])
-        .status();
-    }
-
-    #[cfg(not(windows))]
-    {
-      // collect the whole tree first, then kill the root before its descendants
-      // so it cannot respawn them in the meantime
-      const KILL_TREE: &str = r#"
-descendants() {
-  for child in $(pgrep -P "$1" 2>/dev/null); do
-    echo "$child"
-    descendants "$child"
-  done
-}
-tree=$(descendants "$1")
-kill -9 "$1" 2>/dev/null
-for p in $tree; do
-  kill -9 "$p" 2>/dev/null
-done
-true
-"#;
-
-      let pid = pid.to_string();
-      let _ = Command::new("sh")
-        .args(["-c", KILL_TREE, "sh", pid.as_str()])
-        .status();
-    }
-
     self.dev_child.kill()?;
     self.manually_killed_app.store(true, Ordering::SeqCst);
     Ok(())

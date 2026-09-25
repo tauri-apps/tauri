@@ -20,6 +20,8 @@ on:
 env:
   RUST_BACKTRACE: 1
   CARGO_PROFILE_DEV_DEBUG: 0 # keeps the target folder small for better cache efficiency
+  # Incremental artifacts are dropped from the cache anyway and only slow the builds down.
+  CARGO_INCREMENTAL: 0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -54,15 +56,25 @@ jobs:
       CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY }}
       E2E_SPEC_RETRIES: '1'
       E2E_SCRIPT: ${{ matrix.runtime == 'cef' && 'test:api-e2e:cef' || 'test:api-e2e' }}
+      # macOS has no native WebDriver for WKWebView, so the app is driven through the
+      # CrabNebula Webdriver (tauri-plugin-automation + test-runner-backend), which
+      # authenticates with this key. Pull requests from forks do not get it, and the macOS
+      # job then has nothing to test: the steps below skip the builds there rather than
+      # occupy a macOS runner for them.
+      HAS_CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY != '' }}
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: install Rust 1.90
+        # The MSRV, as the other jobs building the CLI use. The compiler version is part of
+        # the rust-cache key, so a floating `stable` would also invalidate the entry below on
+        # every Rust release.
+        uses: dtolnay/rust-toolchain@1.90
 
       - run: npm i -g --force corepack
       - name: setup node
+        if: runner.os != 'macOS' || env.HAS_CN_API_KEY == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
@@ -85,18 +97,48 @@ jobs:
             dbus \
             python3-gi \
             ${{ matrix.runtime == 'cef' && 'libgtk-4-dev libpipewire-0.3-0t64' || 'libwebkit2gtk-4.1-dev webkit2gtk-driver' }}
+          # WebKitGTK reads the color scheme and tao the theme from the desktop portal when a
+          # window is created. On the runner that portal is registered with D-Bus but never
+          # comes up (there is no desktop session for it), so both calls only return on their
+          # timeouts, 25s and 5s: about 30s per app start, and every spec starts the app.
+          # Without a service file the name is unknown and both calls fail at once.
+          sudo rm -f /usr/share/dbus-1/services/org.freedesktop.portal.Desktop.service
 
-      # install a matching Microsoft Edge Driver version using msedgedriver-tool
       - name: install msedgedriver (Windows)
         if: runner.os == 'Windows' && matrix.runtime == 'wry'
+        # The driver has to match the WebView2 runtime, which registers its version with
+        # EdgeUpdate under the client id below. This is what msedgedriver-tool does, minus
+        # compiling the tool from source on every run (a minute).
         run: |
-          cargo install --git https://github.com/chippers/msedgedriver-tool
-          & "$HOME/.cargo/bin/msedgedriver-tool.exe"
-          $PWD.Path >> $env:GITHUB_PATH
+          $ProgressPreference = 'SilentlyContinue'
+          $client = 'Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          $version = @(
+            "HKLM:\SOFTWARE\WOW6432Node\$client",
+            "HKLM:\SOFTWARE\$client",
+            "HKCU:\SOFTWARE\WOW6432Node\$client",
+            "HKCU:\SOFTWARE\$client"
+          ) | ForEach-Object { (Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue).pv } | Where-Object { $_ } | Select-Object -First 1
+          if (-not $version) { throw 'no WebView2 runtime found in the registry' }
+          $dir = Join-Path $env:RUNNER_TEMP 'msedgedriver'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Invoke-WebRequest "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip" -OutFile "$dir\edgedriver.zip"
+          Expand-Archive "$dir\edgedriver.zip" -DestinationPath $dir -Force
+          Write-Host "WebView2 $version; $(& "$dir\msedgedriver.exe" --version)"
+          $dir >> $env:GITHUB_PATH
 
       - uses: Swatinem/rust-cache@v2
+        if: runner.os != 'macOS' || env.HAS_CN_API_KEY == 'true'
         with:
-          key: ${{ matrix.platform.os }}-${{ matrix.runtime }}
+          # The dependencies of the CLI and of the example app, both in the dev profile.
+          # Only `dev` writes the entry: one saved from a pull request lives on its merge
+          # ref, where nothing else can restore it, and every write evicts a `dev` entry
+          # that other runs would have hit (10 GB repository limit, LRU eviction). Pull
+          # requests restore the `dev` entry, so they get everything but the workspace
+          # crates for free.
+          shared-key: api-e2e-${{ matrix.runtime }}
+          save-if: ${{ github.ref == 'refs/heads/dev' }}
+          # A flaky spec on `dev` must not throw the build away.
+          cache-on-failure: true
 
       # The `cef` crate's build script downloads the CEF binary distribution into
       # `CEF_PATH/<cef version>/<os-arch>` (the CLI points it at a per-user cache
@@ -124,13 +166,18 @@ jobs:
           key: api-e2e-cef-${{ matrix.platform.os }}-${{ steps.cef-version.outputs.version }}
 
       - name: install dependencies
+        if: runner.os != 'macOS' || env.HAS_CN_API_KEY == 'true'
         run: pnpm i --frozen-lockfile
 
       - name: build @tauri-apps/api
+        if: runner.os != 'macOS' || env.HAS_CN_API_KEY == 'true'
         run: pnpm build:api
 
       - name: build @tauri-apps/cli
-        run: pnpm build:cli
+        if: runner.os != 'macOS' || env.HAS_CN_API_KEY == 'true'
+        # Debug profile: the suite builds the example app with `tauri build --debug` anyway, and
+        # a debug CLI reuses the cached dependencies instead of a from-scratch LTO build.
+        run: pnpm build:cli:debug
 
       # Chromium's Linux sandbox needs either unprivileged user namespaces or a
       # root-owned setuid `chrome-sandbox` next to the binary, and aborts with
@@ -183,8 +230,11 @@ jobs:
         run: pnpm test:api-e2e:cef
 
       - name: run e2e tests (macOS)
-        if: runner.os == 'macOS' && env.CN_API_KEY != ''
+        if: runner.os == 'macOS' && env.HAS_CN_API_KEY == 'true'
         timeout-minutes: 45
+        env:
+          CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY }}
+          E2E_SPEC_RETRIES: '1'
         # wdio.conf builds the `.app` bundle the CrabNebula Webdriver needs; for CEF
         # the bundler also ships the framework and builds the helper apps into it.
         run: pnpm $E2E_SCRIPT

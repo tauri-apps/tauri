@@ -373,12 +373,12 @@ async fn create_window(app: tauri::AppHandle) {
     let mut config = config.to_owned();
 
     if let Some(data_directory) = &config.data_directory {
-      let resolve_data_dir_res = dirs::data_local_dir()
-        .or({
-          #[cfg(feature = "tracing")]
-          tracing::error!("failed to resolve data directory");
-          None
-        })
+      let local_dir = dirs::data_local_dir();
+      if local_dir.is_none() {
+        #[cfg(feature = "tracing")]
+        tracing::error!("failed to resolve data directory");
+      }
+      let resolve_data_dir_res = local_dir
         .and_then(|local_dir| {
           SafePathBuf::new(data_directory.clone())
             .inspect_err(|_err| {
@@ -729,25 +729,28 @@ tauri::Builder::default()
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::webview::{WebviewBuilder, PermissionKind, PermissionResponse};
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-  ///     let webview_builder = WebviewBuilder::new("core", tauri::WebviewUrl::App("index.html".into()))
-  ///       .on_permission_request(|webview, kind| {
-  ///         match kind {
-  ///           PermissionKind::Geolocation => PermissionResponse::Allow,
-  ///           PermissionKind::Notifications => PermissionResponse::Allow,
-  ///           _ => PermissionResponse::Default,
-  ///         }
-  ///       })
-  ///       .position(tauri::LogicalPosition::new(0, 0))
-  ///       .size(window.inner_size().unwrap());
-  ///     let webview = window.add_child(webview_builder)?;
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::webview::{WebviewBuilder, PermissionKind, PermissionResponse};
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+    let webview_builder = WebviewBuilder::new("core", tauri::WebviewUrl::App("index.html".into()))
+      .on_permission_request(|webview, kind| {
+        match kind {
+          PermissionKind::Geolocation => PermissionResponse::Allow,
+          PermissionKind::Notifications => PermissionResponse::Allow,
+          _ => PermissionResponse::Default,
+        }
+      });
+    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn on_permission_request<
     F: Fn(Webview<R>, PermissionKind) -> PermissionResponse + Send + Sync + 'static,
   >(
@@ -1717,6 +1720,46 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Move the webview to the given window.
+  ///
+  /// The webview keeps its size and its position relative to the window client area,
+  /// so you usually want to call [`Self::set_position`] and [`Self::set_size`] afterwards
+  /// (or [`Self::set_auto_resize`] to let it follow the new parent window size).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::CannotReparentWebviewWindow`](crate::Error::CannotReparentWebviewWindow)
+  /// when the `unstable` Cargo feature is disabled and either this webview or the target window
+  /// belongs to a [`WebviewWindow`] - without that feature a window and its webview are a single
+  /// object that cannot be split apart. With the `unstable` feature enabled any webview can be
+  /// moved to any window.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let first = tauri::Window::builder(app, "first").build()?;
+    let second = tauri::Window::builder(app, "second").build()?;
+
+    let webview = first.add_child(
+      tauri::webview::WebviewBuilder::new("child", WebviewUrl::App(Default::default())),
+      LogicalPosition::new(0., 0.),
+      LogicalSize::new(800., 600.),
+    )?;
+
+    // move the webview to the second window
+    webview.reparent(&second)?;
+
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
     #[cfg(not(feature = "unstable"))]
     {
@@ -1731,6 +1774,14 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
+  ///
+  /// Child webviews created with `Window::add_child` (`unstable` feature) have a fixed position and size
+  /// by default: resizing the window leaves them where they are. When auto resize is enabled, the webview bounds
+  /// are scaled with the window client area, keeping the same proportions it had when auto resize was enabled.
+  ///
+  /// The same can be set when creating the webview with `WebviewBuilder::auto_resize`.
+  ///
+  /// This is a no-op for [`WebviewWindow`] webviews, which always fill their window.
   pub fn set_auto_resize(&self, auto_resize: bool) -> crate::Result<()> {
     self
       .webview
@@ -1859,11 +1910,31 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Navigates the webview to the defined url.
+  ///
+  /// This is the Rust equivalent of setting `window.location` on the frontend and behaves like any other
+  /// top-level navigation:
+  ///
+  /// - the navigation handler defined with `WebviewBuilder::on_navigation` and the
+  ///   [`Plugin::on_navigation`](crate::plugin::Plugin::on_navigation) hooks are called and can cancel it;
+  /// - the initialization scripts registered when the webview was created
+  ///   (including Tauri's own IPC bridge) run again on the new document, so `window.__TAURI__` and the scripts
+  ///   added with `WebviewBuilder::initialization_script` keep working after the navigation;
+  /// - [`Builder::on_page_load`](crate::Builder::on_page_load) is triggered for the new document;
+  /// - the ACL origin of the IPC changes with the URL: after navigating to a remote URL the webview can only
+  ///   execute commands allowed by a capability whose `remote` context matches it.
+  ///
+  /// The navigation is asynchronous: this function returns as soon as the request is sent to the webview,
+  /// the page is not loaded yet when it returns.
   pub fn navigate(&self, url: Url) -> crate::Result<()> {
     self.webview.dispatcher.navigate(url).map_err(Into::into)
   }
 
   /// Reloads the current page.
+  ///
+  /// Reloading re-runs the initialization scripts and triggers the navigation and page load hooks
+  /// for the same URL, exactly like [`Self::navigate`] to [`Self::url`] would.
+  /// In-memory state of the page (JavaScript variables, unsaved form data, channels created by the frontend)
+  /// is lost, but cookies and other browsing data are kept - use [`Self::clear_all_browsing_data`] to clear those.
   pub fn reload(&self) -> crate::Result<()> {
     self.webview.dispatcher.reload().map_err(Into::into)
   }
@@ -2349,6 +2420,24 @@ tauri::Builder::default()
   }
 
   /// Clear all browsing data for this webview.
+  ///
+  /// This deletes every website data type the underlying webview knows about: cookies, local storage,
+  /// session storage, IndexedDB databases, the HTTP cache and service workers. It does not reload the
+  /// current page, so the document that is currently loaded keeps its in-memory state until it navigates
+  /// or you call [`Self::reload`].
+  ///
+  /// The deletion is asynchronous on every platform: the data is not necessarily gone when this function returns.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux**: the data is cleared for the whole WebKit web context, which is shared by every webview
+  ///   using the same data directory, not only this one.
+  /// - **macOS / iOS**: clears the [`WKWebsiteDataStore`] of this webview. Webviews created with a custom
+  ///   `WebviewBuilder::data_store_identifier` have their own store, so only that store is affected.
+  /// - **Windows**: implemented with `ICoreWebView2Profile2::ClearBrowsingDataAll`, so an error is returned
+  ///   if the installed WebView2 runtime is too old to provide it.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore
   pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
     self
       .webview

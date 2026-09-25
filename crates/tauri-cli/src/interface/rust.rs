@@ -1010,9 +1010,9 @@ impl AppSettings for RustAppSettings {
 
     for (name, path) in binaries_paths {
       // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
-      let bin_exists = binaries
-        .iter()
-        .any(|bin| bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string())));
+      let bin_exists = binaries.iter().any(|bin| {
+        bin.name() == name || path.ends_with(bin.src_path().map(String::as_str).unwrap_or_default())
+      });
       let bin_disabled = disabled_bins
         .iter()
         .any(|bin| bin.matches_src_bin(&name, &path));

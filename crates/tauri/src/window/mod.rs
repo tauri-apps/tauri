@@ -1138,7 +1138,34 @@ impl<R: Runtime> Window<R> {
 
   /// Initializes a window builder with the given window label.
   ///
+  /// This creates a window without any webview attached to it;
+  /// use [`Window::add_child`] to add webviews to it.
+  /// To create a window with a single webview filling it, use
+  /// [`WebviewWindowBuilder`](crate::webview::WebviewWindowBuilder) instead.
+  ///
   /// Data URLs are only supported with the `webview-data-url` feature flag.
+  ///
+  /// This function requires the `unstable` Cargo feature.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers,
+  /// see [the Webview2 issue]. You should use `async` commands and separate threads when creating windows.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = tauri::Window::builder(app, "label")
+  ///       .title("Tauri")
+  ///       .inner_size(800., 600.)
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   #[cfg(feature = "unstable")]
   #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   pub fn builder<M: Manager<R>, L: Into<String>>(manager: &M, label: L) -> WindowBuilder<'_, R, M> {
@@ -1147,9 +1174,67 @@ impl<R: Runtime> Window<R> {
 
   /// Adds a new webview as a child of this window.
   ///
-  /// The webview's initial geometry can be configured with [`WebviewBuilder::bounds`],
-  /// [`WebviewBuilder::position`] and [`WebviewBuilder::size`]. By default, the webview
-  /// is positioned at 0x0, fills the window and automatically resizes with it.
+  /// This is the multiwebview API: a single window can host any number of webviews,
+  /// each of them positioned and sized by you. It requires the `unstable` Cargo feature
+  /// and is only available on desktop.
+  ///
+  /// The webview is not resized or moved when the parent window is resized unless
+  /// auto resize is enabled, either at build time with
+  /// [`WebviewBuilder::auto_resize`](crate::webview::WebviewBuilder::auto_resize)
+  /// or later with [`Webview::set_auto_resize`].
+  ///
+  /// # Arguments
+  ///
+  /// * `webview_builder` - the [`WebviewBuilder`] defining the webview to create.
+  /// * `position` - position of the webview's top-left corner, relative to the top-left corner of the window's
+  ///   client area. Any type that converts into [`Position`] is accepted, so you can use either logical
+  ///   ([`LogicalPosition`](crate::LogicalPosition)) or physical ([`PhysicalPosition`]) units.
+  /// * `size` - the webview size, also either logical ([`LogicalSize`](crate::LogicalSize)) or physical
+  ///   ([`PhysicalSize`]) - any type that converts into [`Size`].
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers,
+  /// see [the Webview2 issue]. You should use `async` commands and separate threads when creating webviews.
+  ///
+  /// # Examples
+  ///
+  /// Splitting a window between two webviews that resize with it:
+  ///
+  /// ```
+  /// use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let width = 800.;
+  ///     let height = 600.;
+  ///
+  ///     let window = tauri::Window::builder(app, "main")
+  ///       .inner_size(width, height)
+  ///       .build()?;
+  ///
+  ///     let _left = window.add_child(
+  ///       tauri::webview::WebviewBuilder::new("left", WebviewUrl::App(Default::default()))
+  ///         .auto_resize(),
+  ///       LogicalPosition::new(0., 0.),
+  ///       LogicalSize::new(width / 2., height),
+  ///     )?;
+  ///
+  ///     let _right = window.add_child(
+  ///       tauri::webview::WebviewBuilder::new(
+  ///         "right",
+  ///         WebviewUrl::External("https://tauri.app".parse().unwrap()),
+  ///       )
+  ///       .auto_resize(),
+  ///       LogicalPosition::new(width / 2., 0.),
+  ///       LogicalSize::new(width / 2., height),
+  ///     )?;
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   #[cfg(any(test, all(desktop, feature = "unstable")))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
   pub fn add_child(&self, webview_builder: WebviewBuilder<R>) -> crate::Result<Webview<R>> {
@@ -2514,6 +2599,12 @@ impl EffectsBuilder {
   /// Sets `color` field fo the [`WindowEffectsConfig`] **Windows Only**
   pub fn color(mut self, color: Color) -> Self {
     self.0.color = Some(color);
+    self
+  }
+
+  /// Sets `interactive` field for the [`WindowEffectsConfig`] **macOS 27.0+ Only**
+  pub fn interactive(mut self, interactive: bool) -> Self {
+    self.0.interactive = interactive;
     self
   }
 

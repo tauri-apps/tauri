@@ -77,21 +77,6 @@ jobs:
       needs.changes.outputs.macossign == 'true'
 
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
-
-      - name: Install udeps
-        run: cargo install cargo-udeps --locked --force
-
-      - name: Upload udeps
-        uses: actions/upload-artifact@v4
-        with:
-          name: udeps
-          path: '~/.cargo/bin/cargo-udeps'
-          if-no-files-found: error
-
       - name: Create udeps matrix
         id: create-matrix
         env:
@@ -138,15 +123,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
 
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Download udeps
-        uses: actions/download-artifact@v4.1.7
+      # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
+      # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
+      # evicted before the next push only costs upload time.
+      - name: Install udeps
+        uses: taiki-e/install-action@v2
         with:
-          name: udeps
-          path: '~/.cargo/bin'
-
-      - run: chmod +x $HOME/.cargo/bin/cargo-udeps
+          tool: cargo-udeps
 
       - name: Install required packages
         run: |

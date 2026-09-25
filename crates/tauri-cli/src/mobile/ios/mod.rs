@@ -558,7 +558,8 @@ pub fn synchronize_project_config(
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config.identifier.clone();
+  // use the same sanitized identifier as the Xcode project template and export options
+  let identifier = config.app().identifier();
   let product_name = tauri_config.product_name.clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
@@ -583,7 +584,7 @@ pub fn synchronize_project_config(
       pbxproj.set_build_settings(
         &build_configuration_ref.id,
         "PRODUCT_BUNDLE_IDENTIFIER",
-        &identifier,
+        identifier,
       );
 
       if let Some(product_name) = &product_name {

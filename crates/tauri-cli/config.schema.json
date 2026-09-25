@@ -222,9 +222,20 @@
           "default": false
         },
         "enableGTKAppId": {
-          "description": "If set to true \"identifier\" will be set as GTK app ID (on systems that use GTK).",
+          "description": "Whether the application `identifier` is used as the GTK application ID on systems that use GTK.\n\nSetting the GTK application ID lets the desktop environment associate the app's windows with\nits `.desktop` entry of the same name, which is what makes Wayland compositors and GNOME show\nthe correct icon and application name, and group the windows in the dock or taskbar.\n\nDefaults to `false`, because registering an application ID also makes GTK register the\napplication on the session bus under that ID, which prevents running more than one instance\nof the app at the same time.\n\n## Platform-specific\n\n- **Linux / FreeBSD / DragonFly / NetBSD / OpenBSD**: The identifier must be a valid GTK\n  application ID.\n- **Windows / macOS / Android / iOS**: Unsupported.",
           "type": "boolean",
           "default": false
+        },
+        "appDirectoriesOverride": {
+          "description": "Overrides the directories returned by the `app_*_dir` path APIs (`app_config_dir`, `app_data_dir`,\n`app_local_data_dir`, `app_cache_dir` and `app_log_dir`) and the matching `$APPCONFIG`, `$APPDATA`,\n`$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.\n\nThis is useful for portable apps that keep all of their data next to the executable,\nand for apps that want their app directories in a location they choose, such as `$DOCUMENT/my-app`.\nEverything that resolves paths through these APIs follows the override, including Tauri itself\n(the default webview data directory on Windows and Linux) and plugins,\nso the storage locations do not need to be configured one by one.\nThe only exception is a window's `dataDirectory` config, which is not affected.\n\nIt can also isolate the data of a development build from an installed version of the app,\nthough a distinct `identifier` for development builds achieves that while keeping the production directory layout.\n\nThe value is either a single path used as the root of every app directory\n(config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),\nor an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),\neach resolving to exactly the configured path. Directories that are not listed in the object keep their default location.\n\nEach path is resolved as follows:\n\n- A path starting with a base directory variable is resolved relative to that directory.\n  The supported variables are `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`,\n  `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.\n  `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.\n- An absolute path is used as is.\n- Any other path is resolved relative to the directory containing the executable,\n  which must be writable, see the platform-specific notes below.\n\n## Examples\n\nKeep all data next to the executable, for a portable build:\n\n```json\n{\n  \"app\": {\n    \"appDirectoriesOverride\": \"./\"\n  }\n}\n```\n\nOnly move the logs and the cache:\n\n```json\n{\n  \"app\": {\n    \"appDirectoriesOverride\": {\n      \"log\": \"$DATA/my-app/logs\",\n      \"cache\": \"$CACHE/my-app\"\n    }\n  }\n}\n```\n\nSet the override at runtime, for instance from an environment variable, a command line flag\nor a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`\nbefore building the app:\n\n```rust\nuse tauri::utils::config::AppDirectoriesOverride;\n\nfn main() {\n  let mut context = tauri::generate_context!();\n\n  if let Ok(data_dir) = std::env::var(\"MY_APP_DATA_DIR\") {\n    context.config_mut().app.app_directories_override =\n      Some(AppDirectoriesOverride::Root(data_dir.into()));\n  }\n\n  tauri::Builder::default()\n    .run(context)\n    .expect(\"error while running tauri application\");\n}\n```\n\n## Platform-specific\n\nA path relative to the executable only works where the executable's directory is writable:\nportable builds, `tauri dev` builds in the `target` directory and the cases listed below.\nEverywhere else every write to an app directory fails at runtime, so installed apps should use\na base directory variable or an absolute path instead. Unless every distribution of the app is portable,\nkeep relative paths out of the shared configuration and apply them to the portable build flavor only,\nfor instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:\n\n```sh\ntauri build --config '{ \"app\": { \"appDirectoriesOverride\": \"./\" } }'\n```\n\n- **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,\n  as long as it is kept in a writable directory. `.deb` and `.rpm` packages install the executable to `/usr/bin`.\n- **macOS**: Relative paths are resolved next to the `.app` bundle. This does not work for installed apps,\n  since `/Applications` is not writable for standard users, nor for bundles downloaded from the internet,\n  which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.\n- **Windows**: Relative paths also work for per-user NSIS installers,\n  but not for per-machine installers in `Program Files`.\n- **Android / iOS**: Relative paths are not supported, since there is no writable directory next to the executable.\n  Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AppDirectoriesOverride"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -381,7 +392,7 @@
           "default": true
         },
         "transparent": {
-          "description": "Whether the window is transparent or not.\n\nNote that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.\nWARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.\n\nOn Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.\n\n## Platform-specific\n\n- **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.",
+          "description": "Whether the window is transparent or not.\n\n## Platform-specific\n\n- **macOS**: Requires the `macos-private-api` Cargo feature, which is enabled by setting\n  `app > macOSPrivateApi` to `true` in the configuration file.\n  **WARNING:** Using private APIs on macOS prevents your application from being accepted to the App Store.\n  If you only need a translucent background, use `windowEffects` instead, which relies on public APIs.\n- **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.\n- **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.",
           "type": "boolean",
           "default": false
         },
@@ -588,14 +599,14 @@
           "default": false
         },
         "dataDirectory": {
-          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.\n\nTo set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n#### Platform-specific:\n\n- **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n- **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n- **Android**: Unsupported.",
+          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.),\n**relative to the local data directory (`localDataDir()`), followed by the window label**.\n\nTo set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\nThis path is not affected by the `app > appDirectoriesOverride` config.\nTo keep the webview data in an overridden directory, leave this unset (the webview then uses the app local data directory)\nor resolve a path from `app.path().app_local_data_dir()` and set it with `WebviewWindowBuilder::data_directory`.\n\n#### Platform-specific:\n\n- **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n- **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n- **Android**: Unsupported.",
           "type": [
             "string",
             "null"
           ]
         },
         "dataStoreIdentifier": {
-          "description": "Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\nSee https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc\n\nThe array must contain 16 u8 numbers.\n\n#### Platform-specific:\n\n- **iOS**: Supported since version 17.0+.\n- **macOS**: Supported since version 14.0+.\n- **Windows / Linux / Android**: Unsupported.\n- **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation `dataDirectory` gives; `dataDirectory` wins when both are set.",
+          "description": "Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\n\nSee <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>\n\nThe array must contain 16 u8 numbers.\n\n#### Platform-specific:\n\n- **iOS**: Supported since version 17.0+.\n- **macOS**: Supported since version 14.0+.\n- **Windows / Linux / Android**: Unsupported.\n- **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation `dataDirectory` gives; `dataDirectory` wins when both are set.",
           "type": [
             "array",
             "null"
@@ -619,7 +630,7 @@
           ]
         },
         "limitNavigationsToAppBoundDomains": {
-          "description": "Whether to limit navigations to App-Bound Domains. This is necessary to\nenable Service Workers on iOS according to\n[StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).\n\nDefault is false.\n\nNote: If you set this to `true` make sure to add localhost and any [`registrable\ndomains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)\nused in this webview to tauri-src/Info.ios.plist:\n\n```xml\n<plist>\n<dict>\n    <key>WKAppBoundDomains</key>\n    <array>\n        <string>localhost</string>\n        <string>aregistrabledomain.example</string>\n    </array>\n</dict>\n</plist>\n```\n\nYou must add `localhost` if any webview with this set to true opens a\nlocal webpage, makes any localhost calls, or uses the isolation pattern\nbecause Tauri uses the `localhost` domain for hosting the application\nwebpage, the IPC protocol, and the isolation pattern's iframe.\n\nRequests served through custom uri schemes are allowed so long as they use\na registrable domain specified in the `WKAppBoundDomains` array for all the\nrequests from the app, including requests for the `localhost` domain.\n\nIn theory, you can whitelist an entire uri scheme by including the\nprotocol name followed by a colon. For example, to allow all requests\nusing a custom \"stream\" uri scheme (see [this tauri\nexample](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),\nyou could add `stream:` to the AppBoundDomains array. That said, I'm not\nsure whether Apple would let your app through app review if you do\nwhitelist an entire protocol because this feature is not mentioned in\n[their blog post on App-Bound\nDomains](https://webkit.org/blog/10882/app-bound-domains/).\n\nSee https://webkit.org/blog/10882/app-bound-domains/ and\nhttps://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains\nfor the official documentation on App-Bound Domains.\n\n## Platform-specific\n\n- **iOS**: Supported since version 14.0+.\n- **Linux / Windows / Android / MacOS:** Unsupported.",
+          "description": "Whether to limit navigations to App-Bound Domains.\n\nThis is required to enable Service Workers in WKWebView, which are otherwise\nunavailable. Defaults to `false`.\n\nWhen this is set to `true`, the webview can only navigate to the domains listed in the\n`WKAppBoundDomains` array of `src-tauri/Info.ios.plist`. Add `localhost` and every\n[registrable domain](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)\nthis webview loads to that array:\n\n```xml\n<plist>\n<dict>\n    <key>WKAppBoundDomains</key>\n    <array>\n        <string>localhost</string>\n        <string>aregistrabledomain.example</string>\n    </array>\n</dict>\n</plist>\n```\n\n`localhost` must be listed if any webview with this option enabled opens a local webpage,\nmakes any localhost call, or uses the isolation pattern, because Tauri serves the\napplication webpage, the IPC protocol and the isolation pattern iframe from the\n`localhost` domain.\n\nRequests served through custom URI schemes are allowed as long as they use a registrable\ndomain listed in the `WKAppBoundDomains` array, including requests to the `localhost`\ndomain.\n\nAn entire URI scheme can be listed by adding the protocol name followed by a colon, for\nexample `stream:` for a custom `stream` scheme (see the\n[streaming example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)).\nThis is not covered by Apple's\n[App-Bound Domains announcement](https://webkit.org/blog/10882/app-bound-domains/),\nso it may not be accepted during App Store review.\n\nSee <https://webkit.org/blog/10882/app-bound-domains/> and\n<https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains>\nfor the official documentation on App-Bound Domains.\n\n## Platform-specific\n\n- **iOS**: Supported since version 14.0+.\n- **Linux / Windows / Android / macOS:** Unsupported.",
           "type": "boolean",
           "default": false
         },
@@ -772,14 +783,14 @@
       "type": "object",
       "properties": {
         "effects": {
-          "description": "List of Window effects to apply to the Window.\nConflicting effects will apply the first one and ignore the rest.",
+          "description": "List of Window effects to apply to the Window.\n\nGenerally, conflicting effects will apply the first one and ignore the rest but\non macOS you can specify one Liquid Glass style and one Visual Effect material at the same time\nto make Tauri fallback to the latter on macOS 15 and below.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/WindowEffect"
           }
         },
         "state": {
-          "description": "Window effect state **macOS Only**",
+          "description": "Window effect state **macOS Only**. Ignored for Liquid Glass Effects.",
           "anyOf": [
             {
               "$ref": "#/definitions/WindowEffectState"
@@ -798,7 +809,7 @@
           "format": "double"
         },
         "color": {
-          "description": "Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only\non Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.",
+          "description": "Window effect color.\n\n## Platform-specific\n\n- **Windows**: Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only\non Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.\n- **macOS**: Only affects Liquid Glass effects.",
           "anyOf": [
             {
               "$ref": "#/definitions/Color"
@@ -807,6 +818,11 @@
               "type": "null"
             }
           ]
+        },
+        "interactive": {
+          "description": "Enables interactive glass behavior, which adds a visual response to user interactions.\n\n**macOS 27.0+**. Only affects Liquid Glass effects.",
+          "type": "boolean",
+          "default": false
         }
       },
       "additionalProperties": false,
@@ -916,6 +932,16 @@
           "description": "**macOS 10.14+**",
           "type": "string",
           "const": "underPageBackground"
+        },
+        {
+          "description": "**macOS 26.0+**",
+          "type": "string",
+          "const": "liquidGlassRegular"
+        },
+        {
+          "description": "**macOS 26.0+**",
+          "type": "string",
+          "const": "liquidGlassClear"
         },
         {
           "description": "Mica effect that matches the system dark preference **Windows 11 Only**",
@@ -1107,7 +1133,7 @@
       "description": "The scrollbar style to use in the webview.\n\n## Platform-specific\n\n- **Windows**: This option must be given the same value for all webviews that target the same data directory.",
       "oneOf": [
         {
-          "description": "The scrollbar style to use in the webview.",
+          "description": "The platform's native scrollbar, as rendered by the webview by default.\n\nThis is the only supported value outside of Windows.",
           "type": "string",
           "const": "default"
         },
@@ -1123,7 +1149,7 @@
       "type": "object",
       "properties": {
         "csp": {
-          "description": "The Content Security Policy that will be injected on all HTML files on the built application.\nIf [`dev_csp`](#SecurityConfig.devCsp) is not specified, this value is also injected on dev.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured.\nSee <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
+          "description": "The Content Security Policy that will be injected on all HTML files on the built application.\nIf `devCsp` is not specified, this value is also injected on dev.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured.\nSee <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
           "anyOf": [
             {
               "$ref": "#/definitions/Csp"
@@ -1145,7 +1171,7 @@
           ]
         },
         "freezePrototype": {
-          "description": "Freeze the `Object.prototype` when using the custom protocol.",
+          "description": "Whether `Object.freeze(Object.prototype)` is run as an initialization script on every webview.\n\nThis hardens the frontend against prototype pollution: once the prototype is frozen,\na script cannot add or replace properties on `Object.prototype` and thus cannot tamper\nwith objects it does not own, including the ones used by the Tauri API.\n\nThe script runs before any of your frontend code, on every webview, regardless of whether\nthe content is served by the custom protocol or by a development server.\n\nDefaults to `false`. Note that frontend libraries that extend built-in prototypes\n(polyfills, some older frameworks) stop working when this is enabled, so test your\napplication with it on before shipping.",
           "type": "boolean",
           "default": false
         },
@@ -1171,7 +1197,7 @@
           ]
         },
         "pattern": {
-          "description": "The pattern to use.",
+          "description": "The application pattern, which defines how the frontend communicates with the Rust core.\n\n- `brownfield` (default): the frontend talks to the core directly. Use it unless you need\n  the extra isolation layer.\n- `isolation`: every IPC message is routed through a secure JavaScript application you own,\n  hosted in a sandboxed `<iframe>`, so it can validate or reject messages before they reach\n  the Rust core. This protects the core from an untrusted or compromised frontend\n  (for example one that loads third-party scripts), at the cost of an extra build step:\n  the `dir` value must point at a directory containing the isolation application's `index.html`.\n\nSee <https://tauri.app/concept/inter-process-communication/isolation/>.",
           "default": {
             "use": "brownfield"
           },
@@ -1182,7 +1208,7 @@
           ]
         },
         "capabilities": {
-          "description": "List of capabilities that are enabled on the application.\n\nBy default (not set or empty list), all capability files from `./capabilities/` are included,\nby setting values in this entry, you have fine grained control over which capabilities are included\n\nYou can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]\n\n### Example\n\n```json\n{\n  \"app\": {\n    \"capabilities\": [\n      \"main-window\",\n      {\n        \"identifier\": \"drag-window\",\n        \"permissions\": [\"core:window:allow-start-dragging\"]\n      }\n    ]\n  }\n}\n```",
+          "description": "List of capabilities that are enabled on the application.\n\nBy default (not set or empty list), all capability files from `./capabilities/` are included,\nby setting values in this entry, you have fine grained control over which capabilities are included\n\nYou can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]\n\n### Example\n\n```json\n{\n  \"app\": {\n    \"security\": {\n      \"capabilities\": [\n        \"main-window\",\n        {\n          \"identifier\": \"drag-window\",\n          \"permissions\": [\"core:window:allow-start-dragging\"]\n        }\n      ]\n    }\n  }\n}\n```",
           "type": "array",
           "items": {
             "$ref": "#/definitions/CapabilityEntry"
@@ -1818,6 +1844,65 @@
         "iconPath"
       ]
     },
+    "AppDirectoriesOverride": {
+      "description": "Overrides the directories returned by the `app_*_dir` path APIs.\n\nSee the `app > appDirectoriesOverride` config for how each path is resolved.",
+      "anyOf": [
+        {
+          "description": "A single directory that holds all app directories.\n\nThe config, data and local data directories resolve to this path,\nthe cache directory resolves to `<path>/caches` and the log directory to `<path>/logs`.",
+          "type": "string"
+        },
+        {
+          "description": "Overrides for individual app directories.\n\nDirectories that are not listed keep their default location.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppDirectoryOverrides"
+            }
+          ]
+        }
+      ]
+    },
+    "AppDirectoryOverrides": {
+      "description": "Overrides for individual app directories.",
+      "type": "object",
+      "properties": {
+        "config": {
+          "description": "Overrides the app config directory (`app_config_dir`, `$APPCONFIG`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "data": {
+          "description": "Overrides the app data directory (`app_data_dir`, `$APPDATA`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "localData": {
+          "description": "Overrides the app local data directory (`app_local_data_dir`, `$APPLOCALDATA`).\n\nOn Windows and Linux this is also the default data directory of the webviews.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cache": {
+          "description": "Overrides the app cache directory (`app_cache_dir`, `$APPCACHE`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "log": {
+          "description": "Overrides the app log directory (`app_log_dir`, `$APPLOG`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "BuildConfig": {
       "description": "The Build configuration object.\n\nSee more: <https://v2.tauri.app/reference/config/#buildconfig>",
       "type": "object",
@@ -1853,7 +1938,7 @@
           ]
         },
         "beforeDevCommand": {
-          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`\nand `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can\nadapt its output to the target that is being built.\n`TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.",
           "anyOf": [
             {
               "$ref": "#/definitions/BeforeDevCommand"
@@ -1864,7 +1949,7 @@
           ]
         },
         "beforeBuildCommand": {
-          "description": "A shell command to run before `tauri build` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri build` kicks in.\n\nThe `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`\nand `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can\nadapt its output to the target that is being built.\n`TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.",
           "anyOf": [
             {
               "$ref": "#/definitions/HookCommand"
@@ -1875,7 +1960,7 @@
           ]
         },
         "beforeBundleCommand": {
-          "description": "A shell command to run before the bundling phase in `tauri build` kicks in.\n\nThe TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before the bundling phase in `tauri build` kicks in.\n\nThe `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`\nand `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can\nadapt its output to the target that is being built.\n`TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.",
           "anyOf": [
             {
               "$ref": "#/definitions/HookCommand"

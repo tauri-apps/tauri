@@ -260,7 +260,7 @@ fn generate_control_file(
         .bundle_identifier()
         .split('.')
         .nth(1)
-        .unwrap_or(settings.bundle_identifier())
+        .unwrap_or_else(|| settings.bundle_identifier())
         .to_string()
     });
 

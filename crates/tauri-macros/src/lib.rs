@@ -29,6 +29,81 @@ mod context;
 
 /// Mark a function as a command handler. It creates a wrapper function with the necessary glue code.
 ///
+/// The wrapped function can then be passed to [`generate_handler!`] so it can be called
+/// from the frontend with `invoke()`.
+///
+/// ```rust,ignore
+/// #[tauri::command]
+/// fn greet(name: String) -> String {
+///   format!("Hello, {name}!")
+/// }
+/// ```
+///
+/// # Options
+///
+/// The attribute accepts a comma separated list of the following options:
+///
+/// ## `async`
+///
+/// Runs the command on the async runtime instead of blocking the main thread.
+///
+/// `async fn` commands are always executed asynchronously, so this option is only needed
+/// for synchronous functions that should not run on the main thread:
+///
+/// ```rust,ignore
+/// #[tauri::command(async)]
+/// fn expensive_computation() -> u64 {
+///   // the body runs on the async runtime, so the main thread is not blocked
+///   42
+/// }
+/// ```
+///
+/// ## `rename_all`
+///
+/// Sets the case convention used to match the command arguments with the keys of the
+/// payload sent by the frontend. Either `"camelCase"` (default) or `"snake_case"`.
+///
+/// ```rust,ignore
+/// // called from JavaScript with `invoke("send_message", { messageBody: "Hello" })`
+/// #[tauri::command]
+/// fn send_message(message_body: String) {}
+///
+/// // called from JavaScript with `invoke("send_message", { message_body: "Hello" })`
+/// #[tauri::command(rename_all = "snake_case")]
+/// fn send_message_snake(message_body: String) {}
+/// ```
+///
+/// ## `rename`
+///
+/// Changes the name used to call the command from the frontend.
+/// By default it is the name of the function.
+///
+/// ```rust,ignore
+/// // called from JavaScript with `invoke("greetUser")`
+/// // and still registered as `generate_handler![greet_user]`
+/// #[tauri::command(rename = "greetUser")]
+/// fn greet_user() {}
+/// ```
+///
+/// ## `root`
+///
+/// Path to the `tauri` crate, used when it is renamed in `Cargo.toml` or re-exported
+/// by another crate. Defaults to `::tauri`, and the special value `"crate"` resolves
+/// to `$crate` (used internally by Tauri itself).
+///
+/// ```rust,ignore
+/// // Cargo.toml: tauri_framework = { package = "tauri", version = "2" }
+/// #[tauri::command(root = "tauri_framework")]
+/// fn my_command() {}
+/// ```
+///
+/// # Inline plugins
+///
+/// When the command belongs to a plugin that is part of your application instead of a
+/// standalone crate, annotate it in the [`generate_handler!`] list with the
+/// `#![plugin(your_plugin_name)]` inner attribute so `build > removeUnusedCommands` can
+/// match it against the plugin permissions.
+///
 /// # Stability
 /// The output of this macro is managed internally by Tauri,
 /// and should not be accessed directly on normal applications.
@@ -38,6 +113,34 @@ pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
   command::wrapper(attributes, item)
 }
 
+/// Marks a function as the entry point of a mobile application.
+///
+/// It must be applied to the function that builds and runs your Tauri application on the
+/// library target (`run()` on `src-tauri/src/lib.rs` for apps created by the Tauri CLI),
+/// which is the function the generated Android and iOS projects call on startup.
+///
+/// The canonical usage only applies it on mobile targets, so the same function can be called
+/// by the `main.rs` of the desktop binary:
+///
+/// ```rust,ignore
+/// #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// pub fn run() {
+///   tauri::Builder::default()
+///     .run(tauri::generate_context!())
+///     .expect("error while running tauri application");
+/// }
+/// ```
+///
+/// The macro generates a `start_app` C symbol (checked by the Tauri CLI) that catches
+/// panics instead of unwinding across the FFI boundary, blocks on the function when it is
+/// `async`, sets up the stdout logger on iOS and the JNI bindings on Android using the
+/// package name derived from the `identifier` in your Tauri configuration.
+///
+/// Because the Android package name is read from environment variables set by `tauri-build`,
+/// your application must have a build script calling [`tauri_build::build`] - otherwise the
+/// macro fails to compile with a `env var not set` error.
+///
+/// [`tauri_build::build`]: https://docs.rs/tauri-build/latest/tauri_build/fn.build.html
 #[proc_macro_attribute]
 pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenStream {
   mobile::entry_point(attributes, item)
@@ -101,6 +204,77 @@ pub fn generate_handler(item: TokenStream) -> TokenStream {
 }
 
 /// Reads a Tauri config file and generates a `::tauri::Context` based on the content.
+///
+/// The context embeds the frontend assets, the application icons, the resolved Access Control List
+/// and the parsed configuration into the binary, and is passed to
+/// `tauri::Builder::run`/`tauri::Builder::build`.
+///
+/// ```rust,ignore
+/// tauri::Builder::default()
+///   .run(tauri::generate_context!())
+///   .expect("error while running tauri application");
+/// ```
+///
+/// # Options
+///
+/// All options are optional and can be combined in a comma separated list.
+///
+/// ## Configuration file path
+///
+/// A string literal as the first argument sets the path of the Tauri configuration file to read,
+/// relative to `CARGO_MANIFEST_DIR`. Defaults to `tauri.conf.json` on the crate directory.
+/// Platform specific configuration files (e.g. `tauri.windows.conf.json`) that sit next to it are
+/// merged as usual.
+///
+/// ```rust,ignore
+/// tauri::generate_context!("../tauri.conf.json");
+/// ```
+///
+/// ## Root path
+///
+/// A path (any item that is not a `key = value` pair) changes the crate path the generated code
+/// refers to. Defaults to `::tauri`, and is only needed when the `tauri` crate is renamed,
+/// re-exported by another crate, or is the crate being compiled (`crate`).
+///
+/// ```rust,ignore
+/// tauri::generate_context!("../tauri.conf.json", ::my_framework::tauri);
+/// ```
+///
+/// ## `capabilities`
+///
+/// A list of additional capability files to include in the generated Access Control List,
+/// on top of the ones defined in the `capabilities` directory and in the
+/// `app > security > capabilities` configuration value.
+///
+/// Each item is a path (relative to the current working directory of the compiler,
+/// usually the crate directory) to a JSON or TOML file containing a capability,
+/// a list of capabilities or a named list of capabilities.
+///
+/// ```rust,ignore
+/// tauri::generate_context!(capabilities = ["./capabilities/extra.json"]);
+/// ```
+///
+/// ## `assets`
+///
+/// An expression resolving to a custom [`tauri::Assets`] implementation, used instead of
+/// embedding the files from `build > frontendDist`. Useful for serving the frontend from a
+/// custom source, or for skipping asset embedding on tests.
+///
+/// ```rust,ignore
+/// tauri::generate_context!(assets = tauri::test::noop_assets());
+/// ```
+///
+/// ## `test`
+///
+/// When `true`, skips code generation that misbehaves when the context is created inside a
+/// test binary - currently the `Info.plist` embedding performed on macOS development builds.
+/// Defaults to `false`.
+///
+/// ```rust,ignore
+/// let context = tauri::generate_context!("../tauri.conf.json", test = true);
+/// ```
+///
+/// [`tauri::Assets`]: https://docs.rs/tauri/latest/tauri/trait.Assets.html
 ///
 /// # Stability
 /// The output of this macro is managed internally by Tauri,

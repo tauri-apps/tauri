@@ -348,11 +348,9 @@ fn create_info_plist(
               protocol
                 .name
                 .clone()
-                .unwrap_or(format!(
-                  "{} {}",
-                  settings.bundle_identifier(),
-                  protocol.schemes[0]
-                ))
+                .unwrap_or_else(|| {
+                  format!("{} {}", settings.bundle_identifier(), protocol.schemes[0])
+                })
                 .into(),
             );
             dict.insert("CFBundleTypeRole".into(), protocol.role.to_string().into());

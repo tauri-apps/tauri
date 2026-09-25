@@ -28,7 +28,7 @@ use std::{
   env::set_var,
   ffi::OsString,
   fmt::{Display, Write},
-  fs::{OpenOptions, create_dir_all, read_to_string, remove_file, write},
+  fs::{OpenOptions, create_dir_all, read_to_string, remove_file},
   future::Future,
   io::Write as _,
   net::{AddrParseError, IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},

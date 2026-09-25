@@ -227,16 +227,22 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     write_and_make_executable(&linuxdeploy, &data)?;
   }
 
-  let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
-  if !gtk.exists() {
-    let data = include_bytes!("./linuxdeploy-plugin-gtk.sh");
-    write_and_make_executable(&gtk, data)?;
-  }
-
-  let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
-  if !gstreamer.exists() {
-    let data = include_bytes!("./linuxdeploy-plugin-gstreamer.sh");
-    write_and_make_executable(&gstreamer, data)?;
+  // The plugin scripts are embedded, so rewrite them whenever the cached copy differs:
+  // a copy left behind by an older CLI would otherwise be used forever.
+  for (name, data) in [
+    (
+      "linuxdeploy-plugin-gtk.sh",
+      include_bytes!("./linuxdeploy-plugin-gtk.sh").as_slice(),
+    ),
+    (
+      "linuxdeploy-plugin-gstreamer.sh",
+      include_bytes!("./linuxdeploy-plugin-gstreamer.sh").as_slice(),
+    ),
+  ] {
+    let path = tools_path.join(name);
+    if fs::read(&path).ok().as_deref() != Some(data) {
+      write_and_make_executable(&path, data)?;
+    }
   }
 
   let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");

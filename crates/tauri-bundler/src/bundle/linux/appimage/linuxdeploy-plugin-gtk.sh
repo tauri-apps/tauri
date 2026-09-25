@@ -266,7 +266,12 @@ EOF
 echo "Installing Gio modules"
 gio_moduledir="$(get_pkgconf_variable "giomoduledir" "gio-2.0" "$LD_GTK_LIBRARY_PATH/gio/modules")"
 copy_lib_tree "$gio_moduledir" "$APPDIR/"
-gio-querymodules "$APPDIR/${gio_moduledir/$LD_GTK_LIBRARY_PATH//usr/lib}"
+gio_querymodules="$(search_tool "gio-querymodules" "glib-2.0")"
+if [ -x "$gio_querymodules" ]; then
+    "$gio_querymodules" "$APPDIR/${gio_moduledir/$LD_GTK_LIBRARY_PATH//usr/lib}"
+else
+    echo "WARNING: gio-querymodules not found"
+fi
 cat >> "$HOOKFILE" <<EOF
 export GIO_MODULE_DIR="\$APPDIR/${gio_moduledir/$LD_GTK_LIBRARY_PATH//usr/lib}"
 EOF
@@ -327,6 +332,7 @@ gdk_pixbuf_cache_file="$(get_pkgconf_variable "gdk_pixbuf_cache_file" "gdk-pixbu
 gdk_pixbuf_moduledir="$(get_pkgconf_variable "gdk_pixbuf_moduledir" "gdk-pixbuf-2.0" "$gdk_pixbuf_binarydir/loaders")"
 # Note: gdk_pixbuf_query_loaders variable is not defined on some systems
 gdk_pixbuf_query="$(search_tool "gdk-pixbuf-query-loaders" "gdk-pixbuf-2.0")"
+if [ -d "$gdk_pixbuf_binarydir" ]; then
 copy_lib_tree "$gdk_pixbuf_binarydir" "$APPDIR/"
 cat >> "$HOOKFILE" <<EOF
 export GDK_PIXBUF_MODULE_FILE="\$APPDIR/${gdk_pixbuf_cache_file/$LD_GTK_LIBRARY_PATH//usr/lib}"
@@ -341,6 +347,9 @@ if [ ! -f "$APPDIR/${gdk_pixbuf_cache_file/$LD_GTK_LIBRARY_PATH//usr/lib}" ]; th
     echo "WARNING: loaders.cache file is missing"
 fi
 sed -i "s|$gdk_pixbuf_moduledir/||g" "$APPDIR/${gdk_pixbuf_cache_file/$LD_GTK_LIBRARY_PATH//usr/lib}"
+else
+    echo "WARNING: $gdk_pixbuf_binarydir not found, not bundling gdk-pixbuf loaders"
+fi
 
 echo "Copying more libraries"
 gobject_libdir="$(get_pkgconf_variable "libdir" "gobject-2.0" "$LD_GTK_LIBRARY_PATH")"
@@ -386,15 +395,6 @@ done
 # set write permission on lib64 again to make it deletable.
 chmod +w "$APPDIR"/usr/lib64 || true
 
-# We have to copy the files first to not get permission errors when we assign gio_extras_dir
-find /usr/lib* -name libgiognutls.so -exec mkdir -p "$APPDIR"/"$(dirname '{}')" \; -exec cp --parents '{}' "$APPDIR/" \; || true
-# related files that we seemingly don't need:
-# libgiolibproxy.so - libgiognomeproxy.so - glib-pacrunner
-
-gio_extras_dir=$(find "$APPDIR"/usr/lib* -name libgiognutls.so -exec dirname '{}' \; 2>/dev/null)
-cat >> "$HOOKFILE" <<EOF
-export GIO_EXTRA_MODULES="\$APPDIR/${gio_extras_dir#"$APPDIR"/}"
-EOF
 
 #binary patch absolute paths in libwebkit files
 find "$APPDIR"/usr/lib* -name 'libwebkit*' -exec sed -i -e "s|/usr|././|g" '{}' \;

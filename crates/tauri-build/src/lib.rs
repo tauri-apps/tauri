@@ -2,13 +2,95 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! This applies the macros at build-time in order to rig some special features needed by `cargo`.
+//! Build-time helpers for Tauri applications.
+//!
+//! Every Tauri application must run [`build()`] (or [`try_build()`]) from its `build.rs`,
+//! on every target platform. It sets up everything the [`tauri`] crate expects to find at
+//! compile time and at runtime:
+//!
+//! - emits `cargo:rerun-if-changed` instructions for the Tauri configuration files;
+//! - defines the `dev`, `desktop` and `mobile` [cfg aliases] used across the Tauri crates;
+//! - parses the permissions of the application and of its plugins, resolves the capabilities
+//!   (from the `capabilities` directory and from `app > security > capabilities` in the
+//!   configuration file) and validates them, writing the resulting Access Control List to the
+//!   `OUT_DIR` so [`tauri::generate_context!`] can embed it;
+//!   it also writes the capability JSON schemas to `gen/schemas`;
+//! - copies the configured `bundle > externalBin` sidecars and `bundle > resources` next to
+//!   the compiled binary so they are available when running the app with `cargo run`;
+//! - on macOS and iOS, sets the deployment target from the configuration and links the
+//!   configured frameworks;
+//! - on Windows, compiles a resource file with the application icon, version information and
+//!   the [application manifest], and optionally statically links the Visual C++ runtime
+//!   (see [`WindowsAttributes`]);
+//! - on Android, generates the Gradle files of the mobile project and updates the Android
+//!   manifest with the configured file associations;
+//! - optionally runs the context code generation at build time instead of at macro expansion
+//!   time (see `Attributes::codegen`, requires the `codegen` Cargo feature).
+//!
+//! # Examples
+//!
+//! The default `build.rs` of a Tauri application:
+//!
+//! ```rust,ignore
+//! // build.rs
+//! fn main() {
+//!   tauri_build::build()
+//! }
+//! ```
+//!
+//! Customizing the build with [`Attributes`]:
+//!
+//! ```rust,ignore
+//! // build.rs
+//! fn main() {
+//!   let attributes = tauri_build::Attributes::new()
+//!     // the app commands that get a `allow-$command`/`deny-$command` permission generated
+//!     .app_manifest(tauri_build::AppManifest::new().commands(&["my_command"]))
+//!     // a plugin that lives in the app crate instead of its own crate
+//!     .plugin(
+//!       "my-plugin",
+//!       tauri_build::InlinedPlugin::new().commands(&["do_something"]),
+//!     )
+//!     .windows_attributes(
+//!       tauri_build::WindowsAttributes::new().window_icon_path("icons/icon.ico"),
+//!     );
+//!   tauri_build::try_build(attributes).expect("failed to run tauri-build");
+//! }
+//! ```
+//!
+//! See [`Attributes`] for the complete list of options: [`Attributes::config_path`],
+//! [`Attributes::capabilities_path_pattern`], [`Attributes::plugin`] / [`InlinedPlugin`],
+//! [`Attributes::app_manifest`] / [`AppManifest`], [`Attributes::windows_attributes`] /
+//! [`WindowsAttributes`] and `Attributes::codegen` / `CodegenContext` (`codegen` feature).
+//!
+//! # Environment variables
+//!
+//! In addition to the [environment variables set by cargo] for build scripts, the following
+//! variables are read:
+//!
+//! - `TAURI_CONFIG`: a JSON string that is merged into the parsed configuration file.
+//!   Set by the Tauri CLI when the configuration is changed from the command line
+//!   (e.g. `tauri build --config`). The build script reruns when it changes.
+//! - `TAURI_ANDROID_PROJECT_PATH`: path to the Android Studio project of the application,
+//!   set by the Tauri CLI on Android builds. When set, the Gradle files of the project are
+//!   regenerated and the Android manifest is updated with the configured file associations.
+//!   (the `tauri-plugin` crate reads the matching `TAURI_IOS_PROJECT_PATH` for iOS projects).
+//! - `STATIC_VCRUNTIME`: **deprecated**, use `build > windows > staticVCRuntime` in the Tauri
+//!   configuration or [`WindowsAttributes::static_vc_runtime`] instead. Any value other than
+//!   `false` statically links the Visual C++ runtime.
+//!
+//! [`tauri`]: https://docs.rs/tauri/latest/tauri/
+//! [`tauri::generate_context!`]: https://docs.rs/tauri/latest/tauri/macro.generate_context.html
+//! [cfg aliases]: https://doc.rust-lang.org/cargo/reference/build-scripts.html#cargorustc-cfgkeyvalue
+//! [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
+//! [environment variables set by cargo]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(missing_docs)]
 
 use anyhow::Context;
 pub use anyhow::Result;
@@ -399,7 +481,24 @@ impl Attributes {
     Self::default()
   }
 
-  /// Sets the icon to use on the window. Currently only used on Windows.
+  /// Sets the [`WindowsAttributes`], the Windows-specific options of the build script.
+  ///
+  /// They are used to configure the [application manifest], the application icon, additional
+  /// `.rc` content and the static linking of the Visual C++ runtime.
+  /// Setting them has no effect when compiling for other platforms.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// let attributes = tauri_build::Attributes::new().windows_attributes(
+  ///   tauri_build::WindowsAttributes::new()
+  ///     .window_icon_path("icons/icon.ico")
+  ///     .static_vc_runtime(true),
+  /// );
+  /// tauri_build::try_build(attributes).expect("failed to run tauri-build");
+  /// ```
+  ///
+  /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
   #[must_use]
   pub fn windows_attributes(mut self, windows_attributes: WindowsAttributes) -> Self {
     self.windows_attributes = windows_attributes;
@@ -456,6 +555,30 @@ impl Attributes {
     self
   }
 
+  /// Generates the Tauri application context at build time instead of at macro expansion time.
+  ///
+  /// The context is written to a file in the `OUT_DIR` that the
+  /// [`tauri::tauri_build_context!`] macro includes, so the application uses
+  /// `tauri::Builder::run(tauri::tauri_build_context!())` instead of
+  /// `tauri::Builder::run(tauri::generate_context!())`.
+  ///
+  /// This moves the asset embedding and the ACL resolution to the build script, which means the
+  /// `cargo:rerun-if-changed` instructions emitted for the frontend assets, icons and
+  /// configuration files are respected - with `generate_context!` the code is only regenerated
+  /// when the crate itself is recompiled.
+  ///
+  /// See [`CodegenContext`] for the available options.
+  ///
+  /// Requires the `codegen` Cargo feature.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// let attributes = tauri_build::Attributes::new().codegen(tauri_build::CodegenContext::new());
+  /// tauri_build::try_build(attributes).expect("failed to run tauri-build");
+  /// ```
+  ///
+  /// [`tauri::tauri_build_context!`]: https://docs.rs/tauri/latest/tauri/macro.tauri_build_context.html
   #[cfg(feature = "codegen")]
   #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
   #[must_use]
@@ -465,6 +588,22 @@ impl Attributes {
   }
 }
 
+/// Whether the app is being compiled for development (`tauri dev`) or not.
+///
+/// It reads the `DEP_TAURI_DEV` environment variable, which is set by the build script of the
+/// `tauri` crate from the `cargo:dev` instruction, and is `true` when the `tauri` crate is
+/// compiled without the `custom-protocol` Cargo feature.
+///
+/// [`try_build`] uses it to define the `dev` [cfg alias], so prefer `#[cfg(dev)]` on your app
+/// code; this function is meant for `build.rs` code that must branch on the development build.
+///
+/// # Panics
+///
+/// Panics if the `DEP_TAURI_DEV` environment variable is not set, which means the crate calling
+/// it does not depend on a `tauri` version that emits the `cargo:dev` instruction.
+/// Update the `tauri` dependency to the latest version to fix it.
+///
+/// [cfg alias]: https://doc.rust-lang.org/cargo/reference/build-scripts.html#cargorustc-cfgkeyvalue
 pub fn is_dev() -> bool {
   env::var_os("DEP_TAURI_DEV")
     .expect("missing `cargo:dev` instruction, please update tauri to latest")

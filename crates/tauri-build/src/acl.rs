@@ -50,6 +50,7 @@ pub enum DefaultPermissionRule {
 }
 
 impl InlinedPlugin {
+  /// Creates a new inlined plugin definition with the default options.
   pub fn new() -> Self {
     Self::default()
   }
@@ -93,6 +94,7 @@ pub struct AppManifest {
 }
 
 impl AppManifest {
+  /// Creates a new application manifest with the default options.
   pub fn new() -> Self {
     Self::default()
   }

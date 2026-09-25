@@ -35,6 +35,7 @@ use crate::app::OnWebContentProcessTerminate;
 
 #[cfg(desktop)]
 mod menu;
+mod scoped_listener;
 #[cfg(all(desktop, feature = "tray-icon"))]
 mod tray;
 pub mod webview;
@@ -289,6 +290,7 @@ impl<R: Runtime> AppManager<R> {
         windows: Mutex::default(),
         default_icon: context.default_window_icon,
         event_listeners: Arc::new(window_event_listeners),
+        scoped_event_listeners: Default::default(),
       },
       webview: webview::WebviewManager {
         webviews: Mutex::default(),
@@ -298,6 +300,7 @@ impl<R: Runtime> AppManager<R> {
         on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webview_event_listeners),
+        scoped_event_listeners: Default::default(),
         invoke_initialization_script,
       },
       #[cfg(all(desktop, feature = "tray-icon"))]
@@ -650,12 +653,16 @@ impl<R: Runtime> AppManager<R> {
       .cloned()
   }
 
+  /// Note that this runs *before* [`crate::WindowEvent::Destroyed`] is dispatched, so
+  /// the window's own scoped event listeners outlive it - they are dropped once that
+  /// event has been delivered. Webviews have no equivalent event, so theirs go here.
   pub(crate) fn on_window_close(&self, label: &str) {
     let window = self.window.windows_lock().remove(label);
     if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
         self.listeners().remove_webview_listeners(webview.label());
+        self.webview.scoped_event_listeners.remove(webview.label());
         self
           .state
           .get::<crate::ipc::channel::ChannelDataIpcQueue>()
@@ -669,6 +676,7 @@ impl<R: Runtime> AppManager<R> {
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_listeners(label);
+    self.webview.scoped_event_listeners.remove(label);
     self
       .state
       .get::<crate::ipc::channel::ChannelDataIpcQueue>()

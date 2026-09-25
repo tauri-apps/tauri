@@ -23,8 +23,7 @@ use tauri_runtime::webview::ScrollBarStyle;
 use tauri_runtime::{
   Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
   ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
-  RuntimeInitAttrs, UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch,
-  WindowEventId,
+  RuntimeInitAttrs, UserAttentionType, UserEvent, WebviewDispatch, WindowDispatch,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -304,11 +303,6 @@ pub struct WebContext {
 }
 
 pub type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
-// window
-pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
-pub type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventHandler>>>;
-pub type WebviewEventHandler = Box<dyn Fn(&WebviewEvent) + Send>;
-pub type WebviewEventListeners = Arc<Mutex<HashMap<WebviewEventId, WebviewEventHandler>>>;
 
 #[derive(Debug, Clone, Default)]
 pub struct WindowIdStore(Arc<Mutex<HashMap<TaoWindowId, WindowId>>>);
@@ -371,8 +365,6 @@ pub struct Context<T: UserEvent> {
   plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
-  next_window_event_id: Arc<AtomicU32>,
-  next_webview_event_id: Arc<AtomicU32>,
   webview_runtime_installed: bool,
 }
 
@@ -416,14 +408,6 @@ impl<T: UserEvent> Context<T> {
 
   fn next_webview_id(&self) -> WebviewId {
     self.next_webview_id.fetch_add(1, Ordering::Relaxed)
-  }
-
-  fn next_window_event_id(&self) -> u32 {
-    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
-  }
-
-  fn next_webview_event_id(&self) -> u32 {
-    self.next_webview_event_id.fetch_add(1, Ordering::Relaxed)
   }
 }
 
@@ -1459,7 +1443,6 @@ pub enum ApplicationMessage {
 }
 
 pub enum WindowMessage {
-  AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
   // Getters
   ScaleFactor(Sender<f64>),
   InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
@@ -1578,7 +1561,6 @@ impl From<SynthesizedWindowEvent> for WindowEventWrapper {
 }
 
 pub enum WebviewMessage {
-  AddEventListener(WebviewEventId, Box<dyn Fn(&WebviewEvent) + Send>),
   #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
   EvaluateScript(String),
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
@@ -1692,16 +1674,6 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_user_message(Message::Task(Box::new(f)))
-  }
-
-  fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
-    let id = self.context.next_webview_event_id();
-    let _ = self.context.proxy.send_event(Message::Webview(
-      *self.window_id.lock().unwrap(),
-      self.webview_id,
-      WebviewMessage::AddEventListener(id, Box::new(f)),
-    ));
-    id
   }
 
   fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
@@ -2047,15 +2019,6 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_user_message(Message::Task(Box::new(f)))
-  }
-
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
-    let id = self.context.next_window_event_id();
-    let _ = self.context.proxy.send_event(Message::Window(
-      self.window_id,
-      WindowMessage::AddEventListener(id, Box::new(f)),
-    ));
-    id
   }
 
   // Getters
@@ -2575,7 +2538,6 @@ pub struct WebviewWrapper {
   id: WebviewId,
   inner: Rc<WebView>,
   context_store: WebContextStore,
-  webview_event_listeners: WebviewEventListeners,
   // the key of the WebContext if it's not shared
   context_key: Option<PathBuf>,
   bounds: Arc<Mutex<Option<WebviewBounds>>>,
@@ -2646,7 +2608,6 @@ pub struct WindowWrapper {
   // or it's just a container for a single webview
   has_children: AtomicBool,
   webviews: Vec<WebviewWrapper>,
-  window_event_listeners: WindowEventListeners,
   #[cfg(windows)]
   background_color: Option<tao::window::RGBA>,
   #[cfg(windows)]
@@ -3030,8 +2991,6 @@ impl<T: UserEvent> WryRuntime<T> {
       plugins: Default::default(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
-      next_window_event_id: Default::default(),
-      next_webview_event_id: Default::default(),
       webview_runtime_installed: wry::webview_version().is_ok(),
     };
 
@@ -3480,23 +3439,11 @@ fn handle_user_message<T: UserEvent>(
           w.inner.clone(),
           w.webviews.clone(),
           w.has_children.load(Ordering::Relaxed),
-          w.window_event_listeners.clone(),
           focused_webview,
         )
       });
-      if let Some((
-        Some(window),
-        webviews,
-        has_children,
-        window_event_listeners,
-        _focused_webview,
-      )) = w
-      {
+      if let Some((Some(window), webviews, has_children, _focused_webview)) = w {
         match window_message {
-          WindowMessage::AddEventListener(id, listener) => {
-            window_event_listeners.lock().unwrap().insert(id, listener);
-          }
-
           // Getters
           WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
           WindowMessage::InnerPosition(tx) => tx
@@ -3918,14 +3865,6 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::WebviewEvent(_) => { /* already handled */ }
           WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
           WebviewMessage::Reparent(_window_id, _tx) => { /* already handled */ }
-          WebviewMessage::AddEventListener(id, listener) => {
-            webview
-              .webview_event_listeners
-              .lock()
-              .unwrap()
-              .insert(id, listener);
-          }
-
           #[cfg(all(feature = "tracing", not(target_os = "android")))]
           WebviewMessage::EvaluateScript(script, tx, span) => {
             let _span = span.entered();
@@ -4294,7 +4233,6 @@ fn handle_user_message<T: UserEvent>(
           label,
           has_children: AtomicBool::new(false),
           inner: Some(window.clone()),
-          window_event_listeners: Default::default(),
           webviews: Vec::new(),
           #[cfg(windows)]
           background_color,
@@ -4432,19 +4370,10 @@ fn handle_event_loop<T: UserEvent>(
         && let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id)
       {
         let label = webview.label.clone();
-        let webview_event_listeners = webview.webview_event_listeners.clone();
 
         drop(windows_ref);
 
-        callback(RunEvent::WebviewEvent {
-          label,
-          event: event.clone(),
-        });
-        let listeners = webview_event_listeners.lock().unwrap();
-        let handlers = listeners.values();
-        for handler in handlers {
-          handler(&event);
-        }
+        callback(RunEvent::WebviewEvent { label, event });
       }
     }
 
@@ -4458,20 +4387,10 @@ fn handle_event_loop<T: UserEvent>(
         let window = windows_ref.get(&window_id);
         if let Some(window) = window {
           let label = window.label.clone();
-          let window_event_listeners = window.window_event_listeners.clone();
 
           drop(windows_ref);
 
-          callback(RunEvent::WindowEvent {
-            label,
-            event: event.clone(),
-          });
-
-          let listeners = window_event_listeners.lock().unwrap();
-          let handlers = listeners.values();
-          for handler in handlers {
-            handler(&event);
-          }
+          callback(RunEvent::WindowEvent { label, event });
         }
       }
     }
@@ -4486,19 +4405,10 @@ fn handle_event_loop<T: UserEvent>(
             && let Some(event) = WindowEventWrapper::parse(window, &event).0
           {
             let label = window.label.clone();
-            let window_event_listeners = window.window_event_listeners.clone();
 
             drop(windows_ref);
 
-            callback(RunEvent::WindowEvent {
-              label,
-              event: event.clone(),
-            });
-            let listeners = window_event_listeners.lock().unwrap();
-            let handlers = listeners.values();
-            for handler in handlers {
-              handler(&event);
-            }
+            callback(RunEvent::WindowEvent { label, event });
           }
         }
 
@@ -4625,17 +4535,9 @@ fn on_close_requested<'a, T: UserEvent>(
   let windows_ref = windows.0.borrow();
   if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
-    let window_event_listeners = w.window_event_listeners.clone();
 
     drop(windows_ref);
 
-    let listeners = window_event_listeners.lock().unwrap();
-    let handlers = listeners.values();
-    for handler in handlers {
-      handler(&WindowEvent::CloseRequested {
-        signal_tx: tx.clone(),
-      });
-    }
     callback(RunEvent::WindowEvent {
       label,
       event: WindowEvent::CloseRequested { signal_tx: tx },
@@ -4694,8 +4596,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   #[cfg(feature = "tracing")]
   let window_create_span =
     tracing::debug_span!(parent: &window_draw_span, "wry::window::create").entered();
-
-  let window_event_listeners = WindowEventListeners::default();
 
   #[cfg(windows)]
   let background_color = window_builder.inner.window.background_color;
@@ -4917,7 +4817,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     has_children: AtomicBool::new(has_children),
     inner: Some(window),
     webviews,
-    window_event_listeners,
     #[cfg(windows)]
     background_color,
     #[cfg(windows)]
@@ -5580,7 +5479,6 @@ You may have it installed on another user account, but it is not available for t
     id,
     inner: Rc::new(webview),
     context_store: context.main_thread.web_context.clone(),
-    webview_event_listeners: Default::default(),
     context_key: if automation_enabled {
       None
     } else {

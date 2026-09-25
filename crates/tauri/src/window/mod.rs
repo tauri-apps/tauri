@@ -1273,9 +1273,10 @@ impl<R: Runtime> Window<R> {
   /// Registers a window event listener.
   pub fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) {
     self
+      .manager()
       .window
-      .dispatcher
-      .on_window_event(move |event| f(&event.clone().into()));
+      .scoped_event_listeners
+      .add(self.label(), Box::new(f));
   }
 }
 

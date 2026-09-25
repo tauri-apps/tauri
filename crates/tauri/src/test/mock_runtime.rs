@@ -8,7 +8,7 @@
 use tauri_runtime::{
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
   Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, RuntimeInitAttrs, UserAttentionType,
-  UserEvent, WebviewDispatch, WindowDispatch, WindowEventId,
+  UserEvent, WebviewDispatch, WindowDispatch,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
@@ -61,8 +61,6 @@ pub struct RuntimeContext {
   main_thread_id: std::thread::ThreadId,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
-  next_window_event_id: Arc<AtomicU32>,
-  next_webview_event_id: Arc<AtomicU32>,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -103,14 +101,6 @@ impl RuntimeContext {
 
   fn next_webview_id(&self) -> u32 {
     self.next_webview_id.fetch_add(1, Ordering::Relaxed)
-  }
-
-  fn next_window_event_id(&self) -> WindowEventId {
-    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
-  }
-
-  fn next_webview_event_id(&self) -> WindowEventId {
-    self.next_webview_event_id.fetch_add(1, Ordering::Relaxed)
   }
 }
 
@@ -583,13 +573,6 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     self.context.send_message(Message::Task(Box::new(f)))
   }
 
-  fn on_webview_event<F: Fn(&tauri_runtime::window::WebviewEvent) + Send + 'static>(
-    &self,
-    f: F,
-  ) -> tauri_runtime::WebviewEventId {
-    self.context.next_window_event_id()
-  }
-
   fn with_webview<F: FnOnce(()) + Send + 'static>(&self, _f: F) -> Result<()> {
     Ok(())
   }
@@ -752,10 +735,6 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_message(Message::Task(Box::new(f)))
-  }
-
-  fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
-    self.context.next_window_event_id()
   }
 
   fn scale_factor(&self) -> Result<f64> {
@@ -1218,8 +1197,6 @@ impl MockRuntime {
       main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
-      next_window_event_id: Default::default(),
-      next_webview_event_id: Default::default(),
     };
     Self {
       is_running,
@@ -1423,13 +1400,17 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
             if let Some(label) = label {
               let (tx, rx) = channel();
               callback(RunEvent::WindowEvent {
-                label,
+                label: label.clone(),
                 event: WindowEvent::CloseRequested { signal_tx: tx },
               });
 
               let should_prevent = matches!(rx.try_recv(), Ok(true));
               if !should_prevent {
                 self.context.windows.borrow_mut().remove(&id);
+                callback(RunEvent::WindowEvent {
+                  label,
+                  event: WindowEvent::Destroyed,
+                });
 
                 let is_empty = self.context.windows.borrow().is_empty();
                 if is_empty {
@@ -1447,8 +1428,19 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
             }
           }
           Message::DestroyWindow(id) => {
-            let removed = self.context.windows.borrow_mut().remove(&id).is_some();
-            if removed {
+            let label = self
+              .context
+              .windows
+              .borrow()
+              .get(&id)
+              .map(|w| w.label.clone());
+            if let Some(label) = label {
+              self.context.windows.borrow_mut().remove(&id);
+              callback(RunEvent::WindowEvent {
+                label,
+                event: WindowEvent::Destroyed,
+              });
+
               let is_empty = self.context.windows.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();

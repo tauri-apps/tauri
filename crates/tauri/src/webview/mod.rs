@@ -1567,9 +1567,10 @@ impl<R: Runtime> Webview<R> {
   /// Registers a webview event listener.
   pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
     self
+      .manager()
       .webview
-      .dispatcher
-      .on_webview_event(move |event| f(&event.clone().into()));
+      .scoped_event_listeners
+      .add(self.label(), Box::new(f));
   }
 
   /// Resolves the given command scope for this webview on the currently loaded URL.

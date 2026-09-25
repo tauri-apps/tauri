@@ -1202,8 +1202,6 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   main_thread_id: std::thread::ThreadId,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
-  next_window_event_id: Arc<AtomicU32>,
-  next_webview_event_id: Arc<AtomicU32>,
   current_dispatch: Arc<MainThreadDispatchSlot<T>>,
   pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
   pub(crate) cef_pump: CefExternalPump,
@@ -1450,14 +1448,6 @@ impl<T: UserEvent> RuntimeContext<T> {
 
   pub(crate) fn next_webview_id(&self) -> u32 {
     self.next_webview_id.fetch_add(1, Ordering::Relaxed)
-  }
-
-  pub(crate) fn next_window_event_id(&self) -> u32 {
-    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
-  }
-
-  pub(crate) fn next_webview_event_id(&self) -> u32 {
-    self.next_webview_event_id.fetch_add(1, Ordering::Relaxed)
   }
 }
 
@@ -2001,19 +1991,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     };
     let label = appwindow.label.clone();
-    let listeners = appwindow.listeners.clone();
 
-    self.run_callback(RunEvent::WindowEvent {
-      label,
-      event: event.clone(),
-    });
-
-    {
-      let listeners = listeners.lock().unwrap();
-      for handler in listeners.values() {
-        handler(&event);
-      }
-    }
+    self.run_callback(RunEvent::WindowEvent { label, event });
   }
 
   fn emit_webview_event(&mut self, window_id: WindowId, webview_id: u32, event: WebviewEvent) {
@@ -2028,19 +2007,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     };
     let label = child.label.clone();
-    let listeners = child.listeners.clone();
 
-    self.run_callback(RunEvent::WebviewEvent {
-      label,
-      event: event.clone(),
-    });
-
-    {
-      let listeners = listeners.lock().unwrap();
-      for handler in listeners.values() {
-        handler(&event);
-      }
-    }
+    self.run_callback(RunEvent::WebviewEvent { label, event });
   }
 
   fn request_exit(&mut self, code: Option<i32>) -> bool {
@@ -2134,16 +2102,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     };
     let label = appwindow.label.clone();
-    let listeners = appwindow.listeners.clone();
-
-    {
-      let listeners = listeners.lock().unwrap();
-      for handler in listeners.values() {
-        handler(&WindowEvent::CloseRequested {
-          signal_tx: tx.clone(),
-        });
-      }
-    }
 
     self.run_callback(RunEvent::WindowEvent {
       label,
@@ -3214,8 +3172,6 @@ impl<T: UserEvent> CefRuntime<T> {
       main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
-      next_window_event_id: Default::default(),
-      next_webview_event_id: Default::default(),
       current_dispatch,
       app_wide_theme: Default::default(),
       cef_pump,

@@ -39,6 +39,8 @@ pub trait AppSettings {
   ) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
   fn app_name(&self) -> Option<String>;
   fn lib_name(&self) -> Option<String>;
+  /// The resolved target triple (`--target`, cargo's `build.target` or the host triple).
+  fn target_triple(&self) -> &str;
 
   fn get_bundler_settings(
     &self,
@@ -57,7 +59,7 @@ pub trait AppSettings {
     let target: String = if let Some(target) = options.target.clone() {
       target
     } else {
-      tauri_utils::platform::target_triple().context("failed to get target triple")?
+      self.target_triple().to_string()
     };
 
     let mut bins = self.get_binaries(&options, tauri_dir)?;

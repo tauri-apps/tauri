@@ -41,14 +41,51 @@ impl<'a> Iterator for PathAncestors<'a> {
   }
 }
 
-#[derive(Default, Deserialize)]
+/// `build.target` can be a single target or a list of targets.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum BuildTarget {
+  Single(String),
+  Multiple(Vec<String>),
+}
+
+impl BuildTarget {
+  fn into_target(self) -> Option<String> {
+    match self {
+      Self::Single(target) => Some(target),
+      Self::Multiple(targets) => {
+        if targets.len() > 1 {
+          log::warn!(
+            "Multiple targets configured in `build.target` ({}), using the first one: {}",
+            targets.join(", "),
+            targets[0]
+          );
+        }
+        targets.into_iter().next()
+      }
+    }
+  }
+}
+
+#[derive(Deserialize)]
+struct BuildConfigSchema {
+  target: Option<BuildTarget>,
+}
+
+#[derive(Default)]
 pub struct BuildConfig {
   target: Option<String>,
 }
 
 #[derive(Deserialize)]
-pub struct ConfigSchema {
-  build: Option<BuildConfig>,
+struct ConfigSchema {
+  build: Option<BuildConfigSchema>,
+}
+
+impl ConfigSchema {
+  fn build_target(self) -> Option<String> {
+    self.build?.target?.into_target()
+  }
 }
 
 #[derive(Default)]
@@ -69,12 +106,22 @@ impl Config {
       ))
     };
 
-    for current in PathAncestors::new(path) {
-      if let Some(path) = get_file_path(&current.join(".cargo"), "config", true)? {
-        let toml = get_config(path)?;
-        if let Some(target) = toml.build.and_then(|b| b.target) {
-          config.build.target = Some(target);
-          break;
+    // the environment variable takes precedence over the configuration files
+    if let Ok(target) = std::env::var("CARGO_BUILD_TARGET") {
+      let targets = target
+        .split_whitespace()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+      config.build.target = BuildTarget::Multiple(targets).into_target();
+    }
+
+    if config.build.target.is_none() {
+      for current in PathAncestors::new(path) {
+        if let Some(path) = get_file_path(&current.join(".cargo"), "config", true)? {
+          if let Some(target) = get_config(path)?.build_target() {
+            config.build.target = Some(target);
+            break;
+          }
         }
       }
     }
@@ -82,8 +129,7 @@ impl Config {
     if config.build.target.is_none() {
       if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
         if let Some(path) = get_file_path(&PathBuf::from(cargo_home), "config", true)? {
-          let toml = get_config(path)?;
-          if let Some(target) = toml.build.and_then(|b| b.target) {
+          if let Some(target) = get_config(path)?.build_target() {
             config.build.target = Some(target);
           }
         }
@@ -145,5 +191,33 @@ fn get_file_path(
     Ok(Some(possible_with_extension))
   } else {
     Ok(None)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::ConfigSchema;
+
+  fn build_target(toml: &str) -> Option<String> {
+    toml::from_str::<ConfigSchema>(toml).unwrap().build_target()
+  }
+
+  #[test]
+  fn parse_build_target() {
+    assert_eq!(build_target(""), None);
+    assert_eq!(build_target("[build]\njobs = 2"), None);
+    assert_eq!(
+      build_target("[build]\ntarget = \"x86_64-pc-windows-msvc\""),
+      Some("x86_64-pc-windows-msvc".into())
+    );
+    assert_eq!(
+      build_target("[build]\ntarget = [\"aarch64-apple-darwin\"]"),
+      Some("aarch64-apple-darwin".into())
+    );
+    assert_eq!(
+      build_target("[build]\ntarget = [\"aarch64-apple-darwin\", \"x86_64-apple-darwin\"]"),
+      Some("aarch64-apple-darwin".into())
+    );
+    assert_eq!(build_target("[build]\ntarget = []"), None);
   }
 }

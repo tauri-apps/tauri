@@ -410,7 +410,7 @@ fn build_nsis_app_installer(
       .minimum_webview2_version
       .as_deref()
       .filter(|_| settings.webview_runtime().uses_webview2())
-      .or(settings.minimum_webview2_version())
+      .or_else(|| settings.minimum_webview2_version())
     {
       data.insert(
         "minimum_webview2_version",

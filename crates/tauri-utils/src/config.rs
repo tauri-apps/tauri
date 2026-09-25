@@ -42,7 +42,7 @@ use std::{
   collections::{BTreeMap, HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
-  path::PathBuf,
+  path::{Component, Path, PathBuf},
   str::FromStr,
 };
 
@@ -1867,15 +1867,28 @@ pub enum BackgroundThrottlingPolicy {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowEffectsConfig {
   /// List of Window effects to apply to the Window.
-  /// Conflicting effects will apply the first one and ignore the rest.
+  ///
+  /// Generally, conflicting effects will apply the first one and ignore the rest but
+  /// on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time
+  /// to make Tauri fallback to the latter on macOS 15 and below.
   pub effects: Vec<WindowEffect>,
-  /// Window effect state **macOS Only**
+  /// Window effect state **macOS Only**. Ignored for Liquid Glass Effects.
   pub state: Option<WindowEffectState>,
   /// Window effect corner radius **macOS Only**
   pub radius: Option<f64>,
-  /// Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
+  /// Window effect color.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
   /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
+  /// - **macOS**: Only affects Liquid Glass effects.
   pub color: Option<Color>,
+  /// Enables interactive glass behavior, which adds a visual response to user interactions.
+  ///
+  /// **macOS 27.0+**. Only affects Liquid Glass effects.
+  #[serde(default)]
+  pub interactive: bool,
 }
 
 /// Enable prevent overflow with a margin
@@ -2257,9 +2270,13 @@ pub struct WindowConfig {
   )]
   pub disable_input_accessory_view: bool,
   /// Set a custom path for the webview's data directory (localStorage, cache, etc.),
-  /// **relative to the app data directory (`appDataDir()`), followed by the window label**.
+  /// **relative to the local data directory (`localDataDir()`), followed by the window label**.
   ///
   /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
+  ///
+  /// This path is not affected by the `app > appDirectoriesOverride` config.
+  /// To keep the webview data in an overridden directory, leave this unset (the webview then uses the app local data directory)
+  /// or resolve a path from `app.path().app_local_data_dir()` and set it with `WebviewWindowBuilder::data_directory`.
   ///
   /// #### Platform-specific:
   ///
@@ -3151,6 +3168,140 @@ pub enum PatternKind {
   },
 }
 
+/// The base directory variables an [`AppDirectoriesOverride`] path can start with.
+///
+/// `$RESOURCE` is excluded because the resource directory is read-only in bundled apps,
+/// `$EXE`, `$FONT`, `$RUNTIME` and `$TEMPLATE` because they are not available on every desktop platform,
+/// and the `$APP*` variables because they refer to the directories being overridden.
+const APP_DIRECTORIES_OVERRIDE_VARIABLES: &[&str] = &[
+  "$AUDIO",
+  "$CACHE",
+  "$CONFIG",
+  "$DATA",
+  "$LOCALDATA",
+  "$DESKTOP",
+  "$DOCUMENT",
+  "$DOWNLOAD",
+  "$HOME",
+  "$PICTURE",
+  "$PUBLIC",
+  "$TEMP",
+  "$VIDEO",
+];
+
+/// Validates a path used to override an app directory, see [`AppDirectoriesOverride`].
+fn validate_app_directory_override(path: &Path) -> Result<(), String> {
+  let mut components = path.components();
+  let first = components.next();
+
+  if let Some(Component::Normal(first)) = first {
+    if let Some(variable) = first.to_str().filter(|s| s.starts_with('$')) {
+      if !APP_DIRECTORIES_OVERRIDE_VARIABLES.contains(&variable) {
+        return Err(format!(
+          "`{}` starts with the unsupported base directory variable `{variable}`, expected one of {}",
+          path.display(),
+          APP_DIRECTORIES_OVERRIDE_VARIABLES
+            .iter()
+            .map(|v| format!("`{v}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+        ));
+      }
+      return Ok(());
+    }
+  }
+
+  // Windows root-relative (`\foo`) and drive-relative (`C:foo`) paths are neither absolute
+  // nor relative to the executable, so they cannot be resolved predictably
+  if !path.is_absolute() && (path.has_root() || matches!(first, Some(Component::Prefix(_)))) {
+    return Err(format!(
+      "`{}` must be an absolute path, a path relative to the executable or a path starting with a base directory variable",
+      path.display()
+    ));
+  }
+
+  Ok(())
+}
+
+/// Overrides the directories returned by the `app_*_dir` path APIs.
+///
+/// See the `app > appDirectoriesOverride` config for how each path is resolved.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum AppDirectoriesOverride {
+  /// A single directory that holds all app directories.
+  ///
+  /// The config, data and local data directories resolve to this path,
+  /// the cache directory resolves to `<path>/caches` and the log directory to `<path>/logs`.
+  Root(PathBuf),
+  /// Overrides for individual app directories.
+  ///
+  /// Directories that are not listed keep their default location.
+  Directories(AppDirectoryOverrides),
+}
+
+impl AppDirectoriesOverride {
+  /// The paths configured by this override.
+  fn paths(&self) -> impl Iterator<Item = &PathBuf> {
+    match self {
+      Self::Root(root) => vec![Some(root)],
+      Self::Directories(directories) => vec![
+        directories.config.as_ref(),
+        directories.data.as_ref(),
+        directories.local_data.as_ref(),
+        directories.cache.as_ref(),
+        directories.log.as_ref(),
+      ],
+    }
+    .into_iter()
+    .flatten()
+  }
+}
+
+impl<'de> Deserialize<'de> for AppDirectoriesOverride {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let value = UntaggedEnumVisitor::new()
+      .string(|path| Ok(Self::Root(PathBuf::from(path))))
+      .map(|map| {
+        map
+          .deserialize::<AppDirectoryOverrides>()
+          .map(Self::Directories)
+      })
+      .deserialize(deserializer)?;
+
+    for path in value.paths() {
+      validate_app_directory_override(path).map_err(DeError::custom)?;
+    }
+
+    Ok(value)
+  }
+}
+
+/// Overrides for individual app directories.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppDirectoryOverrides {
+  /// Overrides the app config directory (`app_config_dir`, `$APPCONFIG`).
+  pub config: Option<PathBuf>,
+  /// Overrides the app data directory (`app_data_dir`, `$APPDATA`).
+  pub data: Option<PathBuf>,
+  /// Overrides the app local data directory (`app_local_data_dir`, `$APPLOCALDATA`).
+  ///
+  /// On Windows and Linux this is also the default data directory of the webviews.
+  #[serde(alias = "local-data", alias = "local_data")]
+  pub local_data: Option<PathBuf>,
+  /// Overrides the app cache directory (`app_cache_dir`, `$APPCACHE`).
+  pub cache: Option<PathBuf>,
+  /// Overrides the app log directory (`app_log_dir`, `$APPLOG`).
+  pub log: Option<PathBuf>,
+}
+
 /// The App configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#appconfig>
@@ -3244,6 +3395,105 @@ pub struct AppConfig {
   /// - **Windows / macOS / Android / iOS**: Unsupported.
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
+  /// Overrides the directories returned by the `app_*_dir` path APIs (`app_config_dir`, `app_data_dir`,
+  /// `app_local_data_dir`, `app_cache_dir` and `app_log_dir`) and the matching `$APPCONFIG`, `$APPDATA`,
+  /// `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.
+  ///
+  /// This is useful for portable apps that keep all of their data next to the executable,
+  /// and for apps that want their app directories in a location they choose, such as `$DOCUMENT/my-app`.
+  /// Everything that resolves paths through these APIs follows the override, including Tauri itself
+  /// (the default webview data directory on Windows and Linux) and plugins,
+  /// so the storage locations do not need to be configured one by one.
+  /// The only exception is a window's `dataDirectory` config, which is not affected.
+  ///
+  /// It can also isolate the data of a development build from an installed version of the app,
+  /// though a distinct `identifier` for development builds achieves that while keeping the production directory layout.
+  ///
+  /// The value is either a single path used as the root of every app directory
+  /// (config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),
+  /// or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),
+  /// each resolving to exactly the configured path. Directories that are not listed in the object keep their default location.
+  ///
+  /// Each path is resolved as follows:
+  ///
+  /// - A path starting with a base directory variable is resolved relative to that directory.
+  ///   The supported variables are `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`,
+  ///   `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.
+  ///   `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.
+  /// - An absolute path is used as is.
+  /// - Any other path is resolved relative to the directory containing the executable,
+  ///   which must be writable, see the platform-specific notes below.
+  ///
+  /// ## Examples
+  ///
+  /// Keep all data next to the executable, for a portable build:
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "appDirectoriesOverride": "./"
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Only move the logs and the cache:
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "appDirectoriesOverride": {
+  ///       "log": "$DATA/my-app/logs",
+  ///       "cache": "$CACHE/my-app"
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Set the override at runtime, for instance from an environment variable, a command line flag
+  /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
+  /// before building the app:
+  ///
+  /// ```rust
+  /// use tauri::utils::config::AppDirectoriesOverride;
+  ///
+  /// fn main() {
+  ///   let mut context = tauri::generate_context!();
+  ///
+  ///   if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
+  ///     context.config_mut().app.app_directories_override =
+  ///       Some(AppDirectoriesOverride::Root(data_dir.into()));
+  ///   }
+  ///
+  ///   tauri::Builder::default()
+  ///     .run(context)
+  ///     .expect("error while running tauri application");
+  /// }
+  /// ```
+  ///
+  /// ## Platform-specific
+  ///
+  /// A path relative to the executable only works where the executable's directory is writable:
+  /// portable builds, `tauri dev` builds in the `target` directory and the cases listed below.
+  /// Everywhere else every write to an app directory fails at runtime, so installed apps should use
+  /// a base directory variable or an absolute path instead. Unless every distribution of the app is portable,
+  /// keep relative paths out of the shared configuration and apply them to the portable build flavor only,
+  /// for instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:
+  ///
+  /// ```sh
+  /// tauri build --config '{ "app": { "appDirectoriesOverride": "./" } }'
+  /// ```
+  ///
+  /// - **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,
+  ///   as long as it is kept in a writable directory. `.deb` and `.rpm` packages install the executable to `/usr/bin`.
+  /// - **macOS**: Relative paths are resolved next to the `.app` bundle. This does not work for installed apps,
+  ///   since `/Applications` is not writable for standard users, nor for bundles downloaded from the internet,
+  ///   which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.
+  /// - **Windows**: Relative paths also work for per-user NSIS installers,
+  ///   but not for per-machine installers in `Program Files`.
+  /// - **Android / iOS**: Relative paths are not supported, since there is no writable directory next to the executable.
+  ///   Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.
+  #[serde(alias = "app-directories-override")]
+  pub app_directories_override: Option<AppDirectoriesOverride>,
 }
 
 impl AppConfig {
@@ -3962,6 +4212,7 @@ mod build {
       let state = opt_lit(self.state.as_ref());
       let radius = opt_lit(self.radius.as_ref());
       let color = opt_lit(self.color.as_ref());
+      let interactive = self.interactive;
 
       literal_struct!(
         tokens,
@@ -3969,7 +4220,8 @@ mod build {
         effects,
         state,
         radius,
-        color
+        color,
+        interactive
       )
     }
   }
@@ -4018,6 +4270,8 @@ mod build {
         WindowEffect::ContentBackground => quote! { #prefix::ContentBackground},
         WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
         WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
+        WindowEffect::LiquidGlassRegular => quote! { #prefix::LiquidGlassRegular },
+        WindowEffect::LiquidGlassClear => quote! { #prefix::LiquidGlassClear },
         WindowEffect::Mica => quote! { #prefix::Mica},
         WindowEffect::MicaDark => quote! { #prefix::MicaDark},
         WindowEffect::MicaLight => quote! { #prefix::MicaLight},
@@ -4627,6 +4881,40 @@ mod build {
     }
   }
 
+  impl ToTokens for AppDirectoryOverrides {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let config = opt_lit_owned(self.config.as_ref().map(path_buf_lit));
+      let data = opt_lit_owned(self.data.as_ref().map(path_buf_lit));
+      let local_data = opt_lit_owned(self.local_data.as_ref().map(path_buf_lit));
+      let cache = opt_lit_owned(self.cache.as_ref().map(path_buf_lit));
+      let log = opt_lit_owned(self.log.as_ref().map(path_buf_lit));
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::AppDirectoryOverrides,
+        config,
+        data,
+        local_data,
+        cache,
+        log
+      );
+    }
+  }
+
+  impl ToTokens for AppDirectoriesOverride {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::AppDirectoriesOverride };
+
+      tokens.append_all(match self {
+        Self::Root(root) => {
+          let root = path_buf_lit(root);
+          quote! { #prefix::Root(#root) }
+        }
+        Self::Directories(directories) => quote! { #prefix::Directories(#directories) },
+      })
+    }
+  }
+
   impl ToTokens for AppConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
@@ -4635,6 +4923,7 @@ mod build {
       let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
+      let app_directories_override = opt_lit(self.app_directories_override.as_ref());
 
       literal_struct!(
         tokens,
@@ -4644,7 +4933,8 @@ mod build {
         tray_icon,
         macos_private_api,
         with_global_tauri,
-        enable_gtk_app_id
+        enable_gtk_app_id,
+        app_directories_override
       );
     }
   }
@@ -4730,6 +5020,7 @@ mod test {
       macos_private_api: false,
       with_global_tauri: false,
       enable_gtk_app_id: false,
+      app_directories_override: None,
     };
 
     // create a build config
@@ -4776,6 +5067,150 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, bundle);
     assert_eq!(d_windows, app.windows);
+  }
+
+  #[test]
+  fn app_directories_override_root() {
+    let config: AppDirectoriesOverride = serde_json::from_str(r#""./""#).unwrap();
+    assert_eq!(config, AppDirectoriesOverride::Root("./".into()));
+
+    let config: AppDirectoriesOverride = serde_json::from_str(r#""$DATA/my-app""#).unwrap();
+    assert_eq!(config, AppDirectoriesOverride::Root("$DATA/my-app".into()));
+  }
+
+  #[test]
+  fn app_directories_override_directories() {
+    let config: AppDirectoriesOverride = serde_json::from_str(
+      r#"{ "log": "$DATA/logs", "cache": "$CACHE/my-app", "local-data": "data" }"#,
+    )
+    .unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+        config: None,
+        data: None,
+        local_data: Some("data".into()),
+        cache: Some("$CACHE/my-app".into()),
+        log: Some("$DATA/logs".into()),
+      })
+    );
+
+    let config: AppDirectoriesOverride =
+      serde_json::from_str(r#"{ "config": "conf", "data": "data", "localData": "local" }"#)
+        .unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+        config: Some("conf".into()),
+        data: Some("data".into()),
+        local_data: Some("local".into()),
+        cache: None,
+        log: None,
+      })
+    );
+
+    let config: AppDirectoriesOverride = serde_json::from_str("{}").unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides::default())
+    );
+  }
+
+  #[test]
+  fn app_directories_override_rejects_unknown_directories() {
+    let err = serde_json::from_str::<AppDirectoriesOverride>(r#"{ "logs": "x" }"#).unwrap_err();
+    assert!(err.to_string().contains("unknown field `logs`"), "{err}");
+  }
+
+  #[test]
+  fn app_directories_override_accepts_supported_variables() {
+    for variable in APP_DIRECTORIES_OVERRIDE_VARIABLES {
+      for path in [
+        variable.to_string(),
+        format!("{variable}/my-app"),
+        format!("{variable}/../my-app"),
+      ] {
+        let json = serde_json::to_string(&path).unwrap();
+        let config: AppDirectoriesOverride = serde_json::from_str(&json).unwrap();
+        assert_eq!(config, AppDirectoriesOverride::Root(path.into()));
+      }
+    }
+  }
+
+  #[test]
+  fn app_directories_override_rejects_unsupported_variables() {
+    for variable in [
+      "$APPCONFIG",
+      "$APPDATA",
+      "$APPLOCALDATA",
+      "$APPCACHE",
+      "$APPLOG",
+      "$EXE",
+      "$FONT",
+      "$RESOURCE",
+      "$RUNTIME",
+      "$TEMPLATE",
+      "$UNKNOWN",
+    ] {
+      let err = serde_json::from_str::<AppDirectoriesOverride>(&format!(r#""{variable}/my-app""#))
+        .unwrap_err();
+      assert!(
+        err
+          .to_string()
+          .contains(&format!("unsupported base directory variable `{variable}`")),
+        "{variable}: {err}"
+      );
+
+      let err =
+        serde_json::from_str::<AppDirectoriesOverride>(&format!(r#"{{ "log": "{variable}" }}"#))
+          .unwrap_err();
+      assert!(
+        err
+          .to_string()
+          .contains("unsupported base directory variable"),
+        "{variable}: {err}"
+      );
+    }
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn app_directories_override_rejects_root_relative_paths() {
+    for path in [r"\my-app", "C:my-app"] {
+      let json = serde_json::to_string(path).unwrap();
+      let err = serde_json::from_str::<AppDirectoriesOverride>(&json).unwrap_err();
+      assert!(
+        err.to_string().contains("must be an absolute path"),
+        "{path}: {err}"
+      );
+    }
+  }
+
+  #[cfg(feature = "build")]
+  #[test]
+  fn app_directories_override_to_tokens() {
+    use quote::ToTokens;
+
+    let tokens = AppDirectoriesOverride::Root("./".into())
+      .to_token_stream()
+      .to_string()
+      .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AppDirectoriesOverride::Root(::std::path::PathBuf::from("./"))"#
+    );
+
+    let tokens = AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+      log: Some("$DATA/logs".into()),
+      ..Default::default()
+    })
+    .to_token_stream()
+    .to_string()
+    .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AppDirectoriesOverride::Directories(::tauri::utils::config::AppDirectoryOverrides{config:::core::option::Option::None,data:::core::option::Option::None,local_data:::core::option::Option::None,cache:::core::option::Option::None,log:::core::option::Option::Some(::std::path::PathBuf::from("$DATA/logs"))})"#
+    );
   }
 
   #[test]

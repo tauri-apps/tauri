@@ -97,6 +97,12 @@ device runs (the Android one is read from the connected device through `adb`). T
 a **debug** build — release builds have webview debugging off, and Appium cannot see the page.
 `E2E_SKIP_BUILD` and `E2E_APP_PATH` (an `.apk` / simulator `.app`) work as on desktop.
 
+On iOS, the XCUITest driver compiles WebDriverAgent with xcodebuild in the first session, which
+takes minutes on a CI runner. Appium's own release build of it for the simulator skips that:
+`APPIUM_HOME=$PWD pnpm exec appium driver run xcuitest download-wda -- --outdir <dir> --platform iOS --kind sim`
+(from this package), then `E2E_IOS_WDA=<dir>/WebDriverAgentRunner-Runner.app`, and the driver
+installs and launches it as is (`appium:usePreinstalledWDA`).
+
 The generated Gradle and Xcode projects call back into the CLI with `pnpm tauri …` from
 `src-tauri` / `gen/apple`, which pnpm 12.0–12.3 could not resolve to the package's scripts
 ([pnpm/pnpm#14645](https://github.com/pnpm/pnpm/pull/14645)); the repo's `packageManager` pins a
@@ -126,6 +132,7 @@ Mobile only:
 | `E2E_CHROMEDRIVER`   | chromedriver binary matching the device's WebView, instead of letting Appium download one.           |
 | `E2E_IOS_TARGET`     | Rust target for the simulator app (`aarch64-sim` or `x86_64`); default: the host architecture.       |
 | `E2E_IOS_DEVICE`     | Simulator UDID or name (as in `xcrun simctl list`); default: a booted iPhone, else the newest one.   |
+| `E2E_IOS_WDA`        | Prebuilt `WebDriverAgentRunner-Runner.app` for the simulator, used instead of compiling WDA.         |
 | `E2E_PLATFORM`       | Set by the mobile configs for the spec workers (`android`/`ios`) — see `platform` in the helpers.    |
 
 Appium's own log is written to `logs/wdio-appium.log` in this package.

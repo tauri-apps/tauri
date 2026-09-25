@@ -255,6 +255,9 @@ function androidCapabilities(app: string): WebdriverIO.Capabilities {
       ? { 'appium:chromedriverExecutable': process.env.E2E_CHROMEDRIVER }
       : { 'appium:chromedriverAutodownload': true }),
     'appium:autoGrantPermissions': true,
+    // Every build keeps the same version, so without this Appium sees the app
+    // as already installed and runs the previous build instead of this one.
+    'appium:enforceAppInstall': true,
     // Emulators in CI are slow; give the UiAutomator2 server and adb room.
     'appium:uiautomator2ServerInstallTimeout': 120_000,
     'appium:uiautomator2ServerLaunchTimeout': 120_000,
@@ -317,13 +320,25 @@ function iosCapabilities(app: string): WebdriverIO.Capabilities {
       `process-${path.basename(app, '.app')}`
     ],
     'appium:udid': iosSimulator(),
+    // As on Android: the version never changes between builds.
+    'appium:enforceAppInstall': true,
     // No Simulator.app window. Besides not needing one, the driver otherwise
     // shuts a simulator that is booted without a visible UI down to relaunch it
     // with one, on every session — and that shutdown regularly outlasts the
     // driver's 15s limit on it.
     'appium:isHeadless': true,
-    // WebDriverAgent is compiled on the first session, which takes minutes on
-    // a CI runner.
+    // A prebuilt WebDriverAgent (Appium's release build for the simulator, see
+    // `appium driver run xcuitest download-wda -- --kind sim`) is installed and
+    // launched as is, instead of being compiled with xcodebuild on the first
+    // session, which takes minutes on a CI runner.
+    ...(process.env.E2E_IOS_WDA
+      ? {
+          'appium:usePreinstalledWDA': true,
+          'appium:prebuiltWDAPath': process.env.E2E_IOS_WDA
+        }
+      : {}),
+    // Without one, WebDriverAgent is compiled on the first session, which takes
+    // minutes on a CI runner.
     'appium:wdaLaunchTimeout': 240_000,
     'appium:wdaStartupRetries': 3,
     'appium:simulatorStartupTimeout': 240_000,

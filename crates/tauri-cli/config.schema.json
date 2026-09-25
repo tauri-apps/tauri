@@ -222,6 +222,17 @@
           "description": "Whether the application `identifier` is used as the GTK application ID on systems that use GTK.\n\n Setting the GTK application ID lets the desktop environment associate the app's windows with\n its `.desktop` entry of the same name, which is what makes Wayland compositors and GNOME show\n the correct icon and application name, and group the windows in the dock or taskbar.\n\n Defaults to `false`, because registering an application ID also makes GTK register the\n application on the session bus under that ID, which prevents running more than one instance\n of the app at the same time.\n\n ## Platform-specific\n\n - **Linux / FreeBSD / DragonFly / NetBSD / OpenBSD**: The identifier must be a valid GTK\n   application ID.\n - **Windows / macOS / Android / iOS**: Unsupported.",
           "default": false,
           "type": "boolean"
+        },
+        "appDirectoriesOverride": {
+          "description": "Overrides the directories returned by the `app_*_dir` path APIs (`app_config_dir`, `app_data_dir`,\n `app_local_data_dir`, `app_cache_dir` and `app_log_dir`) and the matching `$APPCONFIG`, `$APPDATA`,\n `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.\n\n This is useful for portable apps that keep all of their data next to the executable,\n and for apps that want their app directories in a location they choose, such as `$DOCUMENT/my-app`.\n Everything that resolves paths through these APIs follows the override, including Tauri itself\n (the default webview data directory on Windows and Linux) and plugins,\n so the storage locations do not need to be configured one by one.\n The only exception is a window's `dataDirectory` config, which is not affected.\n\n It can also isolate the data of a development build from an installed version of the app,\n though a distinct `identifier` for development builds achieves that while keeping the production directory layout.\n\n The value is either a single path used as the root of every app directory\n (config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),\n or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),\n each resolving to exactly the configured path. Directories that are not listed in the object keep their default location.\n\n Each path is resolved as follows:\n\n - A path starting with a base directory variable is resolved relative to that directory.\n   The supported variables are `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`,\n   `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.\n   `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.\n - An absolute path is used as is.\n - Any other path is resolved relative to the directory containing the executable,\n   which must be writable, see the platform-specific notes below.\n\n ## Examples\n\n Keep all data next to the executable, for a portable build:\n\n ```json\n {\n   \"app\": {\n     \"appDirectoriesOverride\": \"./\"\n   }\n }\n ```\n\n Only move the logs and the cache:\n\n ```json\n {\n   \"app\": {\n     \"appDirectoriesOverride\": {\n       \"log\": \"$DATA/my-app/logs\",\n       \"cache\": \"$CACHE/my-app\"\n     }\n   }\n }\n ```\n\n Set the override at runtime, for instance from an environment variable, a command line flag\n or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`\n before building the app:\n\n ```rust\n use tauri::utils::config::AppDirectoriesOverride;\n\n fn main() {\n   let mut context = tauri::generate_context!();\n\n   if let Ok(data_dir) = std::env::var(\"MY_APP_DATA_DIR\") {\n     context.config_mut().app.app_directories_override =\n       Some(AppDirectoriesOverride::Root(data_dir.into()));\n   }\n\n   tauri::Builder::default()\n     .run(context)\n     .expect(\"error while running tauri application\");\n }\n ```\n\n ## Platform-specific\n\n A path relative to the executable only works where the executable's directory is writable:\n portable builds, `tauri dev` builds in the `target` directory and the cases listed below.\n Everywhere else every write to an app directory fails at runtime, so installed apps should use\n a base directory variable or an absolute path instead. Unless every distribution of the app is portable,\n keep relative paths out of the shared configuration and apply them to the portable build flavor only,\n for instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:\n\n ```sh\n tauri build --config '{ \"app\": { \"appDirectoriesOverride\": \"./\" } }'\n ```\n\n - **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,\n   as long as it is kept in a writable directory. `.deb` and `.rpm` packages install the executable to `/usr/bin`.\n - **macOS**: Relative paths are resolved next to the `.app` bundle. This does not work for installed apps,\n   since `/Applications` is not writable for standard users, nor for bundles downloaded from the internet,\n   which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.\n - **Windows**: Relative paths also work for per-user NSIS installers,\n   but not for per-machine installers in `Program Files`.\n - **Android / iOS**: Relative paths are not supported, since there is no writable directory next to the executable.\n   Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AppDirectoriesOverride"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -585,7 +596,7 @@
           "type": "boolean"
         },
         "dataDirectory": {
-          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.),\n **relative to the app data directory (`appDataDir()`), followed by the window label**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n - **Android**: Unsupported.",
+          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.),\n **relative to the local data directory (`localDataDir()`), followed by the window label**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n This path is not affected by the `app > appDirectoriesOverride` config.\n To keep the webview data in an overridden directory, leave this unset (the webview then uses the app local data directory)\n or resolve a path from `app.path().app_local_data_dir()` and set it with `WebviewWindowBuilder::data_directory`.\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n - **Android**: Unsupported.",
           "type": [
             "string",
             "null"
@@ -781,14 +792,14 @@
       ],
       "properties": {
         "effects": {
-          "description": "List of Window effects to apply to the Window.\n Conflicting effects will apply the first one and ignore the rest.",
+          "description": "List of Window effects to apply to the Window.\n\n Generally, conflicting effects will apply the first one and ignore the rest but\n on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time\n to make Tauri fallback to the latter on macOS 15 and below.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/WindowEffect"
           }
         },
         "state": {
-          "description": "Window effect state **macOS Only**",
+          "description": "Window effect state **macOS Only**. Ignored for Liquid Glass Effects.",
           "anyOf": [
             {
               "$ref": "#/definitions/WindowEffectState"
@@ -807,7 +818,7 @@
           "format": "double"
         },
         "color": {
-          "description": "Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only\n on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.",
+          "description": "Window effect color.\n\n ## Platform-specific\n\n - **Windows**: Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only\n on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.\n - **macOS**: Only affects Liquid Glass effects.",
           "anyOf": [
             {
               "$ref": "#/definitions/Color"
@@ -816,6 +827,11 @@
               "type": "null"
             }
           ]
+        },
+        "interactive": {
+          "description": "Enables interactive glass behavior, which adds a visual response to user interactions.\n\n **macOS 27.0+**. Only affects Liquid Glass effects.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -959,6 +975,20 @@
           "type": "string",
           "enum": [
             "underPageBackground"
+          ]
+        },
+        {
+          "description": "**macOS 26.0+**",
+          "type": "string",
+          "enum": [
+            "liquidGlassRegular"
+          ]
+        },
+        {
+          "description": "**macOS 26.0+**",
+          "type": "string",
+          "enum": [
+            "liquidGlassClear"
           ]
         },
         {
@@ -1888,6 +1918,65 @@
         },
         "tooltip": {
           "description": "Tray icon tooltip on Windows and macOS",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AppDirectoriesOverride": {
+      "description": "Overrides the directories returned by the `app_*_dir` path APIs.\n\n See the `app > appDirectoriesOverride` config for how each path is resolved.",
+      "anyOf": [
+        {
+          "description": "A single directory that holds all app directories.\n\n The config, data and local data directories resolve to this path,\n the cache directory resolves to `<path>/caches` and the log directory to `<path>/logs`.",
+          "type": "string"
+        },
+        {
+          "description": "Overrides for individual app directories.\n\n Directories that are not listed keep their default location.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppDirectoryOverrides"
+            }
+          ]
+        }
+      ]
+    },
+    "AppDirectoryOverrides": {
+      "description": "Overrides for individual app directories.",
+      "type": "object",
+      "properties": {
+        "config": {
+          "description": "Overrides the app config directory (`app_config_dir`, `$APPCONFIG`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "data": {
+          "description": "Overrides the app data directory (`app_data_dir`, `$APPDATA`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "localData": {
+          "description": "Overrides the app local data directory (`app_local_data_dir`, `$APPLOCALDATA`).\n\n On Windows and Linux this is also the default data directory of the webviews.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cache": {
+          "description": "Overrides the app cache directory (`app_cache_dir`, `$APPCACHE`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "log": {
+          "description": "Overrides the app log directory (`app_log_dir`, `$APPLOG`).",
           "type": [
             "string",
             "null"

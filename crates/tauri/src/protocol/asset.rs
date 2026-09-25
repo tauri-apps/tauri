@@ -36,24 +36,26 @@ async fn get_response(
   window_origin: &str,
 ) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   // skip leading `/`
-  let path = percent_encoding::percent_decode(&request.uri().path().as_bytes()[1..])
-    .decode_utf8_lossy()
-    .to_string();
+  let path =
+    percent_encoding::percent_decode(&request.uri().path().as_bytes()[1..]).decode_utf8_lossy();
 
   let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
 
-  if let Err(e) = SafePathBuf::new(path.clone().into()) {
-    log::error!("asset protocol path \"{path}\" is not valid: {e}");
-    return resp.status(403).body(Vec::new().into()).map_err(Into::into);
-  }
+  let safe_path = match SafePathBuf::new(path.as_ref().into()) {
+    Ok(path) => path,
+    Err(e) => {
+      log::error!("asset protocol path \"{path}\" is not valid: {e}");
+      return resp.status(403).body(Vec::new().into()).map_err(Into::into);
+    }
+  };
 
-  if !scope.is_allowed(&path) {
+  if !scope.is_allowed(&safe_path) {
     log::error!("asset protocol not configured to allow the path: {path}");
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
   // Separate block for easier error handling
-  let mut file = match File::open(path.clone()).await {
+  let mut file = match File::open(&safe_path).await {
     Ok(file) => file,
     Err(e) => {
       #[cfg(target_os = "android")]
@@ -94,148 +96,144 @@ async fn get_response(
   resp = resp.header(CONTENT_TYPE, &mime_type);
 
   // handle 206 (partial range) http requests
-  let response = if let Some(range_header) = request
-    .headers()
-    .get("range")
-    .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
-  {
-    resp = resp.header(ACCEPT_RANGES, "bytes");
-    resp = resp.header(ACCESS_CONTROL_EXPOSE_HEADERS, "content-range");
+  let response =
+    if let Some(range_header) = request.headers().get("range").and_then(|r| r.to_str().ok()) {
+      resp = resp.header(ACCEPT_RANGES, "bytes");
+      resp = resp.header(ACCESS_CONTROL_EXPOSE_HEADERS, "content-range");
 
-    let not_satisfiable = || {
-      Response::builder()
-        .status(StatusCode::RANGE_NOT_SATISFIABLE)
-        .header(CONTENT_RANGE, format!("bytes */{len}"))
-        .body(vec![].into())
-        .map_err(Into::into)
-    };
+      let not_satisfiable = || {
+        Response::builder()
+          .status(StatusCode::RANGE_NOT_SATISFIABLE)
+          .header(CONTENT_RANGE, format!("bytes */{len}"))
+          .body(vec![].into())
+          .map_err(Into::into)
+      };
 
-    // parse range header
-    let ranges = if let Ok(ranges) = HttpRange::parse(&range_header, len) {
-      ranges
-        .iter()
-        // map the output to spec range <start-end>, example: 0-499
-        .map(|r| (r.start, r.start + r.length - 1))
-        .collect::<Vec<_>>()
-    } else {
-      return not_satisfiable();
-    };
-
-    /// The Maximum bytes we send in one range
-    const MAX_LEN: u64 = 1000 * 1024;
-
-    // single-part range header
-    if ranges.len() == 1 {
-      let &(start, mut end) = ranges.first().unwrap();
-
-      // check if a range is not satisfiable
-      //
-      // this should be already taken care of by the range parsing library
-      // but checking here again for extra assurance
-      if start >= len || end >= len || end < start {
+      // parse range header
+      let ranges = if let Ok(ranges) = HttpRange::parse(range_header, len) {
+        ranges
+          .iter()
+          // map the output to spec range <start-end>, example: 0-499
+          .map(|r| (r.start, r.start + r.length - 1))
+          .collect::<Vec<_>>()
+      } else {
         return not_satisfiable();
-      }
-
-      // adjust end byte for MAX_LEN
-      end = start + (end - start).min(len - start).min(MAX_LEN - 1);
-
-      // calculate number of bytes needed to be read
-      let nbytes = end + 1 - start;
-
-      let buf = {
-        let mut buf = Vec::with_capacity(nbytes as usize);
-        file.seek(SeekFrom::Start(start)).await?;
-        file.take(nbytes).read_to_end(&mut buf).await?;
-        buf
       };
 
-      resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
-      resp = resp.header(CONTENT_LENGTH, end + 1 - start);
-      resp = resp.status(StatusCode::PARTIAL_CONTENT);
-      resp.body(buf.into())
-    } else {
-      let ranges = ranges
-        .iter()
-        .filter_map(|&(start, mut end)| {
-          // filter out unsatisfiable ranges
-          //
-          // this should be already taken care of by the range parsing library
-          // but checking here again for extra assurance
-          if start >= len || end >= len || end < start {
-            None
-          } else {
-            // adjust end byte for MAX_LEN
-            end = start + (end - start).min(len - start).min(MAX_LEN - 1);
-            Some((start, end))
-          }
-        })
-        .collect::<Vec<_>>();
+      /// The Maximum bytes we send in one range
+      const MAX_LEN: u64 = 1000 * 1024;
 
-      let boundary = random_boundary();
-      let boundary_sep = format!("\r\n--{boundary}\r\n");
-      let boundary_closer = format!("\r\n--{boundary}--\r\n");
+      // single-part range header
+      if ranges.len() == 1 {
+        let &(start, mut end) = ranges.first().unwrap();
 
-      // `Builder::header` appends, we want to replace the file mime type set earlier
-      if let Some(headers) = resp.headers_mut() {
-        headers.insert(
-          CONTENT_TYPE,
-          HeaderValue::from_str(&format!("multipart/byteranges; boundary={boundary}"))?,
-        );
-      }
-
-      let buf = {
-        // multi-part range header
-        let mut buf = Vec::new();
-
-        for (start, end) in ranges {
-          // a new range is being written, write the range boundary
-          buf.write_all(boundary_sep.as_bytes()).await?;
-
-          // write the needed headers `Content-Type` and `Content-Range`
-          buf
-            .write_all(format!("{CONTENT_TYPE}: {mime_type}\r\n").as_bytes())
-            .await?;
-          buf
-            .write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())
-            .await?;
-
-          // write the separator to indicate the start of the range body
-          buf.write_all("\r\n".as_bytes()).await?;
-
-          // calculate number of bytes needed to be read
-          let nbytes = end + 1 - start;
-
-          let mut local_buf = Vec::with_capacity(nbytes as usize);
-          file.seek(SeekFrom::Start(start)).await?;
-          (&mut file).take(nbytes).read_to_end(&mut local_buf).await?;
-          buf.extend_from_slice(&local_buf);
+        // check if a range is not satisfiable
+        //
+        // this should be already taken care of by the range parsing library
+        // but checking here again for extra assurance
+        if start >= len || end >= len || end < start {
+          return not_satisfiable();
         }
-        // all ranges have been written, write the closing boundary
-        buf.write_all(boundary_closer.as_bytes()).await?;
 
-        buf
-      };
+        // adjust end byte for MAX_LEN
+        end = start + (end - start).min(len - start).min(MAX_LEN - 1);
 
-      resp = resp.status(StatusCode::PARTIAL_CONTENT);
-      resp.body(buf.into())
-    }
-  } else if request.method() == http::Method::HEAD {
-    // if the HEAD method is used, we should not return a body
-    resp = resp.header(CONTENT_LENGTH, len);
-    resp.body(Vec::new().into())
-  } else {
-    // avoid reading the file if we already read it
-    // as part of mime type detection
-    let buf = if let Some(b) = read_bytes {
-      b
+        // calculate number of bytes needed to be read
+        let nbytes = end + 1 - start;
+
+        let buf = {
+          let mut buf = Vec::with_capacity(nbytes as usize);
+          file.seek(SeekFrom::Start(start)).await?;
+          file.take(nbytes).read_to_end(&mut buf).await?;
+          buf
+        };
+
+        resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
+        resp = resp.header(CONTENT_LENGTH, end + 1 - start);
+        resp = resp.status(StatusCode::PARTIAL_CONTENT);
+        resp.body(buf.into())
+      } else {
+        let ranges = ranges
+          .iter()
+          .filter_map(|&(start, mut end)| {
+            // filter out unsatisfiable ranges
+            //
+            // this should be already taken care of by the range parsing library
+            // but checking here again for extra assurance
+            if start >= len || end >= len || end < start {
+              None
+            } else {
+              // adjust end byte for MAX_LEN
+              end = start + (end - start).min(len - start).min(MAX_LEN - 1);
+              Some((start, end))
+            }
+          })
+          .collect::<Vec<_>>();
+
+        let boundary = random_boundary();
+        let boundary_sep = format!("\r\n--{boundary}\r\n");
+        let boundary_closer = format!("\r\n--{boundary}--\r\n");
+
+        // `Builder::header` appends, we want to replace the file mime type set earlier
+        if let Some(headers) = resp.headers_mut() {
+          headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_str(&format!("multipart/byteranges; boundary={boundary}"))?,
+          );
+        }
+
+        let buf = {
+          // multi-part range header
+          let mut buf = Vec::new();
+
+          for (start, end) in ranges {
+            // a new range is being written, write the range boundary
+            buf.write_all(boundary_sep.as_bytes()).await?;
+
+            // write the needed headers `Content-Type` and `Content-Range`
+            buf
+              .write_all(format!("{CONTENT_TYPE}: {mime_type}\r\n").as_bytes())
+              .await?;
+            buf
+              .write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())
+              .await?;
+
+            // write the separator to indicate the start of the range body
+            buf.write_all("\r\n".as_bytes()).await?;
+
+            // calculate number of bytes needed to be read
+            let nbytes = end + 1 - start;
+
+            buf.reserve(nbytes as usize);
+            file.seek(SeekFrom::Start(start)).await?;
+            (&mut file).take(nbytes).read_to_end(&mut buf).await?;
+          }
+          // all ranges have been written, write the closing boundary
+          buf.write_all(boundary_closer.as_bytes()).await?;
+
+          buf
+        };
+
+        resp = resp.status(StatusCode::PARTIAL_CONTENT);
+        resp.body(buf.into())
+      }
+    } else if request.method() == http::Method::HEAD {
+      // if the HEAD method is used, we should not return a body
+      resp = resp.header(CONTENT_LENGTH, len);
+      resp.body(Vec::new().into())
     } else {
-      let mut local_buf = Vec::with_capacity(len as usize);
-      file.read_to_end(&mut local_buf).await?;
-      local_buf
+      // avoid reading the file if we already read it
+      // as part of mime type detection
+      let buf = if let Some(b) = read_bytes {
+        b
+      } else {
+        let mut local_buf = Vec::with_capacity(len as usize);
+        file.read_to_end(&mut local_buf).await?;
+        local_buf
+      };
+      resp = resp.header(CONTENT_LENGTH, len);
+      resp.body(buf.into())
     };
-    resp = resp.header(CONTENT_LENGTH, len);
-    resp.body(buf.into())
-  };
 
   response.map_err(Into::into)
 }

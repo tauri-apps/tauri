@@ -13,8 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  # covector publishes once no change files are left (the version update PR consumed them) and
-  # otherwise opens that PR, which does not need the tests below.
+  # covector publishes once no pending change files are left (the version update PR consumed them)
+  # and otherwise opens that PR, which does not need the tests below. In pre-release mode the
+  # change files stay in `.changes` and `pre.json` lists the ones already released.
   check-publish:
     runs-on: ubuntu-latest
     outputs:
@@ -23,7 +24,12 @@ jobs:
       - uses: actions/checkout@v7
       - id: check
         run: |
-          if find .changes -maxdepth 1 -name '*.md' ! -iname 'readme.md' | grep -q .; then
+          released=$(if [ -f .changes/pre.json ]; then jq -r '.changes[]' .changes/pre.json; fi)
+          # grep exits 1 when every change file was released; any other failure fails the step
+          pending=$(find .changes -maxdepth 1 -name '*.md' ! -iname 'readme.md' \
+            | { grep -vxF -e "$released" || [ $? -eq 1 ]; })
+          if [ -n "$pending" ]; then
+            printf 'pending change files:\n%s\n' "$pending"
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"

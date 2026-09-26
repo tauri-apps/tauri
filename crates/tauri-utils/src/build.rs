@@ -100,7 +100,7 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
 /// Updates the Android manifest by inserting XML content into a specified parent tag.
 ///
 /// The content is wrapped in auto-generated comments and will replace any existing
-/// content with the same block identifier. Empty content removes the block.
+/// content with the same block identifier.
 ///
 /// # Arguments
 ///
@@ -136,44 +136,27 @@ fn xml_block_comment(id: &str) -> String {
   format!("<!-- {id}. AUTO-GENERATED. DO NOT REMOVE. -->")
 }
 
-/// Removes the auto-generated block identified by `block_identifier` from the given XML string.
-///
-/// The block is delimited by the comments written by [`update_android_manifest`].
-/// Returns the input unchanged when no such block exists.
-pub fn remove_xml_block(xml: &str, block_identifier: &str) -> String {
-  let block_comment = xml_block_comment(block_identifier);
-
-  let mut rewritten = Vec::new();
-  let mut in_block = false;
-  for line in xml.split('\n') {
-    if line.contains(&block_comment) {
-      in_block = !in_block;
-      continue;
-    }
-    if !in_block {
-      rewritten.push(line);
-    }
-  }
-
-  rewritten.join("\n")
-}
-
 fn insert_into_xml(xml: &str, block_identifier: &str, parent_tag: &str, contents: &str) -> String {
   let block_comment = xml_block_comment(block_identifier);
-  let without_block = remove_xml_block(xml, block_identifier);
-
-  // an empty block only removes the previously generated contents
-  if contents.trim().is_empty() {
-    return without_block;
-  }
 
   let mut rewritten = Vec::new();
+  let mut found_block = false;
   let parent_closing_tag = format!("</{parent_tag}>");
-  for line in without_block.split('\n') {
+  for line in xml.split('\n') {
+    if line.contains(&block_comment) {
+      found_block = !found_block;
+      continue;
+    }
+
+    // found previous block which should be removed
+    if found_block {
+      continue;
+    }
+
     if let Some(index) = line.find(&parent_closing_tag) {
       let indentation = " ".repeat(index + 4);
       rewritten.push(format!("{indentation}{block_comment}"));
-      for l in contents.trim_end_matches('\n').split('\n') {
+      for l in contents.split('\n') {
         rewritten.push(format!("{indentation}{l}"));
       }
       rewritten.push(format!("{indentation}{block_comment}"));
@@ -183,52 +166,4 @@ fn insert_into_xml(xml: &str, block_identifier: &str, parent_tag: &str, contents
   }
 
   rewritten.join("\n")
-}
-
-#[cfg(test)]
-mod tests {
-  use super::{insert_into_xml, remove_xml_block};
-
-  const MANIFEST: &str = r#"<manifest>
-    <application>
-        <activity android:name=".MainActivity" />
-    </application>
-</manifest>"#;
-
-  #[test]
-  fn inserts_block_before_parent_closing_tag() {
-    let rewritten = insert_into_xml(MANIFEST, "test-block", "application", "<a />\n<b />\n");
-    assert_eq!(
-      rewritten,
-      r#"<manifest>
-    <application>
-        <activity android:name=".MainActivity" />
-        <!-- test-block. AUTO-GENERATED. DO NOT REMOVE. -->
-        <a />
-        <b />
-        <!-- test-block. AUTO-GENERATED. DO NOT REMOVE. -->
-    </application>
-</manifest>"#
-    );
-  }
-
-  #[test]
-  fn replaces_existing_block() {
-    let first = insert_into_xml(MANIFEST, "test-block", "application", "<a />");
-    let second = insert_into_xml(&first, "test-block", "application", "<b />");
-    assert!(!second.contains("<a />"));
-    assert_eq!(second.matches("test-block").count(), 2);
-    assert!(second.contains("<b />"));
-  }
-
-  #[test]
-  fn empty_contents_removes_block() {
-    let inserted = insert_into_xml(MANIFEST, "test-block", "application", "<a />");
-    assert_eq!(
-      insert_into_xml(&inserted, "test-block", "application", ""),
-      MANIFEST
-    );
-    assert_eq!(remove_xml_block(&inserted, "test-block"), MANIFEST);
-    assert_eq!(remove_xml_block(MANIFEST, "test-block"), MANIFEST);
-  }
 }

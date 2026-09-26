@@ -12,7 +12,7 @@ use std::{
 };
 use ureq::ResponseExt;
 
-use crate::bundle::settings::Arch;
+use crate::bundle::settings::{Arch, Settings};
 use crate::utils::http_utils::{base_ureq_agent, download};
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
@@ -241,5 +241,117 @@ pub fn processor_architecture<'a>() -> Option<&'a str> {
     PROCESSOR_ARCHITECTURE_ARM => Some("arm"),
     PROCESSOR_ARCHITECTURE_ARM64 => Some("arm64"),
     _ => None,
+  }
+}
+
+/// Returns the directory where the NSIS and WiX toolsets and the WebView2 installers are cached.
+///
+/// This is `<local tools directory>/.tauri` when `bundle > useLocalToolsDir` is enabled,
+/// and `<cache dir>/tauri` otherwise.
+///
+/// NSIS and WiX are 32-bit programs. When the cache dir is inside the Windows system directory,
+/// which is the case for the `SYSTEM` account (`C:\Windows\System32\config\systemprofile`) that
+/// CI runners and build agents installed as Windows services usually run as, WOW64 file system
+/// redirection makes those tools look for their own files in `C:\Windows\SysWOW64` instead, and
+/// bundling fails with errors like `Unable to start child process, error 0x2`. In that case the
+/// tools are stored in the project output directory instead.
+pub fn tauri_tools_path(settings: &Settings) -> PathBuf {
+  if let Some(local_tools_directory) = settings.local_tools_directory() {
+    return local_tools_directory.join(".tauri");
+  }
+
+  let cache_dir = dirs::cache_dir().unwrap().join("tauri");
+
+  #[cfg(target_os = "windows")]
+  if let Some(system_dir) = wow64_redirected_system_directory()
+    && starts_with_ignore_ascii_case(&cache_dir, &system_dir)
+  {
+    let tools_path = settings.project_out_directory().join(".tauri");
+    log::warn!(
+      "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. Set `bundle > useLocalToolsDir` to `true` to silence this warning.",
+      cache_dir.display(),
+      tools_path.display()
+    );
+    return tools_path;
+  }
+
+  cache_dir
+}
+
+/// Returns the Windows system directory (usually `C:\Windows\System32`) if 32-bit processes
+/// are redirected away from it, that is, on every Windows that isn't a 32-bit x86 one.
+#[cfg(target_os = "windows")]
+fn wow64_redirected_system_directory() -> Option<PathBuf> {
+  use std::{ffi::OsString, os::windows::ffi::OsStringExt};
+  use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
+
+  if processor_architecture() == Some("x86") {
+    return None;
+  }
+
+  let mut buffer = [0u16; 260];
+  let len = unsafe { GetSystemDirectoryW(buffer.as_mut_ptr(), buffer.len() as u32) } as usize;
+  if len == 0 || len >= buffer.len() {
+    return None;
+  }
+  Some(PathBuf::from(OsString::from_wide(&buffer[..len])))
+}
+
+/// Like [`Path::starts_with`] but ignores ASCII case, since Windows paths are case insensitive.
+#[cfg(target_os = "windows")]
+fn starts_with_ignore_ascii_case(path: &Path, base: &Path) -> bool {
+  let mut path = path.components();
+  base.components().all(|base| {
+    path
+      .next()
+      .is_some_and(|path| path.as_os_str().eq_ignore_ascii_case(base.as_os_str()))
+  })
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn system_profile_cache_dir_is_inside_the_system_directory() {
+    let system_dir = Path::new(r"C:\Windows\System32");
+    assert!(starts_with_ignore_ascii_case(
+      Path::new(r"C:\WINDOWS\system32\config\systemprofile\AppData\Local\tauri"),
+      system_dir
+    ));
+    assert!(starts_with_ignore_ascii_case(
+      Path::new(r"c:\windows\system32"),
+      system_dir
+    ));
+  }
+
+  #[test]
+  fn user_cache_dir_is_not_inside_the_system_directory() {
+    let system_dir = Path::new(r"C:\Windows\System32");
+    for path in [
+      r"C:\Users\runneradmin\AppData\Local\tauri",
+      r"C:\Windows\SysWOW64\config\systemprofile\AppData\Local\tauri",
+      r"C:\Windows\System32Extra\tauri",
+      r"C:\Windows",
+      r"D:\Windows\System32\tauri",
+    ] {
+      assert!(
+        !starts_with_ignore_ascii_case(Path::new(path), system_dir),
+        "{path}"
+      );
+    }
+  }
+
+  #[test]
+  fn system_directory_is_redirected_on_64_bit_windows() {
+    let system_dir = wow64_redirected_system_directory();
+    if processor_architecture() == Some("x86") {
+      assert_eq!(system_dir, None);
+    } else {
+      let system_dir = system_dir.expect("failed to get the system directory");
+      let expected = PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32");
+      assert!(starts_with_ignore_ascii_case(&system_dir, &expected));
+      assert!(starts_with_ignore_ascii_case(&expected, &system_dir));
+    }
   }
 }

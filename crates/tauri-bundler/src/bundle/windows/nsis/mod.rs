@@ -10,7 +10,7 @@ use crate::{
       sign::{should_sign, sign_command, try_sign},
       util::{
         NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
-        download_webview2_offline_installer, vc_runtime_dlls,
+        download_webview2_offline_installer, tauri_tools_path, vc_runtime_dlls,
       },
     },
   },
@@ -78,10 +78,7 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
-  let tauri_tools_path = settings
-    .local_tools_directory()
-    .map(|d| d.join(".tauri"))
-    .unwrap_or_else(|| dirs::cache_dir().unwrap().join("tauri"));
+  let tauri_tools_path = tauri_tools_path(settings);
 
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 

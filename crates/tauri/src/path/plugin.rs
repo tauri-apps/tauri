@@ -61,7 +61,28 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
       }
       Component::CurDir => {}
       Component::ParentDir => {
-        ret.pop();
+        // `PathBuf::pop` does nothing when there is no component left to pop, which used
+        // to silently drop leading `..` segments (`"../"` became `"/"`, `"./.."` became `"."`).
+        // A `..` can only cancel a preceding normal component; otherwise it has to be kept,
+        // which is also what Node.js does.
+        match ret.components().next_back() {
+          Some(Component::Normal(_)) | Some(Component::CurDir) => {
+            ret.pop();
+          }
+          // A `..` at the root stays at the root: `/..` is `/`.
+          Some(Component::RootDir) => {}
+          // Nothing to pop, or the previous segment is itself a `..`: keep it.
+          Some(Component::ParentDir) | None => {
+            if !ret.has_root() {
+              ret.push("..");
+            }
+          }
+          // Windows drive/UNC prefixes keep their previous handling: on that platform the
+          // pop above was already a no-op, and this has not been exercised here.
+          Some(Component::Prefix(_)) => {
+            ret.pop();
+          }
+        }
       }
       Component::Normal(c) => {
         // Using PathBuf::push here will replace the whole path if an absolute path is encountered
@@ -117,17 +138,20 @@ pub fn normalize(path: String) -> String {
 
   // Node.js behavior is to return `".."` for `normalize("..")`
   // and `"."` for `normalize("")` or `normalize(".")`
-  if p.is_empty() && path == ".." {
-    "..".into()
-  } else if p.is_empty() && (path.is_empty() || path == ".") {
-    ".".into()
-  } else {
-    // Add a trailing separator if the path passed to this functions had a trailing separator. That's how Node.js behaves.
-    if (path.ends_with('/') || path.ends_with('\\')) && (!p.ends_with('/') || !p.ends_with('\\')) {
-      p.push(MAIN_SEPARATOR);
-    }
-    p
+  if p.is_empty() {
+    p = if path == ".." {
+      "..".into()
+    } else {
+      ".".into()
+    };
   }
+
+  // Add a trailing separator if the path passed to this functions had a trailing separator. That's how Node.js behaves.
+  if (path.ends_with('/') || path.ends_with('\\')) && !p.ends_with('/') && !p.ends_with('\\') {
+    p.push(MAIN_SEPARATOR);
+  }
+
+  p
 }
 
 #[command(root = "crate")]
@@ -304,12 +328,57 @@ mod tests {
     check(vec!["a", "/b", "c"], "a/b/c", r"a\b\c");
     check(vec!["a", "b/c", "d"], "a/b/c/d", r"a\b\c\d");
     check(vec!["a/", "b"], "a/b", r"a\b");
+
+    // Leading `..` segments survive the join as well, since `join` reuses the same normalization.
+    check(vec!["a", "../../b"], "../b", r"..\b");
+    check(vec!["..", ".."], "../..", r"..\..");
+    check(vec!["", ".."], "..", "..");
+    check(vec!["a", ".."], ".", ".");
   }
 
   #[test]
   fn normalize() {
+    let sep = std::path::MAIN_SEPARATOR;
+
     assert_eq!(super::normalize("".into()), ".");
     assert_eq!(super::normalize(".".into()), ".");
     assert_eq!(super::normalize("..".into()), "..");
+
+    // A trailing separator in the input is preserved, but never duplicated.
+    assert_eq!(super::normalize("a/".into()), format!("a{sep}"));
+    assert_eq!(super::normalize("a/b/".into()), format!("a{sep}b{sep}"));
+    assert_eq!(super::normalize("/a/".into()), format!("/a{sep}"));
+
+    // Inputs that collapse to nothing resolve to the current directory, not to an empty string.
+    assert_eq!(super::normalize("a/..".into()), ".");
+    assert_eq!(super::normalize("foo/..".into()), ".");
+
+    // Leading `..` segments cannot be resolved any further, so they are kept.
+    assert_eq!(super::normalize("../".into()), format!("..{sep}"));
+    assert_eq!(super::normalize("./..".into()), "..");
+    assert_eq!(super::normalize("../..".into()), format!("..{sep}.."));
+    assert_eq!(super::normalize("../a".into()), format!("..{sep}a"));
+    assert_eq!(super::normalize("a/../..".into()), "..");
+    assert_eq!(super::normalize("a/b/../..".into()), ".");
+
+    // Paths that are already separator terminated must not gain a second one.
+    // Verified on unix; skipped on Windows where `/` is kept as written by the
+    // normalization above.
+    #[cfg(not(windows))]
+    {
+      assert_eq!(super::normalize("/".into()), "/");
+      assert_eq!(super::normalize("//".into()), "/");
+      assert_eq!(super::normalize("///".into()), "/");
+      assert_eq!(super::normalize("/./".into()), "/");
+      assert_eq!(super::normalize("/..".into()), "/");
+      assert_eq!(super::normalize("./".into()), "./");
+      assert_eq!(super::normalize(".//".into()), "./");
+      assert_eq!(super::normalize("a/../".into()), "./");
+      assert_eq!(super::normalize("a/b".into()), "a/b");
+      assert_eq!(super::normalize("a//b".into()), "a/b");
+      assert_eq!(super::normalize("a/../b".into()), "b");
+      assert_eq!(super::normalize("a/./b".into()), "a/b");
+      assert_eq!(super::normalize("...".into()), "...");
+    }
   }
 }

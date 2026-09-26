@@ -10,8 +10,6 @@ use std::{
   fs,
   path::{Path, PathBuf},
 };
-#[cfg(windows)]
-use std::{io::Write, process::Command};
 use ureq::ResponseExt;
 
 use crate::bundle::settings::Arch;

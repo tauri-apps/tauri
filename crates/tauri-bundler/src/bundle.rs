@@ -24,8 +24,6 @@ use std::{
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
-#[cfg(windows)]
-pub use windows::vswhere_path;
 pub use {
   category::AppCategory,
   settings::{

@@ -263,6 +263,8 @@ fn is_cargo_output_directory(path: &std::path::Path) -> bool {
 ///   the mounted location of the app, and the resource dir will be `${APPDIR}/usr/lib/${exe_name}`.
 ///   If not running in an AppImage, the path is `/usr/lib/${exe_name}`.
 ///   When running the app from `src-tauri/target/(debug|release)/`, the path is `${exe_dir}/../lib/${exe_name}`.
+/// - **FreeBSD:** Resolves to `${exe_dir}/../share/${package_info.name}` for an installed app.
+///   When running from a Cargo output directory, resolves to the executable directory.
 /// - **macOS:** Resolves to `${exe_dir}/../Resources` (inside .app).
 /// - **iOS:** Resolves to `${exe_dir}/assets`.
 /// - **Android:** Currently the resources are stored in the APK as assets so it's not a normal file system path,
@@ -331,6 +333,16 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
       // running bundle
       Ok(PathBuf::from(format!("/usr/lib/{}", package_info.name)))
     };
+  }
+
+  #[cfg(target_os = "freebsd")]
+  {
+    // FreeBSD packages install data below the same prefix as their bin directory.
+    res = exe_dir
+      .join("../share")
+      .join(&package_info.name)
+      .canonicalize()
+      .map_err(Into::into);
   }
 
   #[cfg(target_os = "macos")]
@@ -404,6 +416,32 @@ mod tests {
   use std::path::PathBuf;
 
   use crate::{Env, PackageInfo};
+
+  #[test]
+  #[cfg(target_os = "freebsd")]
+  fn resolve_installed_freebsd_resource_dir() {
+    let prefix = tempfile::tempdir().unwrap();
+    let exe = prefix.path().join("bin/my-app");
+    let resources = prefix.path().join("share/MyApp");
+    std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(&resources).unwrap();
+    let package_info = PackageInfo {
+      name: "MyApp".into(),
+      version: "1.0.0".parse().unwrap(),
+      authors: "",
+      description: "",
+      crate_name: "my-app",
+    };
+    let env = Env::default();
+
+    assert_eq!(
+      super::resource_dir_from(&exe, &package_info, &env).unwrap(),
+      resources.canonicalize().unwrap()
+    );
+
+    std::fs::remove_dir(&resources).unwrap();
+    assert!(super::resource_dir_from(&exe, &package_info, &env).is_err());
+  }
 
   #[test]
   #[cfg(not(target_os = "android"))]

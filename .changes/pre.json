@@ -8,6 +8,7 @@
     ".changes/cargo-build-target-env.md",
     ".changes/cef-152.3.0.md",
     ".changes/cef-additional-browser-args.md",
+    ".changes/cef-bfcache-document-admission.md",
     ".changes/cef-downgrade-policy.md",
     ".changes/cef-helper-source.md",
     ".changes/cef-macos-fullscreen-after-exit.md",

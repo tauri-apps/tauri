@@ -131,6 +131,7 @@ pub fn generate_desktop_file(
     icon: &'a str,
     name: &'a str,
     mime_type: Option<String>,
+    exec_arg: Option<&'a str>,
     long_description: String,
   }
 
@@ -144,14 +145,19 @@ pub fn generate_desktop_file(
     );
   }
 
-  if let Some(protocols) = settings.deep_link_protocols() {
-    mime_type.extend(
-      protocols
-        .iter()
-        .flat_map(|protocol| &protocol.schemes)
-        .map(|s| format!("x-scheme-handler/{s}")),
-    );
-  }
+  let schemes: Vec<String> = settings
+    .deep_link_protocols()
+    .into_iter()
+    .flatten()
+    .flat_map(|protocol| &protocol.schemes)
+    .map(|s| format!("x-scheme-handler/{s}"))
+    .collect();
+
+  // Launchers fall back to `%f` when Exec has no field code, which passes
+  // local files but drops URLs without a local path, such as deep links.
+  let exec_arg = (!schemes.is_empty()).then_some("%u");
+
+  mime_type.extend(schemes);
 
   let mime_type = (!mime_type.is_empty()).then_some(mime_type.join(";"));
 
@@ -177,6 +183,7 @@ pub fn generate_desktop_file(
       icon: bin_name,
       name: settings.product_name(),
       mime_type,
+      exec_arg,
       long_description: settings.long_description().unwrap_or_default().to_string(),
     },
     file,

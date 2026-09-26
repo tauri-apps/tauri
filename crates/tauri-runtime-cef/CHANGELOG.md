@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0-alpha.4]
+
+### Bug Fixes
+
+- [`6246cdd3f`](https://www.github.com/tauri-apps/tauri/commit/6246cdd3f9e1dbce1f9bd8f6b762206fcd6d51c0) ([#16086](https://www.github.com/tauri-apps/tauri/pull/16086) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Fixed Chrome style webviews never admitting a document on Linux and Windows, which left `WebviewSnapshot::document` always `None` and `NativeDialogObservation` silent: CEF keeps listing a frame parked in the back/forward cache, such as the internal initial document the runtime loads before the app's URL, and the final admission check now compares only the frames attached to a renderer.
+
 ## [3.0.0-alpha.3]
 
 ### Bug Fixes

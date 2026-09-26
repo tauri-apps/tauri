@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.0.0-alpha.3]
+
+### New Features
+
+- [`20b45cc2c`](https://www.github.com/tauri-apps/tauri/commit/20b45cc2cd58f7c0834854f6f869bc6f541630ce) ([#12893](https://www.github.com/tauri-apps/tauri/pull/12893)) Add `Manager::run_on_main_thread` to replace the old explicit method on `App/AppHandle/WebviewWindow/Window/Webview`.
+- [`20b45cc2c`](https://www.github.com/tauri-apps/tauri/commit/20b45cc2cd58f7c0834854f6f869bc6f541630ce) ([#12893](https://www.github.com/tauri-apps/tauri/pull/12893)) Add `Manager::run_on_main_thread_blocking` which uses a channel to return the result of the closure passed in.
+- [`0dd3c561a`](https://www.github.com/tauri-apps/tauri/commit/0dd3c561acb62e1968bcedaeaa12a80e6981e27f) ([#14443](https://www.github.com/tauri-apps/tauri/pull/14443)) Added the `Plugin::cleanup_before_exit` hook and `plugin::Builder::on_cleanup_before_exit`, invoked by `App::cleanup_before_exit` right before the process exits so plugins can release resources such as sidecar processes. Unlike `RunEvent::Exit`, it also runs on exit paths that bypass the event loop such as `AppHandle::restart` on the main thread.
+- [`20b45cc2c`](https://www.github.com/tauri-apps/tauri/commit/20b45cc2cd58f7c0834854f6f869bc6f541630ce) ([#12893](https://www.github.com/tauri-apps/tauri/pull/12893)) Added `Menu/MenuItem/Submenu/PredefinedMenuItem/CheckMenuItem/IconMenuItem::with_inner_blocking` allowing you to interact with the underlying `muda` menu on the main thread.
+- [`9d00f5916`](https://www.github.com/tauri-apps/tauri/commit/9d00f59169f6c0e49651d9e64b5f3c31ccbcf11d) ([#15971](https://www.github.com/tauri-apps/tauri/pull/15971)) Add `bounds`, `size`, and `position` methods to the unstable `WebviewBuilder`. If no bounds are set, the webview is positioned at 0x0, fills its parent window and automatically resizes with it.
+
+### What's Changed
+
+- [`d29d9054e`](https://www.github.com/tauri-apps/tauri/commit/d29d9054e09416bc1c05a39d71b53c3de67a1d40) Pull changes from Tauri 2.12 release.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.2`
+- Upgraded to `tauri-runtime@3.0.0-alpha.2`
+- Upgraded to `tauri-macros@3.0.0-alpha.2`
+- Upgraded to `tauri-build@3.0.0-alpha.2`
+
+### Breaking Changes
+
+- [`930a7ba52`](https://www.github.com/tauri-apps/tauri/commit/930a7ba52753f97658ce8a26cf49fc2682728b5e) ([#16135](https://www.github.com/tauri-apps/tauri/pull/16135)) `plugin::Builder::on_page_load`, `on_window_ready`, `on_webview_ready` and `on_event` take a `Fn + Send + Sync` closure instead of `FnMut + Send`, and `on_navigation` now also requires `Sync`, because plugin hooks may now be called concurrently. Use interior mutability for state changed by these closures.
+- [`930a7ba52`](https://www.github.com/tauri-apps/tauri/commit/930a7ba52753f97658ce8a26cf49fc2682728b5e) ([#16135](https://www.github.com/tauri-apps/tauri/pull/16135)) Plugin hooks no longer run with the plugin store locked, so a plugin can add or remove plugins or exit the app from any of its callbacks without deadlocking. As a result, `Plugin` now requires `Sync`, and `window_created`, `webview_created`, `on_navigation`, `on_page_load`, `on_event` and `run_invoke_handler` take `&self` instead of `&mut self`, and may be called concurrently. `initialize` still takes `&mut self`.
+- [`930a7ba52`](https://www.github.com/tauri-apps/tauri/commit/930a7ba52753f97658ce8a26cf49fc2682728b5e) ([#16135](https://www.github.com/tauri-apps/tauri/pull/16135)) A plugin is only added to the app once its `initialize` (or `setup`) returns, so its own hooks do not run during it. A removed plugin is dropped once its hooks that are already running return.
+- [`cac606ee6`](https://www.github.com/tauri-apps/tauri/commit/cac606ee682d4cfb259e06ccde245aab52861e18) Removed the `objc-exception` feature flag, which has been a no-op since 2.3.0.
+- [`20b45cc2c`](https://www.github.com/tauri-apps/tauri/commit/20b45cc2cd58f7c0834854f6f869bc6f541630ce) ([#12893](https://www.github.com/tauri-apps/tauri/pull/12893)) Removed `App/AppHandle/WebviewWindow/Window/Webview::run_on_main_thread` method, just import `tauri::Manager` trait and use the new `Manager::run_on_main_thread`.
+- [`20b45cc2c`](https://www.github.com/tauri-apps/tauri/commit/20b45cc2cd58f7c0834854f6f869bc6f541630ce) ([#12893](https://www.github.com/tauri-apps/tauri/pull/12893)) Renamed `TrayIcon::with_inner_tray_icon` to `TrayIcon::with_inner_blocking`.
+- [`9d00f5916`](https://www.github.com/tauri-apps/tauri/commit/9d00f59169f6c0e49651d9e64b5f3c31ccbcf11d) ([#15971](https://www.github.com/tauri-apps/tauri/pull/15971)) Removed the position and size parameters from the unstable `Window::add_child` API, use the new `bounds/size/position` methods on `WebviewBuilder`.
+
 ## [3.0.0-alpha.2]
 
 ### What's Changed

@@ -4,6 +4,7 @@
 
 use crate::{
   Result,
+  error::Context,
   helpers::updater_signature::{generate_key, save_keypair},
 };
 use clap::Parser;
@@ -34,12 +35,12 @@ pub fn command(mut options: Options) -> Result<()> {
     );
     options.password.replace("".into());
   }
-  let keypair = generate_key(options.password).expect("Failed to generate key");
+  let keypair = generate_key(options.password)?;
 
   if let Some(output_path) = options.write_keys {
     let (secret_path, public_path) =
       save_keypair(options.force, output_path, &keypair.sk, &keypair.pk)
-        .expect("Unable to write keypair");
+        .context("unable to write keypair")?;
 
     println!();
     println!("Your keypair was generated successfully:");

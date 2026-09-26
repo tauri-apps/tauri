@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(windows)]
+use std::io::Write;
+#[cfg(windows)]
+use std::process::Command;
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -104,13 +108,9 @@ fn vc_runtime_arch(arch: Arch) -> crate::Result<&'static str> {
 
 #[cfg(windows)]
 fn visual_studio_dir() -> crate::Result<PathBuf> {
-  let Some(vswhere) = vswhere_path() else {
-    return Err(crate::Error::GenericError(
-      "failed to prepare bundled vswhere.exe".into(),
-    ));
-  };
+  let vswhere = vswhere_path()?;
 
-  let output = Command::new(vswhere)
+  let output = Command::new(&*vswhere)
     .args([
       "-latest",
       "-prerelease",
@@ -212,21 +212,20 @@ fn glob_path(path: &Path, pattern: &str) -> String {
     .into_owned()
 }
 
-/// Returns the bundled `vswhere.exe` path.
+/// Writes the bundled `vswhere.exe` to a new temporary file and returns its path.
 ///
-/// The executable is written to a temporary file so callers do not depend on a system-installed
-/// `vswhere.exe`.
+/// Each call creates a uniquely named file, so a pre-existing or half-written `vswhere.exe` in the
+/// temp directory is never executed. The file is deleted when the returned path is dropped.
 #[cfg(windows)]
-pub fn vswhere_path() -> Option<PathBuf> {
-  let mut vswhere = std::env::temp_dir();
-  vswhere.push("vswhere.exe");
-
-  if !vswhere.exists() {
-    let mut file = std::fs::File::create(&vswhere).ok()?;
-    file.write_all(VSWHERE).ok()?;
-  }
-
-  Some(vswhere)
+pub fn vswhere_path() -> crate::Result<tempfile::TempPath> {
+  let mut file = tempfile::Builder::new()
+    .prefix("vswhere-")
+    .suffix(".exe")
+    .tempfile()?;
+  file.write_all(VSWHERE)?;
+  file.as_file().sync_all()?;
+  // close the handle so the executable can be launched
+  Ok(file.into_temp_path())
 }
 
 #[cfg(target_os = "windows")]

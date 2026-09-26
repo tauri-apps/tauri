@@ -13,7 +13,25 @@ permissions:
   contents: read
 
 jobs:
+  # covector publishes once no change files are left (the version update PR consumed them) and
+  # otherwise opens that PR, which does not need the tests below.
+  check-publish:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        run: |
+          if find .changes -maxdepth 1 -name '*.md' ! -iname 'readme.md' | grep -q .; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   run-integration-tests:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
     runs-on: ${{ matrix.platform }}
     env:
       CARGO_PROFILE_DEV_DEBUG: 0 # no debuginfo: faster builds and a much smaller target dir
@@ -59,6 +77,17 @@ jobs:
           pnpm build
           pnpm test
 
+  test-api-e2e:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    uses: ./.github/workflows/test-api-e2e.yml
+    secrets: inherit
+
+  test-api-e2e-mobile:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    uses: ./.github/workflows/test-api-e2e-mobile.yml
+
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65
@@ -73,6 +102,10 @@ jobs:
       successfulPublish: ${{ steps.covector.outputs.successfulPublish }}
     needs:
       - run-integration-tests
+      - test-api-e2e
+      - test-api-e2e-mobile
+    # the tests are skipped when covector only versions
+    if: ${{ !cancelled() && !failure() }}
 
     steps:
       - uses: actions/checkout@v7

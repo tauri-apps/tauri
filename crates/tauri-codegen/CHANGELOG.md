@@ -36,6 +36,29 @@
 
 - Upgraded to `tauri-utils@3.0.0-alpha.0`
 
+## [2.7.0]
+
+### New Features
+
+- [`d203f74a2`](https://www.github.com/tauri-apps/tauri/commit/d203f74a2359b8839e0eb7376118fb20af3b807c) ([#15274](https://www.github.com/tauri-apps/tauri/pull/15274)) Added `Image::from_app_icon_resource` and `Image::from_icon_resource` on Windows for loading images from icon resources embedded in the executable (identified by an `IconResource` id or name), and the default `default_window_icon` from `tauri::generate_context` macro is now loaded using `from_app_icon_resource`. The resource id `tauri-build` embeds the application icon with is exposed as `tauri_utils::platform::WINDOWS_APP_ICON_RESOURCE_ID`.
+
+### Bug Fixes
+
+- [`29c87c3d3`](https://www.github.com/tauri-apps/tauri/commit/29c87c3d3f5bbcf5a7ae9de01af7e6bb738c1d01) ([#15777](https://www.github.com/tauri-apps/tauri/pull/15777)) Emit embedded assets and CSP script/style hashes in sorted order so `generate_context!` output no longer depends on the filesystem walk order, which varies across machines and broke reproducible builds.
+- [`c735ba32b`](https://www.github.com/tauri-apps/tauri/commit/c735ba32b36d505cbf9eabfb4a33005ca31edbdd) ([#15241](https://www.github.com/tauri-apps/tauri/pull/15241)) Select the largest entry of an ICO file instead of the first one when embedding it with `include_image!` or as the tray icon, so the OS downscales a high-resolution source instead of upscaling the 16x16 entry.
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`ce3f13b91`](https://www.github.com/tauri-apps/tauri/commit/ce3f13b91a75cb723f229f56a3e82eb5f2d3f644) ([#15887](https://www.github.com/tauri-apps/tauri/pull/15887)) Lock unstable tauri crates to minor versions.
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+- [`6a7afc27c`](https://www.github.com/tauri-apps/tauri/commit/6a7afc27c1443022952064a466881d5788b3378d) ([#16053](https://www.github.com/tauri-apps/tauri/pull/16053)) Updated brotli to v9
+- [`df26e1b8c`](https://www.github.com/tauri-apps/tauri/commit/df26e1b8ccb0b9e9c4aa4c705a635f59b4a5110a) ([#15875](https://www.github.com/tauri-apps/tauri/pull/15875)) Updated `png` crate to `0.18`
+
 ## \[2.6.3]
 
 ### Dependencies

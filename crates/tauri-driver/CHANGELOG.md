@@ -6,6 +6,13 @@
 
 - [`d42c0d62b`](https://www.github.com/tauri-apps/tauri/commit/d42c0d62ba18e741a449bfb507dc8dcd2a8ca4ee) Pull latest v2 changes.
 
+## [2.1.0]
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
 ## \[2.0.6]
 
 ### What's Changed

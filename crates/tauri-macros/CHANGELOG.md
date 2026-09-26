@@ -37,6 +37,32 @@
 
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `default_runtime` attribute macro was removed, the generic types of `tauri` now default to `tauri::DynRuntime` directly.
 
+## [2.7.0]
+
+### Enhancements
+
+- [`459fc315e`](https://www.github.com/tauri-apps/tauri/commit/459fc315eb790d9aa2d2cea693c20c8978f4b1b0) ([#15711](https://www.github.com/tauri-apps/tauri/pull/15711)) Fix different build and runtime debug assertion profiles on the tauri-utils crate can resulting in compilation errors.
+
+### Bug Fixes
+
+- [`448d39ee2`](https://www.github.com/tauri-apps/tauri/commit/448d39ee25c4bcbf4bd40129abc5399213dcc0a9) ([#15860](https://www.github.com/tauri-apps/tauri/pull/15860)) Fix menu related commands can panic if called with invalid input through `invoke` directly.
+    
+    - The internal `do_menu_item!` macro now returns `Err(crate::Error::UnexpectedMenuKind)` instead of `unreachable!()`
+    - Added a new error type `tauri::Error::UnexpectedMenuKind`
+    - `menu:new` with the `Predefined` kind now returns an error instead of panicking when the `item` option is missing
+    - Converting an `Image` to a menu or tray icon now returns `tauri::Error::InvalidIcon` when the RGBA buffer does not match the image size, instead of panicking on Linux when the icon is rendered
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`ce3f13b91`](https://www.github.com/tauri-apps/tauri/commit/ce3f13b91a75cb723f229f56a3e82eb5f2d3f644) ([#15887](https://www.github.com/tauri-apps/tauri/pull/15887)) Lock unstable tauri crates to minor versions.
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+- Upgraded to `tauri-codegen@2.7.0`
+
 ## \[2.6.3]
 
 ### Dependencies

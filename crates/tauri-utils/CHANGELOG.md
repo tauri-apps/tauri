@@ -38,6 +38,49 @@
 - [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
 - [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
 
+## [2.10.0]
+
+### New Features
+
+- [`3f62c70d6`](https://www.github.com/tauri-apps/tauri/commit/3f62c70d6b9a9eeeb7c302b010c858405a1bb761) ([#13848](https://www.github.com/tauri-apps/tauri/pull/13848)) Add `WebviewBuilder::limit_navigations_to_app_bound_domains`, `WebviewWindowBuilder::limit_navigations_to_app_bound_domains`, and limitNavigationsToAppBoundDomains to tauri.config.json.
+- [`7dbfc1fe5`](https://www.github.com/tauri-apps/tauri/commit/7dbfc1fe5c36143b6a4614cbbd9d4c14ee9dfdcf) ([#14620](https://www.github.com/tauri-apps/tauri/pull/14620)) Added the `app > appDirectoriesOverride` config to override the directories returned by the `app_*_dir` path APIs, either with a single root directory or per directory. This lets apps keep all of their data, including the data of Tauri itself and of plugins that use these APIs, in a single place of their choosing, such as next to the executable for portable apps. The override can also be set at runtime through `Context::config_mut`.
+- [`f6c1eb253`](https://www.github.com/tauri-apps/tauri/commit/f6c1eb2533a0445e081c334931d67fee3e354c6f) ([#15401](https://www.github.com/tauri-apps/tauri/pull/15401)) Added `bundle.windows.bundleVCRuntime` to copy the Visual C++ runtime DLLs into Windows MSI and NSIS installers. The bundler locates the runtime through `VCTOOLS_REDIST_DIR` or the bundled `vswhere.exe`.
+- [`d203f74a2`](https://www.github.com/tauri-apps/tauri/commit/d203f74a2359b8839e0eb7376118fb20af3b807c) ([#15274](https://www.github.com/tauri-apps/tauri/pull/15274)) Added `Image::from_app_icon_resource` and `Image::from_icon_resource` on Windows for loading images from icon resources embedded in the executable (identified by an `IconResource` id or name), and the default `default_window_icon` from `tauri::generate_context` macro is now loaded using `from_app_icon_resource`. The resource id `tauri-build` embeds the application icon with is exposed as `tauri_utils::platform::WINDOWS_APP_ICON_RESOURCE_ID`.
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410)) Added `app > windows > noRedirectionBitmap` config option to disable the window redirection bitmap on Windows.
+- [`023fe7f59`](https://www.github.com/tauri-apps/tauri/commit/023fe7f59650c50b624021460064ee074bda56d9) ([#15291](https://www.github.com/tauri-apps/tauri/pull/15291)) Added `Resolved::resolve_with_base_scope_id` to resolve an ACL with command scope ids assigned after a given value, so the result can be merged into an already resolved ACL without colliding scope ids.
+- [`f6c1eb253`](https://www.github.com/tauri-apps/tauri/commit/f6c1eb2533a0445e081c334931d67fee3e354c6f) ([#15401](https://www.github.com/tauri-apps/tauri/pull/15401)) Added `build.windows.staticVCRuntime` to control MSVC static runtime linking. The `STATIC_VCRUNTIME` environment variable is now deprecated and emits a migration warning when used.
+
+### Enhancements
+
+- [`ca160ad48`](https://www.github.com/tauri-apps/tauri/commit/ca160ad4808f477380cb0865a08a8ae781e37f85) ([#15895](https://www.github.com/tauri-apps/tauri/pull/15895)) `tauri build` now warns when `productName` is still set to the default `tauri-app`, since it names the generated bundles and is written into install paths and metadata that are expected to be unique to your application. The config documentation for `productName` now lists what the field controls on each platform, and `identifier`'s documentation notes that the default value is rejected.
+- [`19215f638`](https://www.github.com/tauri-apps/tauri/commit/19215f638a5889afef4333b2e5a402051f21b891) ([#15629](https://www.github.com/tauri-apps/tauri/pull/15629)) Emit a `cargo:rerun-if-changed` for each resource directory (and glob base directory), so that adding or removing a file inside a resource directory re-runs the build script and copies the new files. Previously only the individual files present at build time were watched, so newly added files were silently ignored until an unrelated rebuild.
+- [`4a5065653`](https://www.github.com/tauri-apps/tauri/commit/4a506565374a6a0b4b595e4cdb6d7db68136d765) ([#14454](https://www.github.com/tauri-apps/tauri/pull/14454)) Added `Regular` and `Clear` Liquid Glass window effects, and the `interactive` window effects option (macOS 27.0+) that enables the glass' visual response to user interactions.
+- [`459fc315e`](https://www.github.com/tauri-apps/tauri/commit/459fc315eb790d9aa2d2cea693c20c8978f4b1b0) ([#15711](https://www.github.com/tauri-apps/tauri/pull/15711)) Fix different build and runtime debug assertion profiles on the tauri-utils crate can resulting in compilation errors.
+
+### Bug Fixes
+
+- [`3f6701bfc`](https://www.github.com/tauri-apps/tauri/commit/3f6701bfc37cf0057fec2fbfae1bc12b73bd3e34) ([#16069](https://www.github.com/tauri-apps/tauri/pull/16069)) Added `additional-watch-folders` as an alias for the `build > additionalWatchFolders` configuration value, so the kebab-case spelling that matches the camelCase key is accepted in `Tauri.toml`. The previous `additional-watch-directories` alias keeps working.
+- [`29c87c3d3`](https://www.github.com/tauri-apps/tauri/commit/29c87c3d3f5bbcf5a7ae9de01af7e6bb738c1d01) ([#15777](https://www.github.com/tauri-apps/tauri/pull/15777)) Serialize the CSP directive map, header source maps and plugin config with sorted keys so writing the processed config (e.g. the `tauri.conf.json` embedded in Android/iOS projects) is deterministic across builds.
+- [`3f40a35f5`](https://www.github.com/tauri-apps/tauri/commit/3f40a35f58eb86c5216346ab21304b54301432e0) ([#16070](https://www.github.com/tauri-apps/tauri/pull/16070)) Fixed header values configured with an object in `app > security > headers` being serialized in a random order, which made the resulting header value differ between runs. The `key value` pairs are now always sorted by key, matching the ordering already used when the configuration is serialized.
+- [`4a2c4803f`](https://www.github.com/tauri-apps/tauri/commit/4a2c4803fdf7ddf24b691ca2109ff0080a1ff424) ([#16071](https://www.github.com/tauri-apps/tauri/pull/16071)) Fixed the `app > security > headers > Permissions-Policy` configuration being sent as a header named `Permission-Policy`, which is not a real HTTP header, so the policy had no effect. The header is now correctly named `Permissions-Policy`.
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+### Dependencies
+
+- [`6a7afc27c`](https://www.github.com/tauri-apps/tauri/commit/6a7afc27c1443022952064a466881d5788b3378d) ([#16053](https://www.github.com/tauri-apps/tauri/pull/16053)) Updated brotli to v9
+- [`e9e6a5eef`](https://www.github.com/tauri-apps/tauri/commit/e9e6a5eefa8c09d5abed1f691cbc924d6f617947) ([#15677](https://www.github.com/tauri-apps/tauri/pull/15677)) Update `serial_test` to 3.5 to pull in the updated `scc` and fix RUSTSEC advisory
+- [`8a97d387a`](https://www.github.com/tauri-apps/tauri/commit/8a97d387a3a1a52f7c501762517e294d8c94e119) ([#15352](https://www.github.com/tauri-apps/tauri/pull/15352)) Updated `ctor` crate to `1`
+- [`9e9a54dea`](https://www.github.com/tauri-apps/tauri/commit/9e9a54dea26ae66de63800cabbccf980902a1cd3) ([#15890](https://www.github.com/tauri-apps/tauri/pull/15890)) Update swift-rs to support builds using Xcode 27.
+- [`7cc68e74f`](https://www.github.com/tauri-apps/tauri/commit/7cc68e74ff6981f5c50a52a67d56c5eb2d227188) ([#15307](https://www.github.com/tauri-apps/tauri/pull/15307)) Updated `dom_query` dependency to 0.28.0
+
+### Breaking Changes
+
+- [`4a5065653`](https://www.github.com/tauri-apps/tauri/commit/4a506565374a6a0b4b595e4cdb6d7db68136d765) ([#14454](https://www.github.com/tauri-apps/tauri/pull/14454)) The `WindowEffect` enum is now `#[non_exhaustive]` so new effects can be added without a breaking change. Exhaustive `match` statements on it must add a wildcard arm.
+
 ## \[2.9.3]
 
 ### Enhancements

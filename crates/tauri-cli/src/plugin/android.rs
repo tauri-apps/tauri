@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  Result,
-  error::Context,
-  helpers::{prompts, template},
-};
+use crate::{Result, error::Context, helpers::template};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
+use heck::ToKebabCase;
 
 use std::{
   collections::BTreeMap,
@@ -62,13 +59,7 @@ pub fn command(cli: Cli) -> Result<()> {
         crate::error::bail!("Android folder already exists");
       }
 
-      let plugin_id = prompts::input(
-        "What should be the Android Package ID for your plugin?",
-        Some(format!("com.plugin.{plugin_name}")),
-        false,
-        false,
-      )?
-      .unwrap();
+      let plugin_id = super::init::prompt_android_package_id(&plugin_name)?;
 
       let handlebars = Handlebars::new();
 
@@ -114,10 +105,11 @@ tauri-build = "{}"
         .unwrap()
         .contents_utf8()
         .unwrap();
+      let builder_name = plugin_name.to_kebab_case();
       let init_fn = format!(
         r#"
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
-  Builder::new("{plugin_name}")
+  Builder::new("{builder_name}")
     .setup(|app, api| {{
       #[cfg(target_os = "android")]
       let handle = api.register_android_plugin("{plugin_id}", "ExamplePlugin")?;

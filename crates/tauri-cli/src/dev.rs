@@ -203,8 +203,13 @@ pub fn setup(
         command.stdout(os_pipe::dup_stdout().unwrap());
         command.stderr(os_pipe::dup_stderr().unwrap());
 
-        let child = SharedChild::spawn(&mut command)
-          .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
+        let child = SharedChild::spawn(&mut command).map_err(|error| Error::CommandFailed {
+          command: format!(
+            "`{before_dev}` with `{}`",
+            if cfg!(windows) { "cmd /S /C" } else { "sh -c" }
+          ),
+          error,
+        })?;
 
         let child = BEFORE_DEV.get_or_init(move || child);
         std::thread::spawn(move || {
@@ -228,9 +233,6 @@ pub fn setup(
   if options.runner.is_none() {
     options.runner = config.build.runner.clone();
   }
-
-  let mut cargo_features = config.build.features.clone().unwrap_or_default();
-  cargo_features.extend(options.features.clone());
 
   let mut dev_url = config.build.dev_url.clone();
   let frontend_dist = config.build.frontend_dist.clone();
@@ -266,16 +268,20 @@ pub fn setup(
   if !options.no_dev_server_wait
     && let Some(url) = dev_url
   {
-    let host = url.host().expect("No host name in the URL");
+    let host = url
+      .host()
+      .with_context(|| format!("no host name in the dev URL `{url}`"))?;
     let port = url
       .port_or_known_default()
-      .expect("No port number in the URL");
+      .with_context(|| format!("no port number in the dev URL `{url}`"))?;
     let addrs;
     let addr;
     let addrs = match host {
       url::Host::Domain(domain) => {
         use std::net::ToSocketAddrs;
-        addrs = (domain, port).to_socket_addrs().unwrap();
+        addrs = (domain, port)
+          .to_socket_addrs()
+          .with_context(|| format!("failed to resolve the dev URL hots `{domain}`"))?;
         addrs.as_slice()
       }
       url::Host::Ipv4(ip) => {
@@ -334,10 +340,10 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
 
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    if KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst) {
+    // swap so only the first caller (e.g. the Ctrl+C handler or `on_app_exit`) kills the process
+    if KILL_BEFORE_DEV_FLAG.swap(true, Ordering::SeqCst) {
       return;
     }
-    KILL_BEFORE_DEV_FLAG.store(true, Ordering::SeqCst);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

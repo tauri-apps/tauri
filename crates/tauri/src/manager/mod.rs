@@ -662,7 +662,8 @@ impl<R: Runtime> AppManager<R> {
           .remove_webview_entries(webview.label());
       }
     }
-    self.listeners().remove_window_listeners(label);
+    // window listeners are removed by the window's own event handler after it emits `tauri://destroyed`,
+    // since the run callback (which calls this function) runs before the window event handlers
   }
 
   #[cfg(desktop)]

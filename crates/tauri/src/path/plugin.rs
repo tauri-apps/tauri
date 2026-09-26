@@ -347,7 +347,6 @@ mod tests {
     // A trailing separator in the input is preserved, but never duplicated.
     assert_eq!(super::normalize("a/".into()), format!("a{sep}"));
     assert_eq!(super::normalize("a/b/".into()), format!("a{sep}b{sep}"));
-    assert_eq!(super::normalize("/a/".into()), format!("/a{sep}"));
 
     // Inputs that collapse to nothing resolve to the current directory, not to an empty string.
     assert_eq!(super::normalize("a/..".into()), ".");
@@ -371,6 +370,10 @@ mod tests {
       assert_eq!(super::normalize("///".into()), "/");
       assert_eq!(super::normalize("/./".into()), "/");
       assert_eq!(super::normalize("/..".into()), "/");
+      // A leading `/` is normalized to the platform root separator on Windows, where
+      // `normalize("/a/")` returns `\a\` (observed on the windows-latest CI job),
+      // so this expectation is unix-only.
+      assert_eq!(super::normalize("/a/".into()), "/a/");
       assert_eq!(super::normalize("./".into()), "./");
       assert_eq!(super::normalize(".//".into()), "./");
       assert_eq!(super::normalize("a/../".into()), "./");

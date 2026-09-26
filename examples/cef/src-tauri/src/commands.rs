@@ -88,6 +88,9 @@ pub struct BrowserInfo {
   /// `browser.main_frame().url()`, straight from CEF rather than from Tauri's
   /// bookkeeping.
   main_frame_url: Option<String>,
+  /// Frames attached to a renderer. `browser.frame_count()` also counts frames
+  /// parked in the back/forward cache, which a Chrome style browser fills with
+  /// the runtime's internal initial document on its first navigation.
   frame_count: usize,
   is_loading: bool,
   /// The browser host's zoom level: 0.0 at 100%, one step per notch.
@@ -104,7 +107,18 @@ impl BrowserInfo {
       main_frame_url: browser
         .main_frame()
         .map(|frame| tauri_runtime_cef::cef::CefString::from(&frame.url()).to_string()),
-      frame_count: browser.frame_count(),
+      frame_count: {
+        let mut identifiers = tauri_runtime_cef::cef::CefStringList::new();
+        browser.frame_identifiers(Some(&mut identifiers));
+        identifiers
+          .into_iter()
+          .filter(|id| {
+            browser
+              .frame_by_identifier(Some(&tauri_runtime_cef::cef::CefString::from(id.as_str())))
+              .is_some_and(|frame| frame.is_valid() != 0)
+          })
+          .count()
+      },
       is_loading: browser.is_loading() != 0,
       zoom_level: host.as_ref().map(ImplBrowserHost::zoom_level).unwrap_or(0.),
       dev_tools_open: host.is_some_and(|host| host.has_dev_tools() != 0),

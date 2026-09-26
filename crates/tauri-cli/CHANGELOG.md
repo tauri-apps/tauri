@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.0.0-alpha.3]
+
+### Bug Fixes
+
+- [`0dd3c561a`](https://www.github.com/tauri-apps/tauri/commit/0dd3c561acb62e1968bcedaeaa12a80e6981e27f) ([#14443](https://www.github.com/tauri-apps/tauri/pull/14443)) `tauri dev` now kills the whole process tree of the running app when it restarts or exits, so processes spawned by the app (e.g. sidecars) are no longer left orphaned.
+
+### What's Changed
+
+- [`d29d9054e`](https://www.github.com/tauri-apps/tauri/commit/d29d9054e09416bc1c05a39d71b53c3de67a1d40) Pull changes from Tauri 2.12 release.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.2`
+- Upgraded to `tauri-macos-sign@3.0.0-alpha.2`
+- Upgraded to `tauri-bundler@3.0.0-alpha.2`
+
 ## [3.0.0-alpha.2]
 
 ### Bug Fixes

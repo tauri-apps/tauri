@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.0.0-alpha.2]
+
+### Bug Fixes
+
+- [`c39bba557`](https://www.github.com/tauri-apps/tauri/commit/c39bba55772b497873c397cd8e8061c28e39d242) Fix runtime crates failing to compile when feature unification enables `tauri-runtime/macos-private-api` but not the runtime crate's own `macos-private-api` feature. `WindowBuilder::transparent` is no longer gated on the feature; on macOS, runtimes implement it as a no-op unless their own `macos-private-api` feature is enabled, so the private API is never referenced without it.
+
+### What's Changed
+
+- [`d29d9054e`](https://www.github.com/tauri-apps/tauri/commit/d29d9054e09416bc1c05a39d71b53c3de67a1d40) Pull changes from Tauri 2.12 release.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.2`
+
 ## [3.0.0-alpha.1]
 
 ### What's Changed

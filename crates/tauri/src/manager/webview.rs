@@ -262,6 +262,11 @@ impl<R: Runtime> WebviewManager<R> {
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
+      // The asset and isolation protocols below take the origin too.
+      #[cfg_attr(
+        not(any(feature = "protocol-asset", feature = "isolation")),
+        allow(clippy::redundant_clone)
+      )]
       let protocol = crate::protocol::tauri::get(
         manager.manager_owned(),
         window_origin.clone(),

@@ -2,7 +2,7 @@
 name = "tauri-utils"
 version = "2.10.0"
 description = "Utilities for Tauri"
-exclude = ["CHANGELOG.md", "/target"]
+exclude = ["/test", "CHANGELOG.md", "/target"]
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true

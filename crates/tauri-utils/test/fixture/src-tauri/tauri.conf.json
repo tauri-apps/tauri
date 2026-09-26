@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "identifier": "studio.tauri.example",
+  "build": {
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Tauri App"
+      }
+    ]
+  }
+}

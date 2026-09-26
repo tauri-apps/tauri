@@ -2796,7 +2796,12 @@ impl<T: UserEvent> Wry<T> {
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
-      webview_runtime_installed: wry::webview_version().is_ok(),
+      // wry::webview_version() crashes on iOS 26 (bundleWithIdentifier: ->
+      // CFRelease assertion). The runtime check is only meaningful on Windows
+      // (Evergreen WebView2); all other platforms ship a system webview.
+      webview_runtime_installed: (cfg!(windows)
+        && wry::webview_version().is_ok())
+        || !cfg!(windows),
     };
 
     Ok(Self {

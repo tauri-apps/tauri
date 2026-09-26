@@ -3426,12 +3426,12 @@ pub struct AppConfig {
   ///
   /// ## Examples
   ///
-  /// Keep all data next to the executable, for a portable build:
+  /// Keep all data in an `app-data` folder next to the executable, for a portable build:
   ///
   /// ```json
   /// {
   ///   "app": {
-  ///     "appDirectoriesOverride": "./"
+  ///     "appDirectoriesOverride": "./app-data"
   ///   }
   /// }
   /// ```
@@ -3470,6 +3470,19 @@ pub struct AppConfig {
   /// }
   /// ```
   ///
+  /// ## Security
+  ///
+  /// Scopes and permissions that use the `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG`
+  /// variables follow the override, so the configured paths must be directories dedicated to the app.
+  /// A single root is used as is for the config, data and local data directories, so a root that is not dedicated
+  /// to the app, such as `"./"` or `"$DOCUMENT"`, extends those scopes to everything it contains.
+  /// With `"./"`, `fs:default` (which allows reading the app directories recursively) lets the webview read
+  /// every file next to the executable, including anything else in the folder the app was run from,
+  /// such as the downloads folder. If the app also grants write access to an app directory, a compromised webview
+  /// (e.g. through XSS) can replace files next to the executable, such as dropping a DLL that Windows loads
+  /// from the executable's directory on the next launch, leading to code execution.
+  /// Always point the override to a subfolder owned by the app, such as `"./app-data"` or `"$DOCUMENT/my-app"`.
+  ///
   /// ## Platform-specific
   ///
   /// A path relative to the executable only works where the executable's directory is writable:
@@ -3480,7 +3493,7 @@ pub struct AppConfig {
   /// for instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:
   ///
   /// ```sh
-  /// tauri build --config '{ "app": { "appDirectoriesOverride": "./" } }'
+  /// tauri build --config '{ "app": { "appDirectoriesOverride": "./app-data" } }'
   /// ```
   ///
   /// - **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,

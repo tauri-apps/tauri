@@ -5091,6 +5091,18 @@ You may have it installed on another user account, but it is not available for t
     }
   }
 
+  // Windows: reuse `data_store_identifier` as a WebView2 named profile. Webviews that
+  // share the same data directory but use different identifiers get fully isolated
+  // cookies/storage while sharing one browser process.
+  // See https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+  #[cfg(windows)]
+  {
+    if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
+      webview_builder = webview_builder
+        .with_profile_name(data_store_identifier_profile_name(data_store_identifier));
+    }
+  }
+
   #[cfg(target_os = "ios")]
   {
     webview_builder = webview_builder.with_limit_navigations_to_app_bound_domains(
@@ -5428,5 +5440,45 @@ fn add_focus_change_listeners<T: UserEvent>(
     log::error!(
       "Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}"
     );
+  }
+}
+
+/// Windows: derive a WebView2 profile name from the 16-byte `data_store_identifier`.
+///
+/// The 16 bytes are rendered as 32-char lowercase hex (valid per WebView2 profile
+/// naming rules). Different identifiers always map to different profile names, and
+/// the same identifier always maps to the same name.
+#[cfg(windows)]
+fn data_store_identifier_profile_name(id: &[u8; 16]) -> String {
+  id.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+#[cfg(all(test, windows))]
+mod profile_name_tests {
+  use super::data_store_identifier_profile_name;
+
+  #[test]
+  fn profile_name_is_32_char_hex() {
+    let name = data_store_identifier_profile_name(&[0u8; 16]);
+    assert_eq!(name, "00".repeat(16));
+  }
+
+  #[test]
+  fn profile_name_is_deterministic() {
+    let id = [
+      0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+      0x88,
+    ];
+    assert_eq!(
+      data_store_identifier_profile_name(&id),
+      data_store_identifier_profile_name(&id)
+    );
+  }
+
+  #[test]
+  fn distinct_identifiers_never_collide() {
+    let a = data_store_identifier_profile_name(&[1u8; 16]);
+    let b = data_store_identifier_profile_name(&[2u8; 16]);
+    assert_ne!(a, b);
   }
 }

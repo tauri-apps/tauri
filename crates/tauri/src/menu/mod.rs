@@ -95,7 +95,7 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
-          remove_menu_channel(&self.app_handle, self.inner.id(), self as *const Self as usize);
+          remove_menu_channel(&self.app_handle, self.inner.id());
           // SAFETY: we will not access `self.inner` after this
           let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
           // SAFETY: inner was created on main thread and is being dropped on main thread
@@ -118,14 +118,6 @@ macro_rules! gen_wrappers {
       impl<R: $crate::Runtime> Clone for $type<R> {
         fn clone(&self) -> Self {
           Self(self.0.clone())
-        }
-      }
-
-      impl<R: $crate::Runtime> $type<R> {
-        /// Identifies this item among others sharing the same [`MenuId`],
-        /// matches the key passed to [`remove_menu_channel`] on drop.
-        pub(crate) fn channel_key(&self) -> usize {
-          ::std::sync::Arc::as_ptr(&self.0) as usize
         }
       }
 

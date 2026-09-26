@@ -72,8 +72,6 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri/macos-private-api",
 ]
-# TODO: Remove in v3 - wry does not have this feature anymore
-objc-exception = []
 tracing = ["dep:tracing", "wry/tracing"]
 macos-proxy = ["wry/mac-proxy"]
 # exposes the extension traits for `tauri::webview::WebviewBuilder`

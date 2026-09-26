@@ -45,7 +45,6 @@
 //!   See the [multiwebview example](https://github.com/tauri-apps/tauri/tree/dev/examples/multiwebview).
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
-//! - **objc-exception**: This feature flag is no-op since 2.3.0.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **linux-libappindicator**: Uses libappindicator instead of the default ksni (StatusNotifierItem) backend for the tray icon on Linux, adding a runtime dependency on libayatana-appindicator.
 //! - **gtk3**: Selects GTK 3 for the Linux GTK APIs (`Window::gtk_window`, `Window::default_vbox` and the menu integration). Enabled by GTK3 runtime crates such as `tauri-runtime-wry`.

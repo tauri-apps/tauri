@@ -194,8 +194,6 @@ test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 gtk3 = ["dep:gtk", "muda/gtk3"]
 gtk4 = ["dep:gtk4", "muda/gtk4"]
-# TODO: Remove in v3 - wry does not have this feature anymore
-objc-exception = []
 linux-libxdo = ["tray-icon?/muda-libxdo", "muda/libxdo"]
 linux-libappindicator = ["tray-icon?/libappindicator"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]

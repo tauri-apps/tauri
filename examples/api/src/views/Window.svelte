@@ -7,10 +7,16 @@
     PhysicalPosition,
     Effect,
     EffectState,
-    ProgressBarStatus
+    ProgressBarStatus,
+    availableMonitors
   } from '@tauri-apps/api/window'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
-  import type { CursorIcon, Effects, Theme } from '@tauri-apps/api/window'
+  import type {
+    CursorIcon,
+    Effects,
+    Monitor,
+    Theme
+  } from '@tauri-apps/api/window'
   import type { UnlistenFn } from '@tauri-apps/api/event'
   import type { ViewProps } from '../App.svelte'
 
@@ -23,6 +29,15 @@
   })
   let selectedWebviewLabel = $state(webview.label)
   let selectedWebview = $derived(webviewMap[selectedWebviewLabel])
+
+  let monitorMap = $state<Record<string, Monitor>>({})
+  let selectedMonitor = $state('')
+
+  availableMonitors().then((monitors) => {
+    monitorMap = Object.fromEntries(
+      monitors.map((m, i) => [m.name ?? `Monitor ${i + 1}`, m])
+    )
+  })
 
   let focusable = $state(true)
 
@@ -87,8 +102,6 @@
 
   const progressBarStatusOptions = Object.values(ProgressBarStatus)
 
-  const mainEl = document.querySelector('main')!
-
   let newWebviewLabel = $state<string>()
 
   let resizable = $state(true)
@@ -115,6 +128,16 @@
   let outerPosition = $state(new PhysicalPosition(0, 0))
   let innerSize = $state(new PhysicalSize(0, 0))
   let outerSize = $state(new PhysicalSize(0, 0))
+  // name of the monitor containing the selected window's top-left corner
+  let monitor = $derived(
+    Object.entries(monitorMap).find(
+      ([, m]) =>
+        outerPosition.x >= m.position.x
+        && outerPosition.x < m.position.x + m.size.width
+        && outerPosition.y >= m.position.y
+        && outerPosition.y < m.position.y + m.size.height
+    )?.[0] ?? ''
+  )
   let resizeEventUnlisten: UnlistenFn | undefined
   let moveEventUnlisten: UnlistenFn | undefined
   let cursorGrab = $state(false)
@@ -131,6 +154,7 @@
   let selectedEffect = $state<Effect>()
   let effectState = $state<EffectState>()
   let effectRadius = $state<number>()
+  let effectInteractive = $state(false)
   let effectR = $state<number>(),
     effectG = $state<number>(),
     effectB = $state<number>(),
@@ -268,7 +292,8 @@
     const payload: Effects = {
       effects,
       state: effectState,
-      radius: effectRadius
+      radius: effectRadius,
+      interactive: effectInteractive
     }
     if (
       Number.isInteger(effectR)
@@ -279,8 +304,8 @@
       payload.color = [effectR!, effectG!, effectB!, effectA!]
     }
 
-    mainEl.classList.remove('bg-primary')
-    mainEl.classList.remove('dark:bg-darkPrimary')
+    // see `:root.window-effects` in app.css
+    document.documentElement.classList.add('window-effects')
     await selectedWebview.clearEffects()
     await selectedWebview.setEffects(payload)
   }
@@ -288,8 +313,7 @@
   async function clearEffects() {
     effects = []
     await selectedWebview.clearEffects()
-    mainEl.classList.add('bg-primary')
-    mainEl.classList.add('dark:bg-darkPrimary')
+    document.documentElement.classList.remove('window-effects')
   }
 
   async function updatePosition() {
@@ -351,6 +375,13 @@
 
   function updateSimpleFullscreen() {
     selectedWebview.setSimpleFullscreen(simpleFullscreen)
+  }
+
+  async function setFullscreenOnMonitor() {
+    const target = monitorMap[selectedMonitor]
+    if (!target) return
+    await selectedWebview.setFullscreenOnMonitor(target.position)
+    fullscreen = true
   }
 
   function updateMinSize() {
@@ -512,6 +543,24 @@
       >
         Set focusable to {!focusable}
       </button>
+
+      <form
+        class="flex gap-2"
+        onsubmit={(ev) => {
+          setFullscreenOnMonitor()
+          ev.preventDefault()
+        }}
+      >
+        <button class="btn" type="submit" disabled={!selectedMonitor}>
+          Set Fullscreen on Monitor
+        </button>
+        <select class="input" bind:value={selectedMonitor}>
+          <option value="" disabled>Choose a monitor...</option>
+          {#each Object.keys(monitorMap) as label}
+            <option value={label}>{label}</option>
+          {/each}
+        </select>
+      </form>
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))] *:flex *:gap-2">
       <label>
@@ -761,6 +810,12 @@
         <span>x: {outerPosition.toLogical(scaleFactor).x.toFixed(3)}</span>
         <span>y: {outerPosition.toLogical(scaleFactor).y.toFixed(3)}</span>
       </div>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-1">
+          Current Monitor
+        </div>
+        <span>{monitor}</span>
+      </div>
     </div>
     <div class="grid gap-2">
       <h4 class="my-2">Cursor</h4>
@@ -888,6 +943,15 @@
           <label>
             Radius
             <input class="input" type="number" bind:value={effectRadius} />
+          </label>
+
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              class="checkbox"
+              bind:checked={effectInteractive}
+            />
+            Interactive
           </label>
         </div>
 

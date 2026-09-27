@@ -6,8 +6,9 @@ import { expect } from '@wdio/globals'
 import { tauri, describeApi } from '../helpers/index.js'
 
 // Tray commands are allowed by default, but a tray host is not always available
-// in headless environments — set `E2E_SKIP=tray` there.
-describeApi('tray', () => {
+// in headless environments — set `E2E_SKIP=tray` there. The tray plugin is
+// desktop-only, so the whole module is skipped on mobile.
+describeApi('tray', { desktopOnly: true }, () => {
   it('creates a tray icon, looks it up and removes it', async () => {
     const created = await tauri(async (api) => {
       const icon = await api.app.defaultWindowIcon()

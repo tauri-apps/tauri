@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::Result;
-use crate::{Runtime, plugin::PluginHandle};
+use super::{AppDirectory, Result};
+use crate::{AppHandle, Runtime, plugin::PluginHandle};
 use std::path::{Path, PathBuf};
 
 /// A helper class to access the mobile path APIs.
@@ -59,6 +59,10 @@ impl<R: Runtime> PathResolver<R> {
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
     }
+  }
+
+  pub(super) fn app_handle(&self) -> &AppHandle<R> {
+    self.0.app()
   }
 
   fn call_resolve(&self, dir: &str) -> Result<PathBuf> {
@@ -135,37 +139,48 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's config files.
   ///
-  /// Resolves to [`config_dir`]`/${bundle_identifier}`.
+  /// Resolves to [`config_dir`]`/${bundle_identifier}`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
   pub fn app_config_dir(&self) -> Result<PathBuf> {
-    self.call_resolve("getConfigDir")
+    self.app_dir(AppDirectory::Config, || self.call_resolve("getConfigDir"))
   }
 
   /// Returns the path to the suggested directory for your app's data files.
   ///
-  /// Resolves to [`data_dir`]`/${bundle_identifier}`.
+  /// Resolves to [`data_dir`]`/${bundle_identifier}`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
   pub fn app_data_dir(&self) -> Result<PathBuf> {
-    self.call_resolve("getDataDir")
+    self.app_dir(AppDirectory::Data, || self.call_resolve("getDataDir"))
   }
 
   /// Returns the path to the suggested directory for your app's local data files.
   ///
-  /// Resolves to [`local_data_dir`]`/${bundle_identifier}`.
+  /// Resolves to [`local_data_dir`]`/${bundle_identifier}`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config.
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
-    self.call_resolve("getDataDir")
+    self.app_dir(AppDirectory::LocalData, || self.call_resolve("getDataDir"))
   }
 
   /// Returns the path to the suggested directory for your app's cache files.
   ///
-  /// Resolves to [`cache_dir`]`/${bundle_identifier}`.
+  /// Resolves to [`cache_dir`]`/${bundle_identifier}`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/caches`).
   pub fn app_cache_dir(&self) -> Result<PathBuf> {
-    self.call_resolve("getCacheDir")
+    self.app_dir(AppDirectory::Cache, || self.call_resolve("getCacheDir"))
   }
 
   /// Returns the path to the suggested directory for your app's log files.
+  ///
+  /// Resolves to [`config_dir`]`/${bundle_identifier}/logs`,
+  /// unless overridden with the [`app > appDirectoriesOverride`](crate::utils::config::AppConfig::app_directories_override) config
+  /// (a single root override resolves to `<root>/logs`).
   pub fn app_log_dir(&self) -> Result<PathBuf> {
-    self
-      .call_resolve("getConfigDir")
-      .map(|dir| dir.join("logs"))
+    self.app_dir(AppDirectory::Log, || {
+      self
+        .call_resolve("getConfigDir")
+        .map(|dir| dir.join("logs"))
+    })
   }
 
   /// A temporary directory. Resolves to [`std::env::temp_dir`].

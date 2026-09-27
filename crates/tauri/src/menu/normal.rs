@@ -65,8 +65,8 @@ impl<R: Runtime> MenuItem<R> {
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
     let text = text.as_ref().to_owned();
 
-    let item = run_main_thread!(handle, || {
-      let item = muda::MenuItem::with_id(id.clone(), text, enabled, accelerator);
+    let item = run_main_thread!(handle, move || {
+      let item = muda::MenuItem::with_id(id, text, enabled, accelerator);
       MenuItemInner::new(app_handle, item)
     })?;
 

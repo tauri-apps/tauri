@@ -56,11 +56,6 @@ jobs:
         with:
           targets: ${{ matrix.config.rust_target }}
 
-      - uses: Swatinem/rust-cache@v2
-        if: ${{ !matrix.config.cross }}
-        with:
-          key: ${{ matrix.config.rust_target }}
-
       - name: install Linux dependencies
         if: ${{ !matrix.config.cross && startsWith(matrix.config.os, 'ubuntu') }}
         run: |

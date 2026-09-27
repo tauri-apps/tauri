@@ -24,7 +24,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
 
   // Check if there are Visual Studio installations that have the "MSVC - C++ Buildtools" and "Windows SDK" components.
   // Both the Windows 10 and Windows 11 SDKs work so we need to query it twice.
-  let output_sdk10 = Command::new(&vswhere)
+  let output_sdk10 = Command::new(&*vswhere)
     .args([
       "-prerelease",
       "-products",
@@ -43,7 +43,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       error,
     })?;
 
-  let output_sdk11 = Command::new(vswhere)
+  let output_sdk11 = Command::new(&*vswhere)
     .args([
       "-prerelease",
       "-products",

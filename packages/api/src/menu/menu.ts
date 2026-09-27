@@ -51,12 +51,56 @@ export class Menu extends MenuItemBase {
     super(rid, id, 'Menu')
   }
 
-  /** Create a new menu. */
+  /**
+   * Create a new menu.
+   *
+   * @example
+   * ```typescript
+   * import { Menu, Submenu } from '@tauri-apps/api/menu';
+   *
+   * const menu = await Menu.new({
+   *   items: [
+   *     await Submenu.new({
+   *       text: 'File',
+   *       items: [
+   *         { id: 'open', text: 'Open', accelerator: 'CmdOrCtrl+O', action: () => console.log('open') },
+   *         { item: 'Separator' },
+   *         { item: 'Quit' }
+   *       ]
+   *     })
+   *   ]
+   * });
+   * ```
+   */
   static async new(opts?: MenuOptions): Promise<Menu> {
     return newMenu('Menu', opts).then(([rid, id]) => new Menu(rid, id))
   }
 
-  /** Create a default menu. */
+  /**
+   * Create the default application menu, the same one Tauri installs when no menu
+   * is configured.
+   *
+   * It contains an `Edit` submenu (undo, redo, cut, copy, paste, select all), a
+   * `Window` submenu (minimize, maximize, close window) and a `Help` submenu, plus:
+   *
+   * - **macOS:** an application submenu named after your app (about, services,
+   *   hide, hide others, quit) and a `View` submenu with the fullscreen item.
+   * - **Windows:** a `File` submenu with close window and quit; the about item
+   *   lives in `Help`.
+   * - **Linux:** no `File` submenu; the about item lives in `Help`.
+   *
+   * Useful as a starting point you then extend with {@linkcode Menu.append},
+   * {@linkcode Menu.insert} or {@linkcode Menu.prepend}.
+   *
+   * @example
+   * ```typescript
+   * import { Menu, Submenu } from '@tauri-apps/api/menu';
+   *
+   * const menu = await Menu.default();
+   * await menu.append(await Submenu.new({ text: 'Tools', items: [{ id: 'fmt', text: 'Format' }] }));
+   * await menu.setAsAppMenu();
+   * ```
+   */
   static async default(): Promise<Menu> {
     return invoke<[number, string]>('plugin:menu|create_default').then(
       ([rid, id]) => new Menu(rid, id)
@@ -213,8 +257,29 @@ export class Menu extends MenuItemBase {
   /**
    * Popup this menu as a context menu on the specified window.
    *
+   * Call it from a `contextmenu` DOM listener (and `preventDefault()` on the event)
+   * to replace the webview context menu with a native one. The promise resolves as
+   * soon as the menu is shown, not when an item is picked: use each item's `action`
+   * handler for that.
+   *
+   * @example
+   * ```typescript
+   * import { Menu } from '@tauri-apps/api/menu';
+   * import { LogicalPosition } from '@tauri-apps/api/dpi';
+   *
+   * const menu = await Menu.new({
+   *   items: [{ id: 'copy', text: 'Copy', action: () => console.log('copy') }]
+   * });
+   *
+   * document.addEventListener('contextmenu', (event) => {
+   *   event.preventDefault();
+   *   void menu.popup(new LogicalPosition(event.clientX, event.clientY));
+   * });
+   * ```
+   *
    * @param at If a position is provided, it is relative to the window's top-left corner.
    * If there isn't one provided, the menu will pop up at the current location of the mouse.
+   * @param window The window to show the menu on. Defaults to the current window.
    */
   async popup(
     at?: PhysicalPosition | LogicalPosition | Position,
@@ -233,6 +298,21 @@ export class Menu extends MenuItemBase {
    *
    * If a window was not created with an explicit menu or had one set explicitly,
    * this menu will be assigned to it.
+   *
+   * This is the menu bar shown at the top of the screen on macOS. On Windows and
+   * Linux, where menus belong to a window, use {@linkcode Menu.setAsWindowMenu}
+   * to target one window instead.
+   *
+   * @example
+   * ```typescript
+   * import { Menu } from '@tauri-apps/api/menu';
+   *
+   * const menu = await Menu.default();
+   * const previous = await menu.setAsAppMenu();
+   * await previous?.close();
+   * ```
+   *
+   * @returns The menu that was set before this call, or `null` if there was none.
    */
   async setAsAppMenu(): Promise<Menu | null> {
     return invoke<[number, string] | null>('plugin:menu|set_as_app_menu', {
@@ -247,6 +327,18 @@ export class Menu extends MenuItemBase {
    *
    * - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
    * window, if you need to set it, use {@linkcode Menu.setAsAppMenu} instead.
+   *
+   * @example
+   * ```typescript
+   * import { Menu } from '@tauri-apps/api/menu';
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const menu = await Menu.default();
+   * await menu.setAsWindowMenu(getCurrentWindow());
+   * ```
+   *
+   * @param window The window to set the menu on. Defaults to the current window.
+   * @returns The menu that was set on that window before this call, or `null` if there was none.
    */
   async setAsWindowMenu(window?: Window): Promise<Menu | null> {
     return invoke<[number, string] | null>('plugin:menu|set_as_window_menu', {

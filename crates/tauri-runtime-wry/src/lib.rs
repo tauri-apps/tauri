@@ -632,7 +632,6 @@ impl From<MonitorHandleWrapper> for Monitor {
   }
 }
 
-#[cfg(desktop)]
 fn find_monitor_for_position(
   monitors: impl Iterator<Item = MonitorHandle>,
   window_position: Position,
@@ -1339,10 +1338,12 @@ pub enum WindowMessage {
   IsClosable(Sender<bool>),
   IsVisible(Sender<bool>),
   Title(Sender<String>),
-  CurrentMonitor(Sender<Option<MonitorHandle>>),
-  PrimaryMonitor(Sender<Option<MonitorHandle>>),
-  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
-  AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  // Monitors are converted on the main thread: on iOS tao's `MonitorHandle`
+  // can only be queried (and dropped) there.
+  CurrentMonitor(Sender<Option<Monitor>>),
+  PrimaryMonitor(Sender<Option<Monitor>>),
+  MonitorFromPoint(Sender<Option<Monitor>>, (f64, f64)),
+  AvailableMonitors(Sender<Vec<Monitor>>),
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1396,6 +1397,7 @@ pub enum WindowMessage {
   SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFullscreenOnMonitor(PhysicalPosition<f64>),
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
@@ -1489,9 +1491,10 @@ pub enum WebviewMessage {
 
 pub enum EventLoopWindowTargetMessage {
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
-  PrimaryMonitor(Sender<Option<MonitorHandle>>),
-  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
-  AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  // See `WindowMessage::CurrentMonitor`.
+  PrimaryMonitor(Sender<Option<Monitor>>),
+  MonitorFromPoint(Sender<Option<Monitor>>, (f64, f64)),
+  AvailableMonitors(Sender<Vec<Monitor>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
 }
@@ -1942,11 +1945,11 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::CurrentMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+    window_getter!(self, WindowMessage::CurrentMonitor)
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+    window_getter!(self, WindowMessage::PrimaryMonitor)
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
@@ -1957,20 +1960,11 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       WindowMessage::MonitorFromPoint(tx, (x, y)),
     ));
 
-    Ok(
-      rx.recv()
-        .map_err(|_| crate::Error::FailedToReceiveMessage)?
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-    Ok(
-      window_getter!(self, WindowMessage::AvailableMonitors)?
-        .into_iter()
-        .map(|m| MonitorHandleWrapper(m).into())
-        .collect(),
-    )
+    window_getter!(self, WindowMessage::AvailableMonitors)
   }
 
   fn theme(&self) -> Result<Theme> {
@@ -2231,6 +2225,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     self.context.send_user_message(Message::Window(
       self.window_id,
       WindowMessage::SetPosition(position),
+    ))
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetFullscreenOnMonitor(position),
     ))
   }
 
@@ -2649,10 +2650,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(
-      event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor)?
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor)
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
@@ -2662,18 +2660,11 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .send_user_message(Message::EventLoopWindowTarget(
         EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y)),
       ))?;
-    Ok(rx.recv().unwrap().map(|m| MonitorHandleWrapper(m).into()))
+    Ok(rx.recv().unwrap())
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-    event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors).map(
-      |monitors| {
-        monitors
-          .into_iter()
-          .map(|m| MonitorHandleWrapper(m).into())
-          .collect()
-      },
-    )
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors)
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
@@ -3032,6 +3023,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    self.event_loop.set_activate_ignoring_other_apps(ignore);
+  }
+
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool) {
     self.event_loop.set_dock_visibility(visible);
   }
@@ -3304,14 +3300,35 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::IsClosable(tx) => tx.send(window.is_closable()).unwrap(),
           WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
           WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
-          WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
-          WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
-          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
-            tx.send(window.monitor_from_point(x, y)).unwrap()
-          }
-          WindowMessage::AvailableMonitors(tx) => {
-            tx.send(window.available_monitors().collect()).unwrap()
-          }
+          WindowMessage::CurrentMonitor(tx) => tx
+            .send(
+              window
+                .current_monitor()
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::PrimaryMonitor(tx) => tx
+            .send(
+              window
+                .primary_monitor()
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::MonitorFromPoint(tx, (x, y)) => tx
+            .send(
+              window
+                .monitor_from_point(x, y)
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::AvailableMonitors(tx) => tx
+            .send(
+              window
+                .available_monitors()
+                .map(|m| MonitorHandleWrapper(m).into())
+                .collect(),
+            )
+            .unwrap(),
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -3436,6 +3453,15 @@ fn handle_user_message<T: UserEvent>(
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
             } else {
               window.set_fullscreen(None)
+            }
+          }
+          WindowMessage::SetFullscreenOnMonitor(position) => {
+            // Not `Window::monitor_from_point`: on macOS and Linux (GTK) it takes logical
+            // coordinates, while callers pass physical ones (e.g. `Monitor::position`).
+            if let Some(monitor) =
+              find_monitor_for_position(window.available_monitors(), position.into())
+            {
+              window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))))
             }
           }
 
@@ -4040,14 +4066,31 @@ fn handle_user_message<T: UserEvent>(
         sender.send(pos).unwrap();
       }
       EventLoopWindowTargetMessage::PrimaryMonitor(sender) => {
-        sender.send(event_loop.primary_monitor()).unwrap();
+        sender
+          .send(
+            event_loop
+              .primary_monitor()
+              .map(|m| MonitorHandleWrapper(m).into()),
+          )
+          .unwrap();
       }
       EventLoopWindowTargetMessage::MonitorFromPoint(sender, (x, y)) => {
-        sender.send(event_loop.monitor_from_point(x, y)).unwrap();
+        sender
+          .send(
+            event_loop
+              .monitor_from_point(x, y)
+              .map(|m| MonitorHandleWrapper(m).into()),
+          )
+          .unwrap();
       }
       EventLoopWindowTargetMessage::AvailableMonitors(sender) => {
         sender
-          .send(event_loop.available_monitors().collect())
+          .send(
+            event_loop
+              .available_monitors()
+              .map(|m| MonitorHandleWrapper(m).into())
+              .collect(),
+          )
           .unwrap();
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
@@ -5067,8 +5110,12 @@ You may have it installed on another user account, but it is not available for t
     }
   }
 
+  #[cfg(windows)]
+  let window_id_for_ipc = window_id.clone();
+  #[cfg(not(windows))]
+  let window_id_for_ipc = window_id;
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-    window_id.clone(),
+    window_id_for_ipc,
     id,
     context.clone(),
     label.clone(),

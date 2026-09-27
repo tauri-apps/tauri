@@ -154,6 +154,7 @@ mod desktop_commands {
   setter!(set_always_on_top, bool);
   setter!(set_always_on_bottom, bool);
   setter!(set_fullscreen, bool);
+  setter!(set_fullscreen_on_monitor, PhysicalPosition<f64>);
   setter!(set_simple_fullscreen, bool);
   setter!(set_skip_taskbar, bool);
   setter!(set_cursor_grab, bool);
@@ -324,6 +325,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #[cfg(desktop)] desktop_commands::set_always_on_top,
       #[cfg(desktop)] desktop_commands::set_always_on_bottom,
       #[cfg(desktop)] desktop_commands::set_fullscreen,
+      #[cfg(desktop)] desktop_commands::set_fullscreen_on_monitor,
       #[cfg(desktop)] desktop_commands::set_simple_fullscreen,
       #[cfg(desktop)] desktop_commands::set_skip_taskbar,
       #[cfg(desktop)] desktop_commands::set_cursor_grab,

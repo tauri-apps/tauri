@@ -18,6 +18,7 @@ use std::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
   },
+  time::Duration,
 };
 use tauri_utils::platform::Target as TargetPlatform;
 
@@ -28,42 +29,6 @@ pub struct DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
-    let pid = self.dev_child.id();
-
-    #[cfg(windows)]
-    {
-      // `/T` terminates the whole process tree, `/F` forces it
-      let pid = pid.to_string();
-      let _ = Command::new("taskkill")
-        .args(["/T", "/F", "/PID", pid.as_str()])
-        .status();
-    }
-
-    #[cfg(not(windows))]
-    {
-      // collect the whole tree first, then kill the root before its descendants
-      // so it cannot respawn them in the meantime
-      const KILL_TREE: &str = r#"
-descendants() {
-  for child in $(pgrep -P "$1" 2>/dev/null); do
-    echo "$child"
-    descendants "$child"
-  done
-}
-tree=$(descendants "$1")
-kill -9 "$1" 2>/dev/null
-for p in $tree; do
-  kill -9 "$p" 2>/dev/null
-done
-true
-"#;
-
-      let pid = pid.to_string();
-      let _ = Command::new("sh")
-        .args(["-c", KILL_TREE, "sh", pid.as_str()])
-        .status();
-    }
-
     self.dev_child.kill()?;
     self.manually_killed_app.store(true, Ordering::SeqCst);
     Ok(())
@@ -135,11 +100,14 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let dev_child = Arc::new(dev_child);
   let dev_child_stderr = dev_child.take_stderr().unwrap();
   let mut stderr = BufReader::new(dev_child_stderr);
-  let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-  let stderr_lines_ = stderr_lines.clone();
+  // only the last line is needed to detect cargo compilation errors
+  let last_stderr_line = Arc::new(Mutex::new(None::<String>));
+  let last_stderr_line_ = last_stderr_line.clone();
+  // dropped when the reader thread finishes
+  let (stderr_done_tx, stderr_done_rx) = std::sync::mpsc::channel::<()>();
   std::thread::spawn(move || {
+    let _stderr_done_tx = stderr_done_tx;
     let mut buf = Vec::new();
-    let mut lines = stderr_lines_.lock().unwrap();
     let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
@@ -147,7 +115,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         break;
       }
       let _ = io_stderr.write_all(&buf);
-      lines.push(String::from_utf8_lossy(&buf).into_owned());
+      *last_stderr_line_.lock().unwrap() = Some(String::from_utf8_lossy(&buf).into_owned());
     }
   });
   let dev_child_ = dev_child.clone();
@@ -157,13 +125,15 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     if status.success() {
       on_exit(status.code(), ExitReason::NormalExit);
     } else {
-      let is_cargo_compile_error = stderr_lines
+      // give the reader a moment to consume the remaining output,
+      // without blocking forever if a grandchild process keeps stderr open
+      let _ = stderr_done_rx.recv_timeout(Duration::from_secs(1));
+      let is_cargo_compile_error = last_stderr_line
         .lock()
         .unwrap()
-        .last()
+        .take()
         .map(|l| l.contains("could not compile"))
         .unwrap_or_default();
-      stderr_lines.lock().unwrap().clear();
 
       on_exit(
         status.code(),
@@ -297,7 +267,7 @@ fn cargo_command(
     build_cmd.arg(features.join(","));
   }
 
-  if !options.debug && !options.args.contains(&"--profile".to_string()) {
+  if !options.debug && super::get_cargo_option(&options.args, "--profile").is_none() {
     build_cmd.arg("--release");
   }
 
@@ -458,5 +428,29 @@ mod terminal {
 
       None
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{Options, cargo_command};
+
+  fn release_args(args: &[&str]) -> Vec<String> {
+    let options = Options {
+      args: args.iter().map(ToString::to_string).collect(),
+      ..Default::default()
+    };
+    cargo_command(false, options, &mut None, Vec::new())
+      .unwrap()
+      .get_args()
+      .map(|a| a.to_string_lossy().into_owned())
+      .collect()
+  }
+
+  #[test]
+  fn release_flag_respects_profile() {
+    assert!(release_args(&[]).contains(&"--release".to_string()));
+    assert!(!release_args(&["--profile", "custom"]).contains(&"--release".to_string()));
+    assert!(!release_args(&["--profile=custom"]).contains(&"--release".to_string()));
   }
 }

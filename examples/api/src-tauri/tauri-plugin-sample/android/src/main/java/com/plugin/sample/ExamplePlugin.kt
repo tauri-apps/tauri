@@ -9,6 +9,7 @@ import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Channel
+import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
@@ -18,6 +19,8 @@ class PingArgs {
   var value: String? = null
   var onEvent: Channel? = null
 }
+
+class JsValues(val array: JSArray, val obj: JSObject)
 
 @TauriPlugin
 class ExamplePlugin(private val activity: Activity): Plugin(activity) {
@@ -34,5 +37,21 @@ class ExamplePlugin(private val activity: Activity): Plugin(activity) {
         val ret = JSObject()
         ret.put("value", implementation.pong(args.value ?: "default value :("))
         invoke.resolve(ret)
+    }
+
+    // Resolves org.json values through the plugin JSON mapper (`resolveObject`),
+    // both as a property of a plain object and nested in one another.
+    @Command
+    fun jsValues(invoke: Invoke) {
+        val array = JSArray()
+        array.put("a")
+        array.put(1)
+        array.put(true)
+
+        val obj = JSObject()
+        obj.put("kind", "object")
+        obj.put("nested", JSArray(listOf(1, 2)))
+
+        invoke.resolveObject(JsValues(array, obj))
     }
 }

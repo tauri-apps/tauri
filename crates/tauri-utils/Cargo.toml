@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.9.3"
+version = "2.10.0"
 description = "Utilities for Tauri"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
@@ -17,7 +17,7 @@ serde_json = "1"
 anyhow = "1"
 thiserror = "2"
 phf = { version = "0.13", features = ["macros"] }
-brotli = { version = "8", optional = true, default-features = false, features = [
+brotli = { version = "9", optional = true, default-features = false, features = [
   "std",
 ] }
 url = { version = "2", features = ["serde"] }
@@ -60,7 +60,7 @@ swift-rs = { version = "1.0.8", optional = true, features = ["build"] }
 getrandom = { version = "0.3", features = ["std"] }
 serial_test = "3.5"
 # For doc tests
-tauri = { workspace = true }
+tauri = { path = "../tauri", default-features = false, features = ["wry"] }
 tempfile = "3.15.0"
 
 [features]

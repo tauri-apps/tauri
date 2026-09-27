@@ -8,7 +8,7 @@ use clap::Parser;
 
 use crate::{
   Result,
-  acl::FileFormat,
+  acl::{FileFormat, validate_permission_identifier},
   error::{Context, ErrorExt},
   helpers::{app_paths::resolve_tauri_dir, prompts},
 };
@@ -42,6 +42,7 @@ pub fn command(options: Options) -> Result<()> {
     Some(i) => i,
     None => prompts::input("What's the permission identifier?", None, false, false)?.unwrap(),
   };
+  validate_permission_identifier(&identifier)?;
 
   let description = match options.description {
     Some(d) => Some(d),
@@ -68,9 +69,8 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let path = match options.out {
-    Some(o) => o
-      .canonicalize()
-      .fs_context("failed to canonicalize permission file path", o.clone())?,
+    // the file may not exist yet, so it cannot be canonicalized
+    Some(o) => o,
     None => {
       let dir = match resolve_tauri_dir() {
         Some(t) => t,

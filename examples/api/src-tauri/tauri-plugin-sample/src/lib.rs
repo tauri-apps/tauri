@@ -67,6 +67,20 @@ fn ping<R: tauri::Runtime>(
     .map_err(|e| e.to_string())
 }
 
+/// Resolves `JSArray` and `JSObject` values from the native (Kotlin or Swift) plugin.
+#[tauri::command]
+fn js_values<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+) -> std::result::Result<serde_json::Value, String> {
+  #[cfg(mobile)]
+  return app.sample().js_values().map_err(|e| e.to_string());
+  #[cfg(desktop)]
+  {
+    let _ = app;
+    Err("js_values is only implemented on mobile".into())
+  }
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("sample")
     .setup(|app, api| {
@@ -78,7 +92,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
       Ok(())
     })
-    .invoke_handler(tauri::generate_handler![ping])
+    .invoke_handler(tauri::generate_handler![ping, js_values])
     .on_navigation(|window, url| {
       println!("navigation {} {url}", window.label());
       true

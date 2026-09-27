@@ -88,10 +88,6 @@ jobs:
         with:
           # CEF helper needs both archs
           targets: ${{ contains(matrix.settings.target, 'apple-darwin') && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.settings.target }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.settings.target }}
-
       - uses: mlugg/setup-zig@v2
         if: ${{ contains(matrix.settings.target, 'linux') }}
         with:

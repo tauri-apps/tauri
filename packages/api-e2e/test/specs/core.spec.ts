@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect } from '@wdio/globals'
-import { tauri, tauriError, describeApi } from '../helpers/index.js'
+import { tauri, tauriError, describeApi, itOn } from '../helpers/index.js'
 
 describeApi('core', () => {
   it('isTauri reports true inside the app', async () => {
@@ -82,6 +82,23 @@ describeApi('core', () => {
     expect(result.ordered).toBe(true)
     expect(result.last).toBe(1000)
   })
+
+  itOn(
+    ['android', 'ios'],
+    'a mobile plugin resolves JSArray and JSObject values as JSON arrays and objects',
+    async () => {
+      // On Android, the sample plugin's `jsValues` goes through
+      // `Invoke.resolveObject`, i.e. the plugin JSON mapper rather than
+      // org.json's own `toString`.
+      const values = await tauri((api) =>
+        api.core.invoke('plugin:sample|js_values')
+      )
+      expect(values).toEqual({
+        array: ['a', 1, true],
+        obj: { kind: 'object', nested: [1, 2] }
+      })
+    }
+  )
 
   it('convertFileSrc builds a platform-appropriate asset URL', async () => {
     const url = await tauri((api) =>

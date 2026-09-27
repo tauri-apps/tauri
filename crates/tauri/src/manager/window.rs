@@ -101,6 +101,13 @@ impl<R: Runtime> WindowManager<R> {
       for handler in window_event_listeners.iter() {
         handler(&window_, event);
       }
+      // purge the window's Rust listeners only after `tauri://destroyed` was delivered to them
+      if matches!(event, WindowEvent::Destroyed) {
+        window_
+          .manager()
+          .listeners()
+          .remove_window_listeners(window_.label());
+      }
     });
 
     // insert the window into our manager

@@ -8,6 +8,20 @@ import type * as TauriApi from '@tauri-apps/api'
 /** The full `@tauri-apps/api` surface, as exposed on `window.__TAURI__`. */
 export type Api = typeof TauriApi
 
+/** OS the app under test runs on. */
+export type Platform = NodeJS.Platform | 'android' | 'ios'
+
+/**
+ * The platform of the app under test. The desktop suite drives an app on the
+ * host, so it is `process.platform`; the mobile configs (`wdio.android.conf.ts`,
+ * `wdio.ios.conf.ts`) drive an emulator/simulator and set `E2E_PLATFORM` for
+ * the spec workers instead.
+ */
+export const platform: Platform =
+  (process.env.E2E_PLATFORM as Platform | undefined) ?? process.platform
+
+export const isMobile = platform === 'android' || platform === 'ios'
+
 type PageOutcome<T> =
   | { ok: true; value: T }
   | { ok: false; error: string; stack?: string }
@@ -44,6 +58,11 @@ export async function tauri<R, A extends unknown[]>(
   // our own — the driver injects this script itself, which is exempt from the
   // app's CSP. `executeAsync` is used because promise support in `execute` is not
   // uniform across the platform drivers tauri-driver proxies to.
+  //
+  // The outcome crosses the driver as a JSON string rather than an object so no
+  // driver gets to interpret its shape: the Selenium atoms that Appium runs
+  // scripts through on iOS turn any object with a numeric `length` property
+  // into an array.
   const script = `
     var done = arguments[arguments.length - 1];
     var args = Array.prototype.slice.call(arguments, 0, arguments.length - 1);
@@ -51,19 +70,27 @@ export async function tauri<R, A extends unknown[]>(
     Promise.resolve()
       .then(function () { return fn.apply(null, [window.__TAURI__].concat(args)); })
       .then(
-        function (value) { done({ ok: true, value: value === undefined ? null : value }); },
+        function (value) { return { ok: true, value: value === undefined ? null : value }; },
         function (error) {
-          done({
+          return {
             ok: false,
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined
-          });
+          };
         }
-      );
+      )
+      .then(function (outcome) {
+        try {
+          done(JSON.stringify(outcome));
+        } catch (error) {
+          done(JSON.stringify({ ok: false, error: 'result is not JSON-serializable: ' + error }));
+        }
+      });
   `
-  const outcome = (await browser.executeAsync(script, ...args)) as PageOutcome<
-    Awaited<R>
-  > | null
+  const raw = await browser.executeAsync(script, ...args)
+  const outcome = (
+    typeof raw === 'string' ? JSON.parse(raw) : raw
+  ) as PageOutcome<Awaited<R>> | null
   if (!outcome || typeof outcome !== 'object' || !('ok' in outcome)) {
     throw new Error(
       `tauri() bridge returned an unexpected value: ${JSON.stringify(outcome)}`
@@ -137,13 +164,35 @@ const skippedModules = (process.env.E2E_SKIP ?? '')
   .map((entry) => entry.trim())
   .filter(Boolean)
 
+export interface DescribeApiOptions {
+  /**
+   * The module's plugin is not registered at all on mobile (`menu`, `tray`),
+   * so the whole suite is skipped there.
+   */
+  desktopOnly?: boolean
+}
+
 /**
  * `describe` wrapper keyed by API module name. Any module listed in the
  * comma-separated `E2E_SKIP` env var (e.g. `E2E_SKIP=tray,menu`) is skipped.
  */
-export function describeApi(module: string, fn: () => void): void {
+export function describeApi(module: string, fn: () => void): void
+export function describeApi(
+  module: string,
+  options: DescribeApiOptions,
+  fn: () => void
+): void
+export function describeApi(
+  module: string,
+  optionsOrFn: DescribeApiOptions | (() => void),
+  maybeFn?: () => void
+): void {
+  const [options, fn] =
+    typeof optionsOrFn === 'function'
+      ? [{} as DescribeApiOptions, optionsOrFn]
+      : [optionsOrFn, maybeFn!]
   const title = `@tauri-apps/api/${module}`
-  if (skippedModules.includes(module)) {
+  if (skippedModules.includes(module) || (options.desktopOnly && isMobile)) {
     describe.skip(title, fn)
   } else {
     describe(title, fn)
@@ -151,11 +200,42 @@ export function describeApi(module: string, fn: () => void): void {
 }
 
 /**
+ * `it` restricted to the given platform(s); skipped (as pending) elsewhere.
+ * Use for behavior that only exists on one OS, e.g. `activityName()` on Android.
+ */
+export function itOn(
+  platforms: Platform | Platform[],
+  title: string,
+  fn: () => void | Promise<void>
+): void {
+  const list = Array.isArray(platforms) ? platforms : [platforms]
+  if (list.includes(platform)) {
+    it(title, fn)
+  } else {
+    it.skip(title, fn)
+  }
+}
+
+/**
+ * `it` for desktop-only APIs. The mobile builds do not register the commands
+ * behind them (`#[cfg(desktop)]` in the core plugins) or implement them as
+ * no-ops (window title, size, resizability), so they are skipped on mobile.
+ */
+export function itDesktop(title: string, fn: () => void | Promise<void>): void {
+  if (isMobile) {
+    it.skip(title, fn)
+  } else {
+    it(title, fn)
+  }
+}
+
+/**
  * `it` for assertions that depend on a real window manager (minimize, maximize,
- * focus, ...). Skipped entirely when `E2E_SKIP_WM` is set (e.g. bare headless CI).
+ * focus, ...). Skipped entirely when `E2E_SKIP_WM` is set (e.g. bare headless CI),
+ * and on mobile, which has no window manager (nor those commands).
  */
 export function itWm(title: string, fn: () => void | Promise<void>): void {
-  if (process.env.E2E_SKIP_WM) {
+  if (process.env.E2E_SKIP_WM || isMobile) {
     it.skip(title, fn)
   } else {
     it(title, fn)

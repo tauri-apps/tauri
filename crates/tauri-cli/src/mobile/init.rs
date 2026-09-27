@@ -183,7 +183,13 @@ fn exec(
     Target::OpenHarmony => {
       let (config, _metadata) =
         super::open_harmony::get_config(&app, &tauri_config, &[], &Default::default());
-      super::open_harmony::project::gen(&app, &config, (handlebars, map), skip_targets_install)?;
+      super::open_harmony::project::gen(
+        &app,
+        &tauri_config,
+        &config,
+        (handlebars, map),
+        skip_targets_install,
+      )?;
       app
     }
   };
@@ -414,4 +420,129 @@ fn is_pnpm_dlx() -> bool {
       }
       false
     })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::{
+    helpers::config::{BundleConfig, Config},
+    mobile::open_harmony::project,
+  };
+  use cargo_mobile2::{config::app::Raw, open_harmony::config::Config as OpenHarmonyConfig};
+  use serde_json::Value;
+  use std::{fs, path::Path};
+
+  fn generate_open_harmony(root: &Path, icons: &[&str]) -> Result<PathBuf> {
+    let app = App::from_raw(
+      root.to_path_buf(),
+      Raw {
+        name: "reader".into(),
+        lib_name: Some("reader_lib".into()),
+        stylized_name: Some("Reader & 阅读".into()),
+        identifier: "com.example.reader".into(),
+        asset_dir: None,
+        template_pack: None,
+      },
+    )
+    .unwrap();
+    let config = OpenHarmonyConfig::from_raw(app.clone(), None).unwrap();
+    let tauri_config = Config {
+      bundle: BundleConfig {
+        icon: icons.iter().map(|icon| (*icon).into()).collect(),
+        ..Default::default()
+      },
+      ..Default::default()
+    };
+    let (handlebars, mut map) = handlebars(&app);
+    map.insert(
+      "tauri-binary-args",
+      ["tauri", "ohos", "dev-eco-studio-script"],
+    );
+    project::gen(&app, &tauri_config, &config, (handlebars, map), true)?;
+    Ok(config.project_dir())
+  }
+
+  fn read_json(path: impl AsRef<Path>) -> Value {
+    json5::from_str(&fs::read_to_string(path).unwrap()).unwrap()
+  }
+
+  #[test]
+  fn open_harmony_launcher_uses_app_name_and_configured_icon() {
+    let root = tempfile::tempdir().unwrap();
+    let icons = root.path().join("custom icons");
+    fs::create_dir(&icons).unwrap();
+    let source = icons.join("reader.png");
+    image::RgbaImage::from_pixel(32, 32, image::Rgba([255, 0, 0, 255]))
+      .save(&source)
+      .unwrap();
+
+    // Non-PNG entries are skipped; paths are relative to the app, not the CLI's cwd.
+    let project = generate_open_harmony(
+      root.path(),
+      &["icons/icon.ico", "custom icons/reader.png", "missing.png"],
+    )
+    .unwrap();
+    let app = read_json(project.join("AppScope/app.json5"));
+    let module = read_json(project.join("entry/src/main/module.json5"));
+    let ability = &module["module"]["abilities"][0];
+    assert_eq!(app["app"]["label"], ability["label"]);
+    let name = ability["label"]
+      .as_str()
+      .unwrap()
+      .strip_prefix("$string:")
+      .unwrap();
+    let strings = read_json(project.join("AppScope/resources/base/element/string.json"));
+    let name_resource = strings["string"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .find(|resource| resource["name"] == name)
+      .unwrap();
+    assert_eq!(name_resource["value"], "Reader & 阅读");
+
+    for reference in [
+      &app["app"]["icon"],
+      &ability["icon"],
+      &ability["startWindowIcon"],
+    ] {
+      let name = reference.as_str().unwrap().strip_prefix("$media:").unwrap();
+      let resource = project.join(format!("AppScope/resources/base/media/{name}.png"));
+      assert_eq!(fs::read(resource).unwrap(), fs::read(&source).unwrap());
+    }
+  }
+
+  #[test]
+  fn open_harmony_keeps_default_icons_without_a_configured_png() {
+    for icons in [&[][..], &["icons/icon.ico", "icons/icon.icns"][..]] {
+      let root = tempfile::tempdir().unwrap();
+      let project = generate_open_harmony(root.path(), icons).unwrap();
+      let app = read_json(project.join("AppScope/app.json5"));
+      let module = read_json(project.join("entry/src/main/module.json5"));
+      let ability = &module["module"]["abilities"][0];
+      assert_eq!(app["app"]["icon"], "$media:layered_image");
+      assert_eq!(ability["icon"], "$media:layered_image");
+      assert_eq!(ability["startWindowIcon"], "$media:startIcon");
+      assert!(project
+        .join("AppScope/resources/base/media/layered_image.json")
+        .is_file());
+      assert!(project
+        .join("entry/src/main/resources/base/media/startIcon.png")
+        .is_file());
+    }
+  }
+
+  #[test]
+  fn open_harmony_reports_missing_configured_icon() {
+    let root = tempfile::tempdir().unwrap();
+    let error = generate_open_harmony(root.path(), &["missing.png"])
+      .unwrap_err()
+      .to_string();
+    assert!(
+      error.contains("failed to read OpenHarmony app icon"),
+      "{error}"
+    );
+    assert!(error.contains("missing.png"), "{error}");
+    assert!(!root.path().join("gen/ohos").exists());
+  }
 }

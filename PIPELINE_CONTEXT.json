@@ -12,7 +12,7 @@
     "language": "Rust",
     "package_manager": "cargo",
     "test_command": "cargo test",
-    "commit_sha": "0099ab1"
+    "commit_sha": "4f8f562"
   },
   "step_2": {
     "root_cause": "Master/Slave PTY 双向管道在 EOF 或退出时读端未正确释放句柄，导致工作线程阻塞。",

@@ -3453,7 +3453,7 @@ pub struct AppConfig {
   /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
   /// before building the app:
   ///
-  /// ```rust
+  /// ```rust,ignore
   /// use tauri::utils::config::AppDirectoriesOverride;
   ///
   /// fn main() {

@@ -5,6 +5,7 @@
 //! Types and functions related to child processes management.
 
 use crate::Env;
+pub use crate::pty;
 
 use std::path::PathBuf;
 

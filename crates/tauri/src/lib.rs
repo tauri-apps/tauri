@@ -114,6 +114,15 @@ pub mod menu;
 /// Path APIs.
 pub mod path;
 pub mod process;
+/// PTY master/slave duplex pipes API.
+pub mod pty;
+
+/// Backwards compatibility API module namespace.
+#[doc(hidden)]
+pub mod api {
+  pub use crate::process;
+  pub use crate::pty;
+}
 /// The allowlist scopes.
 pub mod scope;
 mod state;

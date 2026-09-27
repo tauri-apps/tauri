@@ -17,6 +17,6 @@ Master/Slave PTY 双向管道在 EOF 或退出时读端未正确释放句柄，�
 - 需求点: 解决 Issue #2048: Refactor PTY master slave duplex pipes on Unix platforms ➔ 模块: ["tauri-apps/tauri/core", "tauri-apps/tauri/api"] ➔ 缺陷: Master/Slave PTY 双向管道在 EOF 或退出时读端未正确释放句柄，导致工作线程阻塞。 ➔ 改动: 引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。
 
 ## 6. 具体实装任务清单
-- [ ] 检查并修正受影响模块: ["tauri-apps/tauri/core", "tauri-apps/tauri/api"]
-- [ ] 实装核心防御性修复: 引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。
-- [ ] 按测试策略「编写端到端单元测试与异常模拟用例，验证各种边界值与中断行为。」增加回归单测
+- [x] 检查并修正受影响模块: ["tauri-apps/tauri/core", "tauri-apps/tauri/api"]
+- [x] 实装核心防御性修复: 引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。
+- [x] 按测试策略「编写端到端单元测试与异常模拟用例，验证各种边界值与中断行为。」增加回归单测

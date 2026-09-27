@@ -427,11 +427,11 @@ impl<R: Runtime> TrayIcon<R> {
     if let Some(handler) = on_menu_event {
       app_handle
         .manager
-        .menu
-        .global_event_listeners
+        .tray
+        .menu_event_listeners
         .lock()
         .unwrap()
-        .push(handler);
+        .insert(self.id.clone(), handler);
     }
 
     if let Some(handler) = on_tray_icon_event {
@@ -468,11 +468,11 @@ impl<R: Runtime> TrayIcon<R> {
     self
       .app_handle
       .manager
-      .menu
-      .global_event_listeners
+      .tray
+      .menu_event_listeners
       .lock()
       .unwrap()
-      .push(Box::new(f));
+      .insert(self.id.clone(), Box::new(f));
   }
 
   /// Register a handler for this tray icon events.
@@ -653,6 +653,10 @@ impl<R: Runtime> Resource for TrayIcon<R> {
 
 #[cfg(test)]
 mod tests {
+  use super::*;
+  use crate::sealed::ManagerBase;
+  use crate::test::mock_app;
+
   #[test]
   fn tray_event_json_serialization() {
     // NOTE: if this test is ever changed, you probably need to change `TrayIconEvent` in JS as well
@@ -697,5 +701,33 @@ mod tests {
           }
       })
     );
+  }
+
+  #[test]
+  fn test_tray_menu_event_listener_registration() {
+    let app = mock_app();
+
+    let _tray = TrayIconBuilder::with_id("test-tray")
+      .on_menu_event(|_, _| {})
+      .build(&app)
+      .unwrap();
+
+    let tray_listeners = app.manager().tray.menu_event_listeners.lock().unwrap();
+    assert!(tray_listeners.contains_key(&TrayIconId::new("test-tray")));
+
+    let global_menu_listeners = app.manager().menu.global_event_listeners.lock().unwrap();
+    assert!(global_menu_listeners.is_empty());
+  }
+
+  #[test]
+  fn test_tray_on_menu_event_mutation() {
+    let app = mock_app();
+
+    let tray = TrayIconBuilder::with_id("test-tray-2").build(&app).unwrap();
+
+    tray.on_menu_event(|_, _| {});
+
+    let tray_listeners = app.manager().tray.menu_event_listeners.lock().unwrap();
+    assert!(tray_listeners.contains_key(&TrayIconId::new("test-tray-2")));
   }
 }

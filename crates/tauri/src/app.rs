@@ -2767,7 +2767,16 @@ fn on_event_loop_event<R: Runtime>(
               listener(&w, e.clone());
             }
           }
+
+          #[cfg(feature = "tray-icon")]
+          {
+            let listeners = app_handle.manager.tray.menu_event_listeners.lock().unwrap();
+            for listener in listeners.values() {
+              listener(app_handle, e.clone());
+            }
+          }
         }
+
         #[cfg(all(desktop, feature = "tray-icon"))]
         EventLoopMessage::TrayIconEvent(ref e) => {
           for listener in &*app_handle

@@ -162,6 +162,21 @@ mod webview;
 mod webview_permissions;
 mod window;
 
+/// Keeps tao's undecorated-shadow emulation off and drives the shadow purely
+/// through DWM attributes, so frameless windows keep their client area equal
+/// to the window rect instead of relying on hidden native frame insets.
+///
+/// Decorated and transparent windows always get the window-style driven DWM
+/// defaults.
+#[cfg(windows)]
+fn sync_window_shadow(window: &Window, shadow_requested: bool, is_window_transparent: bool) {
+  window.set_undecorated_shadow(false);
+  crate::shadow::update(
+    window.hwnd(),
+    shadow_requested && !is_window_transparent && !window.is_decorated(),
+  );
+}
+
 pub use webview::Webview;
 use window::WindowExt as _;
 
@@ -747,6 +762,8 @@ pub struct WindowBuilderWrapper {
   inner: TaoWindowBuilder,
   center: bool,
   prevent_overflow: Option<Size>,
+  #[cfg(windows)]
+  shadow: bool,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
 }
@@ -757,6 +774,10 @@ impl std::fmt::Debug for WindowBuilderWrapper {
     s.field("inner", &self.inner)
       .field("center", &self.center)
       .field("prevent_overflow", &self.prevent_overflow);
+    #[cfg(windows)]
+    {
+      s.field("shadow", &self.shadow);
+    }
     #[cfg(target_os = "macos")]
     {
       s.field("tabbing_identifier", &self.tabbing_identifier);
@@ -1087,7 +1108,10 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn shadow(#[allow(unused_mut)] mut self, _enable: bool) -> Self {
     #[cfg(windows)]
     {
-      self.inner = self.inner.with_undecorated_shadow(_enable);
+      // The shadow is owned by this runtime (see the `shadow` module) instead
+      // of tao's undecorated-shadow emulation, which relies on hidden native
+      // frame insets carved out via WM_NCCALCSIZE.
+      self.shadow = _enable;
     }
     #[cfg(target_os = "macos")]
     {
@@ -3406,46 +3430,33 @@ fn handle_user_message<T: UserEvent>(
             window.set_decorations(decorations);
             #[cfg(windows)]
             {
-              window.set_undecorated_shadow(false);
+              let (shadow_requested, is_window_transparent) = {
+                let windows_ref = windows.0.borrow();
+                windows_ref
+                  .get(&id)
+                  .map(|w| {
+                    (
+                      w.shadow_requested.load(Ordering::Relaxed),
+                      w.is_window_transparent,
+                    )
+                  })
+                  .unwrap_or((false, false))
+              };
+              sync_window_shadow(&window, shadow_requested, is_window_transparent);
               if decorations {
-                crate::shadow::reset(window.hwnd());
                 undecorated_resizing::detach_resize_handler(window.hwnd());
-              } else {
-                let (requested, is_window_transparent) = {
-                  let windows_ref = windows.0.borrow();
-                  windows_ref
-                    .get(&id)
-                    .map(|w| {
-                      (
-                        w.shadow_requested.load(Ordering::Relaxed),
-                        w.is_window_transparent,
-                      )
-                    })
-                    .unwrap_or((false, false))
-                };
-                let enable_shadow = requested && !is_window_transparent;
-                crate::shadow::update(window.hwnd(), enable_shadow);
-                if window.is_resizable() {
-                  undecorated_resizing::attach_resize_handler(window.hwnd(), false);
-                }
-                undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(
-                  window.hwnd(),
-                  false,
-                );
+              } else if window.is_resizable() {
+                undecorated_resizing::attach_resize_handler(window.hwnd(), false);
+                undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(window.hwnd(), false);
               }
             }
           }
-          WindowMessage::SetShadow(enable) => {
+          WindowMessage::SetShadow(_enable) => {
             #[cfg(windows)]
             {
-              {
-                if let Some(wrapper) = windows.0.borrow_mut().get_mut(&id) {
-                  wrapper
-                    .shadow_requested
-                    .store(enable, Ordering::Relaxed);
-                }
+              if let Some(wrapper) = windows.0.borrow_mut().get_mut(&id) {
+                wrapper.shadow_requested.store(_enable, Ordering::Relaxed);
               }
-              window.set_undecorated_shadow(false);
               let is_window_transparent = {
                 let windows_ref = windows.0.borrow();
                 windows_ref
@@ -3453,24 +3464,16 @@ fn handle_user_message<T: UserEvent>(
                   .map(|w| w.is_window_transparent)
                   .unwrap_or(false)
               };
-              let decorated = window.is_decorated();
-              let enable_shadow = enable && !decorated && !is_window_transparent;
-              if decorated {
-                crate::shadow::reset(window.hwnd());
+              sync_window_shadow(&window, _enable, is_window_transparent);
+              if window.is_decorated() {
                 undecorated_resizing::detach_resize_handler(window.hwnd());
-              } else {
-                crate::shadow::update(window.hwnd(), enable_shadow);
-                if window.is_resizable() {
-                  undecorated_resizing::attach_resize_handler(window.hwnd(), false);
-                }
-                undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(
-                  window.hwnd(),
-                  false,
-                );
+              } else if window.is_resizable() {
+                undecorated_resizing::attach_resize_handler(window.hwnd(), false);
+                undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(window.hwnd(), false);
               }
             }
             #[cfg(target_os = "macos")]
-            window.set_has_shadow(enable);
+            window.set_has_shadow(_enable);
           }
           WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
             window.set_always_on_bottom(always_on_bottom)
@@ -4066,24 +4069,14 @@ fn handle_user_message<T: UserEvent>(
         window_id_map.insert(window.id(), window_id);
 
         #[cfg(windows)]
+        // raw window builders may still go through tao's
+        // `with_undecorated_shadow`, so the flag is read from the window
         let shadow_requested = window.has_undecorated_shadow();
 
         let window = Arc::new(window);
 
         #[cfg(windows)]
-        if shadow_requested {
-          window.set_undecorated_shadow(false);
-        }
-
-        #[cfg(windows)]
-        {
-          let decorated = window.is_decorated();
-          if decorated || is_window_transparent {
-            crate::shadow::reset(window.hwnd());
-          } else {
-            crate::shadow::update(window.hwnd(), shadow_requested);
-          }
-        }
+        sync_window_shadow(&window, shadow_requested, is_window_transparent);
 
         #[cfg(windows)]
         let surface = if is_window_transparent {
@@ -4617,6 +4610,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   }
 
+  #[cfg(windows)]
+  let shadow_requested = window_builder.shadow;
+
   let window = window_builder
     .inner
     .build(event_loop)
@@ -4631,9 +4627,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       window.set_outer_position(position);
     }
   }
-
-  #[cfg(windows)]
-  let shadow_requested = window.has_undecorated_shadow();
 
   #[cfg(feature = "tracing")]
   {
@@ -4706,19 +4699,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let window = Arc::new(window);
 
   #[cfg(windows)]
-  if shadow_requested {
-    window.set_undecorated_shadow(false);
-  }
-
-  #[cfg(windows)]
-  {
-    let decorated = window.is_decorated();
-    if decorated || is_window_transparent {
-      crate::shadow::reset(window.hwnd());
-    } else {
-      crate::shadow::update(window.hwnd(), shadow_requested);
-    }
-  }
+  sync_window_shadow(&window, shadow_requested, is_window_transparent);
 
   #[cfg(windows)]
   let surface = if is_window_transparent {

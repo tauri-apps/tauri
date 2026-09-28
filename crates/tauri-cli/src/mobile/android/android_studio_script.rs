@@ -47,7 +47,7 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[], dirs.tauri)?;
-  let cli_options = read_options(&tauri_config);
+  let cli_options = read_options(MobileTarget::Android, dirs.tauri)?;
 
   if !cli_options.config.is_empty() {
     // reload config with merges from the android dev|build script
@@ -248,7 +248,7 @@ fn adb_forward_port(
   if let Some((target_device_serial_no, target_device_name)) = target_device {
     let mut already_forwarded = false;
 
-    // clear port forwarding for all devices
+    // clear port forwarding for all devices other than the target
     for device in &devices {
       let reverse_list_output =
         adb_reverse_list(env, device.serial_no()).map_err(|error| Error::CommandFailed {
@@ -257,17 +257,26 @@ fn adb_forward_port(
         })?;
 
       // check if the device has the port forwarded
-      if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
+      if !reverse_list_has_forward(
+        &String::from_utf8_lossy(&reverse_list_output.stdout),
+        &forward,
+      ) {
+        continue;
+      }
+
+      if device.serial_no() == target_device_serial_no {
         // device matches our target, we can skip forwarding
-        if device.serial_no() == target_device_serial_no {
-          log::debug!(
-            "device {} already has the forward for {}",
-            device.name(),
-            forward
-          );
-          already_forwarded = true;
-        }
-        break;
+        log::debug!(
+          "device {} already has the forward for {}",
+          device.name(),
+          forward
+        );
+        already_forwarded = true;
+      } else if let Err(error) = adb_reverse_remove(env, device.serial_no(), &forward) {
+        log::warn!(
+          "failed to remove the {forward} forward from device {}: {error}",
+          device.name()
+        );
       }
     }
 
@@ -275,7 +284,10 @@ fn adb_forward_port(
     if already_forwarded {
       log::info!("{forward} already forwarded to {target_device_name}");
     } else {
+      const MAX_ATTEMPTS: u32 = 5;
+      let mut attempt = 0;
       loop {
+        attempt += 1;
         run_adb_reverse(env, &target_device_serial_no, &forward, &forward).map_err(|error| {
           Error::CommandFailed {
             command: format!("adb reverse {forward} {forward}"),
@@ -291,7 +303,15 @@ fn adb_forward_port(
             }
           })?;
         // wait and retry until the port has actually been forwarded
-        if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
+        if reverse_list_has_forward(
+          &String::from_utf8_lossy(&reverse_list_output.stdout),
+          &forward,
+        ) {
+          break;
+        } else if attempt >= MAX_ATTEMPTS {
+          log::warn!(
+            "could not verify that {forward} was forwarded to {target_device_name} after {MAX_ATTEMPTS} attempts; the app might not be able to reach the dev server"
+          );
           break;
         } else {
           log::warn!(
@@ -331,4 +351,48 @@ fn adb_reverse_list(
     .stdout_capture()
     .stderr_capture()
     .run()
+}
+
+fn adb_reverse_remove(
+  env: &cargo_mobile2::android::env::Env,
+  device_serial_no: &str,
+  remote: &str,
+) -> std::io::Result<std::process::Output> {
+  adb::adb(env, ["-s", device_serial_no, "reverse", "--remove", remote])
+    .stdin_file(os_pipe::dup_stdin().unwrap())
+    .stdout_capture()
+    .stderr_capture()
+    .run()
+}
+
+/// Checks whether the output of `adb reverse --list` contains the given `tcp:<port>` forward.
+///
+/// Each line has the format `<serial> <remote> <local>`, so we compare the remote column exactly
+/// to avoid e.g. `tcp:80` matching `tcp:8080`.
+fn reverse_list_has_forward(output: &str, forward: &str) -> bool {
+  output
+    .lines()
+    .any(|line| line.split_whitespace().nth(1) == Some(forward))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::reverse_list_has_forward;
+
+  #[test]
+  fn reverse_list_matches_exact_port() {
+    let output = "emulator-5554 tcp:8080 tcp:8080\nemulator-5554 tcp:1420 tcp:1420\n";
+    assert!(reverse_list_has_forward(output, "tcp:8080"));
+    assert!(reverse_list_has_forward(output, "tcp:1420"));
+    assert!(!reverse_list_has_forward(output, "tcp:80"));
+    assert!(!reverse_list_has_forward(output, "tcp:142"));
+    assert!(!reverse_list_has_forward("", "tcp:1420"));
+  }
+
+  #[test]
+  fn reverse_list_ignores_local_column() {
+    let output = "UsbFfs tcp:5173 tcp:1420\n";
+    assert!(reverse_list_has_forward(output, "tcp:5173"));
+    assert!(!reverse_list_has_forward(output, "tcp:1420"));
+  }
 }

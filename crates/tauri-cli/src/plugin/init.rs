@@ -98,6 +98,7 @@ pub fn command(mut options: Options) -> Result<()> {
     > 0
   {
     log::warn!("Plugin dir ({:?}) not empty.", template_target_path);
+    return Ok(());
   } else {
     let (tauri_dep, tauri_example_dep, tauri_build_dep, tauri_plugin_dep) =
       if let Some(tauri_path) = options.tauri_path {
@@ -160,13 +161,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let plugin_id = if options.android || options.mobile {
-      let plugin_id = prompts::input(
-        "What should be the Android Package ID for your plugin?",
-        Some(format!("com.plugin.{plugin_name}")),
-        false,
-        false,
-      )?
-      .unwrap();
+      let plugin_id = prompt_android_package_id(&plugin_name)?;
 
       data.insert("android_package_id", to_json(&plugin_id));
       Some(plugin_id)
@@ -220,7 +215,8 @@ pub fn command(mut options: Options) -> Result<()> {
             "ios-xcode" if !matches!(ios_framework, PluginIosFramework::Xcode) => return Ok(None),
             "ios-spm" | "ios-xcode" => {
               let folder_name = components.next().unwrap().as_os_str().to_string_lossy();
-              let new_folder_name = folder_name.replace("{{ plugin_name }}", &plugin_name);
+              let new_folder_name =
+                folder_name.replace("{{ plugin_name }}", &plugin_name.to_kebab_case());
               let new_folder_name = OsString::from(&new_folder_name);
 
               path = [
@@ -283,6 +279,96 @@ pub fn plugin_name_data(data: &mut BTreeMap<&'static str, serde_json::Value>, pl
   );
 }
 
+/// Prompts for the Android package ID of the plugin,
+/// defaulting to `com.plugin.<plugin_name_snake_case>`.
+pub fn prompt_android_package_id(plugin_name: &str) -> Result<String> {
+  let plugin_id = prompts::input(
+    "What should be the Android Package ID for your plugin?",
+    Some(format!("com.plugin.{}", plugin_name.to_snake_case())),
+    false,
+    false,
+  )?
+  .unwrap();
+  validate_android_package_id(&plugin_id)?;
+  Ok(plugin_id)
+}
+
+// Keywords that cannot be used as Java identifiers.
+const JAVA_KEYWORDS: &[&str] = &[
+  "abstract",
+  "assert",
+  "boolean",
+  "break",
+  "byte",
+  "case",
+  "catch",
+  "char",
+  "class",
+  "const",
+  "continue",
+  "default",
+  "do",
+  "double",
+  "else",
+  "enum",
+  "extends",
+  "false",
+  "final",
+  "finally",
+  "float",
+  "for",
+  "goto",
+  "if",
+  "implements",
+  "import",
+  "instanceof",
+  "int",
+  "interface",
+  "long",
+  "native",
+  "new",
+  "null",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "return",
+  "short",
+  "static",
+  "strictfp",
+  "super",
+  "switch",
+  "synchronized",
+  "this",
+  "throw",
+  "throws",
+  "transient",
+  "true",
+  "try",
+  "void",
+  "volatile",
+  "while",
+  "_",
+];
+
+/// Validates that every segment of the Android package ID is a valid Java identifier.
+fn validate_android_package_id(package_id: &str) -> Result<()> {
+  for segment in package_id.split('.') {
+    let mut chars = segment.chars();
+    let valid = chars
+      .next()
+      .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+      && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+      && !JAVA_KEYWORDS.contains(&segment);
+    if !valid {
+      crate::error::bail!(
+        "invalid Android package ID `{package_id}`: `{segment}` is not a valid Java identifier; each dot-separated segment must start with a letter or `_` and contain only letters, digits and `_`"
+      );
+    }
+  }
+  Ok(())
+}
+
 pub fn crates_metadata() -> Result<VersionMetadata> {
   serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
     .context("failed to parse Tauri version metadata")
@@ -325,5 +411,21 @@ pub fn generate_android_out_file(
     options.create(true).open(path).map(Some)
   } else {
     Ok(None)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn android_package_id_validation() {
+    assert!(validate_android_package_id("com.plugin.my_plugin").is_ok());
+    assert!(validate_android_package_id("com.plugin._private2").is_ok());
+    assert!(validate_android_package_id("com.plugin.my-plugin").is_err());
+    assert!(validate_android_package_id("com.plugin.2d").is_err());
+    assert!(validate_android_package_id("com..plugin").is_err());
+    assert!(validate_android_package_id("com.plugin.class").is_err());
+    assert!(validate_android_package_id("").is_err());
   }
 }

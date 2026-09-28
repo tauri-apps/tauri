@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-const COMMANDS: &[&str] = &["ping"];
+const COMMANDS: &[&str] = &["ping", "js_values"];
 
 fn main() {
   tauri_plugin::Builder::new(COMMANDS)

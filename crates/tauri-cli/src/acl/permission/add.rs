@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
 
@@ -122,6 +122,31 @@ fn capability_from_path<P: AsRef<Path>>(path: P) -> Option<TomlOrJson> {
   }
 }
 
+/// Finds an identifier and a file path for a new `target_name` capability
+/// that do not collide with an existing capability, so no user file is overwritten.
+fn new_capability_name(
+  capabilities_dir: &Path,
+  target_name: &str,
+  existing_identifiers: &[&str],
+) -> (String, PathBuf) {
+  (1..)
+    .map(|n| {
+      let suffix = if n == 1 {
+        String::new()
+      } else {
+        format!("-{n}")
+      };
+      (
+        format!("{target_name}-capability{suffix}"),
+        capabilities_dir.join(format!("{target_name}{suffix}.json")),
+      )
+    })
+    .find(|(identifier, path)| {
+      !path.exists() && !existing_identifiers.contains(&identifier.as_str())
+    })
+    .expect("unbounded iterator always finds a name")
+}
+
 #[derive(Debug, Parser)]
 #[clap(about = "Add a permission to capabilities")]
 pub struct Options {
@@ -151,7 +176,7 @@ pub fn command(options: Options) -> Result<()> {
     .split_once(':')
     .and_then(|(plugin, _permission)| known_plugins.get(&plugin));
 
-  let capabilities_iter = std::fs::read_dir(&capabilities_dir)
+  let all_capabilities = std::fs::read_dir(&capabilities_dir)
     .fs_context(
       "failed to read capabilities directory",
       capabilities_dir.clone(),
@@ -160,11 +185,17 @@ pub fn command(options: Options) -> Result<()> {
     .filter(|e| e.file_type().map(|e| e.is_file()).unwrap_or_default())
     .filter_map(|e| {
       let path = e.path();
-      capability_from_path(&path).and_then(|capability| match &options.capability {
-        Some(c) => (c == capability.identifier()).then_some((capability, path)),
-        None => Some((capability, path)),
-      })
-    });
+      capability_from_path(&path).map(|capability| (capability, path))
+    })
+    .collect::<Vec<_>>();
+
+  let capabilities_iter = all_capabilities
+    .iter()
+    .filter(|(capability, _path)| match &options.capability {
+      Some(c) => c == capability.identifier(),
+      None => true,
+    })
+    .cloned();
 
   let (desktop_only, mobile_only) = known_plugin
     .map(|p| (p.desktop_only, p.mobile_only))
@@ -191,7 +222,30 @@ pub fn command(options: Options) -> Result<()> {
     None
   };
 
-  let capabilities = if let Some((expected_platforms, target_name)) = expected_capability_config {
+  let capabilities = if let Some(requested) = &options.capability {
+    // the user asked for this capability explicitly, so use it even if its platforms do not match
+    let capabilities = capabilities_iter.collect::<Vec<_>>();
+    if capabilities.is_empty() {
+      crate::error::bail!("Could not find capability `{}`", requested);
+    }
+    if let Some((expected_platforms, _target_name)) = &expected_capability_config {
+      for (capability, path) in &capabilities {
+        let platforms_match = capability.platforms().is_some_and(|platforms| {
+          platforms
+            .iter()
+            .all(|p| expected_platforms.contains(&p.to_string()))
+        });
+        if !platforms_match {
+          log::warn!(
+            "Capability `{requested}` at {} is not restricted to the platforms {expected_platforms:?} that `{}` supports",
+            dunce::simplified(path).display(),
+            options.identifier
+          );
+        }
+      }
+    }
+    capabilities
+  } else if let Some((expected_platforms, target_name)) = expected_capability_config {
     let mut capabilities = capabilities_iter
       .filter(|(capability, _path)| {
         capability.platforms().is_some_and(|platforms| {
@@ -204,8 +258,12 @@ pub fn command(options: Options) -> Result<()> {
       .collect::<Vec<_>>();
 
     if capabilities.is_empty() {
-      let identifier = format!("{target_name}-capability");
-      let capability_path = capabilities_dir.join(target_name).with_extension("json");
+      let existing_identifiers = all_capabilities
+        .iter()
+        .map(|(capability, _path)| capability.identifier())
+        .collect::<Vec<_>>();
+      let (identifier, capability_path) =
+        new_capability_name(&capabilities_dir, target_name, &existing_identifiers);
       log::info!(
         "Capability matching platforms {expected_platforms:?} not found, creating {}",
         capability_path.display()
@@ -279,4 +337,28 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::new_capability_name;
+
+  #[test]
+  fn new_capability_never_overwrites_an_existing_file() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let (identifier, path) = new_capability_name(dir.path(), "desktop", &[]);
+    assert_eq!(identifier, "desktop-capability");
+    assert_eq!(path, dir.path().join("desktop.json"));
+
+    std::fs::write(dir.path().join("desktop.json"), "{}").unwrap();
+    let (identifier, path) = new_capability_name(dir.path(), "desktop", &[]);
+    assert_eq!(identifier, "desktop-capability-2");
+    assert_eq!(path, dir.path().join("desktop-2.json"));
+
+    // an identifier used by another file is skipped too
+    let (identifier, path) = new_capability_name(dir.path(), "desktop", &["desktop-capability-2"]);
+    assert_eq!(identifier, "desktop-capability-3");
+    assert_eq!(path, dir.path().join("desktop-3.json"));
+  }
 }

@@ -82,7 +82,7 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
-  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  /// Skip stapling the notarization ticket onto the app and do not wait for notarization to finish.
   ///
   /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
   /// reaching out to Apple's servers which is helpful in offline environments.
@@ -298,9 +298,6 @@ fn sign_updaters(
   } else {
     private_key
   };
-  if password.is_none() {
-    log::info!("Decrypting updater signing key, expect a prompt for password")
-  }
   let secret_key =
     updater_signature::secret_key(private_key, password).context("failed to decode secret key")?;
   let public_key = updater_signature::pub_key(pubkey).context("failed to decode pubkey")?;

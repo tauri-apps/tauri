@@ -295,6 +295,18 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the js_values command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-js-values",
+          "markdownDescription": "Enables the js_values command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the js_values command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-js-values",
+          "markdownDescription": "Denies the js_values command without any pre-configured scope."
+        },
+        {
           "description": "Enables the ping command without any pre-configured scope.",
           "type": "string",
           "const": "allow-ping",

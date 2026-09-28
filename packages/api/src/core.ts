@@ -74,8 +74,55 @@ function transformCallback<T = unknown>(
   return window.__TAURI_INTERNALS__.transformCallback(callback, once)
 }
 
+/**
+ * A message channel used to stream values from Rust to the frontend.
+ *
+ * A `Channel` is the JavaScript counterpart of [`tauri::ipc::Channel`](https://docs.rs/tauri/2/tauri/ipc/struct.Channel.html).
+ * Pass an instance as a command argument and the Rust command can declare a
+ * `tauri::ipc::Channel<T>` parameter with the same name; every value sent from
+ * Rust is then delivered to {@linkcode Channel.onmessage}. Messages are delivered
+ * in the order they were sent, even when they arrive out of order.
+ *
+ * The channel stays alive until the Rust `Channel` is dropped, so it can be used
+ * for long-running work such as download progress or log streaming.
+ *
+ * Raw byte payloads are delivered to the frontend as an `ArrayBuffer` rather than
+ * a JSON value, so declare the channel as `Channel<ArrayBuffer>` when the Rust
+ * side sends `tauri::ipc::InvokeResponseBody::Raw` — for example through a
+ * `Channel<tauri::ipc::Response>` whose values are built with
+ * `tauri::ipc::Response::new(bytes)`.
+ *
+ * @example
+ * ```typescript
+ * import { Channel, invoke } from '@tauri-apps/api/core';
+ *
+ * const onEvent = new Channel<string>();
+ * onEvent.onmessage = (message) => {
+ *   console.log(`got download event ${message}`);
+ * };
+ *
+ * await invoke('download', { url: 'https://tauri.app', onEvent });
+ * ```
+ *
+ * The matching Rust command:
+ * ```rust
+ * #[tauri::command]
+ * async fn download(url: String, on_event: tauri::ipc::Channel<String>) -> tauri::Result<()> {
+ *   on_event.send("started".to_string())?;
+ *   on_event.send("finished".to_string())?;
+ *   Ok(())
+ * }
+ * ```
+ *
+ * @since 2.0.0
+ */
 class Channel<T = unknown> {
-  /** The callback id returned from {@linkcode transformCallback} */
+  /**
+   * The callback id returned from {@linkcode transformCallback}.
+   *
+   * This is the value sent across the IPC, it is used by the Rust side to
+   * address this channel and should not be changed.
+   */
   id: number
   #onmessage: (response: T) => void
 
@@ -135,6 +182,13 @@ class Channel<T = unknown> {
     window.__TAURI_INTERNALS__.unregisterCallback(this.id)
   }
 
+  /**
+   * The handler called for every message sent by the Rust side of this channel.
+   *
+   * Assigning a new handler replaces the previous one; messages that arrived
+   * before a handler was set are not replayed, so set it (or pass it to the
+   * constructor) before sending the channel to the backend.
+   */
   set onmessage(handler: (response: T) => void) {
     this.#onmessage = handler
   }
@@ -153,9 +207,21 @@ class Channel<T = unknown> {
   }
 }
 
+/**
+ * A handle to a listener registered with {@linkcode addPluginListener}.
+ *
+ * Keep the returned instance around and call {@linkcode PluginListener.unregister}
+ * when the listener goes out of scope, otherwise the plugin keeps sending events
+ * to a handler nothing uses anymore.
+ *
+ * @since 2.0.0
+ */
 class PluginListener {
+  /** The plugin name the listener is registered to. */
   plugin: string
+  /** The plugin event name the listener is registered to. */
   event: string
+  /** The id of the {@linkcode Channel} backing this listener. */
   channelId: number
 
   constructor(plugin: string, event: string, channelId: number) {
@@ -164,6 +230,7 @@ class PluginListener {
     this.channelId = channelId
   }
 
+  /** Removes this listener from the plugin, so its handler stops being called. */
   async unregister(): Promise<void> {
     return invoke(`plugin:${this.plugin}|remove_listener`, {
       event: this.event,
@@ -175,6 +242,31 @@ class PluginListener {
 /**
  * Adds a listener to a plugin event.
  *
+ * This is meant to be used by plugin authors to wrap the `register_listener`
+ * command their mobile plugin implements; application code normally calls the
+ * wrapper the plugin exposes instead of this function.
+ *
+ * @example
+ * ```typescript
+ * import { addPluginListener } from '@tauri-apps/api/core';
+ *
+ * interface ScanEvent {
+ *   value: string
+ * }
+ *
+ * const listener = await addPluginListener<ScanEvent>(
+ *   'barcode-scanner',
+ *   'scan',
+ *   (payload) => console.log('scanned', payload.value)
+ * );
+ *
+ * // stop listening when the scanner screen is closed
+ * await listener.unregister();
+ * ```
+ *
+ * @param plugin The plugin name, as used in the `plugin:<name>|<command>` IPC command format.
+ * @param event The plugin event name.
+ * @param cb The callback executed for each event payload.
  * @returns The listener object to stop listening to the events.
  *
  * @since 2.0.0
@@ -204,7 +296,28 @@ type PermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'
 /**
  * Get permission state for a plugin.
  *
- * This should be used by plugin authors to wrap their actual implementation.
+ * This should be used by plugin authors to wrap their actual implementation,
+ * it calls the `plugin:<name>|check_permissions` command implemented by the
+ * mobile plugin and returns its permission status object without prompting
+ * the user.
+ *
+ * @example
+ * ```typescript
+ * import { checkPermissions, type PermissionState } from '@tauri-apps/api/core';
+ *
+ * interface Permissions {
+ *   camera: PermissionState
+ * }
+ *
+ * const status = await checkPermissions<Permissions>('barcode-scanner');
+ * if (status.camera === 'prompt') {
+ *   // ask the user, see requestPermissions
+ * }
+ * ```
+ *
+ * @param plugin The plugin name, as used in the `plugin:<name>|<command>` IPC command format.
+ *
+ * @since 2.0.0
  */
 async function checkPermissions<T>(plugin: string): Promise<T> {
   return invoke(`plugin:${plugin}|check_permissions`)
@@ -213,7 +326,28 @@ async function checkPermissions<T>(plugin: string): Promise<T> {
 /**
  * Request permissions.
  *
- * This should be used by plugin authors to wrap their actual implementation.
+ * This should be used by plugin authors to wrap their actual implementation,
+ * it calls the `plugin:<name>|request_permissions` command implemented by the
+ * mobile plugin, which shows the native permission prompt when needed, and
+ * returns the resulting permission status object.
+ *
+ * @example
+ * ```typescript
+ * import { requestPermissions, type PermissionState } from '@tauri-apps/api/core';
+ *
+ * interface Permissions {
+ *   camera: PermissionState
+ * }
+ *
+ * const status = await requestPermissions<Permissions>('barcode-scanner');
+ * if (status.camera !== 'granted') {
+ *   throw new Error('camera permission denied');
+ * }
+ * ```
+ *
+ * @param plugin The plugin name, as used in the `plugin:<name>|<command>` IPC command format.
+ *
+ * @since 2.0.0
  */
 async function requestPermissions<T>(plugin: string): Promise<T> {
   return invoke(`plugin:${plugin}|request_permissions`)
@@ -221,6 +355,35 @@ async function requestPermissions<T>(plugin: string): Promise<T> {
 
 /**
  * Command arguments.
+ *
+ * An object is the usual form: each key becomes a command parameter, serialized
+ * as JSON (`application/octet-stream` is used instead when a value implements
+ * {@linkcode SERIALIZE_TO_IPC_FN}, see its documentation).
+ *
+ * The `ArrayBuffer`, `Uint8Array` and `number[]` variants are a *raw payload*:
+ * the whole request body is sent as `application/octet-stream` instead of JSON,
+ * which avoids the cost of base64/array encoding for large binary data. The
+ * command then has a single [`tauri::ipc::Request`](https://docs.rs/tauri/2/tauri/ipc/struct.Request.html)
+ * parameter and reads the bytes from it:
+ *
+ * ```rust
+ * #[tauri::command]
+ * fn upload(request: tauri::ipc::Request<'_>) -> Result<(), String> {
+ *   let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+ *     return Err("expected a raw body".into());
+ *   };
+ *   println!("got {} bytes", bytes.len());
+ *   Ok(())
+ * }
+ * ```
+ *
+ * ```typescript
+ * import { invoke } from '@tauri-apps/api/core';
+ * await invoke('upload', new Uint8Array([1, 2, 3]));
+ * ```
+ *
+ * A command that returns [`tauri::ipc::Response`](https://docs.rs/tauri/2/tauri/ipc/struct.Response.html)
+ * likewise resolves to an `ArrayBuffer` on the frontend instead of a JSON value.
  *
  * @since 1.0.0
  */
@@ -230,6 +393,22 @@ type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array
  * @since 2.0.0
  */
 interface InvokeOptions {
+  /**
+   * Headers to send along with the IPC request.
+   *
+   * They are readable on the Rust side through
+   * [`tauri::ipc::Request::headers`](https://docs.rs/tauri/2/tauri/ipc/struct.Request.html#method.headers)
+   * and are useful to pass metadata (such as a content type for a raw payload)
+   * without adding it to the command arguments.
+   *
+   * @example
+   * ```typescript
+   * import { invoke } from '@tauri-apps/api/core';
+   * await invoke('upload', new Uint8Array([1, 2, 3]), {
+   *   headers: { 'x-file-name': 'image.png' }
+   * });
+   * ```
+   */
   headers: HeadersInit
 }
 
@@ -311,6 +490,9 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  * in the Javascript world, and thus will not be cleaned up automatically
  * except on application exit. If you want to clean it up early, call {@linkcode Resource.close} or use [Explicit Resource Management].
  *
+ * Several API types are resources and inherit this behavior, among them `Menu`,
+ * `TrayIcon`, `Image`, `Webview` and the menu item classes.
+ *
  * To support older browsers with [Explicit Resource Management], use a supported compiler (e.g. tsc) or bundler (e.g. rollup).
  *
  * @example
@@ -329,18 +511,20 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  * }
  * ```
  *
- * To use with [Explicit Resource Management]:
+ * Only asynchronous disposal is implemented (`Symbol.asyncDispose`), because closing
+ * a resource is an IPC call. Use `await using`; the synchronous `using` form does
+ * **not** work with resources.
  *
  * @example
  * ```
  * await using db = await DatabaseHandle.open('test.db');
  * await db.execute('SELECT *');
+ * // `db` is closed here, by awaiting `db[Symbol.asyncDispose]()`
  * ```
  *
  * To support older browsers, add the following to the globals (e.g. adding to the HTML file):
  *
  * ```javascript
- * Symbol.dispose ??= Symbol("Symbol.dispose");
  * Symbol.asyncDispose ??= Symbol("Symbol.asyncDispose");
  * ```
  *
@@ -371,6 +555,9 @@ export class Resource {
   /**
    * Destroys and cleans up this resource from memory.
    * **You should not call any method on this object anymore and should drop any reference to it.**
+   *
+   * @remarks Uses the `core:resources:allow-close` permission, which is part of
+   * the `core:resources:default` permission set enabled by default.
    */
   async close(): Promise<void> {
     return invoke('plugin:resources|close', {
@@ -383,6 +570,25 @@ export class Resource {
   }
 }
 
+/**
+ * Checks whether the code is running inside a Tauri webview.
+ *
+ * Useful for frontends that are also served on the web, to guard calls to APIs
+ * that only exist inside the application.
+ *
+ * @example
+ * ```typescript
+ * import { isTauri } from '@tauri-apps/api/core';
+ * import { getVersion } from '@tauri-apps/api/app';
+ *
+ * const version = isTauri() ? await getVersion() : 'web';
+ * ```
+ *
+ * @returns `true` when running inside a Tauri app, `false` otherwise (e.g. in a
+ * browser or in unit tests).
+ *
+ * @since 2.0.0
+ */
 function isTauri(): boolean {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   return !!((globalThis as any) || window).isTauri

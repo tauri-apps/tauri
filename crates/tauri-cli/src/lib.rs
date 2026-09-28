@@ -38,13 +38,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
 use std::process::{Command, ExitStatus, Output, Stdio, exit};
 use std::{
-  ffi::OsString,
-  fmt::Display,
-  fs::read_to_string,
-  io::BufRead,
-  path::PathBuf,
-  str::FromStr,
-  sync::{Arc, Mutex},
+  ffi::OsString, fmt::Display, fs::read_to_string, io::BufRead, path::PathBuf, str::FromStr,
 };
 
 use crate::error::Context;
@@ -365,53 +359,50 @@ impl CommandExt for Command {
       .with_context(|| format!("failed to run command `{cmdline}`"))?;
 
     let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
-    let stdout_lines = Arc::new(Mutex::new(Vec::new()));
-    let stdout_lines_ = stdout_lines.clone();
-    std::thread::spawn(move || {
+    let stdout_thread = std::thread::spawn(move || {
       let mut line = String::new();
-      if let Ok(mut lines) = stdout_lines_.lock() {
-        loop {
-          line.clear();
-          match stdout.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {
-              log::debug!(action = "stdout"; "{}", line.trim_end());
-              lines.extend(line.as_bytes());
-            }
-            Err(_) => (),
+      let mut lines = Vec::new();
+      loop {
+        line.clear();
+        match stdout.read_line(&mut line) {
+          Ok(0) => break,
+          Ok(_) => {
+            log::debug!(action = "stdout"; "{}", line.trim_end());
+            lines.extend(line.as_bytes());
           }
+          Err(_) => (),
         }
       }
+      lines
     });
 
     let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
-    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-    let stderr_lines_ = stderr_lines.clone();
-    std::thread::spawn(move || {
+    let stderr_thread = std::thread::spawn(move || {
       let mut line = String::new();
-      if let Ok(mut lines) = stderr_lines_.lock() {
-        loop {
-          line.clear();
-          match stderr.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {
-              log::debug!(action = "stderr"; "{}", line.trim_end());
-              lines.extend(line.as_bytes());
-            }
-            Err(_) => (),
+      let mut lines = Vec::new();
+      loop {
+        line.clear();
+        match stderr.read_line(&mut line) {
+          Ok(0) => break,
+          Ok(_) => {
+            log::debug!(action = "stderr"; "{}", line.trim_end());
+            lines.extend(line.as_bytes());
           }
+          Err(_) => (),
         }
       }
+      lines
     });
 
     let status = child
       .wait()
       .with_context(|| format!("failed to run command `{cmdline}`"))?;
 
+    // wait for the readers to reach EOF so the output is complete
     let output = Output {
       status,
-      stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
-      stderr: std::mem::take(&mut *stderr_lines.lock().unwrap()),
+      stdout: stdout_thread.join().unwrap_or_default(),
+      stderr: stderr_thread.join().unwrap_or_default(),
     };
 
     if output.status.success() {
@@ -440,5 +431,20 @@ mod tests {
   fn help_output_includes_build() {
     let help = Cli::command().render_help().to_string();
     assert!(help.contains("Build"));
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn output_ok_captures_all_output() {
+    use crate::CommandExt;
+
+    for _ in 0..20 {
+      let output = std::process::Command::new("sh")
+        .args(["-c", "echo out1; echo err1 >&2; echo out2; echo err2 >&2"])
+        .output_ok()
+        .unwrap();
+      assert_eq!(output.stdout, b"out1\nout2\n");
+      assert_eq!(output.stderr, b"err1\nerr2\n");
+    }
   }
 }

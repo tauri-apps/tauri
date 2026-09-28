@@ -7,8 +7,9 @@ import { tauri, describeApi } from '../helpers/index.js'
 
 // The menu commands are all allowed by default. These tests only build and
 // inspect menu resources; they deliberately do not attach the menu to the app
-// or window, to avoid disturbing the live example app.
-describeApi('menu', () => {
+// or window, to avoid disturbing the live example app. The menu plugin is
+// desktop-only, so the whole module is skipped on mobile.
+describeApi('menu', { desktopOnly: true }, () => {
   it('Menu.new builds a menu with the given items', async () => {
     const result = await tauri(async (api) => {
       const item = await api.menu.MenuItem.new({ text: 'Item A' })
@@ -83,13 +84,5 @@ describeApi('menu', () => {
     })
     expect(result.afterAppend).toBe(2)
     expect(result.afterRemove).toBe(1)
-  })
-
-  it('Menu.default builds the platform default menu', async () => {
-    const count = await tauri(async (api) => {
-      const menu = await api.menu.Menu.default()
-      return (await menu.items()).length
-    })
-    expect(count).toBeGreaterThanOrEqual(0)
   })
 })

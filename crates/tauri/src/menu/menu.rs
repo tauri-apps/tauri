@@ -108,8 +108,8 @@ impl<R: Runtime> Menu<R> {
     let app_handle = handle.clone();
 
     let id = id.into();
-    let menu = run_main_thread!(handle, || {
-      let menu = muda::Menu::with_id(id.clone());
+    let menu = run_main_thread!(handle, move || {
+      let menu = muda::Menu::with_id(id);
       MenuInner::new(app_handle, menu)
     })?;
 

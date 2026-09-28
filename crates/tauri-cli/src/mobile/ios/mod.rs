@@ -556,7 +556,8 @@ pub fn synchronize_project_config(
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config.identifier.clone();
+  // use the same sanitized identifier as the Xcode project template and export options
+  let identifier = config.app().identifier();
   let product_name = tauri_config.product_name.clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
@@ -574,26 +575,26 @@ pub fn synchronize_project_config(
       }
 
       if let Some(team) = config.development_team() {
-        let team = format!("\"{team}\"");
+        let team = pbxproj::quote(team);
         pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", &team);
       }
 
       pbxproj.set_build_settings(
         &build_configuration_ref.id,
         "PRODUCT_BUNDLE_IDENTIFIER",
-        &identifier,
+        identifier,
       );
 
       if let Some(product_name) = &product_name {
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
           "PRODUCT_NAME",
-          &format!("\"{product_name}\""),
+          &pbxproj::quote(product_name),
         );
       }
 
       if let Some(identity) = &project_config.code_sign_identity {
-        let identity = format!("\"{identity}\"");
+        let identity = pbxproj::quote(identity);
         pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_IDENTITY", &identity);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
@@ -603,7 +604,7 @@ pub fn synchronize_project_config(
       }
 
       if let Some(id) = &project_config.team_id {
-        let id = format!("\"{id}\"");
+        let id = pbxproj::quote(id);
         pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", &id);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
@@ -613,7 +614,7 @@ pub fn synchronize_project_config(
       }
 
       if let Some(profile_uuid) = &project_config.provisioning_profile_uuid {
-        let profile_uuid = format!("\"{profile_uuid}\"");
+        let profile_uuid = pbxproj::quote(profile_uuid);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
           "PROVISIONING_PROFILE_SPECIFIER",
@@ -669,7 +670,7 @@ pub fn synchronize_project_config(
       {
         export_options_plist.insert(
           "signingCertificate".to_string(),
-          identity.value.trim_matches('"').into(),
+          pbxproj::unquote(&identity.value).into(),
         );
       }
 
@@ -680,7 +681,7 @@ pub fn synchronize_project_config(
           build_configuration
             .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
             .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
-            .map(|setting| setting.value.trim_matches('"').to_string())
+            .map(|setting| pbxproj::unquote(&setting.value))
         });
       if let Some(profile_uuid) = profile_uuid {
         let mut provisioning_profiles = plist::Dictionary::new();
@@ -696,7 +697,7 @@ pub fn synchronize_project_config(
       .get_build_setting("\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"")
       .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
     {
-      export_options_plist.insert("teamID".to_string(), id.value.trim_matches('"').into());
+      export_options_plist.insert("teamID".to_string(), pbxproj::unquote(&id.value).into());
     }
   }
 

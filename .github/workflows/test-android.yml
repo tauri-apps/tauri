@@ -17,6 +17,12 @@ on:
       - 'crates/tauri/mobile/android-codegen/**'
   workflow_dispatch:
 
+env:
+  RUST_BACKTRACE: 1
+  # Same values as test-cli-rs.yml: rust-cache hashes the CARGO_*/RUST* variables into its key,
+  # and this workflow restores the `tauri-cli` entry saved there.
+  CARGO_PROFILE_DEV_DEBUG: 0
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -74,9 +80,14 @@ jobs:
           done
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Restore-only: test-cli-rs saves this entry on `dev`; see test-cli-rs.yml.
+          shared-key: tauri-cli
+          save-if: false
 
       - name: build and install CLI
-        run: cargo install tauri-cli --path ./crates/tauri-cli/ --locked --debug
+        # `--target-dir` so the build reuses the cached dependencies instead of a temporary dir
+        run: cargo install tauri-cli --path ./crates/tauri-cli/ --locked --debug --target-dir target
 
       - run: pnpm i --frozen-lockfile
 

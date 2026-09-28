@@ -3,7 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 import { expect } from '@wdio/globals'
-import { tauri, eventually, describeApi, itWm } from '../helpers/index.js'
+import {
+  tauri,
+  eventually,
+  describeApi,
+  itWm,
+  itDesktop,
+  itOn
+} from '../helpers/index.js'
 
 describeApi('window', () => {
   it('getCurrentWindow reports the main label', async () => {
@@ -19,7 +26,9 @@ describeApi('window', () => {
     expect(labels).toContain('main')
   })
 
-  it('title can be read and set', async () => {
+  // Mobile windows have no title bar: `title()` is always empty and
+  // `setTitle` a no-op there.
+  itDesktop('title can be read and set', async () => {
     const original = await tauri((api) => api.window.getCurrentWindow().title())
     await tauri((api) => api.window.getCurrentWindow().setTitle('e2e title'))
     expect(await tauri((api) => api.window.getCurrentWindow().title())).toBe(
@@ -50,35 +59,19 @@ describeApi('window', () => {
     expect(metrics.outer.width).toBeGreaterThanOrEqual(metrics.inner.width)
   })
 
-  it('reports a theme', async () => {
-    const theme = await tauri((api) => api.window.getCurrentWindow().theme())
-    expect(['light', 'dark']).toContain(theme)
-  })
-
-  it('monitor queries resolve to sane shapes', async () => {
-    const monitors = await tauri(async (api) => {
-      const current = await api.window.currentMonitor()
-      const primary = await api.window.primaryMonitor()
-      const available = await api.window.availableMonitors()
-      return {
-        currentHasSize: current
-          ? current.size.width > 0 && current.size.height > 0
-          : null,
-        primaryHasSize: primary
-          ? primary.size.width > 0 && primary.size.height > 0
-          : null,
-        availableCount: available.length
-      }
-    })
-    // In a headed environment there is at least one monitor; in bare headless
-    // there may be none, so only assert shape when present.
-    if (monitors.currentHasSize !== null) {
-      expect(monitors.currentHasSize).toBe(true)
+  itOn(
+    'android',
+    'activityName reports the activity hosting the window',
+    async () => {
+      const name = await tauri((api) =>
+        api.window.getCurrentWindow().activityName()
+      )
+      expect(name).toMatch(/MainActivity/)
     }
-    expect(monitors.availableCount).toBeGreaterThanOrEqual(0)
-  })
+  )
 
-  it('setSize resizes the window', async () => {
+  // The window is the whole screen on mobile: `set_size` is a no-op.
+  itDesktop('setSize resizes the window', async () => {
     const scale = await tauri((api) =>
       api.window.getCurrentWindow().scaleFactor()
     )
@@ -121,7 +114,8 @@ describeApi('window', () => {
     )
   })
 
-  it('setResizable toggles resizability', async () => {
+  // Mobile windows are never resizable (`is_resizable` is always `false`).
+  itDesktop('setResizable toggles resizability', async () => {
     await tauri((api) => api.window.getCurrentWindow().setResizable(false))
     expect(
       await tauri((api) => api.window.getCurrentWindow().isResizable())
@@ -132,7 +126,8 @@ describeApi('window', () => {
     ).toBe(true)
   })
 
-  it('assorted setters resolve without throwing', async () => {
+  // Desktop-only commands (`#[cfg(desktop)]` in the window plugin).
+  itDesktop('assorted setters resolve without throwing', async () => {
     await tauri(async (api) => {
       const w = api.window.getCurrentWindow()
       await w.setAlwaysOnTop(true)

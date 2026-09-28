@@ -110,6 +110,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
             let window = builder.build().unwrap();
             tauri::webview::NewWindowResponse::Create { window }
           });
+
+        // Liquid Glass effects need a transparent window to show through
+        #[cfg(target_os = "macos")]
+        {
+          window_builder = window_builder.transparent(true);
+        }
       }
 
       let _webview = window_builder.build()?;

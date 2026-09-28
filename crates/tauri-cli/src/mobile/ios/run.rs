@@ -80,7 +80,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     super::build::Options {
       debug: !options.release,
       targets: Some(vec![]), /* skips IPA build since there's no target */
-      features: Vec::new(),
+      features: options.features,
       config: options.config.clone(),
       build_number: None,
       open: options.open,

@@ -15,6 +15,15 @@
 //! - **x11** *(enabled by default)*: Enables X11 support. Disable this if you only target Wayland.
 //! - **dbus** *(enabled by default)*: Enables dbus dependency for theme support on Linux. Disable this if you do not need theme support or don't want to build the dbus rust crate. The WebView dependencies use dbus either way.
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
+//!   It unlocks the multiwebview APIs, where a [`Window`] (the native window) and a [`Webview`] (the web content it hosts)
+//!   are separate objects instead of the single [`WebviewWindow`] you get by default:
+//!   - `window::WindowBuilder` and `Window::builder` to create a window that has no webview attached to it;
+//!   - `webview::WebviewBuilder` and `Window::add_child` to attach one or more webviews to an existing window;
+//!   - [`Webview::reparent`] to move a webview to another window (it always fails on a [`WebviewWindow`] webview
+//!     when this feature is disabled) and [`Webview::set_auto_resize`] to make a child webview follow the window size;
+//!   - the [`Manager`] getters for these objects: `get_window`, `get_focused_window`, `windows`, `get_webview` and `webviews`.
+//!
+//!   See the [multiwebview example](https://github.com/tauri-apps/tauri/tree/dev/examples/multiwebview).
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
 //! - **objc-exception**: This feature flag is no-op since 2.3.0.
@@ -30,7 +39,7 @@
 //! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **webview-data-url**: Enables usage of data URLs on the webview.
-//! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
+//! - **compression** *(enabled by default)*: Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
 //! - **image-ico**: Adds support to parse `.ico` image, see [`image::Image`].
@@ -407,6 +416,24 @@ impl<R: Runtime> Context<R> {
   }
 
   /// A mutable reference to the config the application was prepared with.
+  ///
+  /// This allows changing the configuration at runtime before the app is built,
+  /// for instance to set the `app > appDirectoriesOverride` config from an environment variable:
+  ///
+  /// ```rust,no_run
+  /// use tauri::utils::config::AppDirectoriesOverride;
+  ///
+  /// let mut context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
+  ///
+  /// if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
+  ///   context.config_mut().app.app_directories_override =
+  ///     Some(AppDirectoriesOverride::Root(data_dir.into()));
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .run(context)
+  ///   .expect("error while running tauri application");
+  /// ```
   #[inline(always)]
   pub fn config_mut(&mut self) -> &mut Config {
     &mut self.config

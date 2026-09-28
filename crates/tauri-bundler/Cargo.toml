@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.9.4"
+version = "2.10.0"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -80,3 +80,6 @@ platform-certs = ["ureq/platform-verifier"]
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+serial_test = "3.5"

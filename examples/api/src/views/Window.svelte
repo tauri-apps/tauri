@@ -102,8 +102,6 @@
 
   const progressBarStatusOptions = Object.values(ProgressBarStatus)
 
-  const mainEl = document.querySelector('main')!
-
   let newWebviewLabel = $state<string>()
 
   let resizable = $state(true)
@@ -156,6 +154,7 @@
   let selectedEffect = $state<Effect>()
   let effectState = $state<EffectState>()
   let effectRadius = $state<number>()
+  let effectInteractive = $state(false)
   let effectR = $state<number>(),
     effectG = $state<number>(),
     effectB = $state<number>(),
@@ -293,7 +292,8 @@
     const payload: Effects = {
       effects,
       state: effectState,
-      radius: effectRadius
+      radius: effectRadius,
+      interactive: effectInteractive
     }
     if (
       Number.isInteger(effectR)
@@ -304,8 +304,8 @@
       payload.color = [effectR!, effectG!, effectB!, effectA!]
     }
 
-    mainEl.classList.remove('bg-primary')
-    mainEl.classList.remove('dark:bg-darkPrimary')
+    // see `:root.window-effects` in app.css
+    document.documentElement.classList.add('window-effects')
     await selectedWebview.clearEffects()
     await selectedWebview.setEffects(payload)
   }
@@ -313,8 +313,7 @@
   async function clearEffects() {
     effects = []
     await selectedWebview.clearEffects()
-    mainEl.classList.add('bg-primary')
-    mainEl.classList.add('dark:bg-darkPrimary')
+    document.documentElement.classList.remove('window-effects')
   }
 
   async function updatePosition() {
@@ -944,6 +943,15 @@
           <label>
             Radius
             <input class="input" type="number" bind:value={effectRadius} />
+          </label>
+
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              class="checkbox"
+              bind:checked={effectInteractive}
+            />
+            Interactive
           </label>
         </div>
 

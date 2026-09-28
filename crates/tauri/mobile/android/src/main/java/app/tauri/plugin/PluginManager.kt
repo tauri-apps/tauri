@@ -4,6 +4,7 @@
 
 package app.tauri.plugin
 
+import android.app.Activity
 import android.content.res.Configuration
 import android.content.Context
 import android.content.Intent
@@ -187,20 +188,29 @@ object PluginManager {
 
   @JniMethod
   fun runCommand(id: Int, pluginId: String, command: String, data: String) {
-    val successId = 0L
-    val errorId = 1L
-    val invoke = Invoke(id.toLong(), command, successId, errorId, { fn, result ->
-      var success: String? = null
-      var error: String? = null
-      if (fn == successId) {
-        success = result
-      } else {
-        error = result
-      }
-      handlePluginResponse(id, success, error)
-    }, data, jsonMapper)
-
+    val invoke = Invoke(id.toLong(), command, SUCCESS_ID, ERROR_ID, responseSender(id), data, jsonMapper)
     dispatchPluginMessage(invoke, pluginId)
+  }
+
+  @JniMethod
+  fun runCommandWithContext(id: Int, pluginId: String, command: String, data: String, activity: Activity) {
+    val invoke =
+      Invoke(id.toLong(), command, SUCCESS_ID, ERROR_ID, responseSender(id), data, jsonMapper, activity)
+    dispatchPluginMessage(invoke, pluginId)
+  }
+
+  private const val SUCCESS_ID = 0L
+  private const val ERROR_ID = 1L
+
+  private fun responseSender(id: Int): (Long, String) -> Unit = { fn, result ->
+    var success: String? = null
+    var error: String? = null
+    if (fn == SUCCESS_ID) {
+      success = result
+    } else {
+      error = result
+    }
+    handlePluginResponse(id, success, error)
   }
 
   private fun dispatchPluginMessage(invoke: Invoke, pluginId: String) {

@@ -28,7 +28,14 @@ enum Symlink {
 /// Failing to create a symlink due to permissions issues is also a success
 /// for the purpose of this runner.
 fn symlink_runner(create_symlinks: impl Fn(&Path) -> io::Result<Symlink>) -> Result {
-  let mut compiled_binary = PathBuf::from(env!("OUT_DIR")).join("../../../restart");
+  let out_dir = PathBuf::from(env!("OUT_DIR"));
+  let target_dir = out_dir
+    .ancestors()
+    .find(|path| path.file_name() == Some(std::ffi::OsStr::new("build")))
+    .and_then(|build_dir| build_dir.parent())
+    .map(PathBuf::from)
+    .unwrap_or_else(|| out_dir.join("../../.."));
+  let mut compiled_binary = target_dir.join("restart");
   if cfg!(windows) {
     compiled_binary.set_extension("exe");
   }

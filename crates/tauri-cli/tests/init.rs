@@ -11,9 +11,18 @@ fn init_non_interactive_works() {
   let dir = temp_dir.path();
 
   // Determine the path to the cargo-tauri binary.
-  // The test binary is in target/debug/deps/, so we navigate up to target/debug/
+  // The test binary is in target/debug/deps/ (or target/debug/build/... on nightly),
+  // so we navigate up to target/debug/
   let current_exe = std::env::current_exe().unwrap();
-  let target_debug = current_exe.parent().unwrap().parent().unwrap();
+  let target_debug = current_exe
+    .ancestors()
+    .find(|p| {
+      p.file_name() == Some(std::ffi::OsStr::new("build"))
+        || p.file_name() == Some(std::ffi::OsStr::new("deps"))
+    })
+    .and_then(|p| p.parent())
+    .map(std::path::PathBuf::from)
+    .unwrap_or_else(|| current_exe.parent().unwrap().parent().unwrap().to_path_buf());
   let cargo_tauri = if cfg!(windows) {
     target_debug.join("cargo-tauri.exe")
   } else {

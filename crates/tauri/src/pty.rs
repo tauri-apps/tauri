@@ -148,7 +148,7 @@ impl SafeFd {
       return Err(PtyError::InvalidDescriptor(format!("file descriptor must be non-negative, got {fd}")));
     }
     Ok(Self {
-      fd: AtomicI32::new(fd as i32),
+      fd: AtomicI32::new(fd),
     })
   }
 
@@ -158,7 +158,7 @@ impl SafeFd {
     if fd < 0 {
       Err(PtyError::AlreadyClosed)
     } else {
-      Ok(fd as RawFd)
+      Ok(fd)
     }
   }
 
@@ -198,7 +198,7 @@ impl Drop for SafeFd {
 #[cfg(unix)]
 impl AsRawFd for SafeFd {
   fn as_raw_fd(&self) -> RawFd {
-    self.fd.load(Ordering::Acquire) as RawFd
+    self.fd.load(Ordering::Acquire)
   }
 }
 

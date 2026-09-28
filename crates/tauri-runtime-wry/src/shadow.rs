@@ -1,122 +1,96 @@
 #![cfg(windows)]
 
+//! DWM-based shadows for frameless windows.
+//!
+//! tao's `undecorated_with_shadows` emulation keeps the native `WS_CAPTION` /
+//! `WS_THICKFRAME` styles alive and carves the client area back in through
+//! `WM_NCCALCSIZE` insets. That leaves a visible frame band on the left,
+//! right and bottom edges (the width of the resize frame), which is why
+//! frameless windows cannot have borders and shadows independently
+//! (tauri#13134). Instead, frameless windows stay plain (client area equal to
+//! the window rect) and the shadow is anchored by extending the DWM frame
+//! into the client area by one pixel on the left, right and bottom edges.
+//!
+//! - The top edge stays at zero: on Windows 10, any nonclient area at the top
+//!   makes the system draw a full native titlebar.
+//! - `DWMWA_BORDER_COLOR` is set to `COLOR_NONE` so the frame extension
+//!   anchors the shadow without painting a visible outline. The attribute is
+//!   Windows 11+; on Windows 10 the call fails silently and the system
+//!   default outline remains.
+//! - Corner rounding is intentionally left at the system default (rounded on
+//!   Windows 11) instead of forcing `DWMWCP_DONOTROUND`, so frameless windows
+//!   look like every other window on the platform.
+
 use std::mem::size_of;
 use windows::Win32::{
   Foundation::HWND,
   Graphics::Dwm::{
-    DwmExtendFrameIntoClientArea, DwmSetWindowAttribute, DWMNCRP_DISABLED, DWMNCRP_ENABLED,
-    DWMWA_BORDER_COLOR, DWMWA_NCRENDERING_POLICY, DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
-    DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+    DWMNCRP_ENABLED, DWMNCRP_USEWINDOWSTYLE, DWMWA_BORDER_COLOR, DWMWA_NCRENDERING_POLICY,
+    DwmExtendFrameIntoClientArea, DwmSetWindowAttribute,
   },
   UI::Controls::MARGINS,
 };
 
-const RESET_COLOR: u32 = u32::MAX;
-const VISIBLE_BORDER_RESET: u32 = u32::MAX;
-const DWMNCRP_USEWINDOWSTYLE: i32 = 0;
+/// Restores the system default border outline (`DWMWA_COLOR_DEFAULT`).
+const DEFAULT_BORDER_COLOR: u32 = u32::MAX;
 
-pub fn update(hwnd: isize, enabled: bool) {
+/// Draws no border outline at all (`DWMWA_COLOR_NONE`, Windows 11+).
+const NO_BORDER_COLOR: u32 = 0xFFFF_FFFE;
+
+pub fn update(hwnd: isize, shadow: bool) {
+  // The one pixel frame extension anchors the DWM shadow on the left, right
+  // and bottom. The top stays at zero: on Windows 10, any nonclient area at
+  // the top makes the system draw a full native titlebar.
+  let (policy, border_color, margins) = if shadow {
+    (
+      DWMNCRP_ENABLED.0,
+      NO_BORDER_COLOR,
+      MARGINS {
+        cxLeftWidth: 1,
+        cyTopHeight: 0,
+        cxRightWidth: 1,
+        cyBottomHeight: 1,
+      },
+    )
+  } else {
+    // Restore the window-style driven DWM defaults. Used for decorated and
+    // transparent windows as well as frameless windows without shadow.
+    (
+      DWMNCRP_USEWINDOWSTYLE.0,
+      DEFAULT_BORDER_COLOR,
+      MARGINS {
+        cxLeftWidth: 0,
+        cyTopHeight: 0,
+        cxRightWidth: 0,
+        cyBottomHeight: 0,
+      },
+    )
+  };
+
+  // SAFETY: `hwnd` is a live top-level window handle reconstructed from the
+  // `isize` returned by `Window::hwnd()`, and `policy`, `border_color` and
+  // `margins` are initialized values whose sizes match what the DWM APIs
+  // expect for those attributes.
   unsafe {
     let hwnd = HWND(hwnd as _);
-    if enabled {
-      enable(hwnd);
-    } else {
-      disable(hwnd);
-    }
-  }
-}
-
-pub fn reset(hwnd: isize) {
-  unsafe {
-    let hwnd = HWND(hwnd as _);
-    let policy = DWMNCRP_USEWINDOWSTYLE;
-    let _ = DwmSetWindowAttribute(
+    if let Err(e) = DwmSetWindowAttribute(
       hwnd,
       DWMWA_NCRENDERING_POLICY,
       &policy as *const _ as _,
       size_of::<i32>() as u32,
-    );
+    ) {
+      log::warn!("failed to set the DWM nonclient rendering policy: {e}");
+    }
+    // Deliberately not logged: the attribute does not exist before Windows 11,
+    // so a failure here is the expected path on older systems.
     let _ = DwmSetWindowAttribute(
       hwnd,
-      DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
-      &VISIBLE_BORDER_RESET as *const _ as _,
+      DWMWA_BORDER_COLOR,
+      &border_color as *const _ as _,
       size_of::<u32>() as u32,
     );
-    let margins = MARGINS {
-      cxLeftWidth: 0,
-      cxRightWidth: 0,
-      cyTopHeight: 0,
-      cyBottomHeight: 0,
-    };
-    let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
+    if let Err(e) = DwmExtendFrameIntoClientArea(hwnd, &margins) {
+      log::warn!("failed to extend the DWM frame into the client area: {e}");
+    }
   }
-}
-
-unsafe fn enable(hwnd: HWND) {
-  let policy = DWMNCRP_ENABLED.0;
-  let _ = DwmSetWindowAttribute(
-    hwnd,
-    DWMWA_NCRENDERING_POLICY,
-    &policy as *const _ as _,
-    size_of::<i32>() as u32,
-  );
-  let corner = DWMWCP_DONOTROUND.0 as u32;
-  let _ = DwmSetWindowAttribute(
-    hwnd,
-    DWMWA_WINDOW_CORNER_PREFERENCE,
-    &corner as *const _ as _,
-    size_of::<u32>() as u32,
-  );
-  let border_thickness: u32 = 0;
-  let _ = DwmSetWindowAttribute(
-    hwnd,
-    DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
-    &border_thickness as *const _ as _,
-    size_of::<u32>() as u32,
-  );
-  let border_color: u32 = RESET_COLOR;
-  let _ = DwmSetWindowAttribute(
-    hwnd,
-    DWMWA_BORDER_COLOR,
-    &border_color as *const _ as _,
-    size_of::<u32>() as u32,
-  );
-  let margins = MARGINS {
-    cxLeftWidth: 1,
-    cxRightWidth: 1,
-    cyTopHeight: 0,
-    cyBottomHeight: 1,
-  };
-  let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
-}
-
-unsafe fn disable(hwnd: HWND) {
-  let policy = DWMNCRP_DISABLED.0;
-  let _ = DwmSetWindowAttribute(
-    hwnd,
-    DWMWA_NCRENDERING_POLICY,
-    &policy as *const _ as _,
-    size_of::<i32>() as u32,
-  );
-  let border_color = RESET_COLOR;
-  let _ = DwmSetWindowAttribute(
-    hwnd,
-    DWMWA_BORDER_COLOR,
-    &border_color as *const _ as _,
-    size_of::<u32>() as u32,
-  );
-  let reset_thickness: u32 = VISIBLE_BORDER_RESET;
-  let _ = DwmSetWindowAttribute(
-    hwnd,
-    DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
-    &reset_thickness as *const _ as _,
-    size_of::<u32>() as u32,
-  );
-  let margins = MARGINS {
-    cxLeftWidth: 0,
-    cxRightWidth: 0,
-    cyTopHeight: 0,
-    cyBottomHeight: 0,
-  };
-  let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
 }

@@ -1,35 +1,25 @@
 # PRD: #2048: Refactor PTY master slave duplex pipes on Unix platforms
 
-## 1. Problem Statement & Root Cause Analysis
-In Unix-like systems (Linux, macOS, BSD), pseudoterminal (PTY) communication relies on a master/slave bidirectional duplex pair. When the slave process exits or closes its file descriptor:
-- On Linux, reading from the master PTY returns `-1` with `errno == EIO` (Input/Output Error), rather than returning `0` (clean EOF).
-- On BSD and macOS, reading returns `0` bytes.
-- When PTY file descriptors operate in blocking mode without polling timeouts, worker reader threads block indefinitely waiting for EOF or new input.
-- Without explicit atomic state tracking and synchronized handle release, shutting down the PTY master or slave leaks descriptors and hangs background reader threads.
+## 1. Background & Problem Statement
+When working with pseudo-terminals (PTYs) on Unix platforms (Linux, macOS, BSD), the master side reads output produced by slave processes. However, behavior diverges significantly when the slave closes its file descriptor or terminates:
+- On Linux, reading from a master PTY after slave closure produces an `EIO` error (errno 5) rather than the standard 0-byte EOF returned by BSD/macOS systems.
+- Unmanaged blocking reads block reader threads permanently if the child process exits or closes without producing data, as there is no polling timeout or atomic cancellation mechanism.
+- Direct raw file descriptor usage without RAII wrappers risks file descriptor leaks and undefined behavior from double-close.
 
-## 2. Technical Architecture & Component Design
-### 2.1 RAII File Descriptor Management (`SafeFd`)
-- Wraps raw Unix file descriptors in an atomic integer (`AtomicI32`).
-- Ensures thread-safe access, prevents duplicate closes (`EBADF` handling), and implements `Drop` for deterministic resource reclamation.
+## 2. Goals & Objectives
+- Provide a safe, cross-platform Unix pseudo-terminal duplex pipe abstraction (`PtyDuplexPipe`).
+- Normalize EOF behavior across Linux and macOS/BSD so that slave closure cleanly translates into 0 bytes (EOF) without bubbling up raw `EIO` errors.
+- Prevent reader thread deadlocks and hangs by using non-blocking I/O with `libc::poll` and atomic shutdown flags.
+- Provide an ergonomic background reader thread API (`spawn_reader_thread`) with `on_data` and `on_eof` callbacks.
 
-### 2.2 PTY Master/Slave Duplex Pipe (`PtyDuplexPipe`)
-- Initializes master and slave via `libc::openpty` with configurable rows and columns.
-- Configures non-blocking I/O using `fcntl(master_fd, F_SETFL, O_NONBLOCK)`.
-- Configures binary transparency with `libc::cfmakeraw` on the slave terminal descriptor.
-- Provides a `.split()` method to produce independent `PtyReader`, `PtyWriter`, and `PtySlave` handles.
+## 3. Architecture & Key Components
+- `SafeFd`: Thread-safe RAII file descriptor wrapper using `AtomicI32` ensuring idempotent closure.
+- `PtyConfig`: Configuration structure for initial terminal window size (rows, cols) and raw/echo modes.
+- `PtyError`: Strongly typed error enum covering `InvalidDescriptor`, `PipeClosed`, `Timeout`, and standard `Io`.
+- `PtyMaster` & `PtySlave`: Master and slave handle abstractions wrapping `SafeFd`.
+- `PtyReader` & `PtyWriter`: Split reader and writer handles for full-duplex communication.
+- `spawn_reader_thread`: Helper spawning a background thread polling master FD and invoking user callbacks.
 
-### 2.3 Non-Blocking Polling & Clean EOF Interception (`PtyMaster` & `PtyReader`)
-- Uses `libc::poll` with timeout to prevent thread starvation.
-- Detects `POLLHUP` and `POLLERR` disconnection flags and converts them immediately to clean EOF.
-- Traps `libc::EIO`, `libc::EBADF`, and 0-byte reads, cleanly updating `is_closed` atomic state and returning `Ok(0)`.
-
-### 2.4 Worker Reader Thread (`spawn_reader_thread`)
-- Runs a dedicated background reader loop processing incoming data via `on_data`.
-- Upon receiving EOF or pipe closure, immediately invokes `on_eof`, releases underlying descriptors, and terminates cleanly.
-
-## 3. Verification & Test Plan
-- **Config Validation**: Test invalid boundaries (0 rows, 0 cols) and invalid file descriptors.
-- **Bidirectional I/O**: Verify data written to slave is read by master, and data written to master is received.
-- **Clean EOF Propagation**: Simulate slave closure and assert that `spawn_reader_thread` receives EOF and terminates within 3 seconds.
-- **Error Interception**: Verify that closing handles returns `Ok(0)` for subsequent reads rather than raising unhandled OS errors.
-- **Multithreaded Stress**: Concurrently write from slave while reading from master across multiple threads to ensure thread-safety and absence of deadlocks.
+## 4. Acceptance Criteria & Test Plan
+- Verification via `cargo test`.
+- Unit tests validating PTY creation, window resize, write/read roundtrip, clean EOF handling on slave close (handling Linux `EIO` as EOF), and graceful reader thread termination.

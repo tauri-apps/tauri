@@ -1,9 +1,9 @@
 {
-  "task_id": "algora-tauri-2048",
+  "task_id": "tauri-apps-tauri-2048",
   "repo": "tauri-apps/tauri",
   "issue_number": 2048,
   "title": "Refactor PTY master slave duplex pipes on Unix platforms",
-  "body": "Ensure non-blocking EOF signal propagates cleanly without hanging the reader thread.",
+  "body": "",
   "step_1": {
     "repo": "tauri-apps/tauri",
     "target_base_branch": "dev",
@@ -12,33 +12,62 @@
     "language": "Rust",
     "package_manager": "cargo",
     "test_command": "cargo test",
-    "commit_sha": "4f8f562"
+    "commit_sha": "ebf7aa2"
   },
   "step_2": {
-    "root_cause": "Master/Slave PTY 双向管道在 EOF 或退出时读端未正确释放句柄，导致工作线程阻塞。",
+    "root_cause": "On Unix platforms (Linux, macOS, BSD), reading from a pseudoterminal (PTY) master descriptor when the slave process closes its end or terminates exhibits platform-specific behavior: Linux raises EIO (errno 5) rather than returning 0 bytes (EOF), whereas BSD/macOS returns 0 bytes. Furthermore, without non-blocking I/O (O_NONBLOCK) and poll/select polling for POLLHUP/POLLERR events, synchronous read operations hang worker threads indefinitely. Without thread-safe atomic state flags and deterministic RAII handle cleanup, closing the pipe fails to unblock the reader loop, leading to thread hangs and descriptor leaks.",
     "affected_components": [
-      "tauri-apps/tauri/core",
-      "tauri-apps/tauri/api"
+      "crates/tauri/src/pty.rs",
+      "crates/tauri/src/process.rs",
+      "crates/tauri/src/lib.rs"
     ],
-    "proposed_fix": "引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。",
-    "test_strategy": "编写端到端单元测试与异常模拟用例，验证各种边界值与中断行为。",
+    "proposed_fix": "Implement a robust Unix Master/Slave PTY Duplex Pipe abstraction (`PtyDuplexPipe`, `PtyMaster`, `PtySlave`, `PtyReader`, `PtyWriter`) featuring: (1) Safe RAII file descriptor management (`SafeFd`) with atomic descriptor storage preventing handle leaks and double-close issues; (2) Non-blocking I/O configuration via `fcntl(O_NONBLOCK)` combined with `libc::poll` event filtering for `POLLIN`, `POLLHUP`, and `POLLERR`; (3) Precise error interception converting Linux `EIO`, `EBADF`, `POLLHUP`, and 0-byte reads into a clean EOF return (0 bytes) and atomic `is_closed` transition; (4) A dedicated reader thread worker (`spawn_reader_thread`) that exits immediately upon EOF or handle closure, invoking lifecycle callbacks (`on_data`, `on_eof`) without hanging.",
+    "test_strategy": "Implement comprehensive unit and integration tests under `crates/tauri/src/pty.rs`: (1) Configuration validation tests verifying terminal rows/cols boundary constraints; (2) Safe descriptor guard tests verifying negative FD rejection and idempotent closing; (3) Bidirectional duplex communication test writing to slave and reading from master; (4) Asynchronous EOF propagation test asserting reader thread terminates promptly (< 3s) upon slave close without hanging; (5) Defensive pre-validation tests checking zero-sized buffer handling and post-close error types; (6) Multithreaded duplex stress test confirming concurrent read/write stability.",
     "requirements_mapping": [
       {
-        "requirement": "解决 Issue #2048: Refactor PTY master slave duplex pipes on Unix platforms",
+        "requirement": "Non-blocking Unix PTY master/slave duplex pipe initialization",
         "affected_locations": [
-          "tauri-apps/tauri/core",
-          "tauri-apps/tauri/api"
+          "crates/tauri/src/pty.rs"
         ],
-        "current_defect": "Master/Slave PTY 双向管道在 EOF 或退出时读端未正确释放句柄，导致工作线程阻塞。",
-        "actionable_task": "引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。"
+        "current_defect": "Standard pipe or blocking PTY initialization can block worker threads indefinitely on read/write syscalls when no data is ready.",
+        "actionable_task": "Implement `PtyDuplexPipe::open` using `libc::openpty`, configuring `O_NONBLOCK` on master FD and raw mode on slave FD, encapsulated in thread-safe `SafeFd` handles."
+      },
+      {
+        "requirement": "Clean EOF signal propagation across Unix variants (Linux EIO and BSD/macOS EOF)",
+        "affected_locations": [
+          "crates/tauri/src/pty.rs"
+        ],
+        "current_defect": "Closing the slave end triggers EIO on Linux master reads and 0-byte reads on BSD/macOS. Treating EIO as an I/O failure rather than EOF crashes or stalls reader streams.",
+        "actionable_task": "Implement error normalization in `PtyMaster::read` to catch `libc::EIO`, `libc::EBADF`, and `libc::POLLHUP`, cleanly transitioning state to closed and returning 0 (EOF)."
+      },
+      {
+        "requirement": "Prevent reader worker thread hanging upon termination",
+        "affected_locations": [
+          "crates/tauri/src/pty.rs"
+        ],
+        "current_defect": "Reader threads reading from master PTY descriptors lack timeout mechanisms and atomic cancellation, hanging worker threads indefinitely upon process exit.",
+        "actionable_task": "Implement `PtyReader::spawn_reader_thread` with non-blocking poll timeouts, atomic cancellation checks, and deterministic post-loop FD closure and EOF notification."
+      },
+      {
+        "requirement": "Public API export and module integration",
+        "affected_locations": [
+          "crates/tauri/src/lib.rs",
+          "crates/tauri/src/process.rs"
+        ],
+        "current_defect": "PTY duplex pipe abstractions are not exposed through the Tauri library API or process module.",
+        "actionable_task": "Declare `pub mod pty` in `crates/tauri/src/lib.rs` and re-export `pty` in `crates/tauri/src/process.rs`."
       }
     ],
     "tasks_to_do": [
-      "检查并修正受影响模块: [\"tauri-apps/tauri/core\", \"tauri-apps/tauri/api\"]",
-      "实装核心防御性修复: 引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。",
-      "按测试策略「编写端到端单元测试与异常模拟用例，验证各种边界值与中断行为。」增加回归单测"
+      "Task 1: Define `PtyConfig` and `PtyError` enum with granular error variants (`InvalidDescriptor`, `PipeClosed`, `Timeout`, `Io`) and `is_eof()` helper in `crates/tauri/src/pty.rs`",
+      "Task 2: Implement RAII descriptor wrapper `SafeFd` with atomic operations and idempotent `close()` avoiding double-close vulnerabilities",
+      "Task 3: Implement `PtyDuplexPipe::open()` with `libc::openpty()`, window size configuration, `O_NONBLOCK` flags, and terminal raw mode setup",
+      "Task 4: Implement `PtyMaster::read()` and `PtyMaster::write()` with `libc::poll` readiness polling, non-blocking timeouts, and precise Linux `EIO` to EOF conversion",
+      "Task 5: Implement `PtyReader::spawn_reader_thread()` supporting `on_data` and `on_eof` callbacks with deterministic thread termination upon EOF or channel close",
+      "Task 6: Re-export `pty` module in `crates/tauri/src/lib.rs` and `crates/tauri/src/process.rs`",
+      "Task 7: Add unit and integration tests in `crates/tauri/src/pty.rs` covering configuration, bidirectional transmission, clean EOF propagation, and concurrent stress testing"
     ],
-    "prd_markdown": "# PRD 需求诊断说明书: tauri-apps/tauri #2048\n\n## 1. 核心缺陷机理与根因剖析\nMaster/Slave PTY 双向管道在 EOF 或退出时读端未正确释放句柄，导致工作线程阻塞。\n\n## 2. 影响模块与范围\n- tauri-apps/tauri/core\n- tauri-apps/tauri/api\n\n## 3. PRD 技术实现方案与修改蓝图\n引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。\n\n## 4. TDD 自动化测试验证策略\n编写端到端单元测试与异常模拟用例，验证各种边界值与中断行为。\n\n## 5. 需求与代码关系对照矩阵\n- 需求点: 解决 Issue #2048: Refactor PTY master slave duplex pipes on Unix platforms ➔ 模块: [\"tauri-apps/tauri/core\", \"tauri-apps/tauri/api\"] ➔ 缺陷: Master/Slave PTY 双向管道在 EOF 或退出时读端未正确释放句柄，导致工作线程阻塞。 ➔ 改动: 引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。\n\n## 6. 具体实装任务清单\n- [ ] 检查并修正受影响模块: [\"tauri-apps/tauri/core\", \"tauri-apps/tauri/api\"]\n- [ ] 实装核心防御性修复: 引入防御性前置校验与精准异常拦截，避免底层错误击穿服务层。\n- [ ] 按测试策略「编写端到端单元测试与异常模拟用例，验证各种边界值与中断行为。」增加回归单测\n"
+    "prd_markdown": "# PRD: #2048: Refactor PTY master slave duplex pipes on Unix platforms\n\n## 1. Problem Statement & Root Cause Analysis\nIn Unix-like systems (Linux, macOS, BSD), pseudoterminal (PTY) communication relies on a master/slave bidirectional duplex pair. When the slave process exits or closes its file descriptor:\n- On Linux, reading from the master PTY returns `-1` with `errno == EIO` (Input/Output Error), rather than returning `0` (clean EOF).\n- On BSD and macOS, reading returns `0` bytes.\n- When PTY file descriptors operate in blocking mode without polling timeouts, worker reader threads block indefinitely waiting for EOF or new input.\n- Without explicit atomic state tracking and synchronized handle release, shutting down the PTY master or slave leaks descriptors and hangs background reader threads.\n\n## 2. Technical Architecture & Component Design\n### 2.1 RAII File Descriptor Management (`SafeFd`)\n- Wraps raw Unix file descriptors in an atomic integer (`AtomicI32`).\n- Ensures thread-safe access, prevents duplicate closes (`EBADF` handling), and implements `Drop` for deterministic resource reclamation.\n\n### 2.2 PTY Master/Slave Duplex Pipe (`PtyDuplexPipe`)\n- Initializes master and slave via `libc::openpty` with configurable rows and columns.\n- Configures non-blocking I/O using `fcntl(master_fd, F_SETFL, O_NONBLOCK)`.\n- Configures binary transparency with `libc::cfmakeraw` on the slave terminal descriptor.\n- Provides a `.split()` method to produce independent `PtyReader`, `PtyWriter`, and `PtySlave` handles.\n\n### 2.3 Non-Blocking Polling & Clean EOF Interception (`PtyMaster` & `PtyReader`)\n- Uses `libc::poll` with timeout to prevent thread starvation.\n- Detects `POLLHUP` and `POLLERR` disconnection flags and converts them immediately to clean EOF.\n- Traps `libc::EIO`, `libc::EBADF`, and 0-byte reads, cleanly updating `is_closed` atomic state and returning `Ok(0)`.\n\n### 2.4 Worker Reader Thread (`spawn_reader_thread`)\n- Runs a dedicated background reader loop processing incoming data via `on_data`.\n- Upon receiving EOF or pipe closure, immediately invokes `on_eof`, releases underlying descriptors, and terminates cleanly.\n\n## 3. Verification & Test Plan\n- **Config Validation**: Test invalid boundaries (0 rows, 0 cols) and invalid file descriptors.\n- **Bidirectional I/O**: Verify data written to slave is read by master, and data written to master is received.\n- **Clean EOF Propagation**: Simulate slave closure and assert that `spawn_reader_thread` receives EOF and terminates within 3 seconds.\n- **Error Interception**: Verify that closing handles returns `Ok(0)` for subsequent reads rather than raising unhandled OS errors.\n- **Multithreaded Stress**: Concurrently write from slave while reading from master across multiple threads to ensure thread-safety and absence of deadlocks."
   },
   "step_3": {
     "prompt_dispatched": "Inherited Step 2 PRD for #2048: Refactor PTY master slave duplex pipes on Unix platforms",

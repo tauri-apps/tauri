@@ -305,6 +305,7 @@ impl<R: Runtime> AppManager<R> {
         icons: Default::default(),
         global_event_listeners: Mutex::new(tray_icon_event_listeners),
         event_listeners: Default::default(),
+        menu_event_listeners: Default::default(),
       },
       #[cfg(desktop)]
       menu: menu::MenuManager {

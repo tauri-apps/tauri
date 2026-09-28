@@ -427,11 +427,11 @@ impl<R: Runtime> TrayIcon<R> {
     if let Some(handler) = on_menu_event {
       app_handle
         .manager
-        .menu
-        .global_event_listeners
+        .tray
+        .menu_event_listeners
         .lock()
         .unwrap()
-        .push(handler);
+        .insert(self.id.clone(), handler);
     }
 
     if let Some(handler) = on_tray_icon_event {
@@ -468,11 +468,11 @@ impl<R: Runtime> TrayIcon<R> {
     self
       .app_handle
       .manager
-      .menu
-      .global_event_listeners
+      .tray
+      .menu_event_listeners
       .lock()
       .unwrap()
-      .push(Box::new(f));
+      .insert(self.id.clone(), Box::new(f));
   }
 
   /// Register a handler for this tray icon events.
@@ -653,6 +653,13 @@ impl<R: Runtime> Resource for TrayIcon<R> {
 
 #[cfg(test)]
 mod tests {
+  use super::*;
+  use crate::menu::MenuId;
+  use crate::sealed::ManagerBase;
+  use crate::test::mock_app;
+  use std::sync::Arc;
+  use std::sync::atomic::{AtomicBool, Ordering};
+
   #[test]
   fn tray_event_json_serialization() {
     // NOTE: if this test is ever changed, you probably need to change `TrayIconEvent` in JS as well
@@ -696,6 +703,89 @@ mod tests {
               },
           }
       })
+    );
+  }
+
+  #[test]
+  fn test_tray_menu_event_isolation() {
+    let app = mock_app();
+
+    let tray1_triggered = Arc::new(AtomicBool::new(false));
+    let tray2_triggered = Arc::new(AtomicBool::new(false));
+
+    let t1_flag = tray1_triggered.clone();
+    let _tray1 = TrayIconBuilder::with_id("tray-1")
+      .on_menu_event(move |_, _| {
+        t1_flag.store(true, Ordering::SeqCst);
+      })
+      .build(&app)
+      .unwrap();
+
+    let t2_flag = tray2_triggered.clone();
+    let _tray2 = TrayIconBuilder::with_id("tray-2")
+      .on_menu_event(move |_, _| {
+        t2_flag.store(true, Ordering::SeqCst);
+      })
+      .build(&app)
+      .unwrap();
+
+    let mock_event = MenuEvent {
+      id: MenuId::new("item-1"),
+    };
+
+    if let Some(handler) = app
+      .manager()
+      .tray
+      .menu_event_listeners
+      .lock()
+      .unwrap()
+      .get(&TrayIconId::new("tray-1"))
+    {
+      handler(app.handle(), mock_event);
+    }
+
+    assert!(
+      tray1_triggered.load(Ordering::SeqCst),
+      "Tray 1 event listener should have been executed"
+    );
+    assert!(
+      !tray2_triggered.load(Ordering::SeqCst),
+      "Tray 2 event listener should NOT have been executed"
+    );
+  }
+
+  #[test]
+  fn test_tray_on_menu_event_mutation_behavior() {
+    let app = mock_app();
+    let triggered = Arc::new(AtomicBool::new(false));
+
+    let tray = TrayIconBuilder::with_id("test-tray-mutate")
+      .build(&app)
+      .unwrap();
+
+    let t_flag = triggered.clone();
+    tray.on_menu_event(move |_, _| {
+      t_flag.store(true, Ordering::SeqCst);
+    });
+
+    let mock_event = MenuEvent {
+      id: MenuId::new("item-1"),
+    };
+
+    if let Some(handler) = app
+      .manager()
+      .tray
+      .menu_event_listeners
+      .lock()
+      .unwrap()
+      .get(&TrayIconId::new("test-tray-mutate"))
+    {
+      handler(app.handle(), mock_event);
+    }
+
+    assert!(
+      triggered.load(Ordering::SeqCst),
+      "Mutated on_menu_event closure should be executed"
     );
   }
 }

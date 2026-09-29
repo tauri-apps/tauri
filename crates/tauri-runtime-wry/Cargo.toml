@@ -64,6 +64,7 @@ jni = "0.21"
 default = ["x11", "dbus"]
 devtools = ["wry/devtools", "tauri-runtime/devtools"]
 x11 = ["tao/x11", "wry/x11"]
+# TODO: Remove in v3 - wry does not have this feature anymore
 macos-private-api = ["tauri-runtime/macos-private-api"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []

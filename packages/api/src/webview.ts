@@ -852,7 +852,7 @@ interface WebviewOptions {
   height: number
   /**
    * Whether the webview is transparent or not.
-   * 
+   *
    * On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
    */
   transparent?: boolean

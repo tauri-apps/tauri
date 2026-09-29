@@ -2879,7 +2879,7 @@ interface WindowOptions {
   focusable?: boolean
   /**
    * Whether the window is transparent or not.
-   * 
+   *
    * On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
    */
   transparent?: boolean

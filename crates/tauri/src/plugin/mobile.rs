@@ -304,7 +304,9 @@ impl<R: Runtime> PluginHandle<R> {
       command,
       serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
       move |response| {
-        tx.lock().unwrap().take().unwrap().send(response).unwrap();
+        if let Some(tx) = tx.lock().unwrap().take() {
+          let _ = tx.send(response);
+        }
       },
     )?;
 
@@ -326,6 +328,8 @@ impl<R: Runtime> PluginHandle<R> {
     command: impl AsRef<str>,
     payload: impl Serialize,
   ) -> Result<T, PluginInvokeError> {
+    #[cfg(target_env = "ohos")]
+    ohos::ensure_worker_thread()?;
     let (tx, rx) = channel();
     run_command(
       self.name,
@@ -350,15 +354,35 @@ impl<R: Runtime> PluginHandle<R> {
 }
 
 #[cfg(target_env = "ohos")]
+mod ohos;
+#[cfg(target_env = "ohos")]
+#[doc(hidden)]
+pub use ohos::{
+  close_ohos_plugin_bridge, initialize_ohos_plugin_bridge, ohos_plugin_directory,
+  ohos_plugin_response,
+};
+
+#[cfg(target_env = "ohos")]
+impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
+  /// Registers a native plugin served by the Ability's ArkTS dispatcher.
+  pub fn register_ohos_plugin(&self) -> Result<PluginHandle<R>, PluginInvokeError> {
+    ohos::register_app(&self.handle)?;
+    Ok(PluginHandle {
+      name: self.name,
+      handle: self.handle.clone(),
+    })
+  }
+}
+
+#[cfg(target_env = "ohos")]
 pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) + Send + 'static>(
-  _name: &str,
+  name: &str,
   _handle: &AppHandle<R>,
-  _command: C,
-  _payload: serde_json::Value,
-  _handler: F,
+  command: C,
+  payload: serde_json::Value,
+  handler: F,
 ) -> Result<(), PluginInvokeError> {
-  // TODO
-  Ok(())
+  ohos::invoke(_handle, name, command.as_ref(), payload, Box::new(handler))
 }
 
 #[cfg(target_os = "ios")]

@@ -94,6 +94,24 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
       use ::tauri::ohos::*;
 
       #[cfg(target_env = "ohos")]
+      #[napi_derive_ohos::napi]
+      pub fn tauri_ohos_plugin_initialize(callback: napi_ohos::bindgen_prelude::Function<'_, String, ()>, files: String, cache: String, temp: String) -> napi_ohos::Result<()> {
+        ::tauri::plugin::mobile::initialize_ohos_plugin_bridge(callback, files, cache, temp)
+      }
+
+      #[cfg(target_env = "ohos")]
+      #[napi_derive_ohos::napi]
+      pub fn tauri_ohos_plugin_response(id: i32, success: bool, payload: String) -> napi_ohos::Result<()> {
+        ::tauri::plugin::mobile::ohos_plugin_response(id, success, payload)
+      }
+
+      #[cfg(target_env = "ohos")]
+      #[napi_derive_ohos::napi]
+      pub fn tauri_ohos_plugin_close() {
+        ::tauri::plugin::mobile::close_ohos_plugin_bridge()
+      }
+
+      #[cfg(target_env = "ohos")]
       #[::tauri::ohos::openharmony_ability_derive::ability(webview, protocol = "tauri,ipc,asset,isolation")]
       pub fn openharmony(app: ::tauri::ohos::openharmony_ability::OpenHarmonyApp) {
         ::tauri::ohos::APP.lock().unwrap().replace(app);

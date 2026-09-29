@@ -886,13 +886,24 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           arch => None,
         };
         if let Some(target_arch) = target_arch {
-          for entry in fs::read_dir(target_dir.join("build"))? {
+          // The `out` dir is
+          //   - `<target dir>/build/<pkg>-<hash>/out` on stable
+          //   - `<target dir>/build/<pkg>/<hash>/out` on recent nightlies
+          let build_dir = target_dir.join("build");
+          let webview2_com_sys_build = build_dir.join("webview2-com-sys");
+          let (build_dir, new_layout) = if webview2_com_sys_build.exists() {
+            (webview2_com_sys_build, true)
+          } else {
+            (build_dir, false)
+          };
+          for entry in fs::read_dir(build_dir)? {
             let path = entry?.path();
             let webview2_loader_path = path
               .join("out")
               .join(target_arch)
               .join("WebView2Loader.dll");
-            if path.to_string_lossy().contains("webview2-com-sys") && webview2_loader_path.exists()
+            if webview2_loader_path.exists()
+              && (new_layout || path.to_string_lossy().contains("webview2-com-sys"))
             {
               fs::copy(webview2_loader_path, target_dir.join("WebView2Loader.dll"))?;
               break;

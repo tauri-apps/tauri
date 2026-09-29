@@ -18,13 +18,18 @@ use crate::error::*;
 
 #[cfg(target_os = "android")]
 mod android;
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_env = "ohos")))]
 mod desktop;
 
 #[cfg(target_os = "android")]
 pub use android::PathResolver;
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_env = "ohos")))]
 pub use desktop::PathResolver;
+
+#[cfg(target_env = "ohos")]
+mod ohos;
+#[cfg(target_env = "ohos")]
+pub use ohos::PathResolver;
 
 /// A wrapper for [`PathBuf`] that prevents path traversal.
 ///

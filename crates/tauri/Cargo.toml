@@ -218,6 +218,7 @@ devtools = ["tauri-runtime/devtools", "tauri-runtime-wry?/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
+# TODO: Remove in v3 - wry does not have this feature anymore
 macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry?/macos-private-api",

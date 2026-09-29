@@ -2879,8 +2879,6 @@ interface WindowOptions {
   focusable?: boolean
   /**
    * Whether the window is transparent or not.
-   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.
-   * WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
    *
    * On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
    */

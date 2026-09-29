@@ -84,6 +84,14 @@ schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch =
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 
+webkit2gtk = { git = "https://github.com/tauri-apps/webkit2gtk-rs.git", branch = "bump-gir" }
+webkit2gtk-sys = { git = "https://github.com/tauri-apps/webkit2gtk-rs.git", branch = "bump-gir" }
+tao = { git = "https://github.com/tauri-apps/tao.git", branch = "gtk-0.19" }
+wry = { git = "https://github.com/tauri-apps/wry.git", branch = "gtk-0.19" }
+muda = { git = "https://github.com/tauri-apps/muda.git", branch = "renovate/gtk-0.x" }
+tray-icon = { git = "https://github.com/tauri-apps/tray-icon.git", branch = "gtk-0.19" }
+libappindicator = { git = "https://github.com/tauri-apps/libappindicator-rs.git", branch = "gtk-0.19" }
+
 [workspace.lints.clippy]
 # TODO: Update in next PR to keep changes small, see https://github.com/tauri-apps/tauri/pull/16029
 collapsible_if = "allow"

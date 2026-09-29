@@ -1119,7 +1119,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  fn transient_for(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.inner = self.inner.with_transient_for(parent);
     self
   }

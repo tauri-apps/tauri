@@ -35,6 +35,7 @@ struct TrayIconOptions {
   icon_is_template: Option<bool>,
   menu_on_left_click: Option<bool>,
   show_menu_on_left_click: Option<bool>,
+  show_menu_on_right_click: Option<bool>,
 }
 
 #[command(root = "crate")]
@@ -95,6 +96,9 @@ fn new<R: Runtime>(
   }
   if let Some(show_menu_on_left_click) = options.show_menu_on_left_click {
     builder = builder.show_menu_on_left_click(show_menu_on_left_click);
+  }
+  if let Some(show_menu_on_right_click) = options.show_menu_on_right_click {
+    builder = builder.show_menu_on_right_click(show_menu_on_right_click);
   }
 
   let (tray, rid) = builder.build_inner(webview.app_handle())?;
@@ -229,6 +233,24 @@ fn set_native_icon<R: Runtime>(
   tray.set_native_icon(icon)
 }
 
+#[command(root = "crate")]
+fn set_show_menu_on_right_click<R: Runtime>(
+  app: AppHandle<R>,
+  rid: ResourceId,
+  on_right: bool,
+) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_show_menu_on_right_click(on_right)
+}
+
+#[command(root = "crate")]
+fn show_menu<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.show_menu()
+}
+
 // TODO: Remove in v3
 #[command(root = "crate")]
 #[allow(deprecated)]
@@ -289,6 +311,8 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_icon_templated,
       set_native_icon,
       set_show_menu_on_left_click,
+      set_show_menu_on_right_click,
+      show_menu,
       // TODO: Remove in v3
       set_icon_as_template,
       set_icon_with_as_template,

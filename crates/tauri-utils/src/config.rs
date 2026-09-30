@@ -3593,6 +3593,13 @@ pub struct TrayIconConfig {
   /// - **Linux**: Unsupported.
   #[serde(default = "default_true", alias = "show-menu-on-left-click")]
   pub show_menu_on_left_click: bool,
+  /// A Boolean value that determines whether the menu should appear when the tray icon receives a right click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  #[serde(default = "default_true", alias = "show-menu-on-right-click")]
+  pub show_menu_on_right_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
   /// Tray icon tooltip on Windows and macOS
@@ -4864,6 +4871,7 @@ mod build {
       #[allow(deprecated)]
       let menu_on_left_click = self.menu_on_left_click;
       let show_menu_on_left_click = self.show_menu_on_left_click;
+      let show_menu_on_right_click = self.show_menu_on_right_click;
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
       let tooltip = opt_str_lit(self.tooltip.as_ref());
@@ -4876,6 +4884,7 @@ mod build {
         icon_is_template,
         menu_on_left_click,
         show_menu_on_left_click,
+        show_menu_on_right_click,
         title,
         tooltip
       );

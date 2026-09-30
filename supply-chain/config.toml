@@ -470,14 +470,6 @@ criteria = "safe-to-deploy"
 version = "0.0.1"
 criteria = "safe-to-deploy"
 
-[[exemptions.libxdo]]
-version = "0.6.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.libxdo-sys]]
-version = "0.11.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.mac]]
 version = "0.1.1"
 criteria = "safe-to-deploy"

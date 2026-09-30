@@ -3458,7 +3458,7 @@ pub struct AppConfig {
   ///
   /// fn main() {
   ///   // on an actual app, remove the string argument
-  ///   let mut context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
+  ///   let mut context = tauri::generate_context!("../tauri/test/fixture/src-tauri/tauri.conf.json");
   ///
   ///   if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
   ///     context.config_mut().app.app_directories_override =

@@ -415,3 +415,94 @@ fn is_pnpm_dlx() -> bool {
       false
     })
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::mobile::open_harmony::project;
+  use cargo_mobile2::{config::app::Raw, open_harmony::config::Config as OpenHarmonyConfig};
+  use clap::Parser;
+  use serde_json::Value;
+  use std::{fs, path::Path};
+
+  fn generate_open_harmony(root: &Path) -> Result<PathBuf> {
+    let app = App::from_raw(
+      root.to_path_buf(),
+      Raw {
+        name: "reader".into(),
+        lib_name: Some("reader_lib".into()),
+        stylized_name: Some("Reader & 阅读".into()),
+        identifier: "com.example.reader".into(),
+        asset_dir: None,
+        template_pack: None,
+      },
+    )
+    .unwrap();
+    let config = OpenHarmonyConfig::from_raw(app.clone(), None).unwrap();
+    let (handlebars, mut map) = handlebars(&app);
+    map.insert(
+      "tauri-binary-args",
+      ["tauri", "ohos", "dev-eco-studio-script"],
+    );
+    project::gen(&app, &config, (handlebars, map), true)?;
+    Ok(config.project_dir())
+  }
+
+  fn read_json(path: impl AsRef<Path>) -> Value {
+    json5::from_str(&fs::read_to_string(path).unwrap()).unwrap()
+  }
+
+  #[test]
+  fn open_harmony_launcher_uses_app_name_and_generated_icon() {
+    let root = tempfile::tempdir().unwrap();
+    let project = generate_open_harmony(root.path()).unwrap();
+    let app = read_json(project.join("AppScope/app.json5"));
+    let module = read_json(project.join("entry/src/main/module.json5"));
+    let ability = &module["module"]["abilities"][0];
+    assert_eq!(app["app"]["label"], ability["label"]);
+    let name = ability["label"]
+      .as_str()
+      .unwrap()
+      .strip_prefix("$string:")
+      .unwrap();
+    let strings = read_json(project.join("AppScope/resources/base/element/string.json"));
+    let name_resource = strings["string"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .find(|resource| resource["name"] == name)
+      .unwrap();
+    assert_eq!(name_resource["value"], "Reader & 阅读");
+
+    let resource = project.join("AppScope/resources/base/media/app_icon.png");
+    // A fresh project has a valid default even before running `tauri icon`.
+    image::open(&resource).unwrap();
+    for reference in [
+      &app["app"]["icon"],
+      &ability["icon"],
+      &ability["startWindowIcon"],
+    ] {
+      assert_eq!(reference, "$media:app_icon");
+    }
+
+    let source = root.path().join("source.png");
+    image::RgbaImage::from_pixel(1024, 1024, image::Rgba([255, 0, 0, 255]))
+      .save(&source)
+      .unwrap();
+    let output = root.path().join("icons");
+    let options = crate::icon::Options::try_parse_from([
+      std::ffi::OsStr::new("icon"),
+      source.as_os_str(),
+      std::ffi::OsStr::new("--output"),
+      output.as_os_str(),
+    ])
+    .unwrap();
+    crate::icon::command(options).unwrap();
+    let icon = image::open(&resource).unwrap().to_rgba8();
+    assert_eq!(icon.dimensions(), (512, 512));
+    assert_eq!(icon.get_pixel(256, 256).0, [255, 0, 0, 255]);
+    let generated = fs::read(&resource).unwrap();
+    generate_open_harmony(root.path()).unwrap();
+    assert_eq!(fs::read(resource).unwrap(), generated);
+  }
+}

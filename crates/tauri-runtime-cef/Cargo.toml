@@ -12,6 +12,16 @@ license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.docs.rs]
+# docs.rs builds without network access, `dox` skips downloading the CEF binary distribution
+features = ["cef/dox", "devtools", "macos-private-api", "unstable"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+  "x86_64-apple-darwin",
+]
+
 [[test]]
 name = "macos-application-bootstrap"
 harness = false

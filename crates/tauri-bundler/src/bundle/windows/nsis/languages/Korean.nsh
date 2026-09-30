@@ -25,3 +25,8 @@ LangString webview2Downloading ${LANG_KOREAN} "WebView2 부트스트래퍼 다�
 LangString webview2InstallError ${LANG_KOREAN} "오류: 종료 코드 $1로 WebView2를 설치하지 못했습니다."
 LangString webview2InstallSuccess ${LANG_KOREAN} "WebView2가 성공적으로 설치되었습니다."
 LangString deleteAppData ${LANG_KOREAN} "애플리케이션 데이터 삭제하기"
+LangString MULTIUSER_TEXT_INSTALLMODE_TITLE ${LANG_KOREAN} "설치 모드 선택"
+LangString MULTIUSER_TEXT_INSTALLMODE_SUBTITLE ${LANG_KOREAN} "모든 사용자용 또는 현재 사용자용으로만 설치"
+LangString MULTIUSER_INNERTEXT_INSTALLMODE_TOP ${LANG_KOREAN} "이 애플리케이션을 누구를 위해 설치하시겠습니까?"
+LangString MULTIUSER_INNERTEXT_INSTALLMODE_ALLUSERS ${LANG_KOREAN} "이 컴퓨터를 사용하는 모든 사용자(모든 사용자)"
+LangString MULTIUSER_INNERTEXT_INSTALLMODE_CURRENTUSER ${LANG_KOREAN} "현재 사용자만"

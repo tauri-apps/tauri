@@ -3,8 +3,47 @@
 // SPDX-License-Identifier: MIT
 
 import { addPluginListener, invoke, PluginListener } from './core'
+import { listen, type EventCallback, type UnlistenFn } from './event'
 import { Image } from './image'
 import { Theme } from './window'
+
+/** Device-wide physical posture. Unknown native values are never inferred from screen size. */
+export type FoldStatus = 'unknown' | 'expanded' | 'folded' | 'halfFolded'
+
+/** OpenHarmony device fold information; this is not per-window hinge geometry. */
+export interface FoldState {
+  isFoldable: boolean
+  status: FoldStatus
+}
+
+/**
+ * Reads the latest native fold state.
+ *
+ * OpenHarmony only. Returns `null` on other platforms, before initialization,
+ * when the native API is unavailable, or in generated projects that have not
+ * adopted the updated EntryAbility template. A non-foldable device returns
+ * `{ isFoldable: false, status: 'unknown' }`.
+ *
+ * Requires `core:app:allow-fold-state` (included in `core:app:default`).
+ * This reports the device, not which display or fold segment hosts the window.
+ */
+export async function getFoldState(): Promise<FoldState | null> {
+  return invoke('plugin:app|fold_state')
+}
+
+/**
+ * Listens for native fold-state changes. Does not send an initial snapshot;
+ * use {@link getFoldState} to read it. Call the returned function to unsubscribe.
+ * A `null` payload means native state became unavailable or the ability ended.
+ *
+ * OpenHarmony only; unsupported platforms emit no native fold events.
+ * Requires the usual `core:event:allow-listen` / `allow-unlisten` permissions.
+ */
+export async function onFoldStateChanged(
+  handler: EventCallback<FoldState | null>
+): Promise<UnlistenFn> {
+  return listen('tauri://fold-state-changed', handler)
+}
 
 /**
  * Identifier type used for data stores on macOS and iOS.

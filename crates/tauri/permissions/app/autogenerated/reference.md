@@ -12,6 +12,7 @@ Default permissions for the plugin.
 - `allow-register-listener`
 - `allow-remove-listener`
 - `allow-supports-multiple-windows`
+- `allow-fold-state`
 
 ## Permission Table
 
@@ -148,6 +149,32 @@ Enables the fetch_data_store_identifiers command without any pre-configured scop
 <td>
 
 Denies the fetch_data_store_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-fold-state`
+
+</td>
+<td>
+
+Enables the fold_state command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-fold-state`
+
+</td>
+<td>
+
+Denies the fold_state command without any pre-configured scope.
 
 </td>
 </tr>

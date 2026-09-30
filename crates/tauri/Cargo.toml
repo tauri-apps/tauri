@@ -153,6 +153,8 @@ rustls = { version = "0.23", default-features = false, features = [
 ], optional = true }
 
 [target.'cfg(target_env = "ohos")'.dependencies]
+napi-ohos = { version = "1.2", features = ["napi8"] }
+napi-derive-ohos = "1.2"
 openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
 openharmony-ability-derive = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
 

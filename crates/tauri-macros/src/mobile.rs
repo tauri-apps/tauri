@@ -94,6 +94,12 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
       use ::tauri::ohos::*;
 
       #[cfg(target_env = "ohos")]
+      #[::tauri::ohos::napi_derive_ohos::napi(js_name = "tauriUpdateFoldState")]
+      pub fn __tauri_update_fold_state(is_foldable: Option<bool>, status: Option<u32>) {
+        ::tauri::ohos::update_fold_state(is_foldable, status);
+      }
+
+      #[cfg(target_env = "ohos")]
       #[::tauri::ohos::openharmony_ability_derive::ability(webview, protocol = "tauri,ipc,asset,isolation")]
       pub fn openharmony(app: ::tauri::ohos::openharmony_ability::OpenHarmonyApp) {
         ::tauri::ohos::APP.lock().unwrap().replace(app);

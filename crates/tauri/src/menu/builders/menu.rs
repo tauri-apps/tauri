@@ -164,6 +164,8 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
 
   /// Set a native icon for the submenu.
   /// Calling this method resets the icon.
+  ///
+  /// See [`Submenu::set_native_icon`] for the platform-specific behavior.
   pub fn submenu_native_icon(mut self, icon: NativeIcon) -> Self {
     self.native_icon = Some(icon);
     self.icon = None;
@@ -265,9 +267,7 @@ macro_rules! shared_menu_builder {
 
       /// Add an [IconMenuItem] with a native icon to the menu.
       ///
-      /// ## Platform-specific:
-      ///
-      /// - **Windows / Linux**: Unsupported.
+      /// See [`IconMenuItem::set_native_icon`] for the platform-specific behavior.
       pub fn native_icon<I: Into<MenuId>, S: AsRef<str>>(
         mut self,
         id: I,

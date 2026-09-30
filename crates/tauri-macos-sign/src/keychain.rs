@@ -106,6 +106,7 @@ impl Keychain {
       Command::new("security")
         .arg("import")
         .arg(cert_path)
+        .args(["-f", "pkcs12"])
         .arg("-P")
         .arg(certificate_password)
         .args([

@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.12.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+- Upgraded to `tauri-runtime@2.12.1`
+- Upgraded to `tauri-runtime-wry@2.12.1`
+- Upgraded to `tauri-build@2.7.1`
+- Upgraded to `tauri-macros@2.7.1`
+
 ## [2.12.0]
 
 ### New Features

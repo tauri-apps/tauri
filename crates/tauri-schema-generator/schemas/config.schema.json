@@ -1933,6 +1933,13 @@
             "string",
             "null"
           ]
+        },
+        "autosaveName": {
+          "description": "A stable key for the tray icon's saved position in the menu bar. **macOS only**.\n\n macOS restores where the user Cmd+dragged the tray icon on the next launch either way,\n keyed by the order in which the app created its tray icons (`Item-0`, `Item-1`, and so on)\n when no name is given. Set one when that numbering isn't stable from launch to launch,\n as in an app that creates more tray icons at runtime, so that two icons don't come back\n holding each other's positions.\n\n Use one fixed string, typically a reverse-DNS identifier such as `com.example.app.tray`.\n The position is saved under that name, so changing it abandons the position saved under\n the old one.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

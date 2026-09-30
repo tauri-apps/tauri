@@ -109,12 +109,15 @@ fn get_stream_response(
 
       let boundary = random_boundary();
       let boundary_sep = format!("\r\n--{boundary}\r\n");
-      let boundary_closer = format!("\r\n--{boundary}\r\n");
+      let boundary_closer = format!("\r\n--{boundary}--\r\n");
 
-      resp = resp.header(
-        CONTENT_TYPE,
-        format!("multipart/byteranges; boundary={boundary}"),
-      );
+      // `Builder::header` appends, we want to replace the file mime type set earlier
+      if let Some(headers) = resp.headers_mut() {
+        headers.insert(
+          CONTENT_TYPE,
+          HeaderValue::from_str(&format!("multipart/byteranges; boundary={boundary}"))?,
+        );
+      }
 
       for (start, end) in ranges {
         // a new range is being written, write the range boundary
@@ -138,6 +141,7 @@ fn get_stream_response(
       // all ranges have been written, write the closing boundary
       buf.write_all(boundary_closer.as_bytes())?;
 
+      resp = resp.status(StatusCode::PARTIAL_CONTENT);
       resp.body(buf)
     }
   } else {

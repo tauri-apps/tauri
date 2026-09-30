@@ -153,7 +153,7 @@ mod build {
 
   use super::*;
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
 
   impl ToTokens for Number {
     fn to_tokens(&self, tokens: &mut TokenStream) {

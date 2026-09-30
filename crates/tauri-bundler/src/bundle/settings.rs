@@ -12,7 +12,7 @@ use tauri_utils::{
     RpmCompression,
   },
   platform::Target as TargetPlatform,
-  resources::{external_binaries, ResourcePaths},
+  resources::{ResourcePaths, external_binaries},
 };
 
 use std::{
@@ -223,6 +223,10 @@ pub struct AppImageSettings {
   /// Whether to include gstreamer plugins for audio/media support.
   pub bundle_media_framework: bool,
   /// Whether to include the `xdg-open` binary.
+  #[deprecated(
+    since = "2.12.0",
+    note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
+  )]
   pub bundle_xdg_open: bool,
 }
 
@@ -345,7 +349,7 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
-  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  /// Skip stapling the notarization ticket onto the app and do not wait for notarization to finish.
   ///
   /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
   /// reaching out to Apple's servers which is helpful in offline environments.
@@ -1122,7 +1126,7 @@ impl Settings {
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."
-        )))
+        )));
       }
     };
 

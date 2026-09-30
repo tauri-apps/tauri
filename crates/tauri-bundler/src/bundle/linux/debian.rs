@@ -25,12 +25,12 @@
 
 use super::freedesktop;
 use crate::{
+  Settings,
   bundle::settings::Arch,
   error::{Context, ErrorExt},
   utils::fs_utils,
-  Settings,
 };
-use flate2::{write::GzEncoder, Compression};
+use flate2::{Compression, write::GzEncoder};
 use tar::HeaderMode;
 use walkdir::WalkDir;
 
@@ -183,7 +183,7 @@ fn generate_control_file(
         .bundle_identifier()
         .split('.')
         .nth(1)
-        .unwrap_or(settings.bundle_identifier())
+        .unwrap_or_else(|| settings.bundle_identifier())
         .to_string()
     });
 

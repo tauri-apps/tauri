@@ -32,8 +32,10 @@ pub use {
     PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
     UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
   },
-  windows::vswhere_path,
 };
+
+#[cfg(windows)]
+pub use windows::vswhere_path;
 
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
@@ -49,7 +51,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Linux".to_owned(),
-      ))
+      ));
     }
   };
   #[cfg(target_os = "windows")]
@@ -60,7 +62,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Windows".to_owned(),
-      ))
+      ));
     }
   };
   #[cfg(target_os = "macos")]
@@ -75,7 +77,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "macOS".to_owned(),
-      ))
+      ));
     }
   };
 
@@ -118,7 +120,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let target_os = settings.target_platform();
 
   if *target_os != TargetPlatform::current() {
-    log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+    log::warn!(
+      "Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility."
+    );
   }
 
   // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
@@ -149,7 +153,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
     if settings.binary_patching() {
       if let Err(e) = patch_binary(&main_binary_path, package_type) {
-        log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+        log::warn!(
+          "Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues"
+        );
       }
     } else {
       log::warn!(
@@ -213,38 +219,50 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   }
 
   if let Some(updater) = settings.updater() {
-    if package_types.iter().any(|package_type| {
-      if updater.v1_compatible {
+    // Targets the legacy v1 updater can consume once they are wrapped in a tar.gz / zip.
+    let has_v1_target = updater.v1_compatible
+      && package_types.iter().any(|package_type| {
         matches!(
           package_type,
           PackageType::AppImage
             | PackageType::MacOsBundle
             | PackageType::Nsis
             | PackageType::WindowsMsi
-            | PackageType::Deb
         )
-      } else {
-        matches!(package_type, PackageType::MacOsBundle)
-      }
-    }) {
+      });
+    // Targets the v2 updater plugin installs directly, no wrapping needed.
+    let has_self_contained_target = package_types.iter().any(|package_type| {
+      matches!(
+        package_type,
+        PackageType::AppImage
+          | PackageType::Nsis
+          | PackageType::WindowsMsi
+          | PackageType::Deb
+          | PackageType::Rpm
+      )
+    });
+
+    // the macOS app bundle is always archived, the other v1 targets only for the legacy updater
+    if package_types.contains(&PackageType::MacOsBundle) || has_v1_target {
       let updater_paths = updater_bundle::bundle_project(settings, &bundles)?;
       bundles.push(Bundle {
         package_type: PackageType::Updater,
         bundle_paths: updater_paths,
       });
-    } else if updater.v1_compatible
-      || !package_types.iter().any(|package_type| {
-        // Self contained updater, no need to zip
-        matches!(
-          package_type,
-          PackageType::AppImage | PackageType::Nsis | PackageType::WindowsMsi | PackageType::Deb
-        )
-      })
-    {
-      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
+    } else if updater.v1_compatible {
+      log::warn!(
+        "No v1 compatible updater artifact was created: the legacy updater only supports the app, appimage, msi and nsis targets. deb and rpm bundles can only be installed by the v2 updater plugin."
+      );
+    } else if !has_self_contained_target {
+      log::warn!(
+        "The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, deb, rpm, msi, nsis"
+      );
     }
+
     if updater.v1_compatible {
-      log::warn!("Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin");
+      log::warn!(
+        "Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin"
+      );
     }
   }
 
@@ -362,7 +380,9 @@ fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> c
       }
     } else {
       #[cfg(not(target_os = "windows"))]
-      log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+      log::warn!(
+        "Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer..."
+      );
     }
   }
 

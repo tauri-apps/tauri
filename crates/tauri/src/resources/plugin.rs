@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  command,
+  Manager, Runtime, Webview, command,
   plugin::{Builder, TauriPlugin},
-  Manager, Runtime, Webview,
 };
 
 use super::ResourceId;

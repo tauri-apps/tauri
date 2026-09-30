@@ -24,16 +24,16 @@ use sublime_fuzzy::best_match;
 use tauri_utils::resources::ResourcePaths;
 
 use super::{
-  ensure_init, env, get_app, init::command as init_command, log_finished, read_options, CliOptions,
-  OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
+  CliOptions, MIN_DEVICE_MATCH_SCORE, OptionsHandle, Target as MobileTarget, ensure_init, env,
+  get_app, init::command as init_command, log_finished, read_options,
 };
 use crate::{
+  ConfigValue, Error, Result,
   error::{Context, ErrorExt},
   helpers::{
     config::{BundleResources, Config as TauriConfig, ConfigMetadata},
     pbxproj, strip_semver_prerelease_tag,
   },
-  ConfigValue, Error, Result,
 };
 
 use std::{
@@ -198,7 +198,9 @@ pub fn get_config(
     );
 
     if short_version != full_version {
-      log::warn!("{full_version:?} is not a valid CFBundleShortVersionString since it must contain exactly three dot separated integers; setting it to {short_version} instead");
+      log::warn!(
+        "{full_version:?} is not a valid CFBundleShortVersionString since it must contain exactly three dot separated integers; setting it to {short_version} instead"
+      );
     }
 
     Some(short_version)
@@ -275,8 +277,8 @@ pub fn get_config(
     macos: Default::default(),
   };
 
-  set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
-  set_var("TAURI_IOS_APP_NAME", config.app().name());
+  unsafe { set_var("TAURI_IOS_PROJECT_PATH", config.project_dir()) };
+  unsafe { set_var("TAURI_IOS_APP_NAME", config.app().name()) };
 
   Ok((config, metadata))
 }
@@ -496,7 +498,9 @@ pub fn signing_from_env() -> Result<(
         .map_err(Box::new)?
     }
     (Some(_), None) => {
-      log::warn!("The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate...");
+      log::warn!(
+        "The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate..."
+      );
       None
     }
     _ => None,
@@ -508,7 +512,9 @@ pub fn signing_from_env() -> Result<(
       .map_err(Box::new)?
   } else {
     if keychain.is_some() {
-      log::warn!("You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project.");
+      log::warn!(
+        "You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project."
+      );
     }
     None
   };
@@ -550,7 +556,8 @@ pub fn synchronize_project_config(
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config.identifier.clone();
+  // use the same sanitized identifier as the Xcode project template and export options
+  let identifier = config.app().identifier();
   let product_name = tauri_config.product_name.clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
@@ -568,26 +575,26 @@ pub fn synchronize_project_config(
       }
 
       if let Some(team) = config.development_team() {
-        let team = format!("\"{team}\"");
+        let team = pbxproj::quote(team);
         pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", &team);
       }
 
       pbxproj.set_build_settings(
         &build_configuration_ref.id,
         "PRODUCT_BUNDLE_IDENTIFIER",
-        &identifier,
+        identifier,
       );
 
       if let Some(product_name) = &product_name {
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
           "PRODUCT_NAME",
-          &format!("\"{product_name}\""),
+          &pbxproj::quote(product_name),
         );
       }
 
       if let Some(identity) = &project_config.code_sign_identity {
-        let identity = format!("\"{identity}\"");
+        let identity = pbxproj::quote(identity);
         pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_IDENTITY", &identity);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
@@ -597,7 +604,7 @@ pub fn synchronize_project_config(
       }
 
       if let Some(id) = &project_config.team_id {
-        let id = format!("\"{id}\"");
+        let id = pbxproj::quote(id);
         pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", &id);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
@@ -607,7 +614,7 @@ pub fn synchronize_project_config(
       }
 
       if let Some(profile_uuid) = &project_config.provisioning_profile_uuid {
-        let profile_uuid = format!("\"{profile_uuid}\"");
+        let profile_uuid = pbxproj::quote(profile_uuid);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
           "PROVISIONING_PROFILE_SPECIFIER",
@@ -663,7 +670,7 @@ pub fn synchronize_project_config(
       {
         export_options_plist.insert(
           "signingCertificate".to_string(),
-          identity.value.trim_matches('"').into(),
+          pbxproj::unquote(&identity.value).into(),
         );
       }
 
@@ -674,7 +681,7 @@ pub fn synchronize_project_config(
           build_configuration
             .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
             .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
-            .map(|setting| setting.value.trim_matches('"').to_string())
+            .map(|setting| pbxproj::unquote(&setting.value))
         });
       if let Some(profile_uuid) = profile_uuid {
         let mut provisioning_profiles = plist::Dictionary::new();
@@ -690,7 +697,7 @@ pub fn synchronize_project_config(
       .get_build_setting("\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"")
       .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
     {
-      export_options_plist.insert("teamID".to_string(), id.value.trim_matches('"').into());
+      export_options_plist.insert("teamID".to_string(), pbxproj::unquote(&id.value).into());
     }
   }
 

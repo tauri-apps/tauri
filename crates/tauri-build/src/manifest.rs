@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cargo_toml::{Dependency, Manifest};
 use tauri_utils::config::{AppConfig, Config, PatternKind};
 

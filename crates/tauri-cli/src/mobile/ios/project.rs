@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Error, ErrorExt, Result,
   error::Context,
   helpers::{config::Config as TauriConfig, template},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
-  Error, ErrorExt, Result,
 };
 use cargo_mobile2::{
   apple::{
@@ -19,10 +19,10 @@ use cargo_mobile2::{
   util::{self, cli::TextWrapper},
 };
 use handlebars::Handlebars;
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use std::{
   ffi::OsString,
-  fs::{create_dir_all, OpenOptions},
+  fs::{OpenOptions, create_dir_all},
   path::{Component, PathBuf},
 };
 
@@ -31,7 +31,7 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile
 // unprefixed app_root seems pretty dangerous!!
 // TODO: figure out what cargo-mobile meant by that
 #[allow(clippy::too_many_arguments)]
-pub fn gen(
+pub fn generate(
   tauri_config: &TauriConfig,
   config: &Config,
   metadata: &Metadata,

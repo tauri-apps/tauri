@@ -46,9 +46,9 @@ pub fn target_triple() -> Result<String, crate::Error> {
       .expect("could not find `target_arch` when running `rustc --print cfg`."),
     Err(err) => {
       log::warn!(
-      "failed to determine target arch using rustc, error: `{}`. The fallback is the architecture of the machine that compiled this crate.",
-      err,
-    );
+        "failed to determine target arch using rustc, error: `{}`. The fallback is the architecture of the machine that compiled this crate.",
+        err,
+      );
       if cfg!(target_arch = "x86") {
         "i686".into()
       } else if cfg!(target_arch = "x86_64") {

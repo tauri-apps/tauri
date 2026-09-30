@@ -11,30 +11,30 @@ use std::{
 };
 
 use crate::{
+  Emitter, EventName, Listener, ResourceTable, Window,
   event::EventTarget,
   ipc::ScopeObject,
   runtime::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   webview::{NewWindowResponse, ScrollBarStyle},
   window::Monitor,
-  Emitter, EventName, Listener, ResourceTable, Window,
 };
 #[cfg(desktop)]
 use crate::{
   image::Image,
   menu::{ContextMenu, Menu},
-  runtime::{window::CursorIcon, UserAttentionType},
+  runtime::{UserAttentionType, window::CursorIcon},
 };
 use tauri_runtime::webview::NewWindowFeatures;
 use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
+  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::{Cookie, PageLoadPayload, WebviewBuilder, WebviewEvent},
   window::WindowBuilder,
-  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
 
 use tauri_macros::default_runtime;
@@ -431,6 +431,57 @@ tauri::Builder::default()
         payload,
       )
     });
+    self
+  }
+
+  /// Defines a closure to be executed when a permission is requested.
+  ///
+  /// The handler receives the [`crate::webview::PermissionKind`] and should return
+  /// the desired [`crate::webview::PermissionResponse`].
+  ///
+  /// > [!NOTE]
+  /// > This handler only triggers for new permission requests. If the user has already
+  /// > allowed or denied a permission persistently within the webview, the browser
+  /// > will use the saved preference instead of calling this handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
+  /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
+  /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
+  /// - **Android**: Supported via JNI bridge for geolocation, microphone, camera,
+  ///   protected media, and MIDI requests. Android runtime permissions may still
+  ///   trigger native OS prompts before access is granted.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   webview::{PermissionKind, PermissionResponse, WebviewWindowBuilder},
+  ///   WebviewUrl,
+  /// };
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
+  ///       .on_permission_request(|_, kind| match kind {
+  ///         PermissionKind::Geolocation => PermissionResponse::Allow,
+  ///         PermissionKind::Notifications => PermissionResponse::Allow,
+  ///         _ => PermissionResponse::Default,
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_permission_request<
+    F: Fn(Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
+      + Send
+      + Sync
+      + 'static,
+  >(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder = self.webview_builder.on_permission_request(f);
     self
   }
 
@@ -1021,6 +1072,8 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// ## Warning
   ///
+  /// Webview instances with different browser arguments must also have different [data directories](Self::data_directory).
+  ///
   /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
   /// so if you use this method, you also need to disable these components by yourself if you want.
   #[must_use]
@@ -1089,11 +1142,6 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
   /// creating a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     #[cfg(desktop)]
@@ -2136,6 +2184,14 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_fullscreen(fullscreen)
   }
 
+  /// Sets the window as fullscreen on the monitor that contains the given physical position,
+  /// such as a [`Monitor::position`](crate::Monitor::position).
+  ///
+  /// Does nothing if no monitor contains the position.
+  pub fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> crate::Result<()> {
+    self.window.set_fullscreen_on_monitor(position)
+  }
+
   /// Toggles a fullscreen mode that doesn't require a new macOS space.
   /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
   ///
@@ -2459,6 +2515,52 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Reloads the current page.
   pub fn reload(&self) -> crate::Result<()> {
     self.webview.reload()
+  }
+
+  /// Converts a file path to a URL that can be loaded by this webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  ///
+  /// The `protocol-asset` Cargo feature must be enabled and the file must be included in the
+  /// [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+  /// scope. The protocol origin must also be allowed by the relevant
+  /// [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) directive,
+  /// e.g. `img-src 'self' asset: http://asset.localhost`.
+  ///
+  /// On Windows and Android the URL is `http://{protocol}.localhost/{path}`
+  /// (or `https://` if the webview was built with [`WebviewWindowBuilder::use_https_scheme`]);
+  /// on macOS, Linux and iOS it is `{protocol}://localhost/{path}`.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert.
+  /// * `protocol` - The custom protocol to use. Defaults to `asset`; you only need to set this
+  ///   when using a protocol registered with [`Builder::register_uri_scheme_protocol`](crate::Builder::register_uri_scheme_protocol).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::NonUtf8Path`](crate::Error::NonUtf8Path) if the path is not valid UTF-8,
+  /// since the asset protocol could not resolve such a URL back to the file.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview_window("main").unwrap();
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = webview.convert_file_src(&video_path, None)?;
+  ///     webview.eval(format!("document.querySelector('video').src = '{url}'"))?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(
+    &self,
+    path: P,
+    protocol: Option<&str>,
+  ) -> crate::Result<String> {
+    self.webview.convert_file_src(path, protocol)
   }
 
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].

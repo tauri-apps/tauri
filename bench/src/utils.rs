@@ -11,7 +11,7 @@
 //! - JSON read/write utilities
 //! - File download utilities (via `curl` or file copy)
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{

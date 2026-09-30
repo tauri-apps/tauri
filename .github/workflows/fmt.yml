@@ -7,6 +7,9 @@ name: check formatting
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   rustfmt:
     runs-on: ubuntu-latest

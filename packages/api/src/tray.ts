@@ -2,13 +2,42 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Create and manipulate system tray (menu bar / notification area) icons.
+ *
+ * Tray icons are created with {@linkcode TrayIcon.new} and live on the Rust side,
+ * the frontend only holds a handle to them.
+ *
+ * This package is also accessible with `window.__TAURI__.tray` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
+ *
+ * @remarks All commands used by this module are part of the `core:tray:default`
+ * permission set, which is enabled by default, so no extra capability
+ * configuration is needed. Loading an icon from a path or from bytes additionally
+ * requires the `image-png` / `image-ico` Cargo features of the `tauri` crate.
+ *
+ * @module
+ */
+
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
-import { Image, transformImage } from './image'
+import { type JsImage, transformImage } from './image'
 import { PhysicalPosition, PhysicalSize } from './dpi'
 
+/** Whether the mouse button was pressed (`Down`) or released (`Up`). */
 export type MouseButtonState = 'Up' | 'Down'
+
+/** The mouse button that triggered a tray icon event. */
 export type MouseButton = 'Left' | 'Right' | 'Middle'
+
+/**
+ * The kind of a {@linkcode TrayIconEvent}.
+ *
+ * - `Click`: a mouse button was pressed or released over the icon.
+ * - `DoubleClick`: the icon was double clicked.
+ * - `Enter`: the cursor entered the icon area.
+ * - `Move`: the cursor moved inside the icon area.
+ * - `Leave`: the cursor left the icon area.
+ */
 export type TrayIconEventType =
   | 'Click'
   | 'DoubleClick'
@@ -16,6 +45,7 @@ export type TrayIconEventType =
   | 'Move'
   | 'Leave'
 
+/** The fields shared by every {@linkcode TrayIconEvent}. */
 export type TrayIconEventBase<T extends TrayIconEventType> = {
   /** The tray icon event type */
   type: T
@@ -30,6 +60,7 @@ export type TrayIconEventBase<T extends TrayIconEventType> = {
   }
 }
 
+/** The extra fields of the `Click` and `DoubleClick` {@linkcode TrayIconEvent} variants. */
 export type TrayIconClickEvent = {
   /** Mouse button that triggered this event. */
   button: MouseButton
@@ -63,13 +94,6 @@ type RustTrayIconEvent = Omit<TrayIconEvent, 'rect'> & {
   }
 }
 
-/**
- * Tray icon types and utilities.
- *
- * This package is also accessible with `window.__TAURI__.tray` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
- * @module
- */
-
 /** {@link TrayIcon.new|`TrayIcon`} creation options */
 export interface TrayIconOptions {
   /** The tray icon id. If undefined, a random one will be assigned */
@@ -86,7 +110,7 @@ export interface TrayIconOptions {
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
-  icon?: string | Uint8Array | ArrayBuffer | number[] | Image
+  icon?: JsImage
   /** The tray icon tooltip */
   tooltip?: string
   /**
@@ -152,7 +176,7 @@ export interface TrayIconOptions {
  * ```ts
  * import { TrayIcon } from '@tauri-apps/api/tray';
  * const tray = await TrayIcon.new({ tooltip: 'awesome tray tooltip' });
- * tray.set_tooltip('new tooltip');
+ * await tray.setTooltip('new tooltip');
  * ```
  */
 export class TrayIcon extends Resource {
@@ -164,7 +188,21 @@ export class TrayIcon extends Resource {
     this.id = id
   }
 
-  /** Gets a tray icon using the provided id. */
+  /**
+   * Gets a tray icon using the provided id.
+   *
+   * Use it to get a handle from the frontend to a tray icon that was created on
+   * the Rust side with an explicit id.
+   *
+   * @example
+   * ```typescript
+   * import { TrayIcon } from '@tauri-apps/api/tray';
+   * const tray = await TrayIcon.getById('main-tray');
+   * await tray?.setTooltip('still here');
+   * ```
+   *
+   * @returns The tray icon, or `null` if no tray icon with that id exists.
+   */
   static async getById(id: string): Promise<TrayIcon | null> {
     return invoke<number>('plugin:tray|get_by_id', { id }).then((rid) =>
       rid ? new TrayIcon(rid, id) : null
@@ -176,6 +214,12 @@ export class TrayIcon extends Resource {
    *
    * Note that this may cause the tray icon to disappear
    * if it wasn't cloned somewhere else or referenced by JS.
+   *
+   * @example
+   * ```typescript
+   * import { TrayIcon } from '@tauri-apps/api/tray';
+   * await TrayIcon.removeById('main-tray');
+   * ```
    */
   static async removeById(id: string): Promise<void> {
     return invoke('plugin:tray|remove_by_id', { id })
@@ -188,6 +232,29 @@ export class TrayIcon extends Resource {
    *
    * - **Linux:** Sometimes the icon won't be visible unless a menu is set.
    * Setting an empty {@linkcode Menu} is enough.
+   *
+   * @example
+   * ```typescript
+   * import { TrayIcon } from '@tauri-apps/api/tray';
+   * import { Menu } from '@tauri-apps/api/menu';
+   * import { defaultWindowIcon } from '@tauri-apps/api/app';
+   *
+   * const menu = await Menu.new({
+   *   items: [{ id: 'quit', text: 'Quit', action: () => console.log('quit') }]
+   * });
+   *
+   * const tray = await TrayIcon.new({
+   *   id: 'main-tray',
+   *   icon: (await defaultWindowIcon()) ?? undefined,
+   *   menu,
+   *   tooltip: 'My app',
+   *   action: (event) => {
+   *     if (event.type === 'Click') {
+   *       console.log('tray clicked with', event.button);
+   *     }
+   *   }
+   * });
+   * ```
    */
   static async new(options?: TrayIconOptions): Promise<TrayIcon> {
     if (options?.menu) {
@@ -220,10 +287,16 @@ export class TrayIcon extends Resource {
    * [dependencies]
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
+   *
+   * @example
+   * ```typescript
+   * import { Image } from '@tauri-apps/api/image';
+   * await tray.setIcon(await Image.fromPath('icons/active.png'));
+   * // remove the icon
+   * await tray.setIcon(null);
+   * ```
    */
-  async setIcon(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[] | null
-  ): Promise<void> {
+  async setIcon(icon: JsImage | null): Promise<void> {
     let trayIcon = null
     if (icon) {
       trayIcon = transformImage(icon)
@@ -237,6 +310,13 @@ export class TrayIcon extends Resource {
    * #### Platform-specific:
    *
    * - **Linux**: once a menu is set it cannot be removed so `null` has no effect
+   *
+   * @example
+   * ```typescript
+   * import { Menu } from '@tauri-apps/api/menu';
+   * const menu = await Menu.new({ items: [{ id: 'quit', text: 'Quit' }] });
+   * await tray.setMenu(menu);
+   * ```
    */
   async setMenu(menu: Menu | Submenu | null): Promise<void> {
     if (menu) {
@@ -247,18 +327,28 @@ export class TrayIcon extends Resource {
   }
 
   /**
-   * Sets the tooltip for this tray icon.
+   * Sets the tooltip for this tray icon, shown when the cursor hovers it.
    *
    * #### Platform-specific:
    *
    * - **Linux:** Unsupported
+   *
+   * @example
+   * ```typescript
+   * await tray.setTooltip('3 unread messages');
+   * ```
    */
   async setTooltip(tooltip: string | null): Promise<void> {
     return invoke('plugin:tray|set_tooltip', { rid: this.rid, tooltip })
   }
 
   /**
-   * Sets the tooltip for this tray icon.
+   * Sets the title shown next to this tray icon.
+   *
+   * @example
+   * ```typescript
+   * await tray.setTitle('42');
+   * ```
    *
    * #### Platform-specific:
    *
@@ -273,7 +363,14 @@ export class TrayIcon extends Resource {
     return invoke('plugin:tray|set_title', { rid: this.rid, title })
   }
 
-  /** Show or hide this tray icon. */
+  /**
+   * Show or hide this tray icon.
+   *
+   * @example
+   * ```typescript
+   * await tray.setVisible(false);
+   * ```
+   */
   async setVisible(visible: boolean): Promise<void> {
     return invoke('plugin:tray|set_visible', { rid: this.rid, visible })
   }
@@ -283,12 +380,28 @@ export class TrayIcon extends Resource {
    *
    * On Linux, we need to write the icon to the disk and usually it will
    * be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+   *
+   * @example
+   * ```typescript
+   * import { appCacheDir } from '@tauri-apps/api/path';
+   * await tray.setTempDirPath(await appCacheDir());
+   * ```
    */
   async setTempDirPath(path: string | null): Promise<void> {
     return invoke('plugin:tray|set_temp_dir_path', { rid: this.rid, path })
   }
 
-  /** Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only** */
+  /**
+   * Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**
+   *
+   * A template image is recolored by the system so it matches the menu bar
+   * appearance in light and dark mode.
+   *
+   * @example
+   * ```typescript
+   * await tray.setIconAsTemplate(true);
+   * ```
+   */
   async setIconAsTemplate(asTemplate: boolean): Promise<void> {
     return invoke('plugin:tray|set_icon_as_template', {
       rid: this.rid,
@@ -305,9 +418,19 @@ export class TrayIcon extends Resource {
    * [dependencies]
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
+   *
+   * Prefer this over calling {@linkcode TrayIcon.setIcon} and
+   * {@linkcode TrayIcon.setIconAsTemplate} in sequence, which can briefly show the
+   * new icon with the previous template setting.
+   *
+   * @example
+   * ```typescript
+   * import { Image } from '@tauri-apps/api/image';
+   * await tray.setIconWithAsTemplate(await Image.fromPath('icons/active.png'), true);
+   * ```
    */
   async setIconWithAsTemplate(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[] | null,
+    icon: JsImage | null,
     asTemplate: boolean
   ): Promise<void> {
     let trayIcon = null
@@ -329,6 +452,11 @@ export class TrayIcon extends Resource {
    * - **Linux**: Unsupported.
    *
    * @deprecated use {@linkcode TrayIcon.setShowMenuOnLeftClick} instead.
+   *
+   * @example
+   * ```typescript
+   * await tray.setShowMenuOnLeftClick(false);
+   * ```
    */
   async setMenuOnLeftClick(onLeft: boolean): Promise<void> {
     return invoke('plugin:tray|set_show_menu_on_left_click', {
@@ -343,6 +471,15 @@ export class TrayIcon extends Resource {
    * #### Platform-specific:
    *
    * - **Linux**: Unsupported.
+   *
+   * Disable it to handle left clicks yourself through the
+   * {@linkcode TrayIconOptions.action} handler while still showing the menu on
+   * right click.
+   *
+   * @example
+   * ```typescript
+   * await tray.setShowMenuOnLeftClick(false);
+   * ```
    *
    * @since 2.2.0
    */

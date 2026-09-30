@@ -10,16 +10,16 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 
-pub use self::context::{context_codegen, ContextData};
-use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError};
+pub use self::context::{ContextData, context_codegen};
+use crate::embedded_assets::{EmbeddedAssetsError, ensure_out_dir};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use std::{
   borrow::Cow,
   fmt::{self, Write},
   path::{Path, PathBuf},
 };
-pub use tauri_utils::config::{parse::ConfigError, Config};
+pub use tauri_utils::config::{Config, parse::ConfigError};
 use tauri_utils::platform::Target;
 use tauri_utils::write_if_changed;
 
@@ -37,7 +37,9 @@ pub enum CodegenConfigError {
   CurrentDir(std::io::Error),
 
   // this error should be "impossible" because we use std::env::current_dir() - cover it anyways
-  #[error("Tauri config file has no parent, this shouldn't be possible. file an issue on https://github.com/tauri-apps/tauri - target {0}")]
+  #[error(
+    "Tauri config file has no parent, this shouldn't be possible. file an issue on https://github.com/tauri-apps/tauri - target {0}"
+  )]
   Parent(PathBuf),
 
   #[error("unable to parse inline JSON TAURI_CONFIG env var: {0}")]

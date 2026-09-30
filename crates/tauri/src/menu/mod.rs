@@ -20,7 +20,7 @@ pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
 use crate::menu::plugin::remove_menu_channel;
-use crate::{image::Image, AppHandle, Runtime};
+use crate::{AppHandle, Runtime, image::Image};
 pub use muda::MenuId;
 
 macro_rules! run_item_main_thread {

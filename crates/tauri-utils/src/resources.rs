@@ -684,9 +684,11 @@ mod tests {
     assert!(resources.iter().all(|r| r.is_err()));
 
     // hashmap order is not guaranteed so we check the error variant exists and how many
-    assert!(resources
-      .iter()
-      .any(|r| matches!(r, Err(crate::Error::ResourcePathNotFound(_)))));
+    assert!(
+      resources
+        .iter()
+        .any(|r| matches!(r, Err(crate::Error::ResourcePathNotFound(_))))
+    );
     assert_eq!(
       resources
         .iter()
@@ -694,9 +696,11 @@ mod tests {
         .count(),
       2
     );
-    assert!(resources
-      .iter()
-      .any(|r| matches!(r, Err(crate::Error::NotAllowedToWalkDir(_)))));
+    assert!(
+      resources
+        .iter()
+        .any(|r| matches!(r, Err(crate::Error::NotAllowedToWalkDir(_))))
+    );
     assert_eq!(
       resources
         .iter()
@@ -704,9 +708,11 @@ mod tests {
         .count(),
       1
     );
-    assert!(resources
-      .iter()
-      .any(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_)))));
+    assert!(
+      resources
+        .iter()
+        .any(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_))))
+    );
     assert_eq!(
       resources
         .iter()

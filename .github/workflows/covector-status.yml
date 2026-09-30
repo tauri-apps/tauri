@@ -5,6 +5,9 @@
 name: covector status
 on: [pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   covector:
     runs-on: ubuntu-latest

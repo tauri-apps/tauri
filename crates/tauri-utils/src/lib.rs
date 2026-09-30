@@ -66,6 +66,7 @@ mod window_effects {
   #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
   #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
   #[serde(rename_all = "camelCase")]
+  #[non_exhaustive]
   /// Platform-specific window effects
   pub enum WindowEffect {
     /// A default material appropriate for the view's effectiveAppearance. **macOS 10.14-**
@@ -114,6 +115,10 @@ mod window_effects {
     UnderWindowBackground,
     /// **macOS 10.14+**
     UnderPageBackground,
+    /// **macOS 26.0+**
+    LiquidGlassRegular,
+    /// **macOS 26.0+**
+    LiquidGlassClear,
     /// Mica effect that matches the system dark preference **Windows 11 Only**
     Mica,
     /// Mica effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
@@ -303,7 +308,9 @@ impl Default for Env {
           .unwrap_or(true);
 
         if !is_temp {
-          log::warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
+          log::warn!(
+            "`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue."
+          );
         }
       }
       env
@@ -367,7 +374,9 @@ pub enum Error {
   WalkdirError(#[from] walkdir::Error),
   /// Not allowed to walk dir.
   #[cfg(feature = "resources")]
-  #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
+  #[error(
+    "could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor."
+  )]
   NotAllowedToWalkDir(std::path::PathBuf),
   /// Resource path doesn't exist
   #[cfg(feature = "resources")]
@@ -390,10 +399,8 @@ where
   P: AsRef<Path>,
   C: AsRef<[u8]>,
 {
-  if let Ok(existing) = std::fs::read(&path) {
-    if existing == content.as_ref() {
-      return Ok(());
-    }
+  if std::fs::read(&path).is_ok_and(|existing| existing == content.as_ref()) {
+    return Ok(());
   }
 
   std::fs::write(path, content)

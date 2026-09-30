@@ -169,6 +169,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("register_listener", true),
       ("remove_listener", true),
       ("supports_multiple_windows", true),
+      ("fold_state", true),
     ],
   ),
   (

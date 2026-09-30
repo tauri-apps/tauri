@@ -120,6 +120,14 @@ pub fn supports_multiple_windows<R: Runtime>(app: AppHandle<R>) -> bool {
   app.supports_multiple_windows()
 }
 
+#[command(root = "crate")]
+pub fn fold_state() -> Option<crate::FoldState> {
+  #[cfg(target_env = "ohos")]
+  return crate::ohos::fold_state();
+  #[cfg(not(target_env = "ohos"))]
+  None
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("app")
     .invoke_handler(crate::generate_handler![
@@ -137,14 +145,31 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       set_dock_visibility,
       bundle_type,
       supports_multiple_windows,
+      fold_state,
     ])
     .setup(|_app, _api| {
+      #[cfg(target_env = "ohos")]
+      {
+        use crate::Emitter;
+        let app = _app.clone();
+        super::fold::native::set_listener(Some(std::sync::Arc::new(move |state| {
+          if let Err(error) = app.emit("tauri://fold-state-changed", state) {
+            log::warn!("failed to emit fold state: {error}");
+          }
+        })));
+      }
       #[cfg(target_os = "android")]
       {
         let handle = _api.register_android_plugin("app.tauri", "AppPlugin")?;
         _app.manage(AppPlugin(handle));
       }
       Ok(())
+    })
+    .on_event(|_app, _event| {
+      #[cfg(target_env = "ohos")]
+      if matches!(_event, crate::RunEvent::Exit) {
+        super::fold::native::set_listener(None);
+      }
     })
     .build()
 }

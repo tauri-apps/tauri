@@ -52,6 +52,8 @@ use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
 
+pub(crate) mod fold;
+pub use fold::{FoldState, FoldStatus};
 pub(crate) mod plugin;
 
 #[cfg(desktop)]

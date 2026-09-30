@@ -30,6 +30,7 @@ struct TrayIconOptions {
   tooltip: Option<String>,
   title: Option<String>,
   temp_dir_path: Option<PathBuf>,
+  autosave_name: Option<String>,
   // TODO: Remove in v3
   icon_as_template: Option<bool>,
   icon_is_template: Option<bool>,
@@ -89,6 +90,9 @@ fn new<R: Runtime>(
   }
   if let Some(temp_dir_path) = options.temp_dir_path {
     builder = builder.temp_dir_path(temp_dir_path);
+  }
+  if let Some(autosave_name) = options.autosave_name {
+    builder = builder.autosave_name(autosave_name);
   }
   #[allow(deprecated)]
   if let Some(menu_on_left_click) = options.menu_on_left_click {

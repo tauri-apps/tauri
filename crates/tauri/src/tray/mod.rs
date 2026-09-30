@@ -326,6 +326,22 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
+  /// Set a stable key for this tray icon's saved position in the menu bar. **macOS only**.
+  ///
+  /// macOS restores where the user <kbd>Cmd</kbd>+dragged a tray icon on the next launch
+  /// either way, keyed by the order in which the app created its tray icons (`Item-0`,
+  /// `Item-1`, and so on) when no name is given. Set one when that numbering isn't stable
+  /// from launch to launch, as in an app that creates several tray icons or creates one
+  /// conditionally, so that two icons don't come back holding each other's positions.
+  ///
+  /// Use one fixed string per tray icon, typically a reverse-DNS identifier such as
+  /// `"com.example.app.tray"`. The position is saved under that name, so changing it
+  /// abandons the position saved under the old one.
+  pub fn autosave_name<S: AsRef<str>>(mut self, name: S) -> Self {
+    self.inner = self.inner.with_autosave_name(name);
+    self
+  }
+
   /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
   // TODO: Remove in v3
   #[deprecated(

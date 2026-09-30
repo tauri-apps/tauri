@@ -353,11 +353,17 @@ impl TryFrom<AboutMetadata<'_>> for muda::AboutMetadata {
   }
 }
 
-/// A native Icon to be used for the menu item
+/// A native icon to be used for a menu item or a tray icon.
 ///
-/// ## Platform-specific:
+/// Known variants map to a platform-native icon where an equivalent exists:
 ///
-/// - **Windows / Linux**: Unsupported.
+/// - **Linux**: a freedesktop icon name, resolved by the desktop icon theme, so the icon follows
+///   the theme's light and dark variants.
+/// - **macOS**: an AppKit image name.
+/// - **Windows**: a stock shell icon, for the variants that have one.
+///
+/// Note that not every API taking a native icon supports every platform, see
+/// [`IconMenuItem::set_native_icon`] and [`Submenu::set_native_icon`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum NativeIcon {
   /// An add item template image.

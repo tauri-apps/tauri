@@ -21,6 +21,7 @@
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
 import { type JsImage, transformImage } from './image'
+import type { NativeIcon } from './menu/iconMenuItem'
 import { PhysicalPosition, PhysicalSize } from './dpi'
 
 /** Whether the mouse button was pressed (`Down`) or released (`Up`). */
@@ -111,6 +112,15 @@ export interface TrayIconOptions {
    * ```
    */
   icon?: JsImage
+  /**
+   * The tray icon from a platform-native icon, ignored when
+   * {@linkcode TrayIconOptions.icon} is set.
+   *
+   * See {@linkcode TrayIcon.setNativeIcon} for the platform-specific behavior.
+   *
+   * @since 2.13.0
+   */
+  nativeIcon?: NativeIcon
   /** The tray icon tooltip */
   tooltip?: string
   /**
@@ -314,6 +324,34 @@ export class TrayIcon extends Resource {
       trayIcon = transformImage(icon)
     }
     return invoke('plugin:tray|set_icon', { rid: this.rid, icon: trayIcon })
+  }
+
+  /**
+   * Sets a new tray icon from a platform-native icon, or removes it if `null` is
+   * provided.
+   *
+   * Note that this overrides any icon set with {@linkcode TrayIcon.setIcon}.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux:** Known variants map to freedesktop icon names, so the icon is
+   * resolved by the desktop icon theme and follows its light and dark variants.
+   * - **macOS:** Known variants map to AppKit image names.
+   * - **Windows:** Known variants map to stock shell icons where an equivalent
+   * exists, and an error is thrown otherwise.
+   *
+   * @example
+   * ```typescript
+   * import { NativeIcon } from '@tauri-apps/api/menu';
+   * await tray.setNativeIcon(NativeIcon.StatusAvailable);
+   * // remove the icon
+   * await tray.setNativeIcon(null);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  async setNativeIcon(icon: NativeIcon | null): Promise<void> {
+    return invoke('plugin:tray|set_native_icon', { rid: this.rid, icon })
   }
 
   /**

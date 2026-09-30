@@ -14,7 +14,7 @@ rust-version.workspace = true
 
 [package.metadata.docs.rs]
 # docs.rs builds without network access, `dox` skips downloading the CEF binary distribution
-features = ["cef/dox", "devtools", "macos-private-api", "unstable"]
+features = ["cef/dox", "devtools", "unstable"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-unknown-linux-gnu",
@@ -129,10 +129,5 @@ x11-dl = "2.21"
 default = []
 # also enables devtools on `tauri` so the feature only needs to be enabled on this crate
 devtools = ["tauri-runtime/devtools", "tauri/devtools"]
-# also enables macos-private-api on `tauri` so the feature only needs to be enabled on this crate
-macos-private-api = [
-  "tauri-runtime/macos-private-api",
-  "tauri/macos-private-api",
-]
 # exposes the extension traits for `tauri::webview::WebviewBuilder`
 unstable = ["tauri/unstable"]

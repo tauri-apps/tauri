@@ -119,7 +119,6 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
         windows: Vec::new(),
         security: Default::default(),
         tray_icon: None,
-        macos_private_api: false,
         enable_gtk_app_id: false,
         app_directories_override: None,
       },

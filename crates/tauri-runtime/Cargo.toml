@@ -56,7 +56,6 @@ objc2 = "0.6"
 [features]
 default = []
 devtools = []
-macos-private-api = []
 
 [lints]
 workspace = true

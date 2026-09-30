@@ -207,8 +207,6 @@ devtools = ["tauri-runtime/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
-# the runtime crate (e.g. `tauri-runtime-cef`) must also enable its `macos-private-api` feature
-macos-private-api = ["tauri-runtime/macos-private-api"]
 webview-data-url = ["data-url", "tauri-utils/html-manipulation-2"]
 protocol-asset = ["http-range"]
 config-json5 = ["tauri-macros/config-json5"]

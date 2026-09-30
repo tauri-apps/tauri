@@ -60,8 +60,6 @@
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
-//! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
-//!   **No-op with `tauri-runtime-wry` since Tauri 2.12.1** because the APIs are always enabled now. Other runtimes may still require it: enable it on the runtime crate (e.g. `tauri-runtime-cef`) instead, which also enables it here.
 //! - **webview-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default)*: Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.

@@ -2026,7 +2026,6 @@ pub struct WindowConfig {
   /// ## Platform-specific
   ///
   /// - **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
-  /// - **macOS**: With `tauri-runtime-cef`, requires its `macos-private-api` Cargo feature.
   /// - **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.
   #[serde(default)]
   pub transparent: bool,
@@ -3355,12 +3354,6 @@ pub struct AppConfig {
   /// Configuration for app tray icon.
   #[serde(alias = "tray-icon")]
   pub tray_icon: Option<TrayIconConfig>,
-  /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
-  ///
-  /// No-op with `tauri-runtime-wry` since Tauri 2.12.1 because the APIs are always enabled now.
-  /// `tauri-runtime-cef` still requires its own `macos-private-api` Cargo feature.
-  #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
-  pub macos_private_api: bool,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
@@ -3498,12 +3491,7 @@ pub struct AppConfig {
 impl AppConfig {
   /// Returns all Cargo features.
   pub fn all_features() -> Vec<&'static str> {
-    vec![
-      "tray-icon",
-      "macos-private-api",
-      "protocol-asset",
-      "isolation",
-    ]
+    vec!["tray-icon", "protocol-asset", "isolation"]
   }
 
   /// Returns the enabled Cargo features.
@@ -3511,9 +3499,6 @@ impl AppConfig {
     let mut features = Vec::new();
     if self.tray_icon.is_some() {
       features.push("tray-icon");
-    }
-    if self.macos_private_api {
-      features.push("macos-private-api");
     }
     if self.security.asset_protocol.enable {
       features.push("protocol-asset");
@@ -4943,7 +4928,6 @@ mod build {
       let windows = vec_lit(&self.windows, identity);
       let security = &self.security;
       let tray_icon = opt_lit(self.tray_icon.as_ref());
-      let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
       let app_directories_override = opt_lit(self.app_directories_override.as_ref());
@@ -4954,7 +4938,6 @@ mod build {
         windows,
         security,
         tray_icon,
-        macos_private_api,
         with_global_tauri,
         enable_gtk_app_id,
         app_directories_override
@@ -5040,7 +5023,6 @@ mod test {
         headers: None,
       },
       tray_icon: None,
-      macos_private_api: false,
       with_global_tauri: false,
       enable_gtk_app_id: false,
       app_directories_override: None,

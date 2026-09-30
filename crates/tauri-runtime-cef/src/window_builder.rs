@@ -91,10 +91,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     } else if config.always_on_top {
       builder = builder.always_on_top(true);
     }
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    {
-      builder = builder.transparent(config.transparent);
-    }
+    builder = builder.transparent(config.transparent);
     let mut constraints = WindowSizeConstraints::default();
     if let Some(min_width) = config.min_width {
       constraints.min_width = Some(tauri_runtime::dpi::LogicalUnit::new(min_width).into());
@@ -263,16 +260,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   fn transparent(mut self, transparent: bool) -> Self {
     self.attrs.inner = self.attrs.inner.with_transparent(transparent);
-    self
-  }
-
-  // Window transparency on macOS relies on private APIs, which must not be referenced from the
-  // binary unless this crate's `macos-private-api` feature is enabled.
-  #[cfg(all(target_os = "macos", not(feature = "macos-private-api")))]
-  fn transparent(self, _transparent: bool) -> Self {
     self
   }
 

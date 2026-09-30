@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "productName": "Asset Streaming",
+  "version": "0.1.0",
+  "identifier": "com.tauri.asset-streaming",
+  "build": {
+    "frontendDist": "../public",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Play a video over asset://",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; media-src asset: http://asset.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**/streaming_example_test_video.mp4"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../../.icons/32x32.png",
+      "../../.icons/128x128.png",
+      "../../.icons/128x128@2x.png",
+      "../../.icons/icon.icns",
+      "../../.icons/icon.ico"
+    ],
+    "linux": {
+      "assetGstPlugin": {
+        "active": true,
+        "path": "../../../target/release/libgsttauriasset.so"
+      },
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    }
+  }
+}

@@ -2589,10 +2589,15 @@ tauri::Builder::default()
       if let Some(tray_config) = &config.app.tray_icon {
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
-            .icon_as_template(tray_config.icon_as_template)
             .show_menu_on_left_click(tray_config.show_menu_on_left_click);
         if let Some(icon) = &app.manager.tray.icon {
-          tray = tray.icon(icon.clone());
+          #[allow(deprecated)]
+          let is_template = tray_config.icon_is_template || tray_config.icon_as_template;
+          tray = if is_template {
+            tray.icon_templated(icon.clone())
+          } else {
+            tray.icon(icon.clone())
+          };
         }
         if let Some(title) = &tray_config.title {
           tray = tray.title(title);

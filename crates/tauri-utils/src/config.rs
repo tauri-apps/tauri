@@ -2025,11 +2025,8 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS**: Requires the `macos-private-api` Cargo feature, which is enabled by setting
-  ///   `app > macOSPrivateApi` to `true` in the configuration file.
-  ///   **WARNING:** Using private APIs on macOS prevents your application from being accepted to the App Store.
-  ///   If you only need a translucent background, use `windowEffects` instead, which relies on public APIs.
   /// - **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
+  /// - **macOS**: With `tauri-runtime-cef`, requires its `macos-private-api` Cargo feature.
   /// - **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.
   #[serde(default)]
   pub transparent: bool,
@@ -3359,6 +3356,9 @@ pub struct AppConfig {
   #[serde(alias = "tray-icon")]
   pub tray_icon: Option<TrayIconConfig>,
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
+  ///
+  /// No-op with `tauri-runtime-wry` since Tauri 2.12.1 because the APIs are always enabled now.
+  /// `tauri-runtime-cef` still requires its own `macos-private-api` Cargo feature.
   #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
   pub macos_private_api: bool,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.

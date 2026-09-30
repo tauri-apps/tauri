@@ -444,11 +444,6 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   fn transparent(self, transparent: bool) -> Self {
     self
   }

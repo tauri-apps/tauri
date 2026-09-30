@@ -53,6 +53,16 @@
 - Upgraded to `tauri-utils@3.0.0-alpha.0`
 - Upgraded to `tauri-macos-sign@3.0.0-alpha.0`
 
+## [2.10.1]
+
+### Bug Fixes
+
+- [`d15cf9b1e`](https://www.github.com/tauri-apps/tauri/commit/d15cf9b1e481035a248227c791fde5740fcfe0ba) ([#16149](https://www.github.com/tauri-apps/tauri/pull/16149) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Make the `Glob` and `GlobPattern` error variants available on all platforms, fixing a compile error in the Windows bundler utilities on targets other than Windows, macOS and Linux.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+
 ## [2.10.0]
 
 ### New Features

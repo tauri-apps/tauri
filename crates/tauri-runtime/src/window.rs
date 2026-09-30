@@ -369,9 +369,8 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
   /// creating a transparent window.
   ///
-  /// Not gated on the `macos-private-api` feature so a runtime crate always implements it, even
-  /// when feature unification enables this crate's feature but not the runtime's. On macOS,
-  /// runtimes must make this a no-op unless their own `macos-private-api` feature is enabled.
+  /// On macOS, runtimes that rely on private APIs for transparency (e.g. `tauri-runtime-cef`)
+  /// must make this a no-op unless their own `macos-private-api` feature is enabled.
   #[must_use]
   fn transparent(self, transparent: bool) -> Self;
 

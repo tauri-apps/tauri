@@ -44,6 +44,12 @@
 - [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
 - [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
 
+## [2.10.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
 ## [2.10.0]
 
 ### New Features

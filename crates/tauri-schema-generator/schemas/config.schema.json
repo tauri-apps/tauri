@@ -212,7 +212,7 @@
           ]
         },
         "macOSPrivateApi": {
-          "description": "MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.",
+          "description": "MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.\n\nNo-op with `tauri-runtime-wry` since Tauri 2.12.1 because the APIs are always enabled now.\n`tauri-runtime-cef` still requires its own `macos-private-api` Cargo feature.",
           "type": "boolean",
           "default": false
         },
@@ -392,7 +392,7 @@
           "default": true
         },
         "transparent": {
-          "description": "Whether the window is transparent or not.\n\n## Platform-specific\n\n- **macOS**: Requires the `macos-private-api` Cargo feature, which is enabled by setting\n  `app > macOSPrivateApi` to `true` in the configuration file.\n  **WARNING:** Using private APIs on macOS prevents your application from being accepted to the App Store.\n  If you only need a translucent background, use `windowEffects` instead, which relies on public APIs.\n- **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.\n- **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.",
+          "description": "Whether the window is transparent or not.\n\n## Platform-specific\n\n- **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.\n- **macOS**: With `tauri-runtime-cef`, requires its `macos-private-api` Cargo feature.\n- **CEF runtime**: The window can be transparent but the webview cannot: a windowed Chromium browser paints an opaque background. The runtime logs a warning.",
           "type": "boolean",
           "default": false
         },

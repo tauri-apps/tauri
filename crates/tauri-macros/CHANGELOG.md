@@ -48,6 +48,13 @@
 
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `default_runtime` attribute macro was removed, the generic types of `tauri` now default to `tauri::DynRuntime` directly.
 
+## [2.7.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+- Upgraded to `tauri-codegen@2.7.1`
+
 ## [2.7.0]
 
 ### Enhancements

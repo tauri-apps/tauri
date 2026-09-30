@@ -67,7 +67,7 @@ default = ["x11", "dbus"]
 # also enables devtools on `tauri` so the feature only needs to be enabled on this crate
 devtools = ["wry/devtools", "tauri-runtime/devtools", "tauri/devtools"]
 x11 = ["tao/x11", "wry/x11"]
-# also enables macos-private-api on `tauri` so the feature only needs to be enabled on this crate
+# no-op: wry does not rely on private APIs anymore
 macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri/macos-private-api",

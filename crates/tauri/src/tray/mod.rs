@@ -257,6 +257,29 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
+  /// Set an icon for this tray icon and draw it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu bar in light and dark mode. [`TrayIconBuilder::icon`] uses the icon as-is instead.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Same as [`TrayIconBuilder::icon`], as only macOS has template images.
+  pub fn icon_templated(mut self, icon: Image<'_>) -> Self {
+    let icon = icon.try_into().ok();
+    if let Some(icon) = icon {
+      #[cfg(target_os = "macos")]
+      {
+        self.inner = self.inner.with_icon_templated(icon);
+      }
+      #[cfg(not(target_os = "macos"))]
+      {
+        self.inner = self.inner.with_icon(icon);
+      }
+    }
+    self
+  }
+
   /// Set a tooltip for this tray icon.
   ///
   /// ## Platform-specific:
@@ -292,6 +315,11 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIconBuilder::icon_templated` instead, which takes the icon to draw as a template."
+  )]
   pub fn icon_as_template(mut self, is_template: bool) -> Self {
     #[allow(deprecated)]
     {
@@ -560,7 +588,60 @@ impl<R: Runtime> TrayIcon<R> {
     Ok(())
   }
 
+  /// Sets a new tray icon, or removes it, and draws it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu bar in light and dark mode. [`TrayIcon::set_icon`] draws the icon as-is instead.
+  ///
+  /// Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+  /// To enable it, change your Cargo.toml file:
+  ///
+  /// ```toml
+  /// [dependencies]
+  /// tauri = { version = "...", features = ["...", "image-png"] }
+  /// ```
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Same as [`TrayIcon::set_icon`], as only macOS has template images.
+  pub fn set_icon_templated(&self, icon: Option<Image<'_>>) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+      let tray_icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| {
+        self_.inner.set_icon_templated(tray_icon)
+      })??;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+      self.set_icon(icon)?;
+    }
+    Ok(())
+  }
+
+  /// Whether the current tray icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// See [`TrayIcon::set_icon_templated`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Always `false`, as only macOS has template images.
+  pub fn icon_is_template(&self) -> crate::Result<bool> {
+    #[cfg(target_os = "macos")]
+    return run_item_main_thread!(self, |self_: Self| self_.inner.icon_is_template());
+    #[allow(unreachable_code)]
+    Ok(false)
+  }
+
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIcon::set_icon_templated` instead, which sets the icon and draws it as a template in one call."
+  )]
   pub fn set_icon_as_template(&self, #[allow(unused)] is_template: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
     #[allow(deprecated)]
@@ -578,29 +659,21 @@ impl<R: Runtime> TrayIcon<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux / Windows:** Falls back to calling `set_icon`.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIcon::set_icon_templated` for a template icon, or `TrayIcon::set_icon` for a plain one."
+  )]
   pub fn set_icon_with_as_template(
     &self,
     icon: Option<Image<'_>>,
-    #[allow(unused)] is_template: bool,
+    is_template: bool,
   ) -> crate::Result<()> {
-    #[cfg(target_os = "macos")]
-    {
-      let tray_icon = match icon {
-        Some(i) => Some(i.try_into()?),
-        None => None,
-      };
-      #[allow(deprecated)]
-      run_item_main_thread!(self, |self_: Self| {
-        self_
-          .inner
-          .set_icon_with_as_template(tray_icon, is_template)
-      })??;
+    if is_template {
+      self.set_icon_templated(icon)
+    } else {
+      self.set_icon(icon)
     }
-    #[cfg(not(target_os = "macos"))]
-    {
-      self.set_icon(icon)?;
-    }
-    Ok(())
   }
 
   /// Disable or enable showing the tray menu on left click.

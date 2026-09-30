@@ -3603,6 +3603,19 @@ pub struct TrayIconConfig {
   pub title: Option<String>,
   /// Tray icon tooltip on Windows and macOS
   pub tooltip: Option<String>,
+  /// A stable key for the tray icon's saved position in the menu bar. **macOS only**.
+  ///
+  /// macOS restores where the user Cmd+dragged the tray icon on the next launch either way,
+  /// keyed by the order in which the app created its tray icons (`Item-0`, `Item-1`, and so on)
+  /// when no name is given. Set one when that numbering isn't stable from launch to launch,
+  /// as in an app that creates more tray icons at runtime, so that two icons don't come back
+  /// holding each other's positions.
+  ///
+  /// Use one fixed string, typically a reverse-DNS identifier such as `com.example.app.tray`.
+  /// The position is saved under that name, so changing it abandons the position saved under
+  /// the old one.
+  #[serde(alias = "autosave-name")]
+  pub autosave_name: Option<String>,
 }
 
 /// General configuration for the iOS target.
@@ -4874,6 +4887,7 @@ mod build {
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
       let tooltip = opt_str_lit(self.tooltip.as_ref());
+      let autosave_name = opt_str_lit(self.autosave_name.as_ref());
       literal_struct!(
         tokens,
         ::tauri::utils::config::TrayIconConfig,
@@ -4885,7 +4899,8 @@ mod build {
         show_menu_on_left_click,
         show_menu_on_right_click,
         title,
-        tooltip
+        tooltip,
+        autosave_name
       );
     }
   }

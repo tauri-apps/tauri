@@ -382,6 +382,14 @@ Function PageLeaveReinstall
       MessageBox MB_ICONEXCLAMATION "$(unableToUninstall)"
       Abort
     ${EndIf}
+
+    ; The NSIS uninstaller was run in place (`_?=`), so it cannot delete itself
+    ; and the install directory, clean them up here
+    ${If} $WixMode = 0
+    ${AndIf} $4 != ""
+      Delete "$4\uninstall.exe"
+      RMDir "$4"
+    ${EndIf}
   reinst_done:
 FunctionEnd
 

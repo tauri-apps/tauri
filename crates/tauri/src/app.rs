@@ -2589,7 +2589,8 @@ tauri::Builder::default()
       if let Some(tray_config) = &config.app.tray_icon {
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
-            .show_menu_on_left_click(tray_config.show_menu_on_left_click);
+            .show_menu_on_left_click(tray_config.show_menu_on_left_click)
+            .show_menu_on_right_click(tray_config.show_menu_on_right_click);
         if let Some(icon) = &app.manager.tray.icon {
           #[allow(deprecated)]
           let is_template = tray_config.icon_is_template || tray_config.icon_as_template;

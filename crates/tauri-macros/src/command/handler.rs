@@ -38,7 +38,8 @@ impl Parse for Handler {
       .into_iter()
       .collect();
 
-    filter_unused_commands(plugin_name, &mut command_defs);
+    filter_unused_commands(&plugin_name, &mut command_defs);
+    warn_unreferenced_commands(&plugin_name, &command_defs);
     let mut commands = Vec::new();
     let mut wrappers = Vec::new();
 
@@ -89,7 +90,7 @@ fn try_get_plugin_name(input: &ParseBuffer<'_>) -> Result<Option<String>, syn::E
   )
 }
 
-fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<CommandDef>) {
+fn filter_unused_commands(plugin_name: &Option<String>, command_defs: &mut Vec<CommandDef>) {
   let allowed_commands = tauri_utils::acl::read_allowed_commands();
   let Some(allowed_commands) = allowed_commands else {
     return;
@@ -111,7 +112,7 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
 
   let mut unused_commands = Vec::new();
 
-  let command_prefix = if let Some(plugin_name) = &plugin_name {
+  let command_prefix = if let Some(plugin_name) = plugin_name {
     format!("plugin:{plugin_name}|")
   } else {
     "".into()
@@ -138,6 +139,75 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
     let plugin_display_name = plugin_name.as_deref().unwrap_or("application");
     let unused_commands_display = unused_commands.join(", ");
     println!("Removed unused commands from {plugin_display_name}: {unused_commands_display}",);
+  }
+}
+
+/// Warns about handler commands that no permission of the current crate
+/// references, since such commands cannot be granted by any capability and
+/// every invoke is rejected at runtime.
+fn warn_unreferenced_commands(plugin_name: &Option<String>, command_defs: &[CommandDef]) {
+  // the REMOVE_UNUSED_COMMANDS flow resolves the actual capability set and
+  // already reports the commands it removes
+  if tauri_utils::acl::read_allowed_commands().is_some() {
+    return;
+  }
+
+  // TODO: Remove this in v3
+  if plugin_name.as_deref() == Some("__TAURI_CHANNEL__") {
+    return;
+  }
+
+  let Some(permission_files) = find_defined_permission_files(plugin_name.as_deref()) else {
+    return;
+  };
+  // a crate without any defined permission is not ACL-enabled; stay silent
+  if permission_files.is_empty() {
+    return;
+  }
+
+  let mut known = std::collections::HashSet::new();
+  for file in &permission_files {
+    for permission in &file.permission {
+      known.extend(permission.commands.allow.iter().cloned());
+      known.extend(permission.commands.deny.iter().cloned());
+    }
+  }
+
+  for command_def in command_defs {
+    let mut wrapper = command_def.path.clone();
+    let command_name = super::path_to_command(&mut wrapper).ident.to_string();
+    if !known.contains(&command_name) {
+      let display_name = plugin_name.as_deref().unwrap_or("the application");
+      println!(
+        "tauri: command `{command_name}` (registered in `generate_handler!`) is not referenced by any permission of {display_name}, so it cannot be invoked from the frontend. Add it to the COMMANDS list in build.rs or reference it in a permission file. If the command is renamed with `#[command(rename = \"...\")]` and the renamed command has a permission, ignore this warning."
+      );
+    }
+  }
+}
+
+/// Locates the permission files defined by the current crate's build script,
+/// probing the locations used by tauri-plugin (external plugin crates),
+/// tauri-build (inlined plugins and the app manifest) and the tauri crate
+/// itself (core plugins).
+fn find_defined_permission_files(
+  plugin_name: Option<&str>,
+) -> Option<Vec<tauri_utils::acl::manifest::PermissionFile>> {
+  use tauri_utils::acl::read_defined_permission_files;
+
+  match plugin_name {
+    Some(name) => {
+      let pkg_name = std::env::var("CARGO_PKG_NAME").ok()?;
+      read_defined_permission_files(&format!("{pkg_name}-permission-files"))
+        .or_else(|| {
+          read_defined_permission_files(&format!("plugins/{name}/{name}-permission-files"))
+        })
+        .or_else(|| {
+          (pkg_name == "tauri")
+            .then(|| read_defined_permission_files(&format!("tauri-{name}-permission-files")))
+            .flatten()
+        })
+    }
+    None => read_defined_permission_files("app-manifest/__app__-permission-files"),
   }
 }
 

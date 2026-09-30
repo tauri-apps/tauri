@@ -29,7 +29,9 @@ struct TrayIconOptions {
   tooltip: Option<String>,
   title: Option<String>,
   temp_dir_path: Option<PathBuf>,
+  // TODO: Remove in v3
   icon_as_template: Option<bool>,
+  icon_is_template: Option<bool>,
   menu_on_left_click: Option<bool>,
   show_menu_on_left_click: Option<bool>,
 }
@@ -66,7 +68,14 @@ fn new<R: Runtime>(
     };
   }
   if let Some(icon) = options.icon {
-    builder = builder.icon(Arc::unwrap_or_clone(icon.into_img(&resources_table)?));
+    let icon = Arc::unwrap_or_clone(icon.into_img(&resources_table)?);
+    let is_template =
+      options.icon_is_template.unwrap_or(false) || options.icon_as_template.unwrap_or(false);
+    builder = if is_template {
+      builder.icon_templated(icon)
+    } else {
+      builder.icon(icon)
+    };
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -76,9 +85,6 @@ fn new<R: Runtime>(
   }
   if let Some(temp_dir_path) = options.temp_dir_path {
     builder = builder.temp_dir_path(temp_dir_path);
-  }
-  if let Some(icon_as_template) = options.icon_as_template {
-    builder = builder.icon_as_template(icon_as_template);
   }
   #[allow(deprecated)]
   if let Some(menu_on_left_click) = options.menu_on_left_click {
@@ -193,6 +199,25 @@ fn set_temp_dir_path<R: Runtime>(
 }
 
 #[command(root = "crate")]
+fn set_icon_templated<R: Runtime>(
+  app: AppHandle<R>,
+  webview: Webview<R>,
+  rid: ResourceId,
+  icon: Option<JsImage>,
+) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  let webview_resources_table = webview.resources_table();
+  let icon = match icon {
+    Some(i) => Some(Arc::unwrap_or_clone(i.into_img(&webview_resources_table)?)),
+    None => None,
+  };
+  tray.set_icon_templated(icon)
+}
+
+// TODO: Remove in v3
+#[command(root = "crate")]
+#[allow(deprecated)]
 fn set_icon_as_template<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
@@ -203,7 +228,9 @@ fn set_icon_as_template<R: Runtime>(
   tray.set_icon_as_template(as_template)
 }
 
+// TODO: Remove in v3
 #[command(root = "crate")]
+#[allow(deprecated)]
 fn set_icon_with_as_template<R: Runtime>(
   app: AppHandle<R>,
   webview: Webview<R>,
@@ -245,9 +272,11 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_title,
       set_visible,
       set_temp_dir_path,
+      set_icon_templated,
+      set_show_menu_on_left_click,
+      // TODO: Remove in v3
       set_icon_as_template,
       set_icon_with_as_template,
-      set_show_menu_on_left_click,
     ])
     .build()
 }

@@ -3560,9 +3560,19 @@ pub struct TrayIconConfig {
   /// or else it's going to bloat your final executable
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
+  /// **Deprecated since v2.13, use [`Self::icon_is_template`] instead**
+  ///
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  // TODO: Remove in v3
   #[serde(default, alias = "icon-as-template")]
+  #[deprecated(since = "2.13.0", note = "Use `icon_is_template` instead.")]
   pub icon_as_template: bool,
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolors it to match
+  /// the menu bar in light and dark mode.
+  #[serde(default, alias = "icon-is-template")]
+  pub icon_is_template: bool,
   /// **No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**
   ///
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
@@ -4844,11 +4854,13 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      // For [`Self::menu_on_left_click`]
+      // For [`Self::menu_on_left_click`] and [`Self::icon_as_template`]
       tokens.append_all(quote!(#[allow(deprecated)]));
 
       let id = opt_str_lit(self.id.as_ref());
+      #[allow(deprecated)]
       let icon_as_template = self.icon_as_template;
+      let icon_is_template = self.icon_is_template;
       #[allow(deprecated)]
       let menu_on_left_click = self.menu_on_left_click;
       let show_menu_on_left_click = self.show_menu_on_left_click;
@@ -4861,6 +4873,7 @@ mod build {
         id,
         icon_path,
         icon_as_template,
+        icon_is_template,
         menu_on_left_click,
         show_menu_on_left_click,
         title,

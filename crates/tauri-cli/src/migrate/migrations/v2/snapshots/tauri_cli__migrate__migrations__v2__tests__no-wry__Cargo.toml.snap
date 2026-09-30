@@ -1,0 +1,14 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tauri = { version = "3.0.0-alpha.3", default-features = false, features = ["test", "devtools"] }
+
+[features]
+devtools = ["tauri/devtools"]

@@ -1,0 +1,38 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+[package]
+name = "app"
+version = "0.1.0"
+description = "A Tauri App"
+edition = "2021"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "3.0.0-alpha.2", features = [] }
+
+[dependencies]
+# the core crate
+tauri = { version = "3.0.0-alpha.3", features = ["tray-icon", "tracing"] }
+tauri-runtime-wry = { version = "3.0.0-alpha.3", features = ["devtools", "tracing"] }
+tauri-plugin-opener = "3.0.0-alpha"
+tauri-plugin-log = { version = "3.0.0-alpha", features = ["colored"] }
+tauri-plugin-community = "0.3" # not an official plugin
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = { version = "3.0.0-alpha" }
+tauri-plugin-window-state = "3.0.0-alpha"
+
+[dev-dependencies]
+tauri = { version = "3.0.0-alpha.3", features = ["test"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+debug-tools = ["tauri-runtime-wry/devtools", "log/std"]

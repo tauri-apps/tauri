@@ -752,7 +752,10 @@ mod test {
       );
     }
 
-    if let Err(e) = serde_json::from_value::<tauri_utils::config::Config>(migrated.clone()) {
+    // `tauri migrate` continues with the v2 to v3 migration
+    let mut v3 = migrated.clone();
+    crate::migrate::migrations::v2::config::migrate_json(&mut v3);
+    if let Err(e) = serde_json::from_value::<tauri_utils::config::Config>(v3) {
       panic!("migrated config is not valid: {e}");
     }
 

@@ -1,0 +1,4 @@
+# Windows installer settings
+[bundle.windows.nsis]
+install-icon = "icons/installer.ico" # the installer icon
+display-language-selector = true

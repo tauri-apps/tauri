@@ -1,0 +1,9 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+{
+  // transparent windows on macOS
+  app: {
+  },
+}

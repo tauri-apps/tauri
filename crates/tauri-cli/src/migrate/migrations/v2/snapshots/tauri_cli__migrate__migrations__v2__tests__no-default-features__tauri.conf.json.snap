@@ -1,0 +1,10 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+{
+  "identifier": "com.tauri.app",
+  "app": {
+    "windows": []
+  }
+}

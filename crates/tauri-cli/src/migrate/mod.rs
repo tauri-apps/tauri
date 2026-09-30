@@ -45,26 +45,34 @@ pub fn command() -> Result<()> {
   let tauri_version = semver::Version::from_str(&tauri_version)
     .with_context(|| format!("failed to parse tauri version {tauri_version}"))?;
 
-  if tauri_version.major == 1 {
-    migrations::v1::run(&dirs).context("failed to migrate from v1")?;
-  } else if tauri_version.major == 2 {
-    if let Some((pre, _number)) = tauri_version.pre.as_str().split_once('.') {
-      match pre {
-        "beta" => {
-          migrations::v2_beta::run(&dirs).context("failed to migrate from v2 beta")?;
-        }
-        "alpha" => {
-          bail!(
-            "Migrating from v2 alpha ({tauri_version}) to v2 stable is not supported yet, \
-             if your project started early, try downgrading to v1 and then try again"
-          )
-        }
-        _ => {
-          bail!("Migrating from {tauri_version} to v2 stable is not supported yet")
-        }
+  match tauri_version.major {
+    1 => {
+      migrations::v1::run(&dirs).context("failed to migrate from v1")?;
+      migrations::v2::run(&dirs).context("failed to migrate from v2")?;
+    }
+    2 => match tauri_version.pre.as_str().split_once('.') {
+      Some(("beta", _)) => {
+        migrations::v2_beta::run(&dirs).context("failed to migrate from v2 beta")?;
+        migrations::v2::run(&dirs).context("failed to migrate from v2")?;
       }
-    } else {
-      log::info!("Nothing to do, the tauri version is already at v2 stable");
+      Some(("rc", _)) | None => {
+        migrations::v2::run(&dirs).context("failed to migrate from v2")?;
+      }
+      Some(("alpha", _)) => {
+        bail!(
+          "Migrating from v2 alpha ({tauri_version}) is not supported yet, \
+           if your project started early, try downgrading to v1 and then try again"
+        )
+      }
+      _ => {
+        bail!("Migrating from {tauri_version} is not supported yet")
+      }
+    },
+    _ => {
+      log::info!(
+        "Nothing to do, the tauri version is already at v{}",
+        tauri_version.major
+      );
     }
   }
 

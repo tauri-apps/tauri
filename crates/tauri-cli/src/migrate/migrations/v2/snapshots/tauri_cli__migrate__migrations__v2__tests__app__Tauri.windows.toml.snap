@@ -1,0 +1,8 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+# Windows installer settings
+[bundle.windows.nsis]
+installer-icon = "icons/installer.ico" # the installer icon
+display-language-selector = true

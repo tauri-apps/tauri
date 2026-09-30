@@ -1,0 +1,13 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+use tauri::{Builder, Manager};
+
+fn main() {
+  let app = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default()).build(tauri::generate_context!()).unwrap();
+  let _webview = tauri_runtime_wry::webview_version();
+  let _ = app.run_on_main_thread(|| {});
+  app.run(|_, _| {});
+  let _unused = Builder::<tauri::DynRuntime>::new();
+}

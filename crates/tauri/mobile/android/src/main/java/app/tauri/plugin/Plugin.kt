@@ -181,6 +181,19 @@ abstract class Plugin(private val activity: Activity) {
   }
 
   /**
+   * Returns the activity to present UI from. Call on the UI thread before presenting.
+   * Contextual calls return null if the origin is unavailable, finishing or destroyed.
+   * Non-contextual calls use the activity the plugin was created with.
+   */
+  protected fun presentingActivity(invoke: Invoke): Activity? {
+    if (!invoke.isContextual) {
+      return activity
+    }
+    val origin = invoke.activity ?: return null
+    return if (origin.isFinishing || origin.isDestroyed) null else origin
+  }
+
+  /**
    * Get the plugin log tags.
    * @param subTags
    */

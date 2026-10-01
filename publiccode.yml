@@ -1,0 +1,119 @@
+# This repository adheres to the publiccode.yml standard by including this
+# metadata file that makes public software easily discoverable.
+# More info at https://github.com/publiccodeyml/publiccode.yml
+
+publiccodeYmlVersion: "0.5"
+
+name: Tauri
+url: "https://github.com/tauri-apps/tauri"
+landingURL: "https://tauri.app"
+logo: .github/icon.png
+
+organisation:
+  name: The Tauri Programme within The Commons Conservancy
+  uri: "https://github.com/tauri-apps"
+
+fundedBy:
+  - name: CrabNebula
+    uri: "https://crabnebula.dev"
+
+softwareVersion: "2.12.1"
+releaseDate: "2026-09-30"
+
+platforms:
+  - windows
+  - mac
+  - linux
+  - ios
+  - android
+
+categories:
+  - application-development
+
+developmentStatus: stable
+softwareType: library
+
+intendedAudience:
+  scope:
+    - science-and-technology
+
+description:
+  en:
+    shortDescription: >-
+      Framework for building small, fast and secure desktop and mobile
+      applications with a web frontend and a Rust backend.
+    longDescription: >
+      Tauri is a framework for building tiny, fast binaries for all major
+      desktop and mobile operating systems. Developers can integrate any
+      frontend framework that compiles to HTML, JavaScript and CSS to build
+      their user interface, while the application backend is a Rust binary
+      exposing an API the frontend can interact with.
+
+
+      Instead of shipping a bundled browser engine, Tauri renders the user
+      interface with the webview provided by the operating system (WKWebView
+      on macOS and iOS, WebView2 on Windows, WebKitGTK on Linux and the
+      Android System WebView on Android). This keeps applications small and
+      lets them benefit from platform security updates. A capability-based
+      permission system controls which native APIs the frontend may access.
+
+
+      Tauri ships with a command line tool that scaffolds, develops, builds
+      and bundles applications into native installers, and with an ecosystem
+      of official plugins that provide access to native functionality such as
+      the file system, notifications, dialogs and automatic updates.
+    documentation: "https://tauri.app"
+    apiDocumentation: "https://docs.rs/tauri"
+    features:
+      - Cross-platform desktop and mobile applications from a single codebase
+      - Uses the operating system webview instead of a bundled browser engine
+      - Capability-based permission system for native API access
+      - Built-in bundler for .app, .dmg, .deb, .rpm, AppImage, NSIS and MSI
+      - Built-in self updater for desktop applications
+      - System tray icons, native menus and notifications
+      - Custom protocol serving of web assets without a localhost server
+      - Plugin system with official plugins for common native features
+
+legal:
+  license: Apache-2.0 OR MIT
+  mainCopyrightOwner: The Tauri Programme within The Commons Conservancy
+
+maintenance:
+  type: community
+  contacts:
+    - name: Lucas Nogueira
+      email: lucas@crabnebula.dev
+      affiliation: CrabNebula
+    - name: Fabian-Lars Scheidt
+      email: fabianlars@crabnebula.dev
+      affiliation: CrabNebula
+    - name: Tony Shen
+      email: tony@crabnebula.dev
+      affiliation: CrabNebula
+    - name: Amr Bashir
+      email: amr@tauri.app
+      affiliation: The Tauri Programme within The Commons Conservancy
+
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - en
+
+# Applications built with Tauri render their UI with the webview provided by the
+# operating system, so the runtime dependency depends on the target platform.
+dependsOn:
+  open:
+    - name: Rust toolchain
+      versionMin: "1.90"
+    - name: WebKitGTK (Linux)
+      versionMin: "2.40"
+    - name: Node.js (JavaScript CLI and API packages)
+      optional: true
+  proprietary:
+    - name: Microsoft Edge WebView2 Runtime (Windows)
+    - name: Apple WKWebView (macOS and iOS)
+    - name: Android System WebView (Android)
+    - name: Xcode (macOS and iOS builds)
+      optional: true
+    - name: Android SDK and NDK (Android builds)
+      optional: true

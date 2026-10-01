@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### Bug Fixes
+
+- [`70541fe28`](https://www.github.com/tauri-apps/tauri/commit/70541fe283b980712b1b3d1c75147cd5ad155310) Fix the docs.rs build: the documentation is now built with the `cef/dox` feature, which skips downloading the CEF binary distribution in the network-less docs.rs sandbox, for the Linux, Windows and macOS targets.
+
+### Dependencies
+
+- Upgraded to `tauri@3.0.0-alpha.4`
+- Upgraded to `tauri-utils@3.0.0-alpha.3`
+- Upgraded to `tauri-runtime@3.0.0-alpha.3`
+- Upgraded to `tauri-macros@3.0.0-alpha.3`
+
+### Breaking Changes
+
+- [`b9a77ebb8`](https://www.github.com/tauri-apps/tauri/commit/b9a77ebb8ab57480a354ec47aa45c6898ec9bfda) Removed the `macos-private-api` Cargo feature and the `app > macOSPrivateApi` configuration option. Window transparency and the `fullScreenEnabled` preference no longer rely on macOS private APIs, so they are always available.
+
 ## [3.0.0-alpha.4]
 
 ### Bug Fixes

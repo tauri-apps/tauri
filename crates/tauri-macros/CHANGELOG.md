@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0-alpha.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.3`
+- Upgraded to `tauri-codegen@3.0.0-alpha.3`
+
 ## [3.0.0-alpha.2]
 
 ### What's Changed

@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.0.0-alpha.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.3`
+- Upgraded to `tauri-runtime@3.0.0-alpha.3`
+- Upgraded to `tauri-macros@3.0.0-alpha.3`
+- Upgraded to `tauri-build@3.0.0-alpha.3`
+
+### Breaking Changes
+
+- [`b9a77ebb8`](https://www.github.com/tauri-apps/tauri/commit/b9a77ebb8ab57480a354ec47aa45c6898ec9bfda) Removed the `macos-private-api` Cargo feature and the `app > macOSPrivateApi` configuration option. Window transparency and the `fullScreenEnabled` preference no longer rely on macOS private APIs, so they are always available.
+
 ## [3.0.0-alpha.3]
 
 ### New Features

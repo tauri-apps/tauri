@@ -35,6 +35,32 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # covector audits again in its prepublish step, but only after every test job above finished;
+  # this fails the run within minutes instead.
+  audit:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit $CARGO_AUDIT_OPTIONS
+        env:
+          CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
+
+      - name: pnpm audit
+        run: pnpm audit
+
   run-integration-tests:
     needs: check-publish
     if: needs.check-publish.outputs.publish == 'true'
@@ -107,6 +133,7 @@ jobs:
       commandRan: ${{ steps.covector.outputs.commandRan }}
       successfulPublish: ${{ steps.covector.outputs.successfulPublish }}
     needs:
+      - audit
       - run-integration-tests
       - test-api-e2e
       - test-api-e2e-mobile

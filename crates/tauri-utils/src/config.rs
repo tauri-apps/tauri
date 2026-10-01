@@ -331,6 +331,40 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+/// Compression algorithms used when bundling DEB packages.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "type")]
+#[non_exhaustive]
+pub enum DebCompression {
+  /// Gzip compression
+  Gzip {
+    /// Gzip compression level (0-9). Defaults to 6 if not specified.
+    #[serde(default)]
+    level: Option<u32>,
+  },
+  /// Zstd compression
+  Zstd {
+    /// Zstd compression level. Defaults to 3 if not specified.
+    #[serde(default)]
+    level: Option<i32>,
+  },
+  /// Xz compression
+  Xz {
+    /// Xz compression level (0-9). Defaults to 6 if not specified.
+    #[serde(default)]
+    level: Option<u32>,
+  },
+  /// Bzip2 compression
+  Bzip2 {
+    /// Bzip2 compression level (0-9). Defaults to 9 if not specified.
+    #[serde(default)]
+    level: Option<u32>,
+  },
+  /// Disable compression
+  None,
+}
+
 /// Configuration for Debian (.deb) bundles.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#debconfig>
@@ -381,6 +415,8 @@ pub struct DebConfig {
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// Configuration for Linux bundles.

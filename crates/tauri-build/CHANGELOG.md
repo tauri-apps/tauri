@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.7.1]
+
+### Bug Fixes
+
+- [`793f0c4a4`](https://www.github.com/tauri-apps/tauri/commit/793f0c4a460a2566b60873be9ea59efa0da239e5) ([#16164](https://www.github.com/tauri-apps/tauri/pull/16164) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix copying `WebView2Loader.dll` for Windows GNU targets when using Cargo's new build directory layout on nightly.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+- Upgraded to `tauri-codegen@2.7.1`
+
 ## [2.7.0]
 
 ### New Features

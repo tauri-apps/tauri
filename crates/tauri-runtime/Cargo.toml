@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "2.12.0"
+version = "2.12.1"
 description = "Runtime for Tauri applications"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
@@ -68,6 +68,7 @@ objc2-web-kit = { version = "0.3.2", default-features = false, features = [
 
 [features]
 devtools = []
+# TODO: Remove in v3 - wry does not have this feature anymore
 macos-private-api = []
 
 [lints]

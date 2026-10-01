@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.12.1]
+
+### Enhancements
+
+- [`64bfdd909`](https://www.github.com/tauri-apps/tauri/commit/64bfdd909c5c3f0828371e4995b69ad5ed685126) ([#16165](https://www.github.com/tauri-apps/tauri/pull/16165) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Ignore `src-tauri` in `tauri plugin init` example template
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.12.1`
+
 ## [2.12.0]
 
 ### New Features

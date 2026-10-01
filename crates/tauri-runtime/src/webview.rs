@@ -462,6 +462,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       .browser_extensions_enabled(config.browser_extensions_enabled)
       .background_throttling(config.background_throttling.clone())
       .devtools(config.devtools)
+      .transparent(config.transparent)
       .scroll_bar_style(match config.scroll_bar_style {
         ConfigScrollBarStyle::Default => ScrollBarStyle::Default,
         #[cfg(windows)]
@@ -471,10 +472,6 @@ impl From<&WindowConfig> for WebviewAttributes {
       .limit_navigations_to_app_bound_domains(config.limit_navigations_to_app_bound_domains)
       .general_autofill_enabled(config.general_autofill_enabled);
 
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    {
-      builder = builder.transparent(config.transparent);
-    }
     #[cfg(target_os = "macos")]
     {
       if let Some(position) = &config.traffic_light_position {
@@ -678,7 +675,6 @@ impl WebviewAttributes {
   }
 
   /// Enable or disable transparency for the WebView.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.transparent = transparent;

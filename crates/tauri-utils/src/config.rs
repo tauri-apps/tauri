@@ -2058,10 +2058,6 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS**: Requires the `macos-private-api` Cargo feature, which is enabled by setting
-  ///   `app > macOSPrivateApi` to `true` in the configuration file.
-  ///   **WARNING:** Using private APIs on macOS prevents your application from being accepted to the App Store.
-  ///   If you only need a translucent background, use `windowEffects` instead, which relies on public APIs.
   /// - **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
   #[serde(default)]
   pub transparent: bool,
@@ -3373,6 +3369,8 @@ pub struct AppConfig {
   #[serde(alias = "tray-icon")]
   pub tray_icon: Option<TrayIconConfig>,
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
+  ///
+  /// No-op in Tauri 2.12.1+ because the APIs are always enabled now.
   #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
   pub macos_private_api: bool,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
@@ -3514,6 +3512,7 @@ impl AppConfig {
   pub fn all_features() -> Vec<&'static str> {
     vec![
       "tray-icon",
+      // TODO: Remove in v3
       "macos-private-api",
       "protocol-asset",
       "isolation",
@@ -3526,6 +3525,7 @@ impl AppConfig {
     if self.tray_icon.is_some() {
       features.push("tray-icon");
     }
+    // TODO: Remove in v3
     if self.macos_private_api {
       features.push("macos-private-api");
     }

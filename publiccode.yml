@@ -1,24 +1,28 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+#
 # This repository adheres to the publiccode.yml standard by including this
 # metadata file that makes public software easily discoverable.
 # More info at https://github.com/publiccodeyml/publiccode.yml
 
-publiccodeYmlVersion: "0.5"
+publiccodeYmlVersion: '0.5'
 
 name: Tauri
-url: "https://github.com/tauri-apps/tauri"
-landingURL: "https://tauri.app"
+url: 'https://github.com/tauri-apps/tauri'
+landingURL: 'https://tauri.app'
 logo: .github/icon.png
 
 organisation:
   name: The Tauri Programme within The Commons Conservancy
-  uri: "https://github.com/tauri-apps"
+  uri: 'https://github.com/tauri-apps'
 
 fundedBy:
   - name: CrabNebula
-    uri: "https://crabnebula.dev"
+    uri: 'https://crabnebula.dev'
 
-softwareVersion: "2.12.1"
-releaseDate: "2026-09-30"
+softwareVersion: '2.12.1'
+releaseDate: '2026-09-30'
 
 platforms:
   - windows
@@ -62,8 +66,8 @@ description:
       and bundles applications into native installers, and with an ecosystem
       of official plugins that provide access to native functionality such as
       the file system, notifications, dialogs and automatic updates.
-    documentation: "https://tauri.app"
-    apiDocumentation: "https://docs.rs/tauri"
+    documentation: 'https://tauri.app'
+    apiDocumentation: 'https://docs.rs/tauri'
     features:
       - Cross-platform desktop and mobile applications from a single codebase
       - Uses the operating system webview instead of a bundled browser engine
@@ -104,9 +108,9 @@ localisation:
 dependsOn:
   open:
     - name: Rust toolchain
-      versionMin: "1.90"
+      versionMin: '1.90'
     - name: WebKitGTK (Linux)
-      versionMin: "2.40"
+      versionMin: '2.40'
     - name: Node.js (JavaScript CLI and API packages)
       optional: true
   proprietary:

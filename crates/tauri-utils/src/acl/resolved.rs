@@ -10,7 +10,6 @@ use crate::platform::Target;
 
 use super::{
   APP_ACL_KEY, Commands, Error, ExecutionContext, Identifier, Permission, PermissionSet, Scopes,
-  Value,
   capability::{Capability, PermissionEntry},
   has_app_manifest,
   manifest::Manifest,
@@ -103,9 +102,9 @@ impl fmt::Debug for ResolvedCommand {
 #[derive(Debug, Default, Clone)]
 pub struct ResolvedScope {
   /// Allows something on the command.
-  pub allow: Vec<Value>,
+  pub allow: Vec<serde_json::Value>,
   /// Denies something on the command.
-  pub deny: Vec<Value>,
+  pub deny: Vec<serde_json::Value>,
 }
 
 /// Resolved access control list.
@@ -572,8 +571,8 @@ mod build {
 
   impl ToTokens for ResolvedScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let allow = vec_lit(&self.allow, identity);
-      let deny = vec_lit(&self.deny, identity);
+      let allow = vec_lit(&self.allow, json_value_lit);
+      let deny = vec_lit(&self.deny, json_value_lit);
       literal_struct!(
         tokens,
         ::tauri::utils::acl::resolved::ResolvedScope,

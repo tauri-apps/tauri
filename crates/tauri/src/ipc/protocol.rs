@@ -439,7 +439,8 @@ fn parse_invoke_request<R: Runtime>(
   let (parts, mut body) = request.into_parts();
 
   // skip leading `/`
-  let cmd = percent_encoding::percent_decode(&parts.uri.path().as_bytes()[1..])
+  let path = parts.uri.path().as_bytes();
+  let cmd = percent_encoding::percent_decode(path.strip_prefix(b"/").unwrap_or(path))
     .decode_utf8_lossy()
     .to_string();
 
@@ -640,6 +641,40 @@ mod tests {
 
     assert_eq!(invoke_request.headers, headers);
     assert_eq!(invoke_request.body, InvokeBody::Json(body));
+  }
+
+  #[test]
+  fn parse_invoke_request_empty_path() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
+    let manager: AppManager<Wry> = AppManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      None,
+      Default::default(),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      Default::default(),
+      Default::default(),
+      Default::default(),
+      Default::default(),
+      "".into(),
+      None,
+      crate::generate_invoke_key().unwrap(),
+    );
+
+    // `ipc:foo` parses as authority-form, so its path is empty;
+    // this used to panic when stripping the leading `/`
+    let uri = http::Uri::from_static("ipc:foo");
+    assert_eq!(uri.path(), "");
+
+    let request = Request::builder().uri(uri).body(Vec::new()).unwrap();
+
+    assert!(super::parse_invoke_request(&manager, request).is_err());
   }
 
   #[test]

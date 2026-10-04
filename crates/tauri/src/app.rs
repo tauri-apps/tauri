@@ -1162,6 +1162,7 @@ macro_rules! shared_app_impl {
         rx.recv().unwrap_or(false)
       }
 
+      /// Returns whether this platform supports multiple windows.
       #[cfg(target_env = "ohos")]
       pub fn supports_multiple_windows(&self) -> bool {
         false

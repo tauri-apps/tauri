@@ -6,9 +6,11 @@ use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   fmt,
-  fs::create_dir_all,
   sync::{Arc, Mutex, MutexGuard},
 };
+
+#[cfg(not(any(target_os = "android", target_env = "ohos")))]
+use std::fs::create_dir_all;
 
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};

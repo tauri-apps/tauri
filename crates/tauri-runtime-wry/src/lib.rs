@@ -2988,7 +2988,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_env = "ohos")]
-  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
+  fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
     unimplemented!()
   }
 
@@ -4006,6 +4006,8 @@ fn handle_user_message<T: UserEvent>(
             }
           },
           WebviewMessage::WithWebview(f) => {
+            #[cfg(target_env = "ohos")]
+            let _ = f;
             #[cfg(all(
               any(
                 target_os = "linux",

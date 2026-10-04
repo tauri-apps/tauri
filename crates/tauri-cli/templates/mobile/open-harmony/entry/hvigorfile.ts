@@ -13,10 +13,14 @@ function tauriPlugin(): HvigorPlugin {
     pluginId: 'tauri',
     apply(node: HvigorNode) {
       const buildRustCode = () => {
+        // `ohos build` has already staged Rust libraries. Keep this hook for dev/IDE rebuilds.
+        if (process.env.TAURI_OHOS_SKIP_RUST_BUILD === "1") return;
         const properties = hvigor.getParameter().getProperties();
-        const target = properties.target || "aarch64";
+        const target = properties.target || process.env.TAURI_OHOS_TARGET || "aarch64";
+        const args = [{{quote-and-join tauri-binary-args}}, "--target", target.toString()];
+        if (process.env.TAURI_OHOS_PROFILE === "release") args.push("--release");
         execFileSync(`{{tauri-binary}}`,
-          [{{quote-and-join tauri-binary-args}}, "--target", target.toString()], {
+          args, {
             cwd: resolve(__dirname, "{{root-dir-rel}}"),
             stdio: "inherit",
           });

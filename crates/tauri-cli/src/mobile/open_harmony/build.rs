@@ -99,7 +99,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let tauri_config = get_tauri_config(
-    tauri_utils::platform::Target::Android,
+    tauri_utils::platform::Target::OpenHarmony,
     &options
       .config
       .iter()
@@ -219,6 +219,11 @@ fn run_build(
   let handle = write_options(tauri_config, cli_options)?;
 
   inject_resources(config, tauri_config)?;
+
+  // The requested target was compiled before run_build. Hvigor only packages it.
+  env
+    .base
+    .insert_env_var("TAURI_OHOS_SKIP_RUST_BUILD".into(), "1".into());
 
   let hap_outputs = hap::build(config, env, noise_level, profile).context("failed to build HAP")?;
 

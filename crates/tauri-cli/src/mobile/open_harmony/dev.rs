@@ -234,7 +234,7 @@ fn run_dev(
   mut dev_options: DevOptions,
   mut tauri_config: ConfigMetadata,
   device: Option<Device>,
-  env: Env,
+  mut env: Env,
   config: &OpenHarmonyConfig,
   metadata: &OpenHarmonyMetadata,
   noise_level: NoiseLevel,
@@ -273,6 +273,19 @@ fn run_dev(
     .values()
     .find(|t| t.triple == target_triple)
     .unwrap_or_else(|| Target::all().values().next().unwrap());
+  env.base.insert_env_var(
+    "TAURI_OHOS_TARGET".into(),
+    target.triple.split('-').next().unwrap().into(),
+  );
+  env.base.insert_env_var(
+    "TAURI_OHOS_PROFILE".into(),
+    if options.release_mode {
+      "release"
+    } else {
+      "debug"
+    }
+    .into(),
+  );
   target
     .build(
       config,

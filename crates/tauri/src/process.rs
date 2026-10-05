@@ -108,6 +108,28 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
         return;
       }
 
+      // relaunch through LaunchServices so launchd owns the new process (own session and
+      // process group, stdio on /dev/null) instead of inheriting our stdio,
+      // which aborts the new instance on its first print once the reader of our stdout is gone
+      if let Some(bundle_root) = contents_directory.parent() {
+        match Command::new("/usr/bin/open")
+          .arg("-n")
+          .arg(bundle_root)
+          .arg("--args")
+          .args(env.args_os.iter().skip(1))
+          .stdin(std::process::Stdio::null())
+          .output()
+        {
+          Ok(output) if output.status.success() => exit(0),
+          Ok(output) => log::error!(
+            "failed to restart app with LaunchServices ({}): {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+          ),
+          Err(e) => log::error!("failed to restart app with LaunchServices: {e}"),
+        }
+      }
+
       if let Ok(info_plist) =
         plist::from_file::<_, plist::Dictionary>(contents_directory.join("Info.plist"))
       {
@@ -115,8 +137,15 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
           .get("CFBundleExecutable")
           .and_then(|v| v.as_string())
         {
+          use std::os::unix::process::CommandExt;
+
+          // same reasoning as above: do not share our stdio or process group with the new instance
           if let Err(e) = Command::new(macos_directory.join(binary_name))
             .args(env.args_os.iter().skip(1))
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .process_group(0)
             .spawn()
           {
             log::error!("failed to restart app: {e}");

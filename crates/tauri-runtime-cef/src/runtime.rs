@@ -1176,12 +1176,12 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 pub(crate) struct RuntimeContext<T: UserEvent> {
   pub(crate) sender: Sender<Message<T>>,
   pub(crate) proxy: WinitEventLoopProxy,
-  main_thread_id: std::thread::ThreadId,
-  next_window_id: Arc<AtomicU32>,
-  next_webview_id: Arc<AtomicU32>,
-  next_window_event_id: Arc<AtomicU32>,
-  next_webview_event_id: Arc<AtomicU32>,
-  current_dispatch: Arc<MainThreadDispatchSlot<T>>,
+  pub(crate) main_thread_id: std::thread::ThreadId,
+  pub(crate) next_window_id: Arc<AtomicU32>,
+  pub(crate) next_webview_id: Arc<AtomicU32>,
+  pub(crate) next_window_event_id: Arc<AtomicU32>,
+  pub(crate) next_webview_event_id: Arc<AtomicU32>,
+  pub(crate) current_dispatch: Arc<MainThreadDispatchSlot<T>>,
   pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
   pub(crate) cef_pump: CefExternalPump,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
@@ -1218,7 +1218,7 @@ struct MainThreadDispatch<T: UserEvent> {
   event_loop: *const dyn ActiveEventLoop,
 }
 
-struct MainThreadDispatchSlot<T: UserEvent> {
+pub(crate) struct MainThreadDispatchSlot<T: UserEvent> {
   current: AtomicPtr<MainThreadDispatch<T>>,
 }
 
@@ -3610,6 +3610,34 @@ mod configuration_tests {
       values,
       [serde_json::json!(false), serde_json::json!(true)],
       "both are kept, in call order, so the application's last word wins"
+    );
+  }
+
+  #[test]
+  fn child_process_args_are_kept_in_call_order_and_spelled_as_given() {
+    // `on_before_child_process_launch` appends them in the order stored, so the
+    // last one appended is the one that wins for a duplicate switch, matching
+    // `command_line_args`.
+    let cef = Cef::default()
+      .child_process_command_line_arg("use-angle", Some("vulkan"))
+      .child_process_command_line_args([
+        ("enable-features", Some("Vulkan")),
+        ("--disable-gpu-compositing", None),
+      ]);
+    assert_eq!(
+      cef.child_process_command_line_args,
+      [
+        ("use-angle".to_string(), Some("vulkan".to_string())),
+        ("enable-features".to_string(), Some("Vulkan".to_string())),
+        ("--disable-gpu-compositing".to_string(), None),
+      ],
+      "the builder stores exactly what was asked for, order included"
+    );
+    // The browser-process list stays separate: what the browser reads and what
+    // every child reads are different stores.
+    assert!(
+      cef.command_line_args.is_empty(),
+      "a child-process switch does not leak into the browser process's command line"
     );
   }
 }

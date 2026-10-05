@@ -1521,6 +1521,12 @@ fn tauri_config_to_bundle_settings(
   #[cfg(not(target_os = "macos"))]
   let entitlements = None;
 
+  let sidecar_entitlements = config
+    .macos
+    .sidecar_entitlements
+    .map(PathBuf::from)
+    .map(tauri_bundler::bundle::Entitlements::Path);
+
   Ok(BundleSettings {
     identifier: Some(tauri_config.identifier.clone()),
     publisher: config.publisher,
@@ -1623,6 +1629,7 @@ fn tauri_config_to_bundle_settings(
       hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements,
+      sidecar_entitlements,
       #[cfg(not(target_os = "macos"))]
       info_plist: None,
       #[cfg(target_os = "macos")]

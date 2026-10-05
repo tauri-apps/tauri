@@ -366,6 +366,10 @@ pub struct MacOsSettings {
   pub provider_short_name: Option<String>,
   /// Path or contents of the entitlements.plist file.
   pub entitlements: Option<Entitlements>,
+  /// Path or contents of the entitlements.plist file used to sign the external binaries (sidecars).
+  ///
+  /// When unset, external binaries are signed with [`Self::entitlements`].
+  pub sidecar_entitlements: Option<Entitlements>,
   /// Path to the Info.plist file or raw plist value to merge with the bundle Info.plist.
   pub info_plist: Option<PlistKind>,
 }

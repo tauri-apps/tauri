@@ -24,7 +24,7 @@
 
 use super::{
   icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file},
-  sign::{SignTarget, notarize, notarize_auth, notarize_without_stapling, sign},
+  sign::{SignEntitlements, SignTarget, notarize, notarize_auth, notarize_without_stapling, sign},
 };
 use crate::{
   Error::GenericError,
@@ -102,12 +102,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   sign_paths.extend(bin_paths.into_iter().map(|path| SignTarget {
     path,
     is_an_executable: true,
+    entitlements: SignEntitlements::Sidecar,
   }));
 
   let bin_paths = copy_binaries_to_bundle(&bundle_directory, settings)?;
   sign_paths.extend(bin_paths.into_iter().map(|path| SignTarget {
     path,
     is_an_executable: true,
+    entitlements: SignEntitlements::App,
   }));
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
@@ -122,6 +124,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     sign_paths.push(SignTarget {
       path: app_bundle_path.clone(),
       is_an_executable: true,
+      entitlements: SignEntitlements::App,
     });
 
     // Remove extra attributes, which could cause codesign to fail
@@ -412,6 +415,7 @@ fn copy_frameworks_to_bundle(
       paths.push(SignTarget {
         path: dest_path,
         is_an_executable: false,
+        entitlements: SignEntitlements::None,
       });
       continue;
     } else if framework.contains('/') {
@@ -459,6 +463,7 @@ fn add_framework_sign_path(
   sign_paths.push(SignTarget {
     path: dest_path.into(),
     is_an_executable: false,
+    entitlements: SignEntitlements::None,
   });
 }
 
@@ -480,6 +485,7 @@ fn add_executable_bundle_sign_path(
   sign_paths.push(SignTarget {
     path: dest_path.into(),
     is_an_executable: true,
+    entitlements: SignEntitlements::App,
   });
 }
 
@@ -514,11 +520,13 @@ fn add_nested_code_sign_path(src_path: &Path, dest_path: &Path, sign_paths: &mut
             sign_paths.push(SignTarget {
               path: dest_path,
               is_an_executable: false,
+              entitlements: SignEntitlements::None,
             });
           } else if ext.is_none() {
             sign_paths.push(SignTarget {
               path: dest_path,
               is_an_executable: true,
+              entitlements: SignEntitlements::App,
             });
           }
         }

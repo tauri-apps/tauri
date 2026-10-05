@@ -3837,6 +3837,13 @@
             "null"
           ]
         },
+        "sidecarEntitlements": {
+          "description": "Path to the entitlements file used to sign the external binaries (sidecars) defined in `bundle > externalBin`.\n\n When unset, external binaries are signed with the same entitlements as the app (`bundle > macOS > entitlements`).\n Set this when the app uses entitlements that only the main executable can hold,\n for example restricted entitlements that need a provisioning profile.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "infoPlist": {
           "description": "Path to a Info.plist file to merge with the default Info.plist.\n\n Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.",
           "type": [

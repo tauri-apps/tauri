@@ -662,6 +662,13 @@ pub struct MacConfig {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements file.
   pub entitlements: Option<String>,
+  /// Path to the entitlements file used to sign the external binaries (sidecars) defined in `bundle > externalBin`.
+  ///
+  /// When unset, external binaries are signed with the same entitlements as the app (`bundle > macOS > entitlements`).
+  /// Set this when the app uses entitlements that only the main executable can hold,
+  /// for example restricted entitlements that need a provisioning profile.
+  #[serde(alias = "sidecar-entitlements")]
+  pub sidecar_entitlements: Option<String>,
   /// Path to a Info.plist file to merge with the default Info.plist.
   ///
   /// Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.
@@ -685,6 +692,7 @@ impl Default for MacConfig {
       hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
+      sidecar_entitlements: None,
       info_plist: None,
       dmg: Default::default(),
     }

@@ -9,11 +9,35 @@ use std::{
   path::PathBuf,
 };
 
-use crate::{Entitlements, Settings, error::NotarizeAuthError};
+use crate::{Entitlements, Settings, bundle::MacOsSettings, error::NotarizeAuthError};
+
+/// Which entitlements a sign target gets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignEntitlements {
+  /// No entitlements: libraries, frameworks, disk images.
+  None,
+  /// The app entitlements (`bundle > macOS > entitlements`).
+  App,
+  /// The sidecar entitlements (`bundle > macOS > sidecarEntitlements`),
+  /// falling back to the app entitlements when unset.
+  Sidecar,
+}
 
 pub struct SignTarget {
   pub path: PathBuf,
   pub is_an_executable: bool,
+  pub entitlements: SignEntitlements,
+}
+
+fn target_entitlements(kind: SignEntitlements, macos: &MacOsSettings) -> Option<&Entitlements> {
+  match kind {
+    SignEntitlements::None => None,
+    SignEntitlements::App => macos.entitlements.as_ref(),
+    SignEntitlements::Sidecar => macos
+      .sidecar_entitlements
+      .as_ref()
+      .or(macos.entitlements.as_ref()),
+  }
 }
 
 pub fn keychain(identity: Option<&str>) -> crate::Result<Option<tauri_macos_sign::Keychain>> {
@@ -51,7 +75,8 @@ pub fn sign(
   log::info!(action = "Signing"; "with identity \"{}\"", keychain.signing_identity());
 
   for target in targets {
-    let (entitlements_path, _temp_file) = match settings.macos().entitlements.as_ref() {
+    let entitlements = target_entitlements(target.entitlements, settings.macos());
+    let (entitlements_path, _temp_file) = match entitlements {
       Some(Entitlements::Path(path)) => (Some(path.to_owned()), None),
       Some(Entitlements::Plist(plist)) => {
         let mut temp_file = tempfile::NamedTempFile::new()?;
@@ -162,4 +187,51 @@ pub fn notarize_auth() -> Result<tauri_macos_sign::AppleNotarizationCredentials,
 fn find_api_key(folder: PathBuf, file_name: &OsString) -> Option<PathBuf> {
   let path = folder.join(file_name);
   if path.exists() { Some(path) } else { None }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn path(entitlements: Option<&Entitlements>) -> Option<&str> {
+    match entitlements {
+      Some(Entitlements::Path(path)) => path.to_str(),
+      _ => None,
+    }
+  }
+
+  #[test]
+  fn sidecar_falls_back_to_app_entitlements() {
+    let macos = MacOsSettings {
+      entitlements: Some(Entitlements::Path("app.plist".into())),
+      ..Default::default()
+    };
+    assert_eq!(
+      path(target_entitlements(SignEntitlements::App, &macos)),
+      Some("app.plist")
+    );
+    assert_eq!(
+      path(target_entitlements(SignEntitlements::Sidecar, &macos)),
+      Some("app.plist")
+    );
+    assert!(target_entitlements(SignEntitlements::None, &macos).is_none());
+  }
+
+  #[test]
+  fn sidecar_uses_its_own_entitlements_when_set() {
+    let macos = MacOsSettings {
+      entitlements: Some(Entitlements::Path("app.plist".into())),
+      sidecar_entitlements: Some(Entitlements::Path("sidecar.plist".into())),
+      ..Default::default()
+    };
+    assert_eq!(
+      path(target_entitlements(SignEntitlements::App, &macos)),
+      Some("app.plist")
+    );
+    assert_eq!(
+      path(target_entitlements(SignEntitlements::Sidecar, &macos)),
+      Some("sidecar.plist")
+    );
+    assert!(target_entitlements(SignEntitlements::None, &macos).is_none());
+  }
 }

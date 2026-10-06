@@ -6,7 +6,7 @@ use super::{get_app, Target};
 use crate::{
   helpers::app_paths::Dirs,
   helpers::{config::get_config as get_tauri_config, template::JsonMap},
-  interface::AppInterface,
+  interface::{AppInterface, AppSettings},
   ConfigValue, Result,
 };
 use cargo_mobile2::{
@@ -60,12 +60,8 @@ fn exec(
     dirs.tauri,
   )?;
 
-  let app = get_app(
-    target,
-    &tauri_config,
-    &AppInterface::new(&tauri_config, None, dirs.tauri)?,
-    dirs.tauri,
-  );
+  let interface = AppInterface::new(&tauri_config, None, dirs.tauri)?;
+  let app = get_app(target, &tauri_config, &interface, dirs.tauri);
 
   let (handlebars, mut map) = handlebars(&app);
 
@@ -183,7 +179,17 @@ fn exec(
     Target::OpenHarmony => {
       let (config, _metadata) =
         super::open_harmony::get_config(&app, &tauri_config, &[], &Default::default());
-      super::open_harmony::project::gen(&app, &config, (handlebars, map), skip_targets_install)?;
+      let version = super::open_harmony::version::AppVersion::from_config(
+        &tauri_config,
+        &interface.app_settings().get_package_settings().version,
+      )?;
+      super::open_harmony::project::gen(
+        &app,
+        &config,
+        &version,
+        (handlebars, map),
+        skip_targets_install,
+      )?;
       app
     }
   };

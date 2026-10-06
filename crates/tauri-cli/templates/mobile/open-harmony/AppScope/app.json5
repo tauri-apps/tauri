@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "{{app.identifier}}",
     "vendor": "{{app.publisher}}",
-    "versionCode": 1,
-    "versionName": "1.0.0",
+    "versionCode": {{app-version-code}},
+    "versionName": "{{app-version-name}}",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }

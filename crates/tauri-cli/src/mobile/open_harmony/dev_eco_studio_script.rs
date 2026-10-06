@@ -6,7 +6,7 @@ use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_option
 use crate::{
   error::{bail, Context},
   helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
-  interface::AppInterface,
+  interface::{AppInterface, AppSettings},
   mobile::CliOptions,
   ErrorExt, Result,
 };
@@ -63,11 +63,12 @@ pub fn command(options: Options) -> Result<()> {
     )?
   };
 
+  let interface = AppInterface::new(&tauri_config, None, dirs.tauri)?;
   let (config, metadata) = get_config(
     &get_app(
       MobileTarget::OpenHarmony,
       &tauri_config,
-      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      &interface,
       dirs.tauri,
     ),
     &tauri_config,
@@ -95,6 +96,11 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   let env = env()?;
+  super::version::AppVersion::from_config(
+    &tauri_config,
+    &interface.app_settings().get_package_settings().version,
+  )?
+  .synchronize(&config.project_dir())?;
 
   if cli_options.dev {
     if let Some(url) = &tauri_config.build.dev_url {

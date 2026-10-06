@@ -169,12 +169,12 @@ impl Listeners {
     let handler = Cell::new(Some(handler));
 
     self.listen(event, target, move |event| {
-      let id = event.id;
-      self_.unlisten(id);
-      let handler = handler
-        .take()
-        .expect("attempted to call handler more than once");
-      handler(event);
+      // This can potentially be called multiple times if the `unlisten` was queued,
+      // see https://github.com/tauri-apps/tauri/issues/16214
+      if let Some(handler) = handler.take() {
+        self_.unlisten(event.id);
+        handler(event);
+      }
     })
   }
 

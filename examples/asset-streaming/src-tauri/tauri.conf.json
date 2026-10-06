@@ -39,8 +39,7 @@
     ],
     "linux": {
       "assetGstPlugin": {
-        "active": true,
-        "path": "../../../target/release/libgsttauriasset.so"
+        "active": true
       },
       "appimage": {
         "bundleMediaFramework": true

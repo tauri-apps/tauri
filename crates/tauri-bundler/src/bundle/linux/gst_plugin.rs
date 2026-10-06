@@ -5,7 +5,12 @@
 //! Resolves the GStreamer plugin for having `asset://` work for audio/video.
 
 use super::tools_directory;
-use crate::{bundle::settings::Arch, error::Context, utils::http_utils::download, Settings};
+use crate::{
+  bundle::settings::Arch,
+  error::{Context, ErrorExt},
+  utils::http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
+  Settings,
+};
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -15,9 +20,12 @@ use std::{
 pub const PLUGIN_FILE_NAME: &str = "libgsttauriasset.so";
 
 /// Release the prebuilt plugins are downloaded from.
-/// TODO: this actually doesn't exist !
 const PLUGIN_RELEASE_URL: &str =
-  "https://github.com/tauri-apps/binary-releases/releases/download/tauri-asset-gst-plugin-v0.1.0";
+  "https://github.com/tauri-apps/tauri-gstreamer-plugin/releases/download/gst-plugin-tauri-v0.0.1";
+const PLUGIN_SHA256_X86_64: &str =
+  "ABB55C037AC07545C0E19E8D11FBC6BC642C23A24F35F550B5F830D387DB0914";
+const PLUGIN_SHA256_AARCH64: &str =
+  "A50347365B0949A3BD251689B7B5E1CBB01B4AE9A2E3446D6D28A77D55B35F6F";
 
 /// Directory the plugin is installed to, relative to the bundle root.
 ///
@@ -54,15 +62,16 @@ pub fn resolve(settings: &Settings) -> crate::Result<Option<PathBuf>> {
 
 /// Downloads the prebuilt plugin for the target architecture, caching it in the
 /// tools directory alongside the AppImage tooling.
+///
+/// The download and the cached copy are both checked against the pinned hash,
+/// a mismatching cached copy is downloaded again.
 fn download_plugin(settings: &Settings) -> crate::Result<PathBuf> {
-  let arch = match settings.binary_arch() {
-    Arch::X86_64 => "x86_64",
-    Arch::X86 => "i686",
-    Arch::AArch64 => "aarch64",
-    Arch::Armhf => "armhf",
+  let (arch, hash) = match settings.binary_arch() {
+    Arch::X86_64 => ("x86_64", PLUGIN_SHA256_X86_64),
+    Arch::AArch64 => ("aarch64", PLUGIN_SHA256_AARCH64),
     target => {
       return Err(crate::Error::ArchError(format!(
-        "the asset GStreamer plugin is not available for {target:?}"
+        "no prebuilt asset GStreamer plugin is available for {target:?}; build it yourself and point `bundle > linux > assetGstPlugin > path` at the resulting {PLUGIN_FILE_NAME}"
       )))
     }
   };
@@ -73,13 +82,22 @@ fn download_plugin(settings: &Settings) -> crate::Result<PathBuf> {
   let file_name = format!("libgsttauriasset-{arch}.so");
   let cached = tools_path.join(&file_name);
   if cached.exists() {
-    return Ok(cached);
+    if verify_file_hash(&cached, hash, HashAlgorithm::Sha256).is_ok() {
+      return Ok(cached);
+    }
+    log::warn!("{file_name} in the tools directory is mis-hashed. Redownloading it.");
   }
 
-  let data = download(&format!("{PLUGIN_RELEASE_URL}/{file_name}")).with_context(|| {
+  let data = download_and_verify(
+    &format!("{PLUGIN_RELEASE_URL}/{file_name}"),
+    hash,
+    HashAlgorithm::Sha256,
+  )
+  .with_context(|| {
     format!("failed to download {file_name}; build the plugin yourself and point `bundle > linux > assetGstPlugin > path` at the resulting {PLUGIN_FILE_NAME}")
   })?;
-  fs::write(&cached, data)?;
+  fs::write(&cached, data)
+    .fs_context("failed to save the asset GStreamer plugin", cached.clone())?;
 
   Ok(cached)
 }

@@ -3693,16 +3693,9 @@
       "type": "object",
       "properties": {
         "active": {
-          "description": "Whether to bundle the plugin. Defaults to `false`.",
+          "description": "Whether to bundle the plugin. Defaults to `false`.\n\n The prebuilt plugin for the target architecture is downloaded from `tauri-gstreamer-plugin` GitHub repository releases.",
           "default": false,
           "type": "boolean"
-        },
-        "path": {
-          "description": "Path to a prebuilt `libgsttauriasset.so`.\n When unset, the bundler downloads a prebuilt plugin for the target architecture.",
-          "type": [
-            "string",
-            "null"
-          ]
         }
       },
       "additionalProperties": false

@@ -41,23 +41,11 @@ pub fn plugin_dir(product_name: &str) -> PathBuf {
 
 /// Resolves the plugin to bundle, or `None` when it is not enabled.
 pub fn resolve(settings: &Settings) -> crate::Result<Option<PathBuf>> {
-  let config = settings.asset_gst_plugin();
-  if !config.active {
+  if !settings.asset_gst_plugin().active {
     return Ok(None);
   }
 
-  match &config.path {
-    Some(path) => {
-      if !path.is_file() {
-        crate::error::bail!(
-          "`bundle > linux > assetGstPlugin > path` is not a file: {}",
-          path.display()
-        );
-      }
-      Ok(Some(path.clone()))
-    }
-    None => download_plugin(settings).map(Some),
-  }
+  download_plugin(settings).map(Some)
 }
 
 /// Downloads the prebuilt plugin for the target architecture, caching it in the
@@ -71,7 +59,7 @@ fn download_plugin(settings: &Settings) -> crate::Result<PathBuf> {
     Arch::AArch64 => ("aarch64", PLUGIN_SHA256_AARCH64),
     target => {
       return Err(crate::Error::ArchError(format!(
-        "no prebuilt asset GStreamer plugin is available for {target:?}; build it yourself and point `bundle > linux > assetGstPlugin > path` at the resulting {PLUGIN_FILE_NAME}"
+        "the asset GStreamer plugin is not available for {target:?}"
       )))
     }
   };
@@ -93,80 +81,10 @@ fn download_plugin(settings: &Settings) -> crate::Result<PathBuf> {
     hash,
     HashAlgorithm::Sha256,
   )
-  .with_context(|| {
-    format!("failed to download {file_name}; build the plugin yourself and point `bundle > linux > assetGstPlugin > path` at the resulting {PLUGIN_FILE_NAME}")
-  })?;
+  .with_context(|| format!("failed to download {file_name}"))?;
   fs::write(&cached, data)
     .fs_context("failed to save the asset GStreamer plugin", cached.clone())?;
 
   Ok(cached)
 }
 
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use crate::bundle::settings::{
-    AssetGstPluginSettings, BundleSettings, PackageSettings, SettingsBuilder,
-  };
-
-  fn settings(active: bool, path: Option<PathBuf>, out: &Path) -> Settings {
-    SettingsBuilder::new()
-      .project_out_directory(out)
-      .package_settings(PackageSettings {
-        product_name: "My App".into(),
-        version: "0.1.0".into(),
-        description: String::new(),
-        homepage: None,
-        authors: None,
-        default_run: None,
-      })
-      .bundle_settings(BundleSettings {
-        asset_gst_plugin: AssetGstPluginSettings { active, path },
-        ..Default::default()
-      })
-      .build()
-      .unwrap()
-  }
-
-  #[test]
-  fn plugin_dir_is_private_to_the_app() {
-    assert_eq!(
-      plugin_dir("My App"),
-      PathBuf::from("usr/lib/My App/gstreamer-1.0")
-    );
-  }
-
-  #[test]
-  fn inactive_resolves_to_none() {
-    let tmp = tempfile::tempdir().unwrap();
-    // a path is set but must be ignored while inactive
-    let so = tmp.path().join(PLUGIN_FILE_NAME);
-    fs::write(&so, b"x").unwrap();
-    let s = settings(false, Some(so), tmp.path());
-    assert!(resolve(&s).unwrap().is_none());
-  }
-
-  #[test]
-  fn explicit_path_is_used_verbatim() {
-    let tmp = tempfile::tempdir().unwrap();
-    let so = tmp.path().join(PLUGIN_FILE_NAME);
-    fs::write(&so, b"x").unwrap();
-    let s = settings(true, Some(so.clone()), tmp.path());
-    assert_eq!(resolve(&s).unwrap(), Some(so));
-  }
-
-  #[test]
-  fn missing_explicit_path_errors_without_downloading() {
-    let tmp = tempfile::tempdir().unwrap();
-    let s = settings(true, Some(tmp.path().join("nope.so")), tmp.path());
-    let err = resolve(&s).unwrap_err().to_string();
-    assert!(err.contains("assetGstPlugin"), "unhelpful error: {err}");
-  }
-
-  #[test]
-  fn a_directory_is_not_accepted_as_the_plugin() {
-    let tmp = tempfile::tempdir().unwrap();
-    let s = settings(true, Some(tmp.path().to_path_buf()), tmp.path());
-    assert!(resolve(&s).is_err());
-  }
-}

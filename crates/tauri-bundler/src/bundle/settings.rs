@@ -235,10 +235,6 @@ pub struct AppImageSettings {
 pub struct AssetGstPluginSettings {
   /// Whether to bundle the plugin.
   pub active: bool,
-  /// Path to a prebuilt `libgsttauriasset.so`.
-  ///
-  /// When `None`, the bundler downloads a prebuilt plugin for the target architecture.
-  pub path: Option<PathBuf>,
 }
 
 /// The RPM bundle settings.

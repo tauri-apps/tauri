@@ -335,11 +335,10 @@ pub struct AppImageConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AssetGstPluginConfig {
   /// Whether to bundle the plugin. Defaults to `false`.
+  ///
+  /// The prebuilt plugin for the target architecture is downloaded from `tauri-gstreamer-plugin` GitHub repository releases.
   #[serde(default)]
   pub active: bool,
-  /// Path to a prebuilt `libgsttauriasset.so`.
-  /// When unset, the bundler downloads a prebuilt plugin for the target architecture.
-  pub path: Option<PathBuf>,
 }
 
 /// Configuration for Debian (.deb) bundles.

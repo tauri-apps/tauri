@@ -1588,7 +1588,6 @@ fn tauri_config_to_bundle_settings(
     },
     asset_gst_plugin: AssetGstPluginSettings {
       active: config.linux.asset_gst_plugin.active,
-      path: config.linux.asset_gst_plugin.path,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

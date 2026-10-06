@@ -31,7 +31,7 @@
       ]
     },
     "version": {
-      "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.\n\n If removed the version number from `Cargo.toml` is used.\n It's recommended to manage the app versioning in the Tauri config.\n\n ## Platform-specific\n\n - **macOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.\n    You can set an specific bundle version using [`bundle > macOS > bundleVersion`](MacConfig::bundle_version).\n - **iOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.\n    You can set an specific bundle version using [`bundle > iOS > bundleVersion`](IosConfig::bundle_version).\n    The `tauri ios build` CLI command has a `--build-number <number>` option that lets you append a build number to the app version.\n - **Android**: By default version 1.0 is used. You can set a version code using [`bundle > android > versionCode`](AndroidConfig::version_code).\n\n By default version 1.0 is used on Android.",
+      "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.\n\n If removed the version number from `Cargo.toml` is used.\n It's recommended to manage the app versioning in the Tauri config.\n\n ## Platform-specific\n\n - **macOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.\n    You can set an specific bundle version using [`bundle > macOS > bundleVersion`](MacConfig::bundle_version).\n - **iOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.\n    You can set an specific bundle version using [`bundle > iOS > bundleVersion`](IosConfig::bundle_version).\n    The `tauri ios build` CLI command has a `--build-number <number>` option that lets you append a build number to the app version.\n - **Android**: By default version 1.0 is used. You can set a version code using [`bundle > android > versionCode`](AndroidConfig::version_code).\n - **OpenHarmony**: Used as the application's `versionName`. Prerelease identifiers are\n   appended with a period, build metadata with an underscore, and hyphens in either are\n   replaced with underscores to satisfy OpenHarmony's character restrictions.\n   For example, `1.2.3-4` becomes `1.2.3.4`. You can set a version code using\n   [`bundle > openHarmony > versionCode`](OpenHarmonyConfig::version_code).\n\n By default version 1.0 is used on Android.",
       "type": [
         "string",
         "null"
@@ -128,6 +128,7 @@
           "hardenedRuntime": true,
           "minimumSystemVersion": "10.13"
         },
+        "openHarmony": {},
         "targets": "all",
         "useLocalToolsDir": false,
         "windows": {
@@ -2364,6 +2365,15 @@
               "$ref": "#/definitions/AndroidConfig"
             }
           ]
+        },
+        "openHarmony": {
+          "description": "OpenHarmony configuration.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/OpenHarmonyConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -3976,6 +3986,23 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "OpenHarmonyConfig": {
+      "description": "General configuration for the OpenHarmony target.",
+      "type": "object",
+      "properties": {
+        "versionCode": {
+          "description": "The application version code, between 0 and 2,147,483,647.\n Each published version must have a larger code than its predecessors.\n\n By default, Tauri uses `major * 1000000 + minor * 1000 + patch`.\n Minor and patch must be below 1000 to avoid collisions.\n Prerelease and build metadata do not affect this default; set an explicit\n code to distinguish prereleases or to retain an existing numbering scheme.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 2147483647.0,
+          "minimum": 0.0
         }
       },
       "additionalProperties": false

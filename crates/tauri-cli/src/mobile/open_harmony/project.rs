@@ -13,6 +13,7 @@ use cargo_mobile2::{
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 
+use super::version::AppVersion;
 use std::path::Path;
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile/open-harmony");
@@ -20,6 +21,7 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile
 pub fn gen(
   app: &App,
   config: &Config,
+  version: &AppVersion,
   (handlebars, mut map): (Handlebars, template::JsonMap),
   skip_targets_install: bool,
 ) -> Result<()> {
@@ -52,6 +54,8 @@ pub fn gen(
   );
   map.insert("root-dir", app.root_dir());
   map.insert("windows", cfg!(windows));
+  map.insert("app-version-name", &version.name);
+  map.insert("app-version-code", version.code);
 
   template::render(&handlebars, map.inner(), &TEMPLATE_DIR, &dest)
     .with_context(|| "failed to process template")?;

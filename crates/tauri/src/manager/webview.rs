@@ -464,7 +464,6 @@ impl<R: Runtime> WebviewManager<R> {
 
     let app_manager = manager.manager();
 
-    #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
         let app_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
@@ -487,7 +486,7 @@ impl<R: Runtime> WebviewManager<R> {
       WebviewUrl::External(url) => {
         let config_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let is_app_url = config_url.make_relative(url).is_some();
-        let mut url = url.clone();
+        let url = url.clone();
         if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
           Url::parse("tauri://localhost").unwrap()
         } else {
@@ -498,6 +497,12 @@ impl<R: Runtime> WebviewManager<R> {
       WebviewUrl::CustomProtocol(url) => url.clone(),
       _ => unimplemented!(),
     };
+
+    if let Some(origin) = &app_manager.custom_app_origin {
+      pending.webview_attributes.use_https_scheme = true;
+      pending.webview_attributes.android_hostname = origin.host_str().map(ToOwned::to_owned);
+      url = crate::protocol::with_custom_app_origin(url, origin);
+    }
 
     #[cfg(not(feature = "webview-data-url"))]
     if url.scheme() == "data" {

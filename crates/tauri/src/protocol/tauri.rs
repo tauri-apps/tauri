@@ -169,8 +169,21 @@ async fn get_response<R: Runtime>(
     .header("Access-Control-Allow-Origin", window_origin);
 
   #[cfg(all(dev, mobile))]
-  let mut response =
-    proxy_dev_request(client, url, response_cache, path, builder, &request).await?;
+  let mut response = {
+    if let Some(origin) = manager
+      .custom_app_origin
+      .as_ref()
+      .filter(|origin| manager.get_app_url(true).origin() == origin.origin())
+    {
+      return Err(
+        format!(
+          "`app > androidHostname` requires `build > devUrl` in development, refusing to fetch {origin} from the network"
+        )
+        .into(),
+      );
+    }
+    proxy_dev_request(client, url, response_cache, path, builder, &request).await?
+  };
 
   #[cfg(not(all(dev, mobile)))]
   let mut response = {

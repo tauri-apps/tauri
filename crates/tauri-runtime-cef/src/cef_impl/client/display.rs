@@ -22,19 +22,23 @@ wrap_with_args! {
     frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
     console_message_handler: Option<Arc<crate::ConsoleMessageHandler>>,
     frame_navigation_state: crate::FrameNavigationState,
-    offscreen_surface: Option<crate::OffscreenSurface>,
+    cursor_handler: Option<Arc<crate::CursorHandler>>,
   }
 
   impl DisplayHandler {
     fn on_cursor_change(
       &self,
-      _browser: Option<&mut Browser>,
+      browser: Option<&mut Browser>,
       _cursor: CefCursorHandle,
       type_: CursorType,
-      _info: Option<&CursorInfo>,
+      info: Option<&CursorInfo>,
     ) -> i32 {
-      if let Some(surface) = &self.offscreen_surface {
-        surface.set_cursor(type_);
+      if let Some(handler) = &self.cursor_handler
+        && browser.is_some_and(|browser| {
+          self.frame_navigation_state.has_browser_id(browser.identifier())
+        })
+      {
+        handler(type_, info);
         return 1;
       }
       0

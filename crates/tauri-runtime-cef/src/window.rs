@@ -320,8 +320,6 @@ pub(crate) enum FullscreenTarget {
 }
 
 pub(crate) enum WindowMessage {
-  RequestRedraw,
-  SetRedrawHandler(Arc<dyn Fn() + Send + Sync>),
   AddEventListener(WindowEventId, WindowEventListener),
   Close,
   Destroy,
@@ -478,11 +476,9 @@ pub(crate) struct AppWindow {
   pub(crate) label: String,
   #[cfg(windows)]
   pub(crate) background_surface: Option<SoftbufferSurface>,
-  pub(crate) window: Box<dyn WinitWindow>,
+  pub(crate) window: Arc<dyn WinitWindow>,
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
-  pub(crate) offscreen_input: crate::offscreen_input::OffscreenInputState,
-  pub(crate) redraw_handler: Option<Arc<dyn Fn() + Send + Sync>>,
   pub(crate) listeners: WindowEventListeners,
   pub(crate) native_drag_drop: Option<WinitDragDropState>,
   #[cfg(any(
@@ -735,11 +731,9 @@ impl<T: UserEvent> WinitCefApp<T> {
       label: pending.label.clone(),
       #[cfg(windows)]
       background_surface: None,
-      window,
+      window: Arc::from(window),
       attrs,
       children: Vec::new(),
-      offscreen_input: Default::default(),
-      redraw_handler: None,
       listeners: Default::default(),
       native_drag_drop: None,
       #[cfg(any(
@@ -929,15 +923,6 @@ impl<T: UserEvent> WinitCefApp<T> {
         appwindow.listeners.lock().unwrap().insert(id, listener);
       }
       WindowMessage::Close | WindowMessage::Destroy => unreachable!("handled before borrowing"),
-      WindowMessage::RequestRedraw => window.request_redraw(),
-      WindowMessage::SetRedrawHandler(handler) => {
-        #[cfg(windows)]
-        {
-          appwindow.background_surface = None;
-        }
-        appwindow.redraw_handler = Some(handler);
-        window.request_redraw();
-      }
       WindowMessage::ScaleFactor(tx) => _ = tx.send(Ok(window.scale_factor())),
       WindowMessage::InnerSize(tx) => _ = tx.send(Ok(window.surface_size())),
       WindowMessage::OuterSize(tx) => _ = tx.send(Ok(window.outer_size())),
@@ -1259,32 +1244,6 @@ macro_rules! window_getter {
       rx,
     )
   }};
-}
-
-impl<T: UserEvent> CefWindowDispatcher<T> {
-  /// Requests a native redraw, coalesced by the event loop.
-  pub fn request_redraw(&self) -> Result<()> {
-    // Paint notifications can arrive while dispatching a webview operation. Queue
-    // presentation rather than reentering the native window state from that callback.
-    self
-      .context
-      .sender
-      .send(Message::Window {
-        window_id: self.window_id,
-        message: WindowMessage::RequestRedraw,
-      })
-      .map_err(|_| Error::FailedToSendMessage)?;
-    self.context.wake_event_loop();
-    Ok(())
-  }
-
-  /// Replaces the native redraw callback. The callback runs on the event-loop thread.
-  pub fn on_redraw<F: Fn() + Send + Sync + 'static>(&self, handler: F) -> Result<()> {
-    self.context.send_message(Message::Window {
-      window_id: self.window_id,
-      message: WindowMessage::SetRedrawHandler(Arc::new(handler)),
-    })
-  }
 }
 
 impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {

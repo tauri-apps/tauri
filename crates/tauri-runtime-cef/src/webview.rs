@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::{
   Mutex,
-  atomic::Ordering,
+  atomic::{AtomicBool, Ordering},
   mpsc::{self, Receiver, Sender},
 };
 
@@ -68,12 +68,15 @@ pub struct WebviewSnapshot {
   /// `None` means the platform could not establish the relationship. A
   /// CEF-owned popup always reports `None`, permanently rather than
   /// transiently: CEF owns its native window, so there is no independently
-  /// observed parent for the runtime to check it against.
+  /// observed parent for the runtime to check it against. Offscreen webviews
+  /// also report `None` because there is no native browser child.
   pub parent_matches: Option<bool>,
   /// Current bounds relative to the native parent, in the indicated DPI units.
+  /// Offscreen bounds are the requested layout, in logical pixels.
   pub bounds: Option<Rect>,
   /// Native view visibility. `None` means native inspection was unavailable.
   /// Visibility is separate from occlusion, minimization, and page lifecycle.
+  /// Offscreen webviews report their requested visibility.
   pub visible: Option<bool>,
 }
 
@@ -514,37 +517,23 @@ pub(crate) struct AppWebview {
   pub(crate) devtools_enabled: bool,
   pub(crate) listeners: WebviewEventListeners,
   pub(crate) bounds_rate: Option<BoundsRate>,
-  pub(crate) offscreen_surface: Option<crate::OffscreenSurface>,
+  pub(crate) offscreen: Option<crate::OffscreenView>,
 }
 
 impl AppWebview {
-  pub(crate) fn bounds(&self) -> Option<Rect> {
-    if let Some(surface) = &self.offscreen_surface {
-      let bounds = surface.bounds();
-      Some(Rect {
-        position: PhysicalPosition::new(bounds.x, bounds.y).into(),
-        size: PhysicalSize::new(bounds.width, bounds.height).into(),
-      })
+  fn resize(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
+    if let Some(view) = &self.offscreen {
+      *view.bounds.lock().unwrap() = Rect {
+        position: tauri_runtime::dpi::LogicalPosition::new(x as f64 / scale, y as f64 / scale)
+          .into(),
+        size: tauri_runtime::dpi::LogicalSize::new(
+          width.max(0) as f64 / scale,
+          height.max(0) as f64 / scale,
+        )
+        .into(),
+      };
     } else {
-      self.native_bounds()
-    }
-  }
-
-  pub(crate) fn apply_physical_bounds(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
-    if let Some(surface) = &self.offscreen_surface {
-      let changed_scale = surface.bounds().scale_factor != scale;
-      surface.set_bounds(crate::offscreen::OffscreenBounds {
-        x,
-        y,
-        width: width.max(0) as u32,
-        height: height.max(0) as u32,
-        scale_factor: scale,
-      });
-      if changed_scale {
-        self.host.notify_screen_info_changed();
-      }
-    } else {
-      self.apply_native_bounds(scale, x, y, width, height);
+      self.apply_physical_bounds(scale, x, y, width, height);
     }
   }
 
@@ -569,16 +558,17 @@ impl AppWebview {
     }
 
     self.host.notify_move_or_resize_started();
-    self.apply_physical_bounds(scale, x, y, w, h);
+    self.resize(scale, x, y, w, h);
     self.host.was_resized();
   }
 
   pub(crate) fn set_visible(&self, visible: bool) {
     self.host.was_hidden(if visible { 0 } else { 1 });
-    if let Some(surface) = &self.offscreen_surface {
-      surface.set_visible(visible);
+    if let Some(view) = &self.offscreen {
+      view.visible.store(visible, Ordering::Relaxed);
+      view.window.request_redraw();
     } else {
-      self.apply_native_visible(visible);
+      self.apply_visible(visible);
     }
   }
 
@@ -633,15 +623,29 @@ impl<T: UserEvent> WinitCefApp<T> {
   ) -> Result<()> {
     // Windows/macOS use the native window/view; Linux uses the GTK content-area
     // X11 host so CEF children cannot cover GTK UI like menus.
-    if let Some(surface) = &pending.runtime_specific_attributes.offscreen {
-      if !surface.attach() {
-        return Err(Error::CreateWebview(
-          "an offscreen surface belongs to one browser; create a new surface for each webview"
-            .into(),
-        ));
-      }
-      surface.update_screen(appwindow.window.as_ref());
-    }
+    let offscreen = pending
+      .runtime_specific_attributes
+      .offscreen
+      .as_ref()
+      .map(|_| {
+        let scale = appwindow.window.scale_factor();
+        let bounds = pending
+          .webview_attributes
+          .bounds
+          .unwrap_or_else(|| Rect {
+            position: PhysicalPosition::new(0, 0).into(),
+            size: appwindow.safe_surface_size().into(),
+          })
+          .to_logical::<f64, f64>(scale);
+        crate::OffscreenView {
+          window: appwindow.window.clone(),
+          bounds: Arc::new(Mutex::new(Rect {
+            position: bounds.position.into(),
+            size: bounds.size.into(),
+          })),
+          visible: Arc::new(AtomicBool::new(true)),
+        }
+      });
     let parent = appwindow.cef_host_handle();
     let parent_size = appwindow.safe_surface_size();
     let scale = appwindow.window.scale_factor();
@@ -657,6 +661,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       scale,
       theme,
       drag_drop_event_target,
+      offscreen,
       pending,
     ) else {
       return Err(Error::CreateWebview(
@@ -669,17 +674,12 @@ impl<T: UserEvent> WinitCefApp<T> {
     // pin it, so Chromium's focus raise cannot reshuffle them behind our back
     // and bury an overlay webview under the one that fills the window.
     #[cfg(windows)]
-    if child.offscreen_surface.is_none() {
+    if child.offscreen.is_none() {
       child.raise_to_top();
+    } else {
+      appwindow.background_surface = None;
     }
 
-    if let Some(surface) = &child.offscreen_surface {
-      crate::offscreen_input::enable_ime(appwindow, surface);
-      appwindow.offscreen_input.focused = Some(child.webview_id);
-      child
-        .host
-        .set_focus(i32::from(appwindow.window.has_focus()));
-    }
     *live_browsers += 1;
     appwindow.children.push(child);
     layout_app_window(appwindow);
@@ -696,6 +696,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     scale: f64,
     theme: Option<Theme>,
     drag_drop_event_target: browser_client::DragDropEventTarget,
+    offscreen: Option<crate::OffscreenView>,
     mut pending: PendingWebview<T, CefRuntime<T>>,
   ) -> Option<AppWebview> {
     let bounds_rate = compute_child_bounds_rate(
@@ -715,8 +716,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // accelerator just opened.
     #[cfg(any(debug_assertions, feature = "devtools"))]
     if devtools_enabled
-      && (pending.runtime_specific_attributes.offscreen.is_some()
-        || is_alloy_style(pending.runtime_specific_attributes.runtime_style))
+      && (offscreen.is_some() || is_alloy_style(pending.runtime_specific_attributes.runtime_style))
     {
       pending.webview_attributes.initialization_scripts.push(
         tauri_runtime::webview::InitializationScript {
@@ -786,24 +786,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       web_content_process_terminate_handler,
     };
 
-    let offscreen_surface = pending.runtime_specific_attributes.offscreen.clone();
-    if let Some(surface) = &offscreen_surface {
-      let bounds = pending
-        .webview_attributes
-        .bounds
-        .unwrap_or_else(|| Rect {
-          position: PhysicalPosition::new(0, 0).into(),
-          size: parent_size.into(),
-        })
-        .to_physical::<i32, u32>(scale);
-      surface.set_bounds(crate::offscreen::OffscreenBounds {
-        x: bounds.position.x,
-        y: bounds.position.y,
-        width: bounds.size.width,
-        height: bounds.size.height,
-        scale_factor: scale,
-      });
-    }
     let mut client =
       browser_client::TauriCefBrowserClient::build(browser_client::TauriCefBrowserClientArgs {
         context: context.clone(),
@@ -820,7 +802,15 @@ impl<T: UserEvent> WinitCefApp<T> {
         frame_navigation_state: frame_navigation_state.clone(),
         popup_family: Arc::downgrade(&popup_family),
         opener: None,
-        offscreen_surface: offscreen_surface.clone(),
+        render_handler: offscreen
+          .as_ref()
+          .zip(pending.runtime_specific_attributes.offscreen.as_ref())
+          .map(|(view, options)| (options.render_handler)(view.clone())),
+        cursor_handler: pending
+          .runtime_specific_attributes
+          .offscreen
+          .as_ref()
+          .and_then(|options| options.cursor_handler.clone()),
         handlers,
         sender: context.sender.clone(),
       });
@@ -849,11 +839,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       None => cef::RuntimeStyle::DEFAULT,
     };
 
-    let window_info = if let Some(surface) = &offscreen_surface {
-      let mut info = cef::WindowInfo::default().set_as_windowless(parent);
-      info.shared_texture_enabled = i32::from(surface.is_accelerated());
-      info.external_begin_frame_enabled = i32::from(surface.external_begin_frame);
-      info
+    let window_info = if let Some(options) = &pending.runtime_specific_attributes.offscreen {
+      options.window_info(parent)
     } else {
       let mut info = cef::WindowInfo::default().set_as_child(parent, &bounds);
       info.runtime_style = cef_runtime_style;
@@ -877,7 +864,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     warn_about_unsupported_attributes(
       &pending.label,
       &pending.webview_attributes,
-      offscreen_surface.is_some(),
+      offscreen.is_some(),
     );
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {
@@ -982,7 +969,7 @@ impl<T: UserEvent> WinitCefApp<T> {
             devtools_enabled,
             listeners: Default::default(),
             bounds_rate,
-            offscreen_surface,
+            offscreen,
           })
           .expect("failed to send initialized CEF browser");
       }
@@ -1030,9 +1017,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // Route them before borrowing a child mutably so those parent reads do not
     // overlap with the child borrow.
     match message {
-      WebviewMessage::SetFocus
-      | WebviewMessage::Hide
-      | WebviewMessage::SetBounds(_)
+      WebviewMessage::SetBounds(_)
       | WebviewMessage::SetSize(_)
       | WebviewMessage::SetPosition(_)
       | WebviewMessage::Position(_)
@@ -1077,20 +1062,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     };
 
     match message {
-      WebviewMessage::Hide => {
-        if appwindow.offscreen_input.focused == Some(webview_id) {
-          crate::offscreen_input::set_focus(appwindow, None);
-        }
-        appwindow.children[child_index].set_visible(false);
-      }
-      WebviewMessage::SetFocus => {
-        if appwindow.children[child_index].offscreen_surface.is_some() {
-          crate::offscreen_input::set_focus(appwindow, Some(webview_id));
-        } else {
-          crate::offscreen_input::set_focus(appwindow, None);
-          appwindow.children[child_index].host.set_focus(1);
-        }
-      }
       WebviewMessage::SetBounds(bounds) => {
         let parent_size = appwindow.safe_surface_size();
         let scale = appwindow.window.scale_factor();
@@ -1147,12 +1118,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         }
       }
       WebviewMessage::Reparent(target_window_id, tx) => {
-        if appwindow.children[child_index].offscreen_surface.is_some()
-          && window_id != target_window_id
-        {
+        // CEF fixes an OSR browser's native dialog parent at creation.
+        if appwindow.children[child_index].offscreen.is_some() && window_id != target_window_id {
           let _ = tx.send(Err(Error::CreateWebview(
-            "windowless webviews cannot be reparented; recreate the webview in the target window"
-              .into(),
+            "offscreen webviews cannot be reparented".into(),
           )));
           return;
         }
@@ -1218,16 +1187,16 @@ impl<T: UserEvent> WinitCefApp<T> {
           document,
           window_label: Some(appwindow.label.clone()),
           window: Some(appwindow.lifetime.clone()),
-          parent_matches: if child.offscreen_surface.is_some() {
+          parent_matches: if child.offscreen.is_some() {
             None
           } else {
             child.native_parent_matches(appwindow)
           },
           bounds: child.bounds(),
           visible: child
-            .offscreen_surface
+            .offscreen
             .as_ref()
-            .map(|surface| surface.is_visible())
+            .map(|view| view.is_visible())
             .or_else(|| child.native_visible()),
         };
         let mut native = Webview::new(
@@ -1301,7 +1270,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::GoForward => child.browser.go_forward(),
       WebviewMessage::CanGoForward(tx) => _ = tx.send(Ok(child.browser.can_go_forward() == 1)),
       WebviewMessage::Close => child.host.close_browser(0),
-
+      WebviewMessage::SetFocus => child.host.set_focus(1),
       WebviewMessage::Url(tx) => {
         let url = child.url().unwrap_or_default();
         let _ = tx.send(Ok(url));
@@ -1318,7 +1287,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         child.listeners.lock().unwrap().insert(event_id, handler);
       }
       WebviewMessage::Show => child.set_visible(true),
-
+      WebviewMessage::Hide => child.set_visible(false),
       WebviewMessage::SetZoom(scale_factor) => {
         // CEF uses a logarithmic zoom level where percentage = 1.2^level
         // (Chromium's kTextSizeMultiplierRatio). Convert from Tauri linear
@@ -1331,11 +1300,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         };
         child.host.set_zoom_level(zoom_level);
       }
-      WebviewMessage::SetBackgroundColor(color) => {
-        if child.offscreen_surface.is_none() {
-          child.set_background_color(color);
-        }
-      }
+      WebviewMessage::SetBackgroundColor(color) => child.set_background_color(color),
       WebviewMessage::ClearAllBrowsingData => {
         if let Some(manager) = child.cookie_manager() {
           manager.delete_cookies(None, None, None);
@@ -1426,9 +1391,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           let _ = tx.send(Ok(()));
         }
       }
-      WebviewMessage::SetFocus
-      | WebviewMessage::Hide
-      | WebviewMessage::SetBounds(_)
+      WebviewMessage::SetBounds(_)
       | WebviewMessage::SetSize(_)
       | WebviewMessage::SetPosition(_)
       | WebviewMessage::Position(_)
@@ -1526,8 +1489,8 @@ pub enum RuntimeStyle {
 ///   can take the accelerators back with [`ChromeCommandGroup::History`].
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
-  /// Receives the pixels of a windowless browser instead of creating a native child view.
-  pub offscreen: Option<crate::OffscreenSurface>,
+  /// Windowless rendering and application-provided CEF callbacks.
+  pub offscreen: Option<crate::Offscreen>,
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
   pub runtime_style: Option<RuntimeStyle>,
   /// Observer of the native lifecycle events of every frame of the webview.
@@ -1564,7 +1527,7 @@ impl std::fmt::Debug for CefWebviewAttributes {
     formatter
       .debug_struct("CefWebviewAttributes")
       .field("runtime_style", &self.runtime_style)
-      .field("offscreen", &self.offscreen)
+      .field("offscreen", &self.offscreen.is_some())
       .field("frame_event_handler", &self.frame_event_handler.is_some())
       .field(
         "console_message_handler",
@@ -2094,34 +2057,22 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
 /// from the current window size; children with fixed bounds keep whatever bounds
 /// they were last given.
 pub(crate) fn layout_app_window(appwindow: &AppWindow) {
-  let parent_size = appwindow.safe_surface_size();
-  let win_w = parent_size.width as f32;
-  let win_h = parent_size.height as f32;
-  let scale = appwindow.window.scale_factor();
   #[cfg(target_os = "linux")]
   appwindow.cef_host.set_visible(
     appwindow
       .children
       .iter()
-      .any(|child| child.offscreen_surface.is_none()),
+      .any(|child| child.offscreen.is_none()),
   );
+  let parent_size = appwindow.safe_surface_size();
+  let win_w = parent_size.width as f32;
+  let win_h = parent_size.height as f32;
+  let scale = appwindow.window.scale_factor();
   for child in &appwindow.children {
-    if let Some(surface) = &child.offscreen_surface {
-      surface.update_screen(appwindow.window.as_ref());
-      if child.bounds_rate.is_none() {
-        let bounds = surface.bounds();
-        let ratio = scale / bounds.scale_factor;
-        child.apply_physical_bounds(
-          scale,
-          (bounds.x as f64 * ratio).round() as i32,
-          (bounds.y as f64 * ratio).round() as i32,
-          (bounds.width as f64 * ratio).round() as i32,
-          (bounds.height as f64 * ratio).round() as i32,
-        );
+    let Some(rate) = child.bounds_rate else {
+      if child.offscreen.is_some() {
         child.host.was_resized();
       }
-    }
-    let Some(rate) = child.bounds_rate else {
       continue;
     };
     let x = (rate.x * win_w).round() as i32;
@@ -2129,7 +2080,7 @@ pub(crate) fn layout_app_window(appwindow: &AppWindow) {
     let w = (rate.width * win_w).round() as i32;
     let h = (rate.height * win_h).round() as i32;
     child.host.notify_move_or_resize_started();
-    child.apply_physical_bounds(scale, x, y, w, h);
+    child.resize(scale, x, y, w, h);
     child.host.was_resized();
   }
 }

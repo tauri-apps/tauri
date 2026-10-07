@@ -24,8 +24,9 @@ mod frame_navigation;
 mod locale;
 mod macros;
 mod offscreen;
-mod offscreen_input;
-pub use offscreen::{OffscreenFrame, OffscreenRect, OffscreenSnapshot, OffscreenSurface};
+pub use offscreen::{CursorHandler, Offscreen, OffscreenView};
+/// Native window and event types for offscreen embedding.
+pub use winit;
 mod platform;
 mod popup;
 mod runtime;

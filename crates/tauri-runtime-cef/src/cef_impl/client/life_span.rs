@@ -214,7 +214,6 @@ wrap_with_args! {
         return 0;
       }
 
-      // A windowless browser has no child window to destroy. Let CEF finish closing it.
       if browser
         .and_then(|browser| browser.host())
         .is_some_and(|host| host.is_window_rendering_disabled() != 0)

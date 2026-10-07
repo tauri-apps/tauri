@@ -2634,12 +2634,3 @@ mod tests {
     crate::test_utils::assert_sync::<super::Window>();
   }
 }
-
-impl<R: Runtime> Window<R> {
-  /// Returns the runtime dispatcher of this window.
-  ///
-  /// Mostly useful for runtime-specific extension traits.
-  pub fn dispatcher(&self) -> &R::WindowDispatcher {
-    &self.window.dispatcher
-  }
-}

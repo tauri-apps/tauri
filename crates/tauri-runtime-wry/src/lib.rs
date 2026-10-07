@@ -145,8 +145,7 @@ type IpcHandler = dyn Fn(Request<String>) + 'static;
 
 #[cfg(not(debug_assertions))]
 mod dialog;
-// Only invoked from a `#[cfg(target_os = "linux")]` call site, but kept
-// compilable (and unit tested) on every platform.
+// Only called from a Linux-gated call site, but unit tested on all platforms.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 mod dmabuf_preflight;
 mod monitor;

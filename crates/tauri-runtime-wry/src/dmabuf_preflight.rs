@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 //! Advisory startup check for the WebKitGTK DMA-BUF renderer launch failure
-//! tracked in tauri-apps/tauri#10702: on Wayland sessions with webkit2gtk
-//! 2.44.x, WebKitGTK's DMA-BUF renderer can violate the Wayland protocol, the
-//! compositor disconnects the client, and GDK aborts the process with a
-//! single cryptic line (`Gdk-Message: Error 71 (Protocol error) dispatching
-//! to Wayland display`) before any window appears. The bug is upstream of
-//! Tauri; this check only names the escape hatch before the app can die.
+//! tracked in tauri-apps/tauri#10702 (same failure family as #9304): on
+//! Wayland sessions with webkit2gtk 2.44.x, WebKitGTK's DMA-BUF renderer can
+//! violate the Wayland protocol, the compositor disconnects the client, and
+//! GDK aborts the process with a single cryptic line (`Gdk-Message: Error 71
+//! (Protocol error) dispatching to Wayland display`) before any window
+//! appears. The bug is upstream of Tauri; this check only names the escape
+//! hatch before the app can die.
 
 use std::process::Command;
 

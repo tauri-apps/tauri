@@ -143,6 +143,9 @@ pub enum ResizeDirection {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
+  /// The selected runtime mode cannot perform the operation.
+  #[error("unsupported operation: {0}")]
+  UnsupportedOperation(&'static str),
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
   CreateWebview(Box<dyn std::error::Error + Send + Sync>),

@@ -24,6 +24,7 @@ mod life_span;
 mod load;
 mod permission;
 mod process;
+mod render;
 
 use command::{TauriCefCommandHandler, TauriCefCommandHandlerArgs};
 use context_menu::TauriCefContextMenuHandler;
@@ -92,15 +93,14 @@ wrap_with_args! {
     frame_navigation_state: crate::FrameNavigationState,
     popup_family: Weak<crate::popup::PopupFamily>,
     opener: Option<crate::popup::PopupRequest>,
-    render_handler: Option<cef::RenderHandler>,
-    cursor_handler: Option<Arc<crate::CursorHandler>>,
+    offscreen: Option<crate::OffscreenView>,
     pub(crate) handlers: TauriCefBrowserClientHandlers<T>,
     sender: Sender<Message<T>>,
   }
 
   impl Client {
     fn render_handler(&self) -> Option<RenderHandler> {
-      self.render_handler.clone()
+      self.offscreen.clone().map(render::TauriCefRenderHandler::new)
     }
 
     fn frame_handler(&self) -> Option<FrameHandler> {
@@ -166,8 +166,7 @@ wrap_with_args! {
           frame_navigation_state: state,
           popup_family: family.clone(),
           opener: Some(opener),
-          render_handler: None,
-          cursor_handler: None,
+          offscreen: None,
           handlers: TauriCefBrowserClientHandlers {
             // Only the internal navigation observer, never the opener's app
             // observer. A popup is a separate native browser that navigates
@@ -235,7 +234,7 @@ wrap_with_args! {
         document_title_changed_handler: self.handlers.document_title_changed_handler.clone(),
         frame_event_handler: self.handlers.frame_event_handler.clone(),
         console_message_handler: self.handlers.console_message_handler.clone(),
-        cursor_handler: self.cursor_handler.clone(),
+        offscreen: self.offscreen.clone(),
         frame_navigation_state: self.frame_navigation_state.clone(),
       }))
     }

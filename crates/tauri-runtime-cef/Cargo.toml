@@ -60,6 +60,7 @@ windows = { version = "0.62", features = [
   "Win32_Globalization",
   "Win32_System_LibraryLoader",
   "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Input_Ime",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }

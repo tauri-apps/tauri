@@ -72,9 +72,25 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 
 /// Native events for application rendering and input forwarding, on the event-loop thread.
 /// `Destroyed` is delivered before the runtime releases the window, including on exit.
-pub type NativeWindowEventHandler = dyn Fn(&str, &dyn ActiveEventLoop, Arc<dyn winit::window::Window>, &WinitWindowEvent)
+pub type NativeWindowEventHandler = dyn Fn(
+    &str,
+    &dyn ActiveEventLoop,
+    Arc<dyn winit::window::Window>,
+    &WinitWindowEvent,
+  ) -> NativeEventResponse
   + Send
   + Sync;
+
+/// Whether application input handling should prevent CEF's default input handling.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NativeEventResponse {
+  /// Forward browser input normally.
+  #[default]
+  Continue,
+  /// Consume input for application content. Focus/modifier synchronization and
+  /// an already captured browser pointer gesture still complete normally.
+  Handled,
+}
 
 /// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
 type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
@@ -545,14 +561,20 @@ impl fmt::Debug for Cef {
 impl Cef {
   /// Observes native input, resize and redraw events without replacing Tauri's handling.
   ///
-  /// Runs before Tauri handles the event. Offscreen embedders forward input, focus and IME
-  /// to CEF and present their own GPU surface here.
+  /// Runs before Tauri handles the event. Present application GPU content on redraw,
+  /// and return `Handled` to consume input for native content. Tauri forwards remaining
+  /// browser input and IME. Window lifecycle processing cannot be suppressed.
   /// Release GPU resources and retained native window references on `Destroyed`.
-  /// Registering this callback does not enable OSR or forward input automatically.
+  /// Registering this callback does not enable OSR.
   #[must_use]
   pub fn on_window_event<F>(mut self, handler: F) -> Self
   where
-    F: Fn(&str, &dyn ActiveEventLoop, Arc<dyn winit::window::Window>, &WinitWindowEvent)
+    F: Fn(
+        &str,
+        &dyn ActiveEventLoop,
+        Arc<dyn winit::window::Window>,
+        &WinitWindowEvent,
+      ) -> NativeEventResponse
       + Send
       + Sync
       + 'static,
@@ -1819,9 +1841,8 @@ impl<T: UserEvent> WinitCefApp<T> {
             .position(|child| child.webview_id == webview_id)
             .map(|index| {
               let child = appwindow.children.remove(index);
-              if let Some(view) = &child.offscreen {
-                view.visible.store(false, Ordering::Relaxed);
-                view.window.request_redraw();
+              if appwindow.offscreen_input.focused == Some(webview_id) {
+                crate::offscreen_input::set_focus(appwindow, None);
               }
               (*id, child, appwindow.children.is_empty())
             })
@@ -1829,6 +1850,9 @@ impl<T: UserEvent> WinitCefApp<T> {
 
         let mut emptied_window = None;
         if let Some((window_id, child, was_last)) = closed {
+          if let Some(view) = &child.offscreen {
+            view.close();
+          }
           self.remove_scheme_handler_entries(&child);
           if was_last {
             emptied_window = Some(window_id);
@@ -1838,10 +1862,19 @@ impl<T: UserEvent> WinitCefApp<T> {
           // registry entries went with `close_window`, and the native window is
           // only being held open for CEF. This acknowledgement is what releases
           // it, once it is the last browser the window was hosting.
+          let mut offscreen = None;
           for appwindow in &mut self.state.closing_windows {
-            appwindow
-              .children
-              .retain(|child| child.webview_id != webview_id);
+            appwindow.children.retain(|child| {
+              if child.webview_id == webview_id {
+                offscreen = child.offscreen.clone();
+                false
+              } else {
+                true
+              }
+            });
+          }
+          if let Some(view) = offscreen {
+            view.close();
           }
           self
             .state
@@ -1855,7 +1888,9 @@ impl<T: UserEvent> WinitCefApp<T> {
         // it follows the webview out through the regular close path — listeners
         // still get `CloseRequested` and can keep the empty window around.
         // `close_window` runs the exit check itself.
-        if let Some(window_id) = emptied_window {
+        if let Some(window_id) = emptied_window
+          && self.state.windows.contains_key(&window_id)
+        {
           self.request_window_close(window_id, event_loop);
         } else {
           self.exit_if_done(event_loop);
@@ -2027,6 +2062,17 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
   }
 
+  fn emit_native_drag_event(&mut self, window_id: WindowId, event: DragDropEvent) {
+    let emit = self
+      .state
+      .windows
+      .get_mut(&window_id)
+      .is_some_and(|window| crate::offscreen_input::drag_drop(window, &event));
+    if emit {
+      self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+    }
+  }
+
   fn emit_window_event(&mut self, window_id: WindowId, event: WindowEvent) {
     let Some(appwindow) = self.state.windows.get(&window_id) else {
       return;
@@ -2111,7 +2157,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     };
     for child in &appwindow.children {
       if let Some(view) = &child.offscreen {
-        view.visible.store(false, Ordering::Relaxed);
+        view.state.lock().unwrap().visible = false;
       }
     }
     if let Some(handler) = self.context.window_event_handler.clone() {
@@ -2299,6 +2345,10 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
     self.apply_pending_activations();
+    for appwindow in self.state.windows.values_mut() {
+      appwindow.sync_offscreen_visibility();
+      crate::offscreen_input::flush(appwindow, event_loop);
+    }
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -2320,7 +2370,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     let Some(window_id) = self.state.winid_id_to_window_id_map.get(&winit_id).copied() else {
       return;
     };
-    if !matches!(event, WinitWindowEvent::Destroyed)
+    let response = if !matches!(event, WinitWindowEvent::Destroyed)
       && let (Some(handler), Some((label, window))) = (
         self.context.window_event_handler.clone(),
         self
@@ -2328,14 +2378,17 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
           .windows
           .get(&window_id)
           .map(|window| (window.label.clone(), window.window.clone())),
-      )
-    {
-      handler(&label, event_loop, window, &event);
-    }
+      ) {
+      handler(&label, event_loop, window, &event)
+    } else {
+      NativeEventResponse::Continue
+    };
     let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
 
+    crate::offscreen_input::handle(appwindow, &event, response);
+    crate::offscreen_input::flush(appwindow, event_loop);
     match event {
       WinitWindowEvent::CloseRequested => self.request_window_close(window_id, event_loop),
 
@@ -2382,6 +2435,14 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       }
       WinitWindowEvent::Focused(focused) => {
         self.emit_window_event(window_id, WindowEvent::Focused(focused));
+      }
+      WinitWindowEvent::Occluded(occluded) => {
+        for child in &appwindow.children {
+          if let Some(view) = &child.offscreen {
+            view.state.lock().unwrap().occluded = occluded;
+          }
+        }
+        appwindow.sync_offscreen_visibility();
       }
       WinitWindowEvent::ThemeChanged(theme) => {
         let system_theme = winit_theme_to_tauri_theme(theme);
@@ -2441,10 +2502,10 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
           .map(|_| DragDropEvent::Over { position });
 
         if let Some(event) = enter_event {
-          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+          self.emit_native_drag_event(window_id, event);
         }
         if let Some(event) = over_event {
-          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+          self.emit_native_drag_event(window_id, event);
         }
       }
       WinitWindowEvent::DragDropped { id, .. } => {
@@ -2467,10 +2528,10 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         }
 
         if let Some(event) = enter_event {
-          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+          self.emit_native_drag_event(window_id, event);
         }
         if let Some(event) = drop_event {
-          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+          self.emit_native_drag_event(window_id, event);
         }
       }
       WinitWindowEvent::DragLeft { id } => {
@@ -2482,7 +2543,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         appwindow.native_drag_drop = None;
 
         if entered {
-          self.emit_window_event(window_id, WindowEvent::DragDrop(DragDropEvent::Leave));
+          self.emit_native_drag_event(window_id, DragDropEvent::Leave);
         }
       }
       WinitWindowEvent::DataTransferReceived { id, value, .. } => {
@@ -2516,10 +2577,10 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         }
 
         if let Some(event) = enter_event {
-          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+          self.emit_native_drag_event(window_id, event);
         }
         if let Some(event) = drop_event {
-          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+          self.emit_native_drag_event(window_id, event);
         }
       }
       _ => {}

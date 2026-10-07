@@ -479,6 +479,7 @@ pub(crate) struct AppWindow {
   pub(crate) window: Arc<dyn WinitWindow>,
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
+  pub(crate) offscreen_input: crate::offscreen_input::OffscreenInputState,
   pub(crate) listeners: WindowEventListeners,
   pub(crate) native_drag_drop: Option<WinitDragDropState>,
   #[cfg(any(
@@ -540,6 +541,25 @@ pub(crate) struct AppWindowAttrs {
 }
 
 impl AppWindow {
+  pub(crate) fn sync_offscreen_visibility(&self) {
+    if !self.children.iter().any(|child| child.offscreen.is_some()) {
+      return;
+    }
+    let host_hidden =
+      self.window.is_visible() == Some(false) || self.window.is_minimized() == Some(true);
+    for child in &self.children {
+      if let Some(view) = &child.offscreen {
+        let mut state = view.state.lock().unwrap();
+        let hidden = host_hidden || !state.visible || state.occluded;
+        if hidden != state.hidden {
+          state.hidden = hidden;
+          drop(state);
+          child.host.was_hidden(i32::from(hidden));
+        }
+      }
+    }
+  }
+
   pub(crate) fn center(&self) {
     let monitor = self.window.current_monitor();
     let monitor = monitor.or_else(|| self.window.primary_monitor());
@@ -734,6 +754,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       window: Arc::from(window),
       attrs,
       children: Vec::new(),
+      offscreen_input: Default::default(),
       listeners: Default::default(),
       native_drag_drop: None,
       #[cfg(any(

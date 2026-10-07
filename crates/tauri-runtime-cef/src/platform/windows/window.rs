@@ -8,16 +8,21 @@ use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri_runtime::{Icon, ProgressBarState, ProgressBarStatus};
 use tauri_utils::config::Color;
 use windows::Win32::{
-  Foundation::{HWND, RECT},
+  Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
   Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute},
   System::Com::{CLSCTX_SERVER, CoCreateInstance},
   UI::{
-    Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
-    Shell::{
-      ITaskbarList3, TBPF_ERROR, TBPF_INDETERMINATE, TBPF_NOPROGRESS, TBPF_NORMAL, TBPF_PAUSED,
-      TaskbarList,
+    Input::{
+      Ime::{HIMC, IACE_DEFAULT, ImmAssociateContextEx},
+      KeyboardAndMouse::{EnableWindow, GetKeyboardLayout, IsWindowEnabled},
     },
-    WindowsAndMessaging::DestroyIcon,
+    Shell::{
+      DefSubclassProc, ITaskbarList3, SetWindowSubclass, TBPF_ERROR, TBPF_INDETERMINATE,
+      TBPF_NOPROGRESS, TBPF_NORMAL, TBPF_PAUSED, TaskbarList,
+    },
+    WindowsAndMessaging::{
+      CreateCaret, DestroyCaret, DestroyIcon, SetCaretPos, WM_INPUTLANGCHANGE, WM_SETFOCUS,
+    },
   },
 };
 
@@ -26,6 +31,71 @@ use crate::{window::AppWindow, window_handle::SoftbufferWindowHandle};
 use super::icon::icon_to_hicon;
 
 impl AppWindow {
+  const OFFSCREEN_IME_SUBCLASS_ID: usize = 125;
+
+  unsafe extern "system" fn offscreen_ime_subclass_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _subclass_id: usize,
+    _data: usize,
+  ) -> LRESULT {
+    unsafe {
+      let result = DefSubclassProc(hwnd, msg, wparam, lparam);
+      if msg == WM_INPUTLANGCHANGE || msg == WM_SETFOCUS {
+        Self::associate_default_ime_context(hwnd);
+      }
+      result
+    }
+  }
+
+  unsafe fn associate_default_ime_context(hwnd: HWND) {
+    // winit disables the native input context when creating the window. Restore
+    // the current layout's default context, including after an input-language
+    // switch, so WM_IME_* messages can reach winit and the windowless browser.
+    let _ = unsafe { ImmAssociateContextEx(hwnd, HIMC::default(), IACE_DEFAULT) };
+  }
+
+  pub(crate) fn install_offscreen_ime_hook(&self) {
+    let installed = unsafe {
+      SetWindowSubclass(
+        self.hwnd(),
+        Some(Self::offscreen_ime_subclass_proc),
+        Self::OFFSCREEN_IME_SUBCLASS_ID,
+        0,
+      )
+    };
+    if !installed.as_bool() {
+      log::warn!("failed to install the off-screen IME window hook");
+    }
+    unsafe { Self::associate_default_ime_context(self.hwnd()) };
+  }
+
+  pub(crate) fn restore_offscreen_ime_context(&self) {
+    unsafe { Self::associate_default_ime_context(self.hwnd()) };
+  }
+
+  pub(crate) fn create_offscreen_ime_caret(&self) -> bool {
+    if !matches!(primary_input_language(), 0x04 | 0x11) {
+      return false;
+    }
+    unsafe { CreateCaret(self.hwnd(), None, 1, 1) }.is_ok()
+  }
+
+  pub(crate) fn position_offscreen_ime_caret(&self, x: i32, y: i32, height: u32) {
+    let y = if primary_input_language() == 0x11 {
+      y.saturating_add(height as i32)
+    } else {
+      y
+    };
+    let _ = unsafe { SetCaretPos(x, y) };
+  }
+
+  pub(crate) fn destroy_offscreen_ime_caret(&self) {
+    let _ = unsafe { DestroyCaret() };
+  }
+
   pub(crate) fn cef_host_handle(&self) -> cef::sys::cef_window_handle_t {
     cef::sys::HWND(self.hwnd().0 as *mut _)
   }
@@ -171,4 +241,9 @@ impl AppWindow {
     result.ok()?;
     Some((rect.bottom - rect.top) as u32)
   }
+}
+
+fn primary_input_language() -> u16 {
+  let language_id = unsafe { GetKeyboardLayout(0) }.0 as usize as u16;
+  language_id & 0x03ff
 }

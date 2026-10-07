@@ -19,4 +19,4 @@ pub(crate) use application::{
 };
 pub(crate) use fullscreen::FullscreenTransition;
 pub(crate) use wake::MainThreadWake;
-pub(crate) use window::nswindow;
+pub(crate) use window::{nswindow, offscreen_screen_point};

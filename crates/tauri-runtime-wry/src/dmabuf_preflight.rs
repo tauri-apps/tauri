@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Advisory startup check for tauri-apps/tauri#10702 (same family as #9304):
-//! webkit2gtk 2.44.x on Wayland can violate the Wayland protocol in its
-//! DMA-BUF renderer, and GDK then aborts the process before any window
-//! appears. The bug is upstream of Tauri; this check only names the escape
-//! hatch before the app can die.
+//! Startup check for the WebKitGTK DMA-BUF Wayland launch failure
+//! (tauri-apps/tauri#10702, also #9304). Upstream bug, this only names the
+//! workaround.
 
 use std::process::Command;
 
-/// WebKitGTK reads this at library init; setting it skips the DMA-BUF renderer.
 const DMABUF_RENDERER_DISABLE_ENV: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
 
 const WARNING: &str = "warning: webkit2gtk 2.44.x on Wayland can be killed at launch by a \
@@ -28,8 +25,7 @@ fn parse_modversion(output: &str) -> Option<(u32, u32, u32)> {
   ))
 }
 
-/// True when the system webkit2gtk, queried through pkg-config so a distro
-/// update is seen at run time, is in the affected 2.44.x series.
+// pkg-config because the system webkit2gtk can be updated under the app.
 fn affected_system_webkit2gtk() -> bool {
   ["webkit2gtk-4.1", "webkit2gtk-4.0"].iter().any(|module| {
     Command::new("pkg-config")
@@ -43,8 +39,6 @@ fn affected_system_webkit2gtk() -> bool {
   })
 }
 
-/// The advisory line, or `None` when the session does not match the known
-/// failure mode. Reads the environment and pkg-config only; never fails.
 pub(crate) fn dmabuf_preflight() -> Option<&'static str> {
   let known_failure_mode = std::env::var_os("WAYLAND_DISPLAY").is_some()
     && std::env::var_os(DMABUF_RENDERER_DISABLE_ENV).is_none()
@@ -67,9 +61,7 @@ mod tests {
     assert_eq!(parse_modversion(""), None);
   }
 
-  // Runs the real check against a shimmed pkg-config serving any version
-  // through SHIM_WEBKIT_VERSION. The only test allowed to touch PATH and
-  // these env vars.
+  // The only test allowed to touch PATH and these env vars.
   #[cfg(unix)]
   #[test]
   fn fires_only_for_wayland_affected_and_unmitigated() {
@@ -104,13 +96,13 @@ mod tests {
 
     unsafe {
       std::env::remove_var(DMABUF_RENDERER_DISABLE_ENV);
-      std::env::remove_var("WAYLAND_DISPLAY"); // X11 session
+      std::env::remove_var("WAYLAND_DISPLAY"); // X11
     }
     assert!(dmabuf_preflight().is_none());
 
     unsafe {
       std::env::set_var("WAYLAND_DISPLAY", "wayland-0");
-      std::env::set_var("SHIM_WEBKIT_VERSION", "2.46.0"); // fixed series
+      std::env::set_var("SHIM_WEBKIT_VERSION", "2.46.0"); // fixed
     }
     assert!(dmabuf_preflight().is_none());
 

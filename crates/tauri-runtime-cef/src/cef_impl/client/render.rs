@@ -101,7 +101,32 @@ wrap_render_handler! {
       else {
         return 0;
       };
-      #[cfg(not(target_os = "macos"))]
+      #[cfg(windows)]
+      let point = {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        use windows::Win32::{
+          Foundation::{HWND, POINT},
+          Graphics::Gdi::ClientToScreen,
+        };
+
+        let Ok(handle) = self.view.window.window_handle() else {
+          return 0;
+        };
+        let RawWindowHandle::Win32(handle) = handle.as_raw() else {
+          return 0;
+        };
+        let mut point = POINT {
+          x: (x * scale).round() as i32,
+          y: (y * scale).round() as i32,
+        };
+        // winit's Windows surface_position is (0, 0), not the client offset
+        // inside the decorated window. Let Win32 translate the client point.
+        if !unsafe { ClientToScreen(HWND(handle.hwnd.get() as _), &mut point) }.as_bool() {
+          return 0;
+        }
+        (point.x, point.y)
+      };
+      #[cfg(not(any(target_os = "macos", windows)))]
       let point = {
         let Ok(origin) = self.view.window.outer_position() else {
           return 0;

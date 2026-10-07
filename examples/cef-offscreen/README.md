@@ -31,7 +31,9 @@ example has no frontend build step or JavaScript dependencies.
 
 [`main.rs`](src-tauri/src/main.rs) enables windowless rendering, receives
 borrowed paints, and handles native events. Tauri forwards browser input and
-manages focus, IME and popup geometry. The example copies each complete paint
+manages focus, IME and popup geometry. IME composition is supported on Windows
+and macOS; it is currently unsupported on Linux because the GTK4 window backend
+does not provide IME events. The example copies each complete paint
 because it presents later on a native redraw; popup bounds remain in logical
 pixels until presentation.
 

@@ -863,7 +863,32 @@ fn event_windows_key_code(event: &KeyEvent) -> i32 {
     use windows::Win32::UI::Input::KeyboardAndMouse::{
       GetKeyboardLayout, MAPVK_VSC_TO_VK_EX, MapVirtualKeyExW,
     };
+    use winit::keyboard::{KeyCode, PhysicalKey};
     use winit::platform::scancode::PhysicalKeyExtScancode;
+
+    // Scan-code translation always maps these keypad keys to navigation keys.
+    // Winit's logical key already accounts for NumLock and Shift, including the
+    // layout's decimal separator, so preserve numeric input before translating.
+    if matches!(event.logical_key, Key::Character(_)) {
+      let code = match event.physical_key {
+        PhysicalKey::Code(KeyCode::Numpad0) => Some(0x60),
+        PhysicalKey::Code(KeyCode::Numpad1) => Some(0x61),
+        PhysicalKey::Code(KeyCode::Numpad2) => Some(0x62),
+        PhysicalKey::Code(KeyCode::Numpad3) => Some(0x63),
+        PhysicalKey::Code(KeyCode::Numpad4) => Some(0x64),
+        PhysicalKey::Code(KeyCode::Numpad5) => Some(0x65),
+        PhysicalKey::Code(KeyCode::Numpad6) => Some(0x66),
+        PhysicalKey::Code(KeyCode::Numpad7) => Some(0x67),
+        PhysicalKey::Code(KeyCode::Numpad8) => Some(0x68),
+        PhysicalKey::Code(KeyCode::Numpad9) => Some(0x69),
+        PhysicalKey::Code(KeyCode::NumpadDecimal) => Some(0x6e),
+        _ => None,
+      };
+      if let Some(code) = code {
+        return code;
+      }
+    }
+
     if let Some(scan) = event.physical_key.to_scancode() {
       // Translate using the active keyboard layout, including OEM and international keys.
       let code = unsafe { MapVirtualKeyExW(scan, MAPVK_VSC_TO_VK_EX, Some(GetKeyboardLayout(0))) };
@@ -1101,6 +1126,58 @@ mod tests {
     assert_eq!(windows_key_code(&Key::Character(".".into())), 0xbe);
     assert_eq!(windows_key_code(&Key::Named(NamedKey::Delete)), 0x2e);
     assert_eq!(windows_key_code(&Key::Character("+".into())), 0xbb);
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn offscreen_windows_keypad_preserves_numeric_and_navigation_input() {
+    use winit::keyboard::{KeyCode, KeyLocation, PhysicalKey};
+
+    // Winit resolves NumLock and Shift into the logical key before dispatch.
+    // The same physical key must remain numeric or navigational accordingly.
+    for (physical, logical, expected) in [
+      (KeyCode::Numpad0, Key::Character("0".into()), 0x60),
+      (KeyCode::Numpad1, Key::Character("1".into()), 0x61),
+      (KeyCode::Numpad2, Key::Character("2".into()), 0x62),
+      (KeyCode::Numpad3, Key::Character("3".into()), 0x63),
+      (KeyCode::Numpad4, Key::Character("4".into()), 0x64),
+      (KeyCode::Numpad5, Key::Character("5".into()), 0x65),
+      (KeyCode::Numpad6, Key::Character("6".into()), 0x66),
+      (KeyCode::Numpad7, Key::Character("7".into()), 0x67),
+      (KeyCode::Numpad8, Key::Character("8".into()), 0x68),
+      (KeyCode::Numpad9, Key::Character("9".into()), 0x69),
+      (KeyCode::NumpadDecimal, Key::Character(".".into()), 0x6e),
+      (KeyCode::NumpadDecimal, Key::Character(",".into()), 0x6e),
+      (KeyCode::Numpad0, Key::Named(NamedKey::Insert), 0x2d),
+      (KeyCode::Numpad1, Key::Named(NamedKey::End), 0x23),
+      (KeyCode::Numpad2, Key::Named(NamedKey::ArrowDown), 0x28),
+      (KeyCode::Numpad3, Key::Named(NamedKey::PageDown), 0x22),
+      (KeyCode::Numpad4, Key::Named(NamedKey::ArrowLeft), 0x25),
+      (KeyCode::Numpad5, Key::Named(NamedKey::Clear), 0x0c),
+      (KeyCode::Numpad6, Key::Named(NamedKey::ArrowRight), 0x27),
+      (KeyCode::Numpad7, Key::Named(NamedKey::Home), 0x24),
+      (KeyCode::Numpad8, Key::Named(NamedKey::ArrowUp), 0x26),
+      (KeyCode::Numpad9, Key::Named(NamedKey::PageUp), 0x21),
+      (KeyCode::NumpadDecimal, Key::Named(NamedKey::Delete), 0x2e),
+    ] {
+      for state in [ElementState::Pressed, ElementState::Released] {
+        let event = KeyEvent {
+          physical_key: PhysicalKey::Code(physical),
+          logical_key: logical.clone(),
+          text: None,
+          location: KeyLocation::Numpad,
+          state,
+          repeat: false,
+          text_with_all_modifiers: None,
+          key_without_modifiers: logical.clone(),
+        };
+        assert_eq!(
+          event_windows_key_code(&event),
+          expected,
+          "{physical:?} / {logical:?} / {state:?}"
+        );
+      }
+    }
   }
 
   #[test]

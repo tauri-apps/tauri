@@ -50,6 +50,9 @@ pub enum OffscreenEvent<'a> {
 /// redraw events from [`crate::Cef::on_window_event`]; no graphics API is required
 /// by the runtime. Offscreen webviews cannot be reparented.
 ///
+/// IME composition is supported on Windows and macOS. It is currently unsupported
+/// on Linux because the GTK4 window backend does not provide IME events.
+///
 /// Native screen-reader bridging and browser-originated native drag sources
 /// are not implemented yet. Native file drops use Tauri events by default;
 /// disabling the drag-drop handler forwards incoming files to HTML instead.

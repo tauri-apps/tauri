@@ -563,7 +563,8 @@ impl Cef {
   ///
   /// Runs before Tauri handles the event. Present application GPU content on redraw,
   /// and return `Handled` to consume input for native content. Tauri forwards remaining
-  /// browser input and IME. Window lifecycle processing cannot be suppressed.
+  /// browser input and, on Windows and macOS, IME. IME composition is currently
+  /// unsupported on Linux. Window lifecycle processing cannot be suppressed.
   /// Release GPU resources and retained native window references on `Destroyed`.
   /// Registering this callback does not enable OSR.
   #[must_use]

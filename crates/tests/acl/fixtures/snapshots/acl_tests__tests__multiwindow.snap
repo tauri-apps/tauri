@@ -258,56 +258,36 @@ Resolved {
     command_scope: {
         1: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$CONFIG/*",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$CONFIG/*"),
+                },
             ],
             deny: [],
         },
         2: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$CONFIG/*",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$CONFIG/*"),
+                },
             ],
             deny: [],
         },
         3: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$RESOURCE/**"),
+                },
+                Object {
+                    "path": String("$RESOURCE"),
+                },
             ],
             deny: [],
         },
         4: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$TEMP/*",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$TEMP/*"),
+                },
             ],
             deny: [],
         },
@@ -315,43 +295,23 @@ Resolved {
     global_scope: {
         "fs": ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$APPDATA",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$DOWNLOAD",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$DOWNLOAD/**",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$APPDATA"),
+                },
+                Object {
+                    "path": String("$DOWNLOAD"),
+                },
+                Object {
+                    "path": String("$DOWNLOAD/**"),
+                },
             ],
             deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$HOME",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$HOME",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$HOME"),
+                },
+                Object {
+                    "path": String("$HOME"),
+                },
             ],
         },
     },

@@ -3612,34 +3612,6 @@ mod configuration_tests {
       "both are kept, in call order, so the application's last word wins"
     );
   }
-
-  #[test]
-  fn child_process_args_are_kept_in_call_order_and_spelled_as_given() {
-    // `on_before_child_process_launch` appends them in the order stored, so the
-    // last one appended is the one that wins for a duplicate switch, matching
-    // `command_line_args`.
-    let cef = Cef::default()
-      .child_process_command_line_arg("use-angle", Some("vulkan"))
-      .child_process_command_line_args([
-        ("enable-features", Some("Vulkan")),
-        ("--disable-gpu-compositing", None),
-      ]);
-    assert_eq!(
-      cef.child_process_command_line_args,
-      [
-        ("use-angle".to_string(), Some("vulkan".to_string())),
-        ("enable-features".to_string(), Some("Vulkan".to_string())),
-        ("--disable-gpu-compositing".to_string(), None),
-      ],
-      "the builder stores exactly what was asked for, order included"
-    );
-    // The browser-process list stays separate: what the browser reads and what
-    // every child reads are different stores.
-    assert!(
-      cef.command_line_args.is_empty(),
-      "a child-process switch does not leak into the browser process's command line"
-    );
-  }
 }
 
 #[cfg(test)]

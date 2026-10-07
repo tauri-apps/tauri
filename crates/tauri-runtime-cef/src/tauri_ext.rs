@@ -272,6 +272,14 @@ pub trait WebviewWindowBuilderCefExt {
   #[must_use]
   fn browser_runtime_style(self, style: RuntimeStyle) -> Self;
 
+  /// Renders this webview into application-owned textures or pixels.
+  ///
+  /// Enable `settings.windowless_rendering_enabled` with [`crate::Cef::with_settings`]
+  /// before creating a windowless webview. Windowless webviews use Alloy style and
+  /// cannot be reparented. The application presents the surface; Tauri forwards input.
+  #[must_use]
+  fn offscreen(self, surface: crate::OffscreenSurface) -> Self;
+
   /// Observes native CEF lifecycle events for main and child frames.
   ///
   /// The callback runs synchronously on CEF's UI thread. It must return
@@ -360,6 +368,13 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilderCefExt
 where
   R::RuntimeWebviewAttributes: AsCefWebviewAttributes,
 {
+  fn offscreen(mut self, surface: crate::OffscreenSurface) -> Self {
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.offscreen = Some(surface.clone());
+    });
+    self
+  }
+
   fn browser_runtime_style(mut self, style: RuntimeStyle) -> Self {
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.runtime_style = Some(style);
@@ -418,6 +433,14 @@ pub trait WebviewBuilderCefExt {
   #[must_use]
   fn browser_runtime_style(self, style: RuntimeStyle) -> Self;
 
+  /// Renders this webview into application-owned textures or pixels.
+  ///
+  /// Enable `settings.windowless_rendering_enabled` with [`crate::Cef::with_settings`]
+  /// before creating a windowless webview. Windowless webviews use Alloy style and
+  /// cannot be reparented. The application presents the surface; Tauri forwards input.
+  #[must_use]
+  fn offscreen(self, surface: crate::OffscreenSurface) -> Self;
+
   /// Observes native CEF lifecycle events for main and child frames.
   ///
   /// The callback runs synchronously on CEF's UI thread. It must return
@@ -474,6 +497,13 @@ impl<R: Runtime> WebviewBuilderCefExt for tauri::webview::WebviewBuilder<R>
 where
   R::RuntimeWebviewAttributes: AsCefWebviewAttributes,
 {
+  fn offscreen(mut self, surface: crate::OffscreenSurface) -> Self {
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.offscreen = Some(surface.clone());
+    });
+    self
+  }
+
   fn browser_runtime_style(mut self, style: RuntimeStyle) -> Self {
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.runtime_style = Some(style);
@@ -520,5 +550,71 @@ where
       attributes.browser_settings_callback = Some(callback.clone());
     });
     self
+  }
+}
+
+/// Window dispatchers that may expose the CEF runtime.
+pub trait AsCefWindowDispatcher {
+  /// Returns the CEF dispatcher, or `None` for another runtime.
+  fn as_cef_window_dispatcher(&self) -> Option<&crate::CefWindowDispatcher<EventLoopMessage>>;
+}
+
+impl AsCefWindowDispatcher for crate::CefWindowDispatcher<EventLoopMessage> {
+  fn as_cef_window_dispatcher(&self) -> Option<&crate::CefWindowDispatcher<EventLoopMessage>> {
+    Some(self)
+  }
+}
+
+impl AsCefWindowDispatcher for tauri_runtime::dynamic::DynWindowDispatcher<EventLoopMessage> {
+  fn as_cef_window_dispatcher(&self) -> Option<&crate::CefWindowDispatcher<EventLoopMessage>> {
+    self.downcast_ref()
+  }
+}
+
+/// Native presentation hooks for windows hosted by the CEF runtime.
+pub trait WindowCefExt {
+  /// Requests a redraw. The native event loop coalesces pending requests.
+  fn request_redraw(&self) -> Result<()>;
+
+  /// Installs a native presentation callback, replacing any previous callback.
+  ///
+  /// Called on the event-loop thread. Capture application-owned rendering resources,
+  /// and drop them on `WindowEvent::Destroyed`, before the native window is released.
+  /// Installing a callback disables the runtime's Windows background painter.
+  fn on_redraw<F: Fn() + Send + Sync + 'static>(&self, handler: F) -> Result<()>;
+}
+
+impl<R: Runtime> WindowCefExt for tauri::Window<R>
+where
+  R::WindowDispatcher: AsCefWindowDispatcher,
+{
+  fn request_redraw(&self) -> Result<()> {
+    self
+      .dispatcher()
+      .as_cef_window_dispatcher()
+      .ok_or_else(not_cef)?
+      .request_redraw()
+      .map_err(Into::into)
+  }
+
+  fn on_redraw<F: Fn() + Send + Sync + 'static>(&self, handler: F) -> Result<()> {
+    self
+      .dispatcher()
+      .as_cef_window_dispatcher()
+      .ok_or_else(not_cef)?
+      .on_redraw(handler)
+      .map_err(Into::into)
+  }
+}
+
+impl<R: Runtime> WindowCefExt for WebviewWindow<R>
+where
+  R::WindowDispatcher: AsCefWindowDispatcher,
+{
+  fn request_redraw(&self) -> Result<()> {
+    self.as_ref().window().request_redraw()
+  }
+  fn on_redraw<F: Fn() + Send + Sync + 'static>(&self, handler: F) -> Result<()> {
+    self.as_ref().window().on_redraw(handler)
   }
 }

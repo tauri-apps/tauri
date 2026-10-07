@@ -57,7 +57,7 @@ impl AppWebview {
     // TODO: might not be supported on Windows
   }
 
-  pub(crate) fn bounds(&self) -> Option<Rect> {
+  pub(crate) fn native_bounds(&self) -> Option<Rect> {
     let hwnd = self.hwnd();
 
     let mut rect = RECT::default();
@@ -99,7 +99,7 @@ impl AppWebview {
     let _ = unsafe { SetParent(self.hwnd(), Some(parent)) };
   }
 
-  pub(crate) fn apply_visible(&self, visible: bool) {
+  pub(crate) fn apply_native_visible(&self, visible: bool) {
     let _ = unsafe { ShowWindow(self.hwnd(), if visible { SW_SHOW } else { SW_HIDE }) };
   }
 
@@ -174,7 +174,7 @@ impl AppWebview {
     self.set_z_order_pinned(true);
   }
 
-  pub(crate) fn apply_physical_bounds(&self, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
+  pub(crate) fn apply_native_bounds(&self, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
     unsafe {
       let _ = SetWindowPos(
         self.hwnd(),

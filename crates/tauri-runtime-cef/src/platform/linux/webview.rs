@@ -66,7 +66,7 @@ impl AppWebview {
     // background. Creation still applies BrowserSettings.
   }
 
-  pub(crate) fn bounds(&self) -> Option<Rect> {
+  pub(crate) fn native_bounds(&self) -> Option<Rect> {
     let xid = self.xid();
 
     with_cef_display(None, |xlib, display| unsafe {
@@ -112,7 +112,7 @@ impl AppWebview {
     });
   }
 
-  pub(crate) fn apply_visible(&self, visible: bool) {
+  pub(crate) fn apply_native_visible(&self, visible: bool) {
     let xid = self.xid();
 
     with_cef_display((), |xlib, display| unsafe {
@@ -148,7 +148,7 @@ impl AppWebview {
     });
   }
 
-  pub(crate) fn apply_physical_bounds(&self, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
+  pub(crate) fn apply_native_bounds(&self, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
     let xid = self.xid();
 
     with_cef_display((), |xlib, display| unsafe {

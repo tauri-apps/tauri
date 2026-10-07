@@ -52,7 +52,7 @@ impl AppWebview {
     layer.setBackgroundColor(Some(&*cg_color));
   }
 
-  pub(crate) fn bounds(&self) -> Option<Rect> {
+  pub(crate) fn native_bounds(&self) -> Option<Rect> {
     let nsview = self.try_nsview()?;
 
     let parent = unsafe { nsview.superview()? };
@@ -81,7 +81,7 @@ impl AppWebview {
     parent.addSubview(&view);
   }
 
-  pub(crate) fn apply_visible(&self, visible: bool) {
+  pub(crate) fn apply_native_visible(&self, visible: bool) {
     let nsview = self.nsview();
 
     nsview.setHidden(!visible);
@@ -97,7 +97,7 @@ impl AppWebview {
     self.nsview().removeFromSuperview();
   }
 
-  pub(crate) fn apply_physical_bounds(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
+  pub(crate) fn apply_native_bounds(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
     let nsview = self.nsview();
     let Some(parent) = (unsafe { nsview.superview() }) else {
       return;

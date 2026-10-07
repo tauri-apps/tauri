@@ -1,0 +1,20 @@
+{
+  "productName": "CEF Offscreen",
+  "version": "0.1.0",
+  "identifier": "app.tauri.cef-offscreen",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "icon": [
+      "../../.icons/32x32.png"
+    ]
+  }
+}

@@ -1792,6 +1792,12 @@ impl<T: UserEvent> WinitCefApp<T> {
             .position(|child| child.webview_id == webview_id)
             .map(|index| {
               let child = appwindow.children.remove(index);
+              if let Some(surface) = &child.offscreen_surface {
+                surface.set_visible(false);
+              }
+              if appwindow.offscreen_input.focused == Some(webview_id) {
+                crate::offscreen_input::set_focus(appwindow, None);
+              }
               (*id, child, appwindow.children.is_empty())
             })
         });
@@ -2280,6 +2286,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       return;
     };
 
+    crate::offscreen_input::handle(appwindow, &event);
     match event {
       WinitWindowEvent::CloseRequested => self.request_window_close(window_id, event_loop),
 
@@ -2308,6 +2315,13 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         );
       }
       WinitWindowEvent::Moved(pos) => {
+        for child in &appwindow.children {
+          if let Some(surface) = &child.offscreen_surface {
+            surface.update_screen(appwindow.window.as_ref());
+            child.host.notify_screen_info_changed();
+            child.host.notify_move_or_resize_started();
+          }
+        }
         self.emit_window_event(
           window_id,
           WindowEvent::Moved(PhysicalPosition::new(pos.x, pos.y)),
@@ -2315,6 +2329,15 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       }
       WinitWindowEvent::Focused(focused) => {
         self.emit_window_event(window_id, WindowEvent::Focused(focused));
+      }
+      WinitWindowEvent::Occluded(occluded) => {
+        for child in &appwindow.children {
+          if let Some(surface) = &child.offscreen_surface {
+            child
+              .host
+              .was_hidden(i32::from(occluded || !surface.is_visible()));
+          }
+        }
       }
       WinitWindowEvent::ThemeChanged(theme) => {
         let system_theme = winit_theme_to_tauri_theme(theme);
@@ -2328,9 +2351,13 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         }
         self.emit_window_event(window_id, WindowEvent::ThemeChanged(system_theme));
       }
-      #[cfg(windows)]
       WinitWindowEvent::RedrawRequested => {
-        appwindow.draw_background_surface();
+        if let Some(handler) = appwindow.redraw_handler.clone() {
+          handler();
+        } else {
+          #[cfg(windows)]
+          appwindow.draw_background_surface();
+        }
       }
       WinitWindowEvent::DragEntered { id, position } => {
         let has_file_paths = event_loop

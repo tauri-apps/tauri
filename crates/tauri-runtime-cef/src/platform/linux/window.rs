@@ -116,6 +116,16 @@ impl CefX11Host {
     format!("tauri-cef-window-background-{}", self.xid)
   }
 
+  pub(crate) fn set_visible(&self, visible: bool) {
+    super::utils::with_cef_display((), |xlib, display| unsafe {
+      if visible {
+        (xlib.XMapWindow)(display, self.xid);
+      } else {
+        (xlib.XUnmapWindow)(display, self.xid);
+      }
+    });
+  }
+
   pub(crate) fn size(&self) -> PhysicalSize<u32> {
     self.geometry.size.get()
   }

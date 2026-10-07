@@ -145,6 +145,10 @@ type IpcHandler = dyn Fn(Request<String>) + 'static;
 
 #[cfg(not(debug_assertions))]
 mod dialog;
+// Only invoked from a `#[cfg(target_os = "linux")]` call site, but kept
+// compilable (and unit tested) on every platform.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+mod dmabuf_preflight;
 mod monitor;
 #[cfg(any(
   windows,
@@ -2757,6 +2761,11 @@ impl<T: UserEvent> Wry<T> {
   }
 
   fn init(event_loop: EventLoop<Message<T>>) -> Result<Self> {
+    #[cfg(target_os = "linux")]
+    if let Some(warning) = crate::dmabuf_preflight::dmabuf_preflight() {
+      eprintln!("{warning}");
+    }
+
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 

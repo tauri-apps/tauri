@@ -440,6 +440,43 @@ mod test {
   }
 
   #[test]
+  fn once_survives_a_replayed_queued_emit() {
+    use std::sync::atomic::AtomicBool;
+
+    let listeners = Listeners::default();
+    let event = crate::EventName::new("event".to_owned()).unwrap();
+
+    // Since the listeners are stored in a HashMap,
+    // use more listens to make it more likely to have one of these to happen before the `once` handler later
+    for _ in 0..100 {
+      let listeners_clone = listeners.clone();
+      let event_clone = event.clone();
+      let emitted = AtomicBool::new(false);
+      listeners.listen(event.clone(), EventTarget::Any, move |_| {
+        // The listener lock is held while handlers run, so this emit is queued.
+        if !emitted.swap(true, Ordering::SeqCst) {
+          listeners_clone
+            .emit(EmitArgs::new(event_clone.as_str_event(), &()).unwrap())
+            .unwrap();
+        }
+      });
+    }
+
+    let calls = Arc::new(AtomicU32::new(0));
+    let calls_clone = calls.clone();
+
+    listeners.once(event.clone(), EventTarget::Any, move |_| {
+      calls_clone.fetch_add(1, Ordering::SeqCst);
+    });
+
+    listeners
+      .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
+      .unwrap();
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+  }
+
+  #[test]
   fn listeners_removed_on_webview_close() {
     let listeners = Listeners::default();
     let event = crate::EventName::new("test-event".to_owned()).unwrap();

@@ -171,10 +171,9 @@ impl Listeners {
     self.listen(event, target, move |event| {
       let id = event.id;
       self_.unlisten(id);
-      let handler = handler
-        .take()
-        .expect("attempted to call handler more than once");
-      handler(event);
+      if let Some(handler) = handler.take() {
+        handler(event);
+      }
     })
   }
 
@@ -421,6 +420,30 @@ mod test {
       // assert that the key is contained in the listeners map
       assert!(l.contains_key(&key));
     }
+  }
+
+  #[test]
+  fn once_survives_a_replayed_queued_emit() {
+    let listeners = Listeners::default();
+    let event = crate::EventName::new("test-event".to_owned()).unwrap();
+
+    // the listener lock is held while handlers run, so the re-emits queue and
+    // are replayed before the `once` handler's queued unlisten (#16214)
+    for _ in 0..32 {
+      let listeners_clone = listeners.clone();
+      let event_clone = event.clone();
+      let emitted = std::cell::Cell::new(false);
+      listeners.listen(event.clone(), EventTarget::Any, move |_| {
+        if !emitted.replace(true) {
+          let _ = listeners_clone.emit(EmitArgs::new(event_clone.as_str_event(), &()).unwrap());
+        }
+      });
+    }
+    listeners.once(event.clone(), EventTarget::Any, |_| {});
+
+    listeners
+      .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
+      .unwrap();
   }
 
   #[test]

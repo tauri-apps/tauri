@@ -81,7 +81,7 @@ define_class!(
       self.emit(AppDelegateEvent::Reopen {
         has_visible_windows,
       });
-      false
+      has_visible_windows
     }
 
     #[unsafe(method(applicationSupportsSecureRestorableState:))]

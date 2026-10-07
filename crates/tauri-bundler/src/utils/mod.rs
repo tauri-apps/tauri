@@ -103,7 +103,8 @@ impl CommandExt for Command {
       Ok(output)
     } else {
       Err(crate::Error::GenericError(format!(
-        "failed to run {program}"
+        "failed to run {program}: {}",
+        String::from_utf8_lossy(&output.stderr).trim_end()
       )))
     }
   }
@@ -115,7 +116,16 @@ mod tests {
 
   use tauri_utils::resources::resource_relpath;
 
-  use super::is_retina;
+  use super::{CommandExt, is_retina};
+
+  #[test]
+  fn output_ok_keeps_stderr_in_the_error() {
+    let err = std::process::Command::new("sh")
+      .args(["-c", "echo the-diagnosis >&2; exit 1"])
+      .output_ok()
+      .unwrap_err();
+    assert!(err.to_string().contains("the-diagnosis"));
+  }
 
   #[test]
   fn retina_icon_paths() {

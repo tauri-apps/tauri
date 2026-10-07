@@ -420,6 +420,9 @@ impl WebRtcIpHandling {
 #[derive(Default)]
 pub struct Cef {
   command_line_args: Vec<(String, Option<String>)>,
+  // Applied to every child process's command line, via
+  // `BrowserProcessHandler::on_before_child_process_launch`.
+  child_process_command_line_args: Vec<(String, Option<String>)>,
   disabled_features: Vec<String>,
   enabled_features: Vec<String>,
   deep_link_schemes: Vec<String>,
@@ -452,6 +455,10 @@ impl fmt::Debug for Cef {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("Cef")
       .field("command_line_args", &self.command_line_args)
+      .field(
+        "child_process_command_line_args",
+        &self.child_process_command_line_args,
+      )
       .field("disabled_features", &self.disabled_features)
       .field("enabled_features", &self.enabled_features)
       .field("deep_link_schemes", &self.deep_link_schemes)
@@ -515,6 +522,47 @@ impl Cef {
     self
       .command_line_args
       .push((key.into(), value.map(Into::into)));
+    self
+  }
+
+  /// Appends one command line argument that every CEF child process receives.
+  ///
+  /// Chromium forwards to each child the switches it knows about, which does not
+  /// include everything an application needs there: the GPU process reads the
+  /// ANGLE backend (`use-angle`) and the `--enable-features` names that decide
+  /// how Vulkan and WebGPU initialize, and without them a Linux application
+  /// enabling WebGPU falls back to SwiftShader or dies with "webgpu found no
+  /// adapters". These switches are appended to each child's command line from
+  /// the browser process, in CEF's `OnBeforeChildProcessLaunch` — the supported
+  /// hook for exactly this, unlike modifying a child's command line from the
+  /// child itself.
+  ///
+  /// Prefer [`Self::command_line_arg`] for anything only the browser process
+  /// reads.
+  #[must_use]
+  pub fn child_process_command_line_arg<K: Into<String>, V: Into<String>>(
+    mut self,
+    key: K,
+    value: Option<V>,
+  ) -> Self {
+    self
+      .child_process_command_line_args
+      .push((key.into(), value.map(Into::into)));
+    self
+  }
+
+  /// Appends a list of command line arguments that every CEF child process
+  /// receives.
+  ///
+  /// Like [`Self::child_process_command_line_arg`], plural form.
+  #[must_use]
+  pub fn child_process_command_line_args<K: Into<String>, V: Into<String>>(
+    mut self,
+    args: impl IntoIterator<Item = (K, Option<V>)>,
+  ) -> Self {
+    self
+      .child_process_command_line_args
+      .extend(args.into_iter().map(|(k, v)| (k.into(), v.map(Into::into))));
     self
   }
 
@@ -1128,12 +1176,12 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 pub(crate) struct RuntimeContext<T: UserEvent> {
   pub(crate) sender: Sender<Message<T>>,
   pub(crate) proxy: WinitEventLoopProxy,
-  main_thread_id: std::thread::ThreadId,
-  next_window_id: Arc<AtomicU32>,
-  next_webview_id: Arc<AtomicU32>,
-  next_window_event_id: Arc<AtomicU32>,
-  next_webview_event_id: Arc<AtomicU32>,
-  current_dispatch: Arc<MainThreadDispatchSlot<T>>,
+  pub(crate) main_thread_id: std::thread::ThreadId,
+  pub(crate) next_window_id: Arc<AtomicU32>,
+  pub(crate) next_webview_id: Arc<AtomicU32>,
+  pub(crate) next_window_event_id: Arc<AtomicU32>,
+  pub(crate) next_webview_event_id: Arc<AtomicU32>,
+  pub(crate) current_dispatch: Arc<MainThreadDispatchSlot<T>>,
   pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
   pub(crate) cef_pump: CefExternalPump,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
@@ -1170,7 +1218,7 @@ struct MainThreadDispatch<T: UserEvent> {
   event_loop: *const dyn ActiveEventLoop,
 }
 
-struct MainThreadDispatchSlot<T: UserEvent> {
+pub(crate) struct MainThreadDispatchSlot<T: UserEvent> {
   current: AtomicPtr<MainThreadDispatch<T>>,
 }
 
@@ -2355,7 +2403,10 @@ where
 /// `--` prefix; without one it is a positional argument. This runtime's own entries are
 /// therefore all spelled `--switch`, values included — Chromium strips the prefix off the
 /// key it stores, so both spellings reach the same switch.
-fn append_command_line_args(command_line: &mut CommandLine, args: &[(String, Option<String>)]) {
+pub(crate) fn append_command_line_args(
+  command_line: &mut CommandLine,
+  args: &[(String, Option<String>)],
+) {
   for (arg, value) in args {
     if let Some(value) = value {
       command_line.append_switch_with_value(
@@ -2403,6 +2454,11 @@ wrap_with_args! {
     // extending it. See `crate::switches::append_merged_switch`.
     disabled_features: Vec<String>,
     enabled_features: Vec<String>,
+    // Switches appended to every child process's command line from
+    // `BrowserProcessHandler::on_before_child_process_launch`, which runs in the
+    // browser process and is CEF's supported hook for reaching children. Filled
+    // from `Cef::child_process_command_line_args`.
+    child_process_command_line_args: Vec<(String, Option<String>)>,
   }
 
   impl App {
@@ -2415,6 +2471,7 @@ wrap_with_args! {
         self.context.clone(),
         self.context_initialized.clone(),
         self.deep_link_schemes.clone(),
+        self.child_process_command_line_args.clone(),
       ))
     }
 
@@ -2801,6 +2858,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let Cef {
       command_line_args,
+      child_process_command_line_args,
       disabled_features,
       enabled_features,
       deep_link_schemes,
@@ -3107,6 +3165,7 @@ impl<T: UserEvent> CefRuntime<T> {
       browser_command_line_args,
       disabled_features,
       enabled_features,
+      child_process_command_line_args,
     });
 
     // Subprocesses already exited above, so this must be the browser process;

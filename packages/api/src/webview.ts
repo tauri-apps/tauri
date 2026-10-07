@@ -819,11 +819,13 @@ class Webview {
       }
     )
 
-    return () => {
-      unlistenDragEnter()
-      unlistenDragDrop()
-      unlistenDragOver()
-      unlistenDragLeave()
+    return async () => {
+      await Promise.all([
+        unlistenDragEnter(),
+        unlistenDragDrop(),
+        unlistenDragOver(),
+        unlistenDragLeave()
+      ])
     }
   }
 }

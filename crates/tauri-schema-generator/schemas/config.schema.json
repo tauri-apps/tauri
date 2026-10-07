@@ -3553,7 +3553,7 @@
               ]
             },
             "level": {
-              "description": "Gzip compression level (0-9). Defaults to 6 if not specified.",
+              "description": "Gzip compression level (0-9). Defaults to 9 if not specified.",
               "default": null,
               "type": [
                 "integer",
@@ -3579,7 +3579,7 @@
               ]
             },
             "level": {
-              "description": "Zstd compression level. Defaults to 3 if not specified.",
+              "description": "Zstd compression level. Defaults to 19 if not specified.",
               "default": null,
               "type": [
                 "integer",
@@ -3604,7 +3604,7 @@
               ]
             },
             "level": {
-              "description": "Xz compression level (0-9). Defaults to 6 if not specified.",
+              "description": "Xz compression level (0-9). Defaults to 9 if not specified.",
               "default": null,
               "type": [
                 "integer",

@@ -339,19 +339,19 @@ pub struct AppImageConfig {
 pub enum DebCompression {
   /// Gzip compression
   Gzip {
-    /// Gzip compression level (0-9). Defaults to 6 if not specified.
+    /// Gzip compression level (0-9). Defaults to 9 if not specified.
     #[serde(default)]
     level: Option<u32>,
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level. Defaults to 3 if not specified.
+    /// Zstd compression level. Defaults to 19 if not specified.
     #[serde(default)]
     level: Option<i32>,
   },
   /// Xz compression
   Xz {
-    /// Xz compression level (0-9). Defaults to 6 if not specified.
+    /// Xz compression level (0-9). Defaults to 9 if not specified.
     #[serde(default)]
     level: Option<u32>,
   },
@@ -363,6 +363,19 @@ pub enum DebCompression {
   },
   /// Disable compression
   None,
+}
+
+impl DebCompression {
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<u32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
 }
 
 /// Configuration for Debian (.deb) bundles.
@@ -466,6 +479,19 @@ pub enum RpmCompression {
   },
   /// Disable compression
   None,
+}
+
+impl RpmCompression {
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<u32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
 }
 
 /// Configuration for RPM bundles.

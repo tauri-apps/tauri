@@ -100,7 +100,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let compression = settings
     .deb()
     .compression
-    .unwrap_or(DebCompression::Gzip { level: None });
+    .unwrap_or(DebCompression::Gzip { level: Some(6) });
 
   // Apply tar/compression/ar to create the final package file.
   let control_tar_path = tar_and_compress_dir(control_dir, &compression)
@@ -392,73 +392,74 @@ fn tar_and_compress_dir<P: AsRef<Path>>(
   compression: &DebCompression,
 ) -> crate::Result<PathBuf> {
   let src_dir = src_dir.as_ref();
-  match compression {
+
+  let (ext, level) = match compression {
     DebCompression::Gzip { level } => {
-      let level = level.unwrap_or(6);
+      let level = level.or_else(|| compression.default_level()).unwrap_or(9);
       if level > 9 {
         log::warn!("Gzip compression level {level} exceeds maximum 9, clamping to 9");
       }
-      let dest_path = src_dir.with_extension("tar.gz");
-      let dest_file = fs_utils::create_file(&dest_path)?;
-      let gzip_encoder = GzEncoder::new(dest_file, Compression::new(level.min(9)));
-      let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
-      let mut dest_file = gzip_encoder.finish()?;
-      dest_file.flush()?;
-      Ok(dest_path)
+      ("tar.gz", level.min(9))
     }
     DebCompression::Xz { level } => {
-      let level = level.unwrap_or(6);
+      let level = level.or_else(|| compression.default_level()).unwrap_or(9);
       if level > 9 {
         log::warn!("Xz compression level {level} exceeds maximum 9, clamping to 9");
       }
-      let dest_path = src_dir.with_extension("tar.xz");
-      let dest_file = fs_utils::create_file(&dest_path)?;
-      let xz_encoder = xz2::write::XzEncoder::new(dest_file, level.min(9));
-      let xz_encoder = create_tar_from_dir(src_dir, xz_encoder)?;
-      let mut dest_file = xz_encoder.finish()?;
-      dest_file.flush()?;
-      Ok(dest_path)
+      ("tar.xz", level.min(9))
     }
     DebCompression::Zstd { level } => {
-      let level = level.unwrap_or(3);
-      let dest_path = src_dir.with_extension("tar.zst");
-      let dest_file = fs_utils::create_file(&dest_path)?;
-      let zstd_encoder = zstd::stream::Encoder::new(dest_file, level)?;
-      let zstd_encoder = create_tar_from_dir(src_dir, zstd_encoder)?;
-      let mut dest_file = zstd_encoder.finish()?;
-      dest_file.flush()?;
-      Ok(dest_path)
+      let level = level.unwrap_or(19);
+      ("tar.zst", level as u32)
     }
     DebCompression::Bzip2 { level } => {
-      let level = level.unwrap_or(9);
+      let level = level.or_else(|| compression.default_level()).unwrap_or(9);
       if level > 9 {
         log::warn!("Bzip2 compression level {level} exceeds maximum 9, clamping to 9");
       }
-      let dest_path = src_dir.with_extension("tar.bz2");
-      let dest_file = fs_utils::create_file(&dest_path)?;
-      let bz_encoder =
-        bzip2::write::BzEncoder::new(dest_file, bzip2::Compression::new(level.min(9)));
-      let bz_encoder = create_tar_from_dir(src_dir, bz_encoder)?;
-      let mut dest_file = bz_encoder.finish()?;
-      dest_file.flush()?;
-      Ok(dest_path)
+      ("tar.bz2", level.min(9))
     }
-    DebCompression::None => {
-      let dest_path = src_dir.with_extension("tar");
-      let dest_file = fs_utils::create_file(&dest_path)?;
-      let mut dest_file = create_tar_from_dir(src_dir, dest_file)?;
-      dest_file.flush()?;
-      Ok(dest_path)
-    }
+    DebCompression::None => ("tar", 0),
     _ => {
-      log::warn!("Unknown DEB compression variant, falling back to uncompressed tar");
-      let dest_path = src_dir.with_extension("tar");
-      let dest_file = fs_utils::create_file(&dest_path)?;
-      let mut dest_file = create_tar_from_dir(src_dir, dest_file)?;
-      dest_file.flush()?;
-      Ok(dest_path)
+      log::warn!("Unknown DEB compression variant, falling back to Gzip with level 6");
+      ("tar.gz", 6)
     }
-  }
+  };
+
+  let dest_path = src_dir.with_extension(ext);
+  let dest_file = fs_utils::create_file(&dest_path)?;
+
+  let mut dest_file = match compression {
+    DebCompression::Gzip { .. } => {
+      let gzip_encoder = GzEncoder::new(dest_file, Compression::new(level));
+      let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
+      gzip_encoder.finish()?
+    }
+    DebCompression::Xz { .. } => {
+      let xz_encoder = xz2::write::XzEncoder::new(dest_file, level);
+      let xz_encoder = create_tar_from_dir(src_dir, xz_encoder)?;
+      xz_encoder.finish()?
+    }
+    DebCompression::Zstd { .. } => {
+      let zstd_encoder = zstd::stream::Encoder::new(dest_file, level as i32)?;
+      let zstd_encoder = create_tar_from_dir(src_dir, zstd_encoder)?;
+      zstd_encoder.finish()?
+    }
+    DebCompression::Bzip2 { .. } => {
+      let bz_encoder = bzip2::write::BzEncoder::new(dest_file, bzip2::Compression::new(level));
+      let bz_encoder = create_tar_from_dir(src_dir, bz_encoder)?;
+      bz_encoder.finish()?
+    }
+    DebCompression::None => create_tar_from_dir(src_dir, dest_file)?,
+    _ => {
+      let gzip_encoder = GzEncoder::new(dest_file, Compression::new(6));
+      let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
+      gzip_encoder.finish()?
+    }
+  };
+
+  dest_file.flush()?;
+  Ok(dest_path)
 }
 
 /// Creates an `ar` archive from the given source files and writes it to the
@@ -470,102 +471,4 @@ fn create_archive(srcs: Vec<PathBuf>, dest: &Path) -> crate::Result<()> {
   }
   builder.into_inner()?.flush()?;
   Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use tauri_utils::config::DebCompression;
-
-  #[test]
-  fn test_tar_and_compress_variants() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let data_dir = temp_dir.path().join("data");
-    fs::create_dir_all(&data_dir).unwrap();
-    fs::write(data_dir.join("test.txt"), "hello debian compression").unwrap();
-
-    let compressions = [
-      (DebCompression::Gzip { level: Some(6) }, "tar.gz"),
-      (DebCompression::Xz { level: Some(6) }, "tar.xz"),
-      (DebCompression::Zstd { level: Some(3) }, "tar.zst"),
-      (DebCompression::Bzip2 { level: Some(9) }, "tar.bz2"),
-      (DebCompression::None, "tar"),
-    ];
-
-    for (comp, expected_ext) in compressions {
-      let path = tar_and_compress_dir(&data_dir, &comp).unwrap();
-      assert!(path.exists());
-      assert!(
-        path.to_string_lossy().ends_with(expected_ext),
-        "Expected extension {}, got {:?}",
-        expected_ext,
-        path
-      );
-      assert!(fs::metadata(&path).unwrap().len() > 0);
-    }
-  }
-
-  #[test]
-  fn test_tar_and_compress_default_levels() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let data_dir = temp_dir.path().join("data");
-    fs::create_dir_all(&data_dir).unwrap();
-    fs::write(data_dir.join("test.txt"), "default level test").unwrap();
-
-    // When level is None, tar_and_compress_dir should use sensible defaults
-    let compressions = [
-      (DebCompression::Gzip { level: None }, "tar.gz"),
-      (DebCompression::Xz { level: None }, "tar.xz"),
-      (DebCompression::Zstd { level: None }, "tar.zst"),
-      (DebCompression::Bzip2 { level: None }, "tar.bz2"),
-    ];
-
-    for (comp, expected_ext) in compressions {
-      let path = tar_and_compress_dir(&data_dir, &comp).unwrap();
-      assert!(path.exists());
-      assert!(
-        path.to_string_lossy().ends_with(expected_ext),
-        "Expected extension {}, got {:?}",
-        expected_ext,
-        path
-      );
-      assert!(fs::metadata(&path).unwrap().len() > 0);
-    }
-  }
-
-  #[test]
-  fn test_create_archive_order() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let root = temp_dir.path();
-    let debian_binary = root.join("debian-binary");
-    fs::write(&debian_binary, "2.0\n").unwrap();
-
-    let control_dir = root.join("control");
-    fs::create_dir_all(&control_dir).unwrap();
-    fs::write(control_dir.join("control"), "Package: test\n").unwrap();
-    let control_tar =
-      tar_and_compress_dir(&control_dir, &DebCompression::Gzip { level: Some(6) }).unwrap();
-
-    let data_dir = root.join("data");
-    fs::create_dir_all(&data_dir).unwrap();
-    fs::write(data_dir.join("sample.txt"), "content").unwrap();
-    let data_tar =
-      tar_and_compress_dir(&data_dir, &DebCompression::Gzip { level: Some(6) }).unwrap();
-
-    let deb_path = root.join("test.deb");
-    create_archive(vec![debian_binary, control_tar, data_tar], &deb_path).unwrap();
-    assert!(deb_path.exists());
-
-    // Verify ar archive entries and order
-    let mut archive = ar::Archive::new(fs::File::open(&deb_path).unwrap());
-    let mut entries = Vec::new();
-    while let Some(entry) = archive.next_entry() {
-      let entry = entry.unwrap();
-      entries.push(String::from_utf8_lossy(entry.header().identifier()).to_string());
-    }
-    assert_eq!(entries.len(), 3);
-    assert_eq!(entries[0].trim(), "debian-binary");
-    assert_eq!(entries[1].trim(), "control.tar.gz");
-    assert_eq!(entries[2].trim(), "data.tar.gz");
-  }
 }

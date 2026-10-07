@@ -5,6 +5,8 @@ the APIs [`tauri-runtime-cef`](../../crates/tauri-runtime-cef) adds on top of th
 portable Tauri ones. Every panel of the app exercises one of them, and the Rust
 side of each is commented in [`src-tauri/src`](./src-tauri/src).
 
+For composition with a native renderer, see the [offscreen example](../cef-offscreen).
+
 The runtime is selected by depending on `tauri-runtime-cef` and passing
 `tauri_runtime_cef::Cef` to `tauri::Builder::runtime`. That dependency is also
 how `tauri-build` and the Tauri CLI detect a CEF app, which is what makes them

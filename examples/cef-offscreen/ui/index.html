@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CEF offscreen rendering</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="main.js" defer></script>
+  </head>
+  <body>
+    <aside>
+      <h1>CEF + native Vello</h1>
+      <p>
+        This panel is a windowless Tauri webview. Click the native circle on the
+        right to change its color without sending the click to this page.
+      </p>
+      <label for="text">Text / IME</label>
+      <input id="text" placeholder="Type here, including 日本語" />
+      <div>
+        <select aria-label="Popup">
+          <option>Open a popup</option>
+          <option>Second option</option>
+          <option>Third option</option>
+        </select>
+        <button id="invoke">Call Rust</button>
+      </div>
+      <output id="result" aria-live="polite"></output>
+      <p id="clicks">Browser clicks: 0</p>
+      <div id="drag">Drag from here onto the circle</div>
+      <div id="scroll" tabindex="0" aria-label="Scrollable text">
+        <p>Scroll this area.</p>
+        <p>Second line.</p>
+        <p>Third line.</p>
+        <p>Last line.</p>
+      </div>
+    </aside>
+  </body>
+</html>

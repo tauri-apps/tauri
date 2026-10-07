@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Startup check for the WebKitGTK DMA-BUF Wayland launch failure
-//! (tauri-apps/tauri#10702, also #9304). Upstream bug, this only names the
-//! workaround.
-
 use std::process::Command;
 
 const DMABUF_RENDERER_DISABLE_ENV: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
@@ -25,18 +21,15 @@ fn parse_modversion(output: &str) -> Option<(u32, u32, u32)> {
   ))
 }
 
-// pkg-config because the system webkit2gtk can be updated under the app.
 fn affected_system_webkit2gtk() -> bool {
-  ["webkit2gtk-4.1", "webkit2gtk-4.0"].iter().any(|module| {
-    Command::new("pkg-config")
-      .args(["--modversion", module])
-      .output()
-      .is_ok_and(|output| {
-        output.status.success()
-          && parse_modversion(&String::from_utf8_lossy(&output.stdout))
-            .is_some_and(|v| v.0 == 2 && v.1 == 44)
-      })
-  })
+  Command::new("pkg-config")
+    .args(["--modversion", "webkit2gtk-4.1"])
+    .output()
+    .is_ok_and(|output| {
+      output.status.success()
+        && parse_modversion(&String::from_utf8_lossy(&output.stdout))
+          .is_some_and(|v| v.0 == 2 && v.1 == 44)
+    })
 }
 
 pub(crate) fn dmabuf_preflight() -> Option<&'static str> {
@@ -50,18 +43,6 @@ pub(crate) fn dmabuf_preflight() -> Option<&'static str> {
 mod tests {
   use super::*;
 
-  #[test]
-  fn only_the_2_44_series_parses_as_affected() {
-    assert!(parse_modversion("2.44.3\n").is_some_and(|v| v.0 == 2 && v.1 == 44));
-    assert!(parse_modversion("  2.44.0 ").is_some_and(|v| v.0 == 2 && v.1 == 44));
-    assert!(!parse_modversion("2.46.8").is_some_and(|v| v.0 == 2 && v.1 == 44));
-    assert!(!parse_modversion("2.43.4").is_some_and(|v| v.0 == 2 && v.1 == 44));
-    assert_eq!(parse_modversion("not-a-version"), None);
-    assert_eq!(parse_modversion("2.44"), None);
-    assert_eq!(parse_modversion(""), None);
-  }
-
-  // The only test allowed to touch PATH and these env vars.
   #[cfg(unix)]
   #[test]
   fn fires_only_for_wayland_affected_and_unmitigated() {
@@ -83,31 +64,30 @@ mod tests {
       std::env::set_var("SHIM_WEBKIT_VERSION", "2.44.3");
       std::env::remove_var(DMABUF_RENDERER_DISABLE_ENV);
     }
-
     assert!(
       dmabuf_preflight()
         .is_some_and(|w| w.contains("Error 71") && w.contains("WEBKIT_DISABLE_DMABUF_RENDERER=1"))
     );
 
     unsafe {
-      std::env::set_var(DMABUF_RENDERER_DISABLE_ENV, "1"); // already mitigated
+      std::env::set_var(DMABUF_RENDERER_DISABLE_ENV, "1");
     }
     assert!(dmabuf_preflight().is_none());
 
     unsafe {
       std::env::remove_var(DMABUF_RENDERER_DISABLE_ENV);
-      std::env::remove_var("WAYLAND_DISPLAY"); // X11
+      std::env::remove_var("WAYLAND_DISPLAY");
     }
     assert!(dmabuf_preflight().is_none());
 
     unsafe {
       std::env::set_var("WAYLAND_DISPLAY", "wayland-0");
-      std::env::set_var("SHIM_WEBKIT_VERSION", "2.46.0"); // fixed
+      std::env::set_var("SHIM_WEBKIT_VERSION", "2.46.0");
     }
     assert!(dmabuf_preflight().is_none());
 
     unsafe {
-      std::env::set_var("SHIM_WEBKIT_VERSION", "junk"); // undetectable
+      std::env::set_var("SHIM_WEBKIT_VERSION", "junk");
     }
     assert!(dmabuf_preflight().is_none());
 

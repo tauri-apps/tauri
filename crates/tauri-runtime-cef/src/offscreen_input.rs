@@ -404,12 +404,9 @@ pub(crate) fn handle(
         #[cfg(windows)]
         destroy_ime_caret(appwindow);
       }
-      Ime::Enabled =>
-      {
-        #[cfg(windows)]
-        if !appwindow.offscreen_input.ime_caret_created {
-          appwindow.offscreen_input.ime_caret_created = appwindow.create_offscreen_ime_caret();
-        }
+      #[cfg(windows)]
+      Ime::Enabled if !appwindow.offscreen_input.ime_caret_created => {
+        appwindow.offscreen_input.ime_caret_created = appwindow.create_offscreen_ime_caret();
       }
       _ => {}
     },
@@ -959,8 +956,12 @@ fn windows_key_code(key: &Key) -> i32 {
 
 #[cfg(not(target_os = "macos"))]
 fn native_key_code(event: &KeyEvent, _windows_key_code: i32) -> i32 {
+  #[cfg(windows)]
   use winit::platform::scancode::PhysicalKeyExtScancode;
+  #[cfg(windows)]
   let scancode = event.physical_key.to_scancode().unwrap_or_default();
+  #[cfg(not(windows))]
+  let scancode = winit_common::xkb::physicalkey_to_scancode(event.physical_key).unwrap_or_default();
   #[cfg(windows)]
   {
     ((scancode & 0xff) << 16
@@ -1190,6 +1191,31 @@ mod tests {
       cef_modifiers(&input),
       cef_flag_bits(cef::sys::cef_event_flags_t::EVENTFLAG_RIGHT_MOUSE_BUTTON)
     );
+  }
+
+  #[cfg(target_os = "linux")]
+  #[test]
+  fn offscreen_linux_native_key_codes_include_xkb_offset() {
+    use winit::keyboard::{KeyCode, KeyLocation, NativeKey, NativeKeyCode, PhysicalKey};
+
+    for (physical_key, expected) in [
+      (PhysicalKey::Code(KeyCode::KeyA), 38),
+      (PhysicalKey::Code(KeyCode::ArrowLeft), 113),
+      // Winit stores the evdev scancode even for unidentified XKB keys.
+      (PhysicalKey::Unidentified(NativeKeyCode::Xkb(200)), 208),
+    ] {
+      let event = KeyEvent {
+        physical_key,
+        logical_key: Key::Unidentified(NativeKey::Unidentified),
+        text: None,
+        location: KeyLocation::Standard,
+        state: ElementState::Pressed,
+        repeat: false,
+        text_with_all_modifiers: None,
+        key_without_modifiers: Key::Unidentified(NativeKey::Unidentified),
+      };
+      assert_eq!(native_key_code(&event, 0), expected, "{physical_key:?}");
+    }
   }
 
   #[cfg(target_os = "macos")]

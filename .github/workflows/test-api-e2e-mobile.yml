@@ -112,6 +112,23 @@ jobs:
           pnpm tauri android init --ci --skip-targets-install
           pnpm tauri android build --debug --apk --target $E2E_ANDROID_TARGET
 
+      # The emulator runner downloads the system image (~1.5 GB) without retrying, and that
+      # download regularly fails with "Premature EOF". Installed here first, its own install is
+      # a no-op. Not cached: the Rust caches alone already fill the repository's 10 GB limit.
+      - name: install the emulator system image
+        run: |
+          # Must match api-level, target and arch below.
+          image='system-images;android-35;google_apis;x86_64'
+          for attempt in 1 2 3 4 5; do
+            if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "$image" > /dev/null \
+              && [ -f "$ANDROID_HOME/system-images/android-35/google_apis/x86_64/package.xml" ]; then
+              exit 0
+            fi
+            echo "::warning::installing $image failed (attempt $attempt of 5)"
+            sleep 30
+          done
+          exit 1
+
       - name: run e2e tests
         uses: reactivecircus/android-emulator-runner@v2
         timeout-minutes: 60

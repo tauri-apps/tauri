@@ -1915,6 +1915,11 @@
           "default": true,
           "type": "boolean"
         },
+        "showMenuOnRightClick": {
+          "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a right click.\n\n ## Platform-specific:\n\n - **Linux**: Unsupported.",
+          "default": true,
+          "type": "boolean"
+        },
         "title": {
           "description": "Title for MacOS tray",
           "type": [

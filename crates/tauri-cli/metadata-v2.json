@@ -3,7 +3,7 @@
     "version": "2.12.1",
     "node": ">= 10.0.0"
   },
-  "tauri": "2.12.1",
+  "tauri": "2.12.2",
   "tauri-build": "2.7.1",
   "tauri-plugin": "2.7.1"
 }

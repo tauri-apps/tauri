@@ -48,6 +48,11 @@ function injectChannel(i: MenuItemOptionsAlias): MenuItemOptionsAlias & {
   return i
 }
 
+/**
+ * Transforms menu items from various types into a type acceptable by Rust.
+ *
+ * @ignore
+ */
 export function prepareItem(
   i: { rid: number; kind: string } | MenuItemOptionsAlias
 ): [number, string] | MenuItemOptionsAlias {

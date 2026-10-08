@@ -65,7 +65,8 @@ macro_rules! gen_wrappers {
   (
     $(
       $(#[$attr:meta])*
-      $type:ident($inner:ident$(, $kind:ident)?) $({ $($field:ident: $field_type:ty),* })?
+      $type:ident($inner:ident$(, $kind:ident)?)
+      $({ $($(#[$field_attr:meta])* $field:ident: $field_type:ty),* })?
     ),*
   ) => {
     $(
@@ -74,7 +75,7 @@ macro_rules! gen_wrappers {
         // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
-        $($($field: $field_type,)*)?
+        $($( $(#[$field_attr])* $field: $field_type,)*)?
       }
 
       impl<R: $crate::Runtime> $inner<R> {
@@ -152,12 +153,14 @@ gen_wrappers!(
   ///
   /// - **macOS**: if using [`Menu`] for the global menubar, it can only contain [`Submenu`]s
   Menu(MenuInner) {
+    /// **SAFTY:** Must only be modified in sync with the inner [`muda::Menu::items`]
     items: std::sync::Mutex<Vec<MenuItemKind<R>>>
   },
   /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
   MenuItem(MenuItemInner, MenuItem),
   /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
   Submenu(SubmenuInner, Submenu) {
+    /// **SAFTY:** Must only be modified in sync with the inner [`muda::Submenu::items`]
     items: std::sync::Mutex<Vec<MenuItemKind<R>>>
   },
   /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.

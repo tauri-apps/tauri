@@ -13,7 +13,7 @@ mod normal;
 pub(crate) mod plugin;
 mod predefined;
 mod submenu;
-use std::{mem::ManuallyDrop, sync::Arc};
+use std::mem::ManuallyDrop;
 
 pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
@@ -65,7 +65,7 @@ macro_rules! gen_wrappers {
   (
     $(
       $(#[$attr:meta])*
-      $type:ident($inner:ident$(, $kind:ident)?)
+      $type:ident($inner:ident$(, $kind:ident)?) $({ $($field:ident: $field_type:ty),* })?
     ),*
   ) => {
     $(
@@ -74,6 +74,7 @@ macro_rules! gen_wrappers {
         // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
+        $($($field: $field_type,)*)?
       }
 
       impl<R: $crate::Runtime> $inner<R> {
@@ -81,6 +82,7 @@ macro_rules! gen_wrappers {
           Self {
             inner: ManuallyDrop::new(menu),
             app_handle,
+            $($($field: Default::default(),)*)?
           }
         }
       }
@@ -149,11 +151,15 @@ gen_wrappers!(
   /// ## Platform-specific:
   ///
   /// - **macOS**: if using [`Menu`] for the global menubar, it can only contain [`Submenu`]s
-  Menu(MenuInner),
+  Menu(MenuInner) {
+    items: std::sync::Mutex<Vec<MenuItemKind<R>>>
+  },
   /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
   MenuItem(MenuItemInner, MenuItem),
   /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
-  Submenu(SubmenuInner, Submenu),
+  Submenu(SubmenuInner, Submenu) {
+    items: std::sync::Mutex<Vec<MenuItemKind<R>>>
+  },
   /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
   PredefinedMenuItem(PredefinedMenuItemInner, Predefined),
   /// A menu item inside a [`Menu`] or [`Submenu`]
@@ -571,26 +577,6 @@ impl<R: Runtime> MenuItemKind<R> {
       MenuItemKind::Predefined(i) => i,
       MenuItemKind::Check(i) => i,
       MenuItemKind::Icon(i) => i,
-    }
-  }
-
-  pub(crate) fn from_muda(app_handle: AppHandle<R>, i: muda::MenuItemKind) -> Self {
-    match i {
-      muda::MenuItemKind::MenuItem(i) => {
-        Self::MenuItem(MenuItem(Arc::new(MenuItemInner::new(app_handle, i))))
-      }
-      muda::MenuItemKind::Submenu(i) => {
-        Self::Submenu(Submenu(Arc::new(SubmenuInner::new(app_handle, i))))
-      }
-      muda::MenuItemKind::Predefined(i) => Self::Predefined(PredefinedMenuItem(Arc::new(
-        PredefinedMenuItemInner::new(app_handle, i),
-      ))),
-      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(
-        CheckMenuItemInner::new(app_handle, i),
-      ))),
-      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner::new(
-        app_handle, i,
-      )))),
     }
   }
 

@@ -127,6 +127,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// Create a new submenu with a native icon.
+  ///
+  /// See [`Submenu::set_native_icon`] for the platform-specific behavior.
   pub fn new_with_native_icon<M: Manager<R>, S: AsRef<str>>(
     manager: &M,
     text: S,
@@ -194,6 +196,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// Create a new submenu with an id and a native icon.
+  ///
+  /// See [`Submenu::set_native_icon`] for the platform-specific behavior.
   pub fn with_id_and_native_icon<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
     manager: &M,
     id: I,
@@ -449,15 +453,19 @@ impl<R: Runtime> Submenu<R> {
 
   /// Change this submenu icon to a native image or remove it.
   ///
+  /// Note that this overrides any icon set with [`Submenu::set_icon`].
+  ///
   /// ## Platform-specific:
   ///
-  /// - **Windows / Linux**: Unsupported.
-  pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
-    #[cfg(target_os = "macos")]
-    return run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().set_native_icon(_icon.map(Into::into))
-    });
-    #[allow(unreachable_code)]
-    Ok(())
+  /// - **Linux:** Known variants map to freedesktop icon names, so the icon is resolved by the
+  ///   desktop icon theme and follows its light and dark variants.
+  /// - **macOS:** Known variants map to AppKit image names.
+  /// - **Windows:** Known variants map to stock shell icons where an equivalent exists, and the
+  ///   submenu is drawn without an icon otherwise.
+  pub fn set_native_icon(&self, icon: Option<NativeIcon>) -> crate::Result<()> {
+    let icon = icon.map(Into::into);
+    run_item_main_thread!(self, |self_: Self| (*self_.0)
+      .as_ref()
+      .set_native_icon(icon))
   }
 }

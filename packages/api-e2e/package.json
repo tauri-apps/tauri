@@ -17,17 +17,17 @@
     "@crabnebula/test-runner-backend": "^0.3.0",
     "@tauri-apps/api": "../api/dist",
     "@types/node": "^22.10.0",
-    "@wdio/appium-service": "^9.31.9",
-    "@wdio/cli": "^9.31.9",
-    "@wdio/globals": "^9.31.3",
-    "@wdio/local-runner": "^9.31.9",
-    "@wdio/mocha-framework": "^9.31.9",
-    "@wdio/spec-reporter": "^9.31.2",
+    "@wdio/appium-service": "^10.0.0",
+    "@wdio/cli": "^10.0.0",
+    "@wdio/globals": "^10.0.0",
+    "@wdio/local-runner": "^10.0.0",
+    "@wdio/mocha-framework": "^10.0.0",
+    "@wdio/spec-reporter": "^10.0.0",
     "appium": "^3.7.0",
     "appium-uiautomator2-driver": "^8.7.0",
     "appium-xcuitest-driver": "^12.12.4",
     "cross-env": "^10.1.0",
     "typescript": "^6.0.3",
-    "webdriverio": "^9.31.9"
+    "webdriverio": "^10.0.0"
   }
 }

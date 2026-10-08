@@ -36,7 +36,7 @@ normally just dropping in one more spec.
     its bundle identifier, so the config has the driver match that name too
     (`appium:additionalWebviewBundleIds`). The driver also starts with a script timeout of
     0, which the config raises to the 30s the other drivers default to, or every
-    `executeAsync` would time out at once.
+    promise-returning `execute` calls would time out at once.
 - Specs never `eval` in the page. They pass a function to the [`tauri()`](test/helpers/index.ts)
   helper, which serializes it and runs it via the driver's own (CSP-exempt) script injection,
   handing it `window.__TAURI__` as the first argument and returning its JSON result.

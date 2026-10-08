@@ -183,8 +183,8 @@ export const config: WebdriverIO.Config = {
     await browser.waitUntil(
       async () => {
         try {
-          return (await browser.executeAsync(
-            'var done = arguments[arguments.length - 1]; done(typeof window.__TAURI__ !== "undefined");'
+          return (await browser.execute(
+            'return typeof window.__TAURI__ !== "undefined";'
           )) as boolean
         } catch {
           // A command issued mid-navigation can fail on a stale execution

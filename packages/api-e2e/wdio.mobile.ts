@@ -7,7 +7,7 @@
 // Appium: the UiAutomator2 driver (Android; chromedriver attaches to the
 // WebView) or the XCUITest driver (iOS simulator; WebKit remote inspector).
 // Debug builds enable webview debugging on both platforms, which is what makes
-// the `WEBVIEW_*` context — and `browser.executeAsync` inside it — available.
+// the `WEBVIEW_*` context — and `browser.execute` inside it — available.
 
 import path from 'node:path'
 import fs from 'node:fs'
@@ -190,7 +190,7 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
         }
       )
       await browser.switchAppiumContext(webview!)
-      // The specs run the page through `executeAsync`, and the XCUITest driver
+      // The specs return promises through `execute`, and the XCUITest driver
       // starts with a script timeout of 0 (every async script times out at
       // once) rather than the 30s the other drivers default to.
       await browser.setTimeout({ script: 30_000 })
@@ -198,8 +198,8 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
       await browser.waitUntil(
         async () => {
           try {
-            return (await browser.executeAsync(
-              'var done = arguments[arguments.length - 1]; done(typeof window.__TAURI__ !== "undefined");'
+            return (await browser.execute(
+              'return typeof window.__TAURI__ !== "undefined";'
             )) as boolean
           } catch {
             // A command issued mid-navigation can fail on a stale execution

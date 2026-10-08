@@ -56,18 +56,16 @@ export async function tauri<R, A extends unknown[]>(
   // A string body (rather than passing `fn` directly) keeps this working across
   // both the classic and bidi WebDriver protocols and avoids any in-page eval of
   // our own — the driver injects this script itself, which is exempt from the
-  // app's CSP. `executeAsync` is used because promise support in `execute` is not
-  // uniform across the platform drivers tauri-driver proxies to.
+  // app's CSP. Returning the promise lets `execute` await the page-side call.
   //
   // The outcome crosses the driver as a JSON string rather than an object so no
   // driver gets to interpret its shape: the Selenium atoms that Appium runs
   // scripts through on iOS turn any object with a numeric `length` property
   // into an array.
   const script = `
-    var done = arguments[arguments.length - 1];
-    var args = Array.prototype.slice.call(arguments, 0, arguments.length - 1);
+    var args = Array.prototype.slice.call(arguments);
     var fn = (${fn.toString()});
-    Promise.resolve()
+    return Promise.resolve()
       .then(function () { return fn.apply(null, [window.__TAURI__].concat(args)); })
       .then(
         function (value) { return { ok: true, value: value === undefined ? null : value }; },
@@ -81,13 +79,13 @@ export async function tauri<R, A extends unknown[]>(
       )
       .then(function (outcome) {
         try {
-          done(JSON.stringify(outcome));
+          return JSON.stringify(outcome);
         } catch (error) {
-          done(JSON.stringify({ ok: false, error: 'result is not JSON-serializable: ' + error }));
+          return JSON.stringify({ ok: false, error: 'result is not JSON-serializable: ' + error });
         }
       });
   `
-  const raw = await browser.executeAsync(script, ...args)
+  const raw = await browser.execute(script, ...args)
   const outcome = (
     typeof raw === 'string' ? JSON.parse(raw) : raw
   ) as PageOutcome<Awaited<R>> | null
@@ -118,7 +116,7 @@ export async function tauriError<A extends unknown[]>(
     }
     // Some platform drivers (notably the Linux WebKitWebDriver) surface a
     // page-side `invoke` rejection as a WebDriver-level error on the
-    // `execute/async` command instead of letting the in-page bridge report it
+    // script execution command instead of letting the in-page bridge report it
     // as an `{ ok: false }` outcome. Fall back to that error's message so the
     // backend rejection is still assertable. This is safe for error-path specs:
     // they match the message against an expected pattern, so a genuine driver

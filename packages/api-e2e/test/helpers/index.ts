@@ -26,6 +26,11 @@ type PageOutcome<T> =
   | { ok: true; value: T }
   | { ok: false; error: string; stack?: string }
 
+const AsyncFunction = Object.getPrototypeOf(async function () {})
+  .constructor as {
+  new (body: string): (...args: unknown[]) => Promise<string>
+}
+
 /** Thrown when the function passed to {@link tauri} rejects inside the webview. */
 export class TauriPageError extends Error {
   pageStack?: string
@@ -53,38 +58,38 @@ export async function tauri<R, A extends unknown[]>(
   fn: (api: Api, ...args: A) => R,
   ...args: A
 ): Promise<Awaited<R>> {
+  // WebdriverIO 10 selects Classic's async script endpoint only for an actual
+  // AsyncFunction.
   // A string body (rather than passing `fn` directly) keeps this working across
   // both the classic and bidi WebDriver protocols and avoids any in-page eval of
   // our own — the driver injects this script itself, which is exempt from the
-  // app's CSP. Returning the promise lets `execute` await the page-side call.
+  // app's CSP.
   //
   // The outcome crosses the driver as a JSON string rather than an object so no
   // driver gets to interpret its shape: the Selenium atoms that Appium runs
   // scripts through on iOS turn any object with a numeric `length` property
   // into an array.
-  const script = `
-    var args = Array.prototype.slice.call(arguments);
-    var fn = (${fn.toString()});
-    return Promise.resolve()
-      .then(function () { return fn.apply(null, [window.__TAURI__].concat(args)); })
-      .then(
-        function (value) { return { ok: true, value: value === undefined ? null : value }; },
-        function (error) {
-          return {
-            ok: false,
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined
-          };
-        }
-      )
-      .then(function (outcome) {
-        try {
-          return JSON.stringify(outcome);
-        } catch (error) {
-          return JSON.stringify({ ok: false, error: 'result is not JSON-serializable: ' + error });
-        }
-      });
-  `
+  const script = new AsyncFunction(`
+    const fn = (${fn.toString()});
+    const args = Array.prototype.slice.call(arguments);
+
+    let outcome
+    try {
+      const value = await fn.apply(null, [window.__TAURI__].concat(args));
+      outcome = { ok: true, value: value === undefined ? null : value };
+    } catch (error) {
+      outcome = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      };
+    }
+    try {
+      return JSON.stringify(outcome);
+    } catch (error) {
+      return JSON.stringify({ ok: false, error: 'result is not JSON-serializable: ' + error });
+    }
+  `)
   const raw = await browser.execute(script, ...args)
   const outcome = (
     typeof raw === 'string' ? JSON.parse(raw) : raw

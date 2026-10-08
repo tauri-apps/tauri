@@ -190,7 +190,7 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
         }
       )
       await browser.switchAppiumContext(webview!)
-      // The specs return promises through `execute`, and the XCUITest driver
+      // The specs run the page through `executeAsync`, and the XCUITest driver
       // starts with a script timeout of 0 (every async script times out at
       // once) rather than the 30s the other drivers default to.
       await browser.setTimeout({ script: 30_000 })

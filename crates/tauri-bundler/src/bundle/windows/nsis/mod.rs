@@ -36,9 +36,9 @@ use std::{
 // URLS for the NSIS toolchain.
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
-  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip";
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.13/nsis-3.13.zip";
 #[cfg(target_os = "windows")]
-const NSIS_SHA1: &str = "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D";
+const NSIS_SHA1: &str = "DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E";
 const NSIS_TAURI_UTILS_URL: &str = "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
@@ -127,7 +127,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
     crate::utils::http_utils::extract_zip(&data, _tauri_tools_path)?;
-    fs::rename(_tauri_tools_path.join("nsis-3.11"), nsis_toolset_path)?;
+    fs::rename(_tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
   }
 
   // download additional plugins

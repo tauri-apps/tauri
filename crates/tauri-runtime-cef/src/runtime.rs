@@ -2915,8 +2915,7 @@ impl<T: UserEvent> CefRuntime<T> {
       .api_version
       .unwrap_or(sys::CEF_API_VERSION_LAST);
     // `cef_api_hash` returns NULL if the loaded libcef does not support the version.
-    // `tauri_runtime::Error` has no variant that carries a message, so log the details
-    // and return the same error as for a missing runtime.
+    // Log the details and return the same error as for a missing runtime.
     if cef::api_hash(version, 0).is_null() {
       log::error!("the loaded CEF library does not support CEF API version {version}");
       return Err(Error::WebviewRuntimeNotInstalled);

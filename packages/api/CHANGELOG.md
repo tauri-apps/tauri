@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.2]
+
+### Bug Fixes
+
+- [`a916205db`](https://www.github.com/tauri-apps/tauri/commit/a916205db2c21a2475502452efa9b70132ae52f3) ([#16195](https://www.github.com/tauri-apps/tauri/pull/16195) by [@alessandrorodi](https://www.github.com/tauri-apps/tauri/../../alessandrorodi)) Return an awaitable cleanup function from `Window.onDragDropEvent`, `Window.onFocusChanged` and `Webview.onDragDropEvent` so rejections from the inner unlisten calls can be handled instead of surfacing as unhandled promise rejections.
+- [`a98038ec7`](https://www.github.com/tauri-apps/tauri/commit/a98038ec78422b821b2e25b26fb71a2805741673) ([#16235](https://www.github.com/tauri-apps/tauri/pull/16235) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Menu`/`Submenu` `append`, `prepend`, `insert` not taking `MenuItemOptions` as the typescript type suggests
+
 ## [2.12.1]
 
 ### Bug Fixes

@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.12.2]
+
+### Bug Fixes
+
+- [`79d353762`](https://www.github.com/tauri-apps/tauri/commit/79d3537620ddd136b81896b2048207e7c15e08b9) ([#15783](https://www.github.com/tauri-apps/tauri/pull/15783) by [@sijie-Z](https://www.github.com/tauri-apps/tauri/../../sijie-Z)) On macOS, `process::restart` (and `AppHandle::restart`) now relaunches the app bundle through LaunchServices (`open -n`) so the new instance no longer inherits the exiting process's stdio and process group, which crashed it on its first print when the original stdout/stderr reader was gone (e.g. launched from a terminal that was closed). Arguments are still forwarded.
+- [`a225a18e6`](https://www.github.com/tauri-apps/tauri/commit/a225a18e601c1d8c3c24536a2137bff263ea74bf) ([#16222](https://www.github.com/tauri-apps/tauri/pull/16222) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a panic when a `once` event listener receives multiple events before its queued removal is processed.
+- [`7c24f5b15`](https://www.github.com/tauri-apps/tauri/commit/7c24f5b154822acc53bb1a1e0186e3e972c76160) ([#16231](https://www.github.com/tauri-apps/tauri/pull/16231) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Menu` creation no longer takes `MenuItemOptions` with `action` directly
+    
+    ```ts
+    const menu = await Menu.new({
+      items: [{
+        text: "Hello", action: () => { alert('World') }
+      }]
+    })
+    await menu.popup()
+    ```
+    
+    The `Hello` item should now trigger the `alert('World')` action again.
+
 ## [2.12.1]
 
 ### Bug Fixes

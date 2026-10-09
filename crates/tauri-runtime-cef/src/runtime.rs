@@ -3175,8 +3175,16 @@ impl<T: UserEvent> CefRuntime<T> {
       // Tauri thread that could read it has been spawned. Note the value is inherited by child
       // processes the app spawns later, which is intended for CEF's own subprocesses.
       unsafe { std::env::set_var("GDK_BACKEND", "x11") };
+      // GLib's program name supplies GTK's default X11 window identity.
+      // Set it before GTK initializes.
+      gtk::glib::set_prgname(Some(&runtime_args.identifier));
       gtk::gdk::set_allowed_backends("x11");
       event_loop_builder.with_gtk4();
+      // enableGTKAppId controls GTK application registration.
+      // Window identity uses the configured identifier regardless of that setting.
+      if let Some(app_id) = runtime_args.app_id {
+        event_loop_builder.with_application_id(app_id);
+      }
 
       // the GTK pointers this runtime hands out are GTK 4 objects, whichever bindings the `tauri`
       // crate was compiled against.

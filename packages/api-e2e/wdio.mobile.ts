@@ -178,7 +178,20 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
             ?? (platform === 'ios'
               ? contexts.find((name) => name.startsWith('WEBVIEW_'))
               : undefined)
-          return webview !== undefined
+          if (webview === undefined) {
+            return false
+          }
+          try {
+            await browser.switchAppiumContext(webview)
+            return true
+          } catch {
+            // On Android the context is listed as soon as the WebView's
+            // devtools socket exists, but switching to it fails with "No such
+            // context found" until the page is attachable. The suite would
+            // otherwise carry on in the native context, where every script
+            // fails with "Method has not yet been implemented".
+            return false
+          }
         },
         {
           // Covers a cold app start plus, on Android, the on-demand chromedriver
@@ -189,7 +202,6 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
             'no WEBVIEW context appeared — is the app a debug build (webview debugging enabled)?'
         }
       )
-      await browser.switchAppiumContext(webview!)
       // The specs run the page through `executeAsync`, and the XCUITest driver
       // starts with a script timeout of 0 (every async script times out at
       // once) rather than the 30s the other drivers default to.

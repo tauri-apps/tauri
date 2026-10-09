@@ -26,7 +26,6 @@ overrides:
   serialize-javascript@<7.0.5: ^7.0.5
   sharp@<0.35.5: ^0.35.5
   shell-quote@>=1.8.4 <1.11.0: ^1.11.0
-  source-map-js@>=1.0.0 <1.2.2: ^1.2.2
   undici@>=7.0.0 <7.29.1: ^7.29.1
 
 auditConfig:

@@ -60,7 +60,6 @@ windows = { version = "0.62", features = [
   "Win32_Globalization",
   "Win32_System_LibraryLoader",
   "Win32_UI_Input_KeyboardAndMouse",
-  "Win32_UI_Input_Ime",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
@@ -124,8 +123,6 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
 dlopen2 = { version = "0.8", features = ["derive"] }
 gtk = { package = "gtk4", version = "0.11.4" }
 libc = "0.2"
-# Use the same key mapping as the GTK4 backend without enabling another window backend.
-winit-common = { version = "=0.31.0-beta.3", features = ["xkb"] }
 x11-dl = "2.21"
 
 [features]

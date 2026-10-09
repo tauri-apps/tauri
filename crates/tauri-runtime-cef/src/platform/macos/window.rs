@@ -47,28 +47,6 @@ pub(crate) fn nswindow(window: &dyn winit::window::Window) -> Retained<NSWindow>
     .expect("winit's content view is always inside its window")
 }
 
-/// CEF's macOS OSR input uses Cocoa screen points, not winit's top-left desktop coordinates.
-pub(crate) fn offscreen_screen_point(
-  window: &dyn winit::window::Window,
-  x: f64,
-  y: f64,
-) -> Option<(i32, i32)> {
-  let RawWindowHandle::AppKit(handle) = window.window_handle().ok()?.as_raw() else {
-    return None;
-  };
-  // The live winit handle supplies the view; retain it for this UI-thread query.
-  let view = unsafe { Retained::<NSView>::retain(handle.ns_view.as_ptr().cast()) }?;
-  let window = view.window()?;
-  let y = if view.isFlipped() {
-    y
-  } else {
-    view.bounds().size.height - y
-  };
-  let point = view.convertPoint_toView(objc2_foundation::NSPoint::new(x, y), None);
-  let screen = window.convertPointToScreen(point);
-  Some((screen.x.round() as i32, screen.y.round() as i32))
-}
-
 impl AppWindow {
   pub(crate) fn cef_host_handle(&self) -> cef::sys::cef_window_handle_t {
     let nsview = self.nsview();

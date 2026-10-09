@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::{
   Mutex,
-  atomic::Ordering,
+  atomic::{AtomicBool, Ordering},
   mpsc::{self, Receiver, Sender},
 };
 
@@ -442,7 +442,6 @@ pub(crate) enum WebviewMessage {
   EvaluateScriptWithCallback(String, Box<dyn Fn(String) + Send + 'static>),
   Navigate(Url),
   Reload,
-  SendExternalBeginFrame(Sender<Result<()>>),
   GoBack,
   CanGoBack(Sender<Result<bool>>),
   GoForward,
@@ -516,7 +515,6 @@ pub(crate) struct AppWebview {
   /// Whether a DevTools window may be opened for this webview. The DevTools *protocol*
   /// stays available either way — the runtime's own startup rides on it.
   pub(crate) devtools_enabled: bool,
-  pub(crate) drag_drop_handler_enabled: bool,
   pub(crate) listeners: WebviewEventListeners,
   pub(crate) bounds_rate: Option<BoundsRate>,
   pub(crate) offscreen: Option<crate::OffscreenView>,
@@ -525,7 +523,7 @@ pub(crate) struct AppWebview {
 impl AppWebview {
   fn resize(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
     if let Some(view) = &self.offscreen {
-      view.state.lock().unwrap().bounds = Rect {
+      *view.bounds.lock().unwrap() = Rect {
         position: tauri_runtime::dpi::LogicalPosition::new(x as f64 / scale, y as f64 / scale)
           .into(),
         size: tauri_runtime::dpi::LogicalSize::new(
@@ -565,22 +563,13 @@ impl AppWebview {
   }
 
   pub(crate) fn set_visible(&self, visible: bool) {
-    let hidden = if let Some(view) = &self.offscreen {
-      let mut state = view.state.lock().unwrap();
-      state.visible = visible;
-      let hidden = !visible
-        || state.occluded
-        || view.window.is_visible() == Some(false)
-        || view.window.is_minimized() == Some(true);
-      state.hidden = hidden;
-      drop(state);
+    self.host.was_hidden(if visible { 0 } else { 1 });
+    if let Some(view) = &self.offscreen {
+      view.visible.store(visible, Ordering::Relaxed);
       view.window.request_redraw();
-      hidden
     } else {
       self.apply_visible(visible);
-      !visible
-    };
-    self.host.was_hidden(i32::from(hidden));
+    }
   }
 
   pub fn url(&self) -> Option<String> {
@@ -638,7 +627,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       .runtime_specific_attributes
       .offscreen
       .as_ref()
-      .map(|options| {
+      .map(|_| {
         let scale = appwindow.window.scale_factor();
         let bounds = pending
           .webview_attributes
@@ -648,22 +637,20 @@ impl<T: UserEvent> WinitCefApp<T> {
             size: appwindow.safe_surface_size().into(),
           })
           .to_logical::<f64, f64>(scale);
-        crate::OffscreenView::new(
-          appwindow.window.clone(),
-          &pending.label,
-          Rect {
+        crate::OffscreenView {
+          window: appwindow.window.clone(),
+          bounds: Arc::new(Mutex::new(Rect {
             position: bounds.position.into(),
             size: bounds.size.into(),
-          },
-          options,
-        )
+          })),
+          visible: Arc::new(AtomicBool::new(true)),
+        }
       });
     let parent = appwindow.cef_host_handle();
     let parent_size = appwindow.safe_surface_size();
     let scale = appwindow.window.scale_factor();
     let app_wide_theme = *context.app_wide_theme.lock().unwrap();
     let theme = appwindow.resolved_theme(app_wide_theme);
-    let focus = pending.webview_attributes.focus;
     let Some(child) = Self::build_browser_child(
       context,
       scheme_registry,
@@ -693,24 +680,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       appwindow.background_surface = None;
     }
 
-    let offscreen = child.offscreen.clone();
-    let child_id = child.webview_id;
     *live_browsers += 1;
     appwindow.children.push(child);
-    if let Some(view) = offscreen {
-      crate::offscreen_input::enable_ime(appwindow, &view);
-      if focus {
-        crate::offscreen_input::set_focus(appwindow, None);
-        appwindow.offscreen_input.focused = Some(child_id);
-      }
-      let child = appwindow.children.last().unwrap();
-      child
-        .host
-        .set_focus(i32::from(focus && appwindow.window.has_focus()));
-      let hidden = !appwindow.attrs.inner.visible;
-      view.state.lock().unwrap().hidden = hidden;
-      child.host.was_hidden(i32::from(hidden));
-    }
     layout_app_window(appwindow);
     Ok(())
   }
@@ -831,7 +802,15 @@ impl<T: UserEvent> WinitCefApp<T> {
         frame_navigation_state: frame_navigation_state.clone(),
         popup_family: Arc::downgrade(&popup_family),
         opener: None,
-        offscreen: offscreen.clone(),
+        render_handler: offscreen
+          .as_ref()
+          .zip(pending.runtime_specific_attributes.offscreen.as_ref())
+          .map(|(view, options)| (options.render_handler)(view.clone())),
+        cursor_handler: pending
+          .runtime_specific_attributes
+          .offscreen
+          .as_ref()
+          .and_then(|options| options.cursor_handler.clone()),
         handlers,
         sender: context.sender.clone(),
       });
@@ -988,7 +967,6 @@ impl<T: UserEvent> WinitCefApp<T> {
             devtools_protocol_handlers,
             devtools_observer_registration,
             devtools_enabled,
-            drag_drop_handler_enabled,
             listeners: Default::default(),
             bounds_rate,
             offscreen,
@@ -1035,37 +1013,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     }
 
-    if matches!(message, WebviewMessage::Show | WebviewMessage::Hide) {
-      let visible = matches!(message, WebviewMessage::Show);
-      let view = {
-        let Some(window) = self.state.windows.get_mut(&window_id) else {
-          return;
-        };
-        if !visible && window.offscreen_input.focused == Some(webview_id) {
-          crate::offscreen_input::set_focus(window, None);
-        }
-        let Some(child) = window
-          .children
-          .iter()
-          .find(|child| child.webview_id == webview_id)
-        else {
-          return;
-        };
-        child.set_visible(visible);
-        child.offscreen.clone()
-      };
-      if let Some(view) = view {
-        view.emit(crate::OffscreenEvent::Visibility(visible));
-      }
-      return;
-    }
-
     // Window-dependent messages must read window metrics like safe_surface_size.
     // Route them before borrowing a child mutably so those parent reads do not
     // overlap with the child borrow.
     match message {
-      WebviewMessage::SetFocus
-      | WebviewMessage::SetBounds(_)
+      WebviewMessage::SetBounds(_)
       | WebviewMessage::SetSize(_)
       | WebviewMessage::SetPosition(_)
       | WebviewMessage::Position(_)
@@ -1110,13 +1062,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     };
 
     match message {
-      WebviewMessage::SetFocus => {
-        let offscreen = appwindow.children[child_index].offscreen.is_some();
-        crate::offscreen_input::set_focus(appwindow, offscreen.then_some(webview_id));
-        if !offscreen {
-          appwindow.children[child_index].host.set_focus(1);
-        }
-      }
       WebviewMessage::SetBounds(bounds) => {
         let parent_size = appwindow.safe_surface_size();
         let scale = appwindow.window.scale_factor();
@@ -1175,8 +1120,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::Reparent(target_window_id, tx) => {
         // CEF fixes an OSR browser's native dialog parent at creation.
         if appwindow.children[child_index].offscreen.is_some() && window_id != target_window_id {
-          let _ = tx.send(Err(Error::UnsupportedOperation(
-            "reparenting an offscreen webview",
+          let _ = tx.send(Err(Error::CreateWebview(
+            "offscreen webviews cannot be reparented".into(),
           )));
           return;
         }
@@ -1320,27 +1265,12 @@ impl<T: UserEvent> WinitCefApp<T> {
         }
       }
       WebviewMessage::Reload => child.browser.reload(),
-      WebviewMessage::SendExternalBeginFrame(tx) => {
-        let result = if child
-          .offscreen
-          .as_ref()
-          .is_some_and(|view| view.external_begin_frame_enabled)
-        {
-          child.host.send_external_begin_frame();
-          Ok(())
-        } else {
-          Err(Error::UnsupportedOperation(
-            "external begin frames are not enabled for this webview",
-          ))
-        };
-        let _ = tx.send(result);
-      }
       WebviewMessage::GoBack => child.browser.go_back(),
       WebviewMessage::CanGoBack(tx) => _ = tx.send(Ok(child.browser.can_go_back() == 1)),
       WebviewMessage::GoForward => child.browser.go_forward(),
       WebviewMessage::CanGoForward(tx) => _ = tx.send(Ok(child.browser.can_go_forward() == 1)),
       WebviewMessage::Close => child.host.close_browser(0),
-
+      WebviewMessage::SetFocus => child.host.set_focus(1),
       WebviewMessage::Url(tx) => {
         let url = child.url().unwrap_or_default();
         let _ = tx.send(Ok(url));
@@ -1356,10 +1286,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::AddEventListener(event_id, handler) => {
         child.listeners.lock().unwrap().insert(event_id, handler);
       }
-      WebviewMessage::Show | WebviewMessage::Hide => {
-        unreachable!("visibility handled before borrowing the window")
-      }
-
+      WebviewMessage::Show => child.set_visible(true),
+      WebviewMessage::Hide => child.set_visible(false),
       WebviewMessage::SetZoom(scale_factor) => {
         // CEF uses a logarithmic zoom level where percentage = 1.2^level
         // (Chromium's kTextSizeMultiplierRatio). Convert from Tauri linear
@@ -1463,8 +1391,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           let _ = tx.send(Ok(()));
         }
       }
-      WebviewMessage::SetFocus
-      | WebviewMessage::SetBounds(_)
+      WebviewMessage::SetBounds(_)
       | WebviewMessage::SetSize(_)
       | WebviewMessage::SetPosition(_)
       | WebviewMessage::Position(_)
@@ -1562,7 +1489,7 @@ pub enum RuntimeStyle {
 ///   can take the accelerators back with [`ChromeCommandGroup::History`].
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
-  /// Windowless rendering with an application-provided paint callback.
+  /// Windowless rendering and application-provided CEF callbacks.
   pub offscreen: Option<crate::Offscreen>,
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
   pub runtime_style: Option<RuntimeStyle>,
@@ -1683,17 +1610,6 @@ pub struct CefWebviewDispatcher<T: UserEvent> {
 }
 
 impl<T: UserEvent> CefWebviewDispatcher<T> {
-  /// Requests an OSR frame on the CEF UI thread when external begin frames are enabled.
-  pub fn send_external_begin_frame(&self) -> Result<()> {
-    let (tx, rx) = mpsc::channel();
-    self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::SendExternalBeginFrame(tx),
-    })?;
-    rx.recv().map_err(|_| Error::FailedToReceiveMessage)?
-  }
-
   /// Sends a UTF-8 encoded Chrome DevTools Protocol message to the DevTools agent.
   ///
   /// The message's `id` must come from
@@ -2154,9 +2070,6 @@ pub(crate) fn layout_app_window(appwindow: &AppWindow) {
   let scale = appwindow.window.scale_factor();
   for child in &appwindow.children {
     let Some(rate) = child.bounds_rate else {
-      if child.offscreen.is_some() {
-        child.host.was_resized();
-      }
       continue;
     };
     let x = (rate.x * win_w).round() as i32;

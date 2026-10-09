@@ -117,9 +117,6 @@ fn with_cef_webview_attributes<A: AsCefWebviewAttributes>(
 
 /// CEF-specific APIs of [`tauri::Webview`] and [`tauri::WebviewWindow`].
 pub trait WebviewCefExt {
-  /// Requests a browser frame when `Offscreen::external_begin_frame_enabled` is set.
-  fn send_external_begin_frame(&self) -> Result<()>;
-
   /// Send a message to the DevTools agent. The message should be a UTF-8 encoded JSON
   /// string following the Chrome DevTools Protocol format.
   ///
@@ -214,15 +211,6 @@ impl<R: Runtime> WebviewCefExt for Webview<R>
 where
   R::WebviewDispatcher: AsCefWebviewDispatcher,
 {
-  fn send_external_begin_frame(&self) -> Result<()> {
-    self
-      .dispatcher()
-      .as_cef_webview_dispatcher()
-      .ok_or_else(not_cef)?
-      .send_external_begin_frame()
-      .map_err(Into::into)
-  }
-
   fn send_dev_tools_message(&self, message: &[u8]) -> Result<()> {
     self
       .dispatcher()
@@ -260,10 +248,6 @@ impl<R: Runtime> WebviewCefExt for WebviewWindow<R>
 where
   R::WebviewDispatcher: AsCefWebviewDispatcher,
 {
-  fn send_external_begin_frame(&self) -> Result<()> {
-    self.as_ref().send_external_begin_frame()
-  }
-
   fn send_dev_tools_message(&self, message: &[u8]) -> Result<()> {
     self.as_ref().send_dev_tools_message(message)
   }
@@ -288,9 +272,8 @@ pub trait WebviewWindowBuilderCefExt {
   #[must_use]
   fn browser_runtime_style(self, style: RuntimeStyle) -> Self;
 
-  /// Creates a windowless browser with runtime-managed input and geometry.
-  /// The application receives paint and popup events for native composition.
-  /// See [`crate::Offscreen`] for setup and resource lifetime requirements.
+  /// Creates a windowless browser using the application's CEF render handler.
+  /// See [`crate::Offscreen`] for setup and input/presentation responsibilities.
   /// Offscreen webviews use Alloy style and cannot be reparented.
   #[must_use]
   fn offscreen(self, options: crate::Offscreen) -> Self;
@@ -448,9 +431,8 @@ pub trait WebviewBuilderCefExt {
   #[must_use]
   fn browser_runtime_style(self, style: RuntimeStyle) -> Self;
 
-  /// Creates a windowless browser with runtime-managed input and geometry.
-  /// The application receives paint and popup events for native composition.
-  /// See [`crate::Offscreen`] for setup and resource lifetime requirements.
+  /// Creates a windowless browser using the application's CEF render handler.
+  /// See [`crate::Offscreen`] for setup and input/presentation responsibilities.
   /// Offscreen webviews use Alloy style and cannot be reparented.
   #[must_use]
   fn offscreen(self, options: crate::Offscreen) -> Self;

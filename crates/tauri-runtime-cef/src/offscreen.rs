@@ -15,6 +15,7 @@ pub type CursorHandler = dyn Fn(cef::CursorType, Option<&cef::CursorInfo>) + Sen
 
 /// Windowless browser configuration. The application owns painting, input/IME
 /// forwarding and composition; Tauri keeps its IPC, protocols and browser lifecycle.
+/// Offscreen webviews use Alloy style and cannot be reparented.
 ///
 /// Enable `settings.windowless_rendering_enabled` through [`crate::Cef::with_settings`]
 /// before creating an offscreen webview. Use [`crate::Cef::on_window_event`] for

@@ -272,12 +272,6 @@ pub trait WebviewWindowBuilderCefExt {
   #[must_use]
   fn browser_runtime_style(self, style: RuntimeStyle) -> Self;
 
-  /// Creates a windowless browser using the application's CEF render handler.
-  /// See [`crate::Offscreen`] for setup and input/presentation responsibilities.
-  /// Offscreen webviews use Alloy style and cannot be reparented.
-  #[must_use]
-  fn offscreen(self, options: crate::Offscreen) -> Self;
-
   /// Observes native CEF lifecycle events for main and child frames.
   ///
   /// The callback runs synchronously on CEF's UI thread. It must return
@@ -366,13 +360,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilderCefExt
 where
   R::RuntimeWebviewAttributes: AsCefWebviewAttributes,
 {
-  fn offscreen(mut self, options: crate::Offscreen) -> Self {
-    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
-      attributes.offscreen = Some(options.clone());
-    });
-    self
-  }
-
   fn browser_runtime_style(mut self, style: RuntimeStyle) -> Self {
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.runtime_style = Some(style);
@@ -431,12 +418,6 @@ pub trait WebviewBuilderCefExt {
   #[must_use]
   fn browser_runtime_style(self, style: RuntimeStyle) -> Self;
 
-  /// Creates a windowless browser using the application's CEF render handler.
-  /// See [`crate::Offscreen`] for setup and input/presentation responsibilities.
-  /// Offscreen webviews use Alloy style and cannot be reparented.
-  #[must_use]
-  fn offscreen(self, options: crate::Offscreen) -> Self;
-
   /// Observes native CEF lifecycle events for main and child frames.
   ///
   /// The callback runs synchronously on CEF's UI thread. It must return
@@ -493,13 +474,6 @@ impl<R: Runtime> WebviewBuilderCefExt for tauri::webview::WebviewBuilder<R>
 where
   R::RuntimeWebviewAttributes: AsCefWebviewAttributes,
 {
-  fn offscreen(mut self, options: crate::Offscreen) -> Self {
-    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
-      attributes.offscreen = Some(options.clone());
-    });
-    self
-  }
-
   fn browser_runtime_style(mut self, style: RuntimeStyle) -> Self {
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.runtime_style = Some(style);

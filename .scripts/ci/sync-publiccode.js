@@ -33,7 +33,7 @@ for (const [key, value] of [
   if (!re.test(publiccode)) {
     throw new Error(`could not find ${key} in ${publiccodePath}`)
   }
-  publiccode = publiccode.replace(re, `${key}: "${value}"`)
+  publiccode = publiccode.replace(re, `${key}: '${value}'`)
 }
 
 writeFileSync(publiccodePath, publiccode)

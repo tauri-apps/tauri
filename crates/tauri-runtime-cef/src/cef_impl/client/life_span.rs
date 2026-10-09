@@ -123,12 +123,17 @@ wrap_with_args! {
       _target_disposition: WindowOpenDisposition,
       _user_gesture: std::os::raw::c_int,
       popup_features: Option<&PopupFeatures>,
-      _window_info: Option<&mut WindowInfo>,
+      window_info: Option<&mut WindowInfo>,
       client: Option<&mut Option<Client>>,
       _settings: Option<&mut BrowserSettings>,
       _extra_info: Option<&mut Option<DictionaryValue>>,
       _no_javascript_access: Option<&mut i32>,
     ) -> std::os::raw::c_int {
+      if let Some(window_info) = window_info {
+        window_info.windowless_rendering_enabled = 0;
+        window_info.shared_texture_enabled = 0;
+        window_info.external_begin_frame_enabled = 0;
+      }
       let url_str = target_url.map(ToString::to_string).unwrap_or_default();
       let response = if let Some(handler) = &self.new_window_handler {
         let Ok(url) = url::Url::parse(&url_str) else { return 1; };
@@ -209,6 +214,12 @@ wrap_with_args! {
         return 0;
       }
 
+      if browser
+        .and_then(|browser| browser.host())
+        .is_some_and(|host| host.is_window_rendering_disabled() != 0)
+      {
+        return 0;
+      }
       #[cfg(any(target_os = "macos", windows))]
       {
         let _ = self

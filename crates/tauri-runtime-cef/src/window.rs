@@ -476,7 +476,7 @@ pub(crate) struct AppWindow {
   pub(crate) label: String,
   #[cfg(windows)]
   pub(crate) background_surface: Option<SoftbufferSurface>,
-  pub(crate) window: Box<dyn WinitWindow>,
+  pub(crate) window: Arc<dyn WinitWindow>,
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: WindowEventListeners,
@@ -731,7 +731,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       label: pending.label.clone(),
       #[cfg(windows)]
       background_surface: None,
-      window,
+      window: Arc::from(window),
       attrs,
       children: Vec::new(),
       listeners: Default::default(),

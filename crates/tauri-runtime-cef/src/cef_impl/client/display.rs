@@ -9,6 +9,11 @@ use cef::*;
 use crate::macros::wrap_with_args;
 use crate::webview::INITIAL_LOAD_URL;
 
+#[cfg(target_os = "macos")]
+type CefCursorHandle = *mut u8;
+#[cfg(not(target_os = "macos"))]
+type CefCursorHandle = cef::sys::cef_cursor_handle_t;
+
 wrap_with_args! {
   wrap_display_handler => TauriCefDisplayHandlerArgs;
 
@@ -17,9 +22,28 @@ wrap_with_args! {
     frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
     console_message_handler: Option<Arc<crate::ConsoleMessageHandler>>,
     frame_navigation_state: crate::FrameNavigationState,
+    cursor_handler: Option<Arc<crate::CursorHandler>>,
   }
 
   impl DisplayHandler {
+    fn on_cursor_change(
+      &self,
+      browser: Option<&mut Browser>,
+      _cursor: CefCursorHandle,
+      type_: CursorType,
+      info: Option<&CursorInfo>,
+    ) -> i32 {
+      if let Some(handler) = &self.cursor_handler
+        && browser.is_some_and(|browser| {
+          self.frame_navigation_state.has_browser_id(browser.identifier())
+        })
+      {
+        handler(type_, info);
+        return 1;
+      }
+      0
+    }
+
     fn on_title_change(
       &self,
       _browser: Option<&mut Browser>,

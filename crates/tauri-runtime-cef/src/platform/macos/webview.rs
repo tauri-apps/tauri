@@ -36,6 +36,9 @@ impl AppWebview {
   }
 
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
+    if self.offscreen.is_some() {
+      return;
+    }
     let nsview = self.nsview();
 
     nsview.setWantsLayer(true);
@@ -53,6 +56,9 @@ impl AppWebview {
   }
 
   pub(crate) fn bounds(&self) -> Option<Rect> {
+    if let Some(view) = &self.offscreen {
+      return Some(view.bounds());
+    }
     let nsview = self.try_nsview()?;
 
     let parent = unsafe { nsview.superview()? };

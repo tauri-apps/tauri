@@ -58,6 +58,9 @@ impl AppWebview {
   }
 
   pub(crate) fn bounds(&self) -> Option<Rect> {
+    if let Some(view) = &self.offscreen {
+      return Some(view.bounds());
+    }
     let hwnd = self.hwnd();
 
     let mut rect = RECT::default();

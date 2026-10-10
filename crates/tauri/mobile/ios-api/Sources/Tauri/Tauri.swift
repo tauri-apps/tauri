@@ -142,6 +142,36 @@ func runCommand(
   callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>) -> Void,
   sendChannelData: @escaping @convention(c) (UInt64, UnsafePointer<CChar>) -> Void
 ) {
+  dispatchCommand(
+    id: id, name: name, command: command, data: data, callback: callback,
+    sendChannelData: sendChannelData, viewController: nil, isContextual: false)
+}
+
+@_cdecl("run_plugin_command_with_context")
+func runCommandWithContext(
+  id: Int,
+  name: SRString,
+  command: SRString,
+  data: SRString,
+  callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>) -> Void,
+  sendChannelData: @escaping @convention(c) (UInt64, UnsafePointer<CChar>) -> Void,
+  viewController: UIViewController?
+) {
+  dispatchCommand(
+    id: id, name: name, command: command, data: data, callback: callback,
+    sendChannelData: sendChannelData, viewController: viewController, isContextual: true)
+}
+
+private func dispatchCommand(
+  id: Int,
+  name: SRString,
+  command: SRString,
+  data: SRString,
+  callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>) -> Void,
+  sendChannelData: @escaping @convention(c) (UInt64, UnsafePointer<CChar>) -> Void,
+  viewController: UIViewController?,
+  isContextual: Bool
+) {
   let callbackId: UInt64 = 0
   let errorId: UInt64 = 1
   let invoke = Invoke(
@@ -152,6 +182,6 @@ func runCommand(
     },
     sendChannelData: { (id: UInt64, payload: String) -> Void in
       sendChannelData(id, payload)
-    }, data: data.toString())
+    }, data: data.toString(), viewController: viewController, isContextual: isContextual)
   PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }

@@ -243,7 +243,7 @@ fn build_nsis_app_installer(
     let plugins_path = output_path.join("Plugins");
     // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)
     crate::utils::fs_utils::copy_dir(
-      &system_nsis_toolset_path.join("Plugins").join("x86-unicode"),
+      &nsis_toolset_path.join("Plugins").join("x86-unicode"),
       &plugins_path.join("x86-unicode"),
     )
     .context("failed to copy system NSIS Plugins folder to local copy")?;

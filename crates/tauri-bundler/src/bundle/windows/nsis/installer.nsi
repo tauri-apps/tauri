@@ -415,6 +415,10 @@ Var AppStartMenuFolder
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+; Allow hooks to `!undef` or redefine the finish page defines above
+!ifmacrodef NSIS_HOOK_PREFINISHPAGE
+  !insertmacro NSIS_HOOK_PREFINISHPAGE
+!endif
 !insertmacro MUI_PAGE_FINISH
 
 Function RunMainBinary

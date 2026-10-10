@@ -23,6 +23,12 @@ _note: the (probably) items haven't been proof-of-concept'd yet, and if it is
 not possible to use the listed native webdriver, then a custom implementation
 will be used that wraps around [wry]._
 
+## WebDriver BiDi
+
+`tauri-driver` speaks classic WebDriver and does not proxy the [WebDriver BiDi] websocket.
+The BiDi `webSocketUrl` capability (auto-injected by clients like WebdriverIO 9+) is stripped before forwarding the session to the native driver, so clients fall back to classic WebDriver automatically.
+With WebdriverIO you can also opt out explicitly by setting `'wdio:enforceWebDriverClassic': true` in your capabilities.
+
 ## Installation
 
 You can install tauri-driver using Cargo:

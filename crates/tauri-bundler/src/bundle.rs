@@ -91,7 +91,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
   let bundle_var_index =
     kmp::index_of(BUNDLE_VAR_TOKEN, &file_data).ok_or(crate::Error::MissingBundleTypeVar)?;
   file_data[bundle_var_index..bundle_var_index + BUNDLE_VAR_TOKEN.len()]
-    .copy_from_slice(bundle_type);
+    .copy_from_slice(b"unknown");
 
   std::fs::write(binary, &file_data).map_err(|e| crate::Error::BinaryWriteError(e.to_string()))?;
 

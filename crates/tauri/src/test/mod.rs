@@ -122,6 +122,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
         macos_private_api: false,
         enable_gtk_app_id: false,
         app_directories_override: None,
+        android_hostname: None,
       },
       bundle: Default::default(),
       build: Default::default(),

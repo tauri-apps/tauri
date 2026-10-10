@@ -219,6 +219,9 @@ pub struct AppManager<R: Runtime> {
   /// Sets to true in [`AppHandle::request_restart`] and [`AppHandle::restart`]
   /// and we will call `restart` on the next `RuntimeRunEvent::Exit` event
   pub(crate) restart_on_exit: AtomicBool,
+
+  /// The origin the `tauri` protocol is served from when `app > androidHostname` is set on Android.
+  pub(crate) custom_app_origin: Option<Url>,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -280,6 +283,17 @@ impl<R: Runtime> AppManager<R> {
       *key = uuid::Uuid::new_v4().to_string();
     }
 
+    // unit tests exercise the Android-only `app > androidHostname` on every platform
+    let custom_app_origin = context
+      .config
+      .app
+      .android_hostname
+      .as_ref()
+      .filter(|_| cfg!(any(target_os = "android", test)))
+      .map(|hostname| {
+        Url::parse(&format!("https://{hostname}")).expect("`AndroidHostname` is a valid URL host")
+      });
+
     Self {
       runtime_authority: Mutex::new(context.runtime_authority),
       window: window::WindowManager {
@@ -328,13 +342,18 @@ impl<R: Runtime> AppManager<R> {
       invoke_key,
       channel_interceptor,
       restart_on_exit: AtomicBool::new(false),
+      custom_app_origin,
     }
   }
 
   /// The `tauri` custom protocol URL we use to serve the embedded assets.
-  /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
+  /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`,
+  /// or `https://<androidHostname>` on Android when `app > androidHostname` is set.
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
-    Cow::Owned(Url::parse(&crate::protocol::origin("tauri", https)).unwrap())
+    match &self.custom_app_origin {
+      Some(origin) => Cow::Borrowed(origin),
+      None => Cow::Owned(Url::parse(&crate::protocol::origin("tauri", https)).unwrap()),
+    }
   }
 
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).

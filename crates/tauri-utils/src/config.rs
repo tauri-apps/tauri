@@ -2209,6 +2209,10 @@ pub struct WindowConfig {
   /// ## Warning
   ///
   /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Always `true` when `app > androidHostname` is set.
   #[serde(default, alias = "use-https-scheme")]
   pub use_https_scheme: bool,
   /// Enable web inspector which is usually called browser devtools. Enabled by default.
@@ -3298,6 +3302,133 @@ pub struct AppDirectoryOverrides {
   pub log: Option<PathBuf>,
 }
 
+/// Special-use top-level domains that Digital Asset Links can't verify.
+const ANDROID_HOSTNAME_SPECIAL_USE_TLDS: &[&str] = &[
+  "alt", "arpa", "example", "internal", "invalid", "local", "onion", "test",
+];
+
+/// The host the Android app is served from, see `app > androidHostname`.
+///
+/// A lowercase domain name with at least two labels, such as `app.example.com`, without a scheme, port or path.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(try_from = "String")]
+pub struct AndroidHostname(
+  #[cfg_attr(
+    feature = "schema",
+    validate(
+      length(max = 253),
+      regex(
+        pattern = r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$"
+      )
+    )
+  )]
+  String,
+);
+
+impl AndroidHostname {
+  /// The hostname, e.g. `app.example.com`.
+  pub fn as_str(&self) -> &str {
+    &self.0
+  }
+}
+
+impl fmt::Display for AndroidHostname {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.write_str(&self.0)
+  }
+}
+
+impl FromStr for AndroidHostname {
+  type Err = String;
+
+  fn from_str(hostname: &str) -> Result<Self, Self::Err> {
+    validate_android_hostname(hostname)
+      .map(|()| Self(hostname.to_owned()))
+      .map_err(|reason| {
+        let suggestion = suggest_android_hostname(hostname)
+          .map(|suggestion| format!(". Use `{suggestion}` instead"))
+          .unwrap_or_default();
+        format!("invalid `app > androidHostname` `{hostname}`: it {reason}{suggestion}")
+      })
+  }
+}
+
+impl TryFrom<String> for AndroidHostname {
+  type Error = String;
+
+  fn try_from(hostname: String) -> Result<Self, Self::Error> {
+    hostname.parse()
+  }
+}
+
+/// Applies the host rules of wry's `with_custom_protocol_host` and rejects special-use top-level domains.
+fn validate_android_hostname(hostname: &str) -> Result<(), String> {
+  if hostname.len() > 253 {
+    return Err("must not be longer than 253 characters".into());
+  }
+  if hostname.ends_with('.') {
+    return Err("must not end with a dot".into());
+  }
+  if hostname == "localhost" || hostname.ends_with(".localhost") {
+    return Err("must not be `localhost` or a subdomain of it".into());
+  }
+
+  let Some((_, tld)) = hostname.rsplit_once('.') else {
+    return Err("must have at least two labels, like `app.example.com`".into());
+  };
+  for label in hostname.split('.') {
+    if label.is_empty() || label.len() > 63 {
+      return Err("must have labels of 1 to 63 characters".into());
+    }
+    if !label
+      .bytes()
+      .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    {
+      return Err(
+        "must only contain lowercase ASCII letters, digits, hyphens and dots, without a scheme, port or path"
+          .into(),
+      );
+    }
+    if label.starts_with('-') || label.ends_with('-') {
+      return Err("must not have labels starting or ending with a hyphen".into());
+    }
+  }
+
+  // the WHATWG URL parser treats a host whose last label is a number as an IPv4 address
+  if tld.bytes().all(|b| b.is_ascii_digit())
+    || tld
+      .strip_prefix("0x")
+      .is_some_and(|hex| hex.bytes().all(|b| b.is_ascii_hexdigit()))
+  {
+    return Err("must not be an IP address".into());
+  }
+  if ANDROID_HOSTNAME_SPECIAL_USE_TLDS.contains(&tld) {
+    return Err(format!(
+      "must not use the special-use top-level domain `.{tld}`, which Digital Asset Links can't verify"
+    ));
+  }
+
+  match Url::parse(&format!("https://{hostname}/")) {
+    Ok(url) if url.host_str() == Some(hostname) => Ok(()),
+    _ => Err("must be a valid domain name".into()),
+  }
+}
+
+/// Extracts a valid hostname from inputs like `https://App.example.com/`.
+fn suggest_android_hostname(input: &str) -> Option<String> {
+  let url = if input.contains("://") {
+    Url::parse(input)
+  } else {
+    Url::parse(&format!("https://{input}"))
+  }
+  .ok()?;
+  let hostname = url.host_str()?.trim_end_matches('.');
+  validate_android_hostname(hostname)
+    .is_ok()
+    .then(|| hostname.to_owned())
+}
+
 /// The App configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#appconfig>
@@ -3506,6 +3637,23 @@ pub struct AppConfig {
   ///   Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.
   #[serde(alias = "app-directories-override")]
   pub app_directories_override: Option<AppDirectoriesOverride>,
+  /// Serves the app from `https://<androidHostname>` instead of `http(s)://tauri.localhost` on Android, so autofill
+  /// services can link webview credentials to the app through [Digital Asset Links](https://developers.google.com/digital-asset-links).
+  ///
+  /// The value is a lowercase domain name such as `app.example.com`, without a scheme, port or path.
+  /// Tauri forces `useHttpsScheme` to `true` and trusts only this exact origin for IPC.
+  ///
+  /// ## Security
+  ///
+  /// Use a dedicated host that serves nothing but `/.well-known/assetlinks.json`, since WebSocket connections
+  /// and some redirected requests to the host reach the real server. Service workers can't use the host.
+  ///
+  /// ## Warning
+  ///
+  /// Setting or changing this value changes the app origin, so the app can't access its old IndexedDB, cookies
+  /// and localStorage. Backend CORS rules and Content Security Policy sources must allow the new origin.
+  #[serde(alias = "android-hostname")]
+  pub android_hostname: Option<AndroidHostname>,
 }
 
 impl AppConfig {
@@ -4938,6 +5086,7 @@ mod build {
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
       let app_directories_override = opt_lit(self.app_directories_override.as_ref());
+      let android_hostname = opt_lit(self.android_hostname.as_ref());
 
       literal_struct!(
         tokens,
@@ -4948,8 +5097,18 @@ mod build {
         macos_private_api,
         with_global_tauri,
         enable_gtk_app_id,
-        app_directories_override
+        app_directories_override,
+        android_hostname
       );
+    }
+  }
+
+  impl ToTokens for AndroidHostname {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let hostname = self.as_str();
+      tokens.append_all(
+        quote! { ::tauri::utils::config::AndroidHostname::try_from(#hostname.to_string()).unwrap() },
+      )
     }
   }
 
@@ -5035,6 +5194,7 @@ mod test {
       with_global_tauri: false,
       enable_gtk_app_id: false,
       app_directories_override: None,
+      android_hostname: None,
     };
 
     // create a build config
@@ -5224,6 +5384,171 @@ mod test {
     assert_eq!(
       tokens,
       r#"::tauri::utils::config::AppDirectoriesOverride::Directories(::tauri::utils::config::AppDirectoryOverrides{config:::core::option::Option::None,data:::core::option::Option::None,local_data:::core::option::Option::None,cache:::core::option::Option::None,log:::core::option::Option::Some(::std::path::PathBuf::from("$DATA/logs"))})"#
+    );
+  }
+
+  #[test]
+  fn android_hostname_accepts_domain_names() {
+    let longest = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(61));
+    let longest_label = format!("{}.com", "a".repeat(63));
+    for hostname in [
+      "app.example.com",
+      "example.com",
+      "my-app.example.co.uk",
+      "a.b.c.d",
+      "123.example.com",
+      "app.xn--p1ai",
+      "xn--bcher-kva.de",
+      &longest_label,
+      &longest,
+    ] {
+      let parsed: AndroidHostname = serde_json::from_str(&format!(r#""{hostname}""#))
+        .unwrap_or_else(|e| panic!("{hostname}: {e}"));
+      assert_eq!(parsed.as_str(), hostname);
+    }
+  }
+
+  #[test]
+  fn android_hostname_rejects_invalid_hosts() {
+    let too_long = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(62));
+    let too_long_label = format!("{}.com", "a".repeat(64));
+    for hostname in [
+      "",
+      "com",
+      "localhost",
+      "app.localhost",
+      "app.example.com.",
+      ".example.com",
+      "app..example.com",
+      "App.example.com",
+      "app_1.example.com",
+      "-app.example.com",
+      "app-.example.com",
+      "*.example.com",
+      "app.example.com:443",
+      "https://app.example.com",
+      "https://app.example.com/",
+      "app.example.com/index.html",
+      "user@app.example.com",
+      "app example.com",
+      "bücher.de",
+      "127.0.0.1",
+      "app.123",
+      "app.0x7f",
+      "app.0x",
+      "[::1]",
+      "app.local",
+      "app.test",
+      "app.invalid",
+      "app.example",
+      "app.internal",
+      "app.onion",
+      "1.0.0.127.in-addr.arpa",
+      "app.alt",
+      "xn--a.com",
+      &too_long_label,
+      &too_long,
+    ] {
+      assert!(
+        hostname.parse::<AndroidHostname>().is_err(),
+        "`{hostname}` must be rejected"
+      );
+    }
+  }
+
+  #[test]
+  fn android_hostname_error_suggests_hostname() {
+    for (input, suggestion) in [
+      ("https://app.example.com/", "app.example.com"),
+      ("https://app.example.com:8443/login", "app.example.com"),
+      ("App.Example.com", "app.example.com"),
+      ("app.example.com/", "app.example.com"),
+      ("app.example.com.", "app.example.com"),
+      ("bücher.de", "xn--bcher-kva.de"),
+    ] {
+      let err = input.parse::<AndroidHostname>().unwrap_err();
+      assert!(
+        err.ends_with(&format!(". Use `{suggestion}` instead")),
+        "{input}: {err}"
+      );
+    }
+
+    for input in ["app.local", "http://localhost/", "127.0.0.1", "app"] {
+      let err = input.parse::<AndroidHostname>().unwrap_err();
+      assert!(!err.contains("Use `"), "{input}: {err}");
+    }
+  }
+
+  #[test]
+  fn android_hostname_serde_round_trip() {
+    let config: AppConfig =
+      serde_json::from_value(serde_json::json!({ "androidHostname": "app.example.com" })).unwrap();
+    assert_eq!(
+      config.android_hostname,
+      Some("app.example.com".parse().unwrap())
+    );
+
+    let value = serde_json::to_value(&config).unwrap();
+    assert_eq!(value["androidHostname"], "app.example.com");
+    assert_eq!(serde_json::from_value::<AppConfig>(value).unwrap(), config);
+
+    let kebab_case: AppConfig =
+      serde_json::from_value(serde_json::json!({ "android-hostname": "app.example.com" })).unwrap();
+    assert_eq!(kebab_case, config);
+
+    let err = serde_json::from_value::<AppConfig>(
+      serde_json::json!({ "androidHostname": "https://app.example.com/" }),
+    )
+    .unwrap_err();
+    assert!(
+      err.to_string().contains("Use `app.example.com` instead"),
+      "{err}"
+    );
+  }
+
+  #[cfg(feature = "schema")]
+  #[test]
+  fn android_hostname_schema_pattern() {
+    let schema = schemars::schema_for!(AndroidHostname).schema;
+    let pattern = schema.string.unwrap().pattern.unwrap();
+    let pattern = regex::Regex::new(&pattern).unwrap();
+
+    let longest = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(61));
+    for valid in [
+      "app.example.com",
+      "my-app.example.co.uk",
+      "123.example.com",
+      &longest,
+    ] {
+      assert!(valid.parse::<AndroidHostname>().is_ok(), "{valid}");
+      assert!(pattern.is_match(valid), "{valid}");
+    }
+    for invalid in [
+      "com",
+      "App.example.com",
+      "https://app.example.com/",
+      "app.example.com.",
+      "-app.example.com",
+      "app_1.example.com",
+    ] {
+      assert!(!pattern.is_match(invalid), "{invalid}");
+    }
+  }
+
+  #[cfg(feature = "build")]
+  #[test]
+  fn android_hostname_to_tokens() {
+    use quote::ToTokens;
+
+    let tokens = "app.example.com"
+      .parse::<AndroidHostname>()
+      .unwrap()
+      .to_token_stream()
+      .to_string()
+      .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AndroidHostname::try_from("app.example.com".to_string()).unwrap()"#
     );
   }
 

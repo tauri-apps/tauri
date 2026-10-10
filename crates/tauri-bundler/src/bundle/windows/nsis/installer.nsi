@@ -455,6 +455,9 @@ Function un.ConfirmShow ; Add add a `Delete app data` check box
   Pop $DeleteAppDataCheckbox
   SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $1
   SendMessage $DeleteAppDataCheckbox ${WM_SETFONT} $1 1
+  ${If} $DeleteAppDataCheckboxState = 1 ; Pre-checked by `/DELETEAPPDATA`
+    SendMessage $DeleteAppDataCheckbox ${BM_SETCHECK} ${BST_CHECKED} 0
+  ${EndIf}
 FunctionEnd
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE un.ConfirmLeave
 Function un.ConfirmLeave
@@ -777,6 +780,13 @@ Function un.onInit
   ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
   ${IfNot} ${Errors}
     StrCpy $UpdateMode 1
+  ${EndIf}
+
+  ; Delete app data without user interaction (e.g. in silent or passive mode),
+  ; also pre-checks the `Delete app data` check box in interactive mode
+  ${GetOptions} $CMDLINE "/DELETEAPPDATA" $DeleteAppDataCheckboxState
+  ${IfNot} ${Errors}
+    StrCpy $DeleteAppDataCheckboxState 1
   ${EndIf}
 FunctionEnd
 

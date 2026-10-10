@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.12.3]
+
+### Bug Fixes
+
+- [`0204f6f3a`](https://www.github.com/tauri-apps/tauri/commit/0204f6f3ae1e8dda195b216b32c3ab1d95d928e0) ([#16244](https://www.github.com/tauri-apps/tauri/pull/16244)) Keep delivering `Channel` messages after the `onmessage` handler throws. The error is rethrown asynchronously so it is still reported as uncaught, instead of leaving every later message queued.
+
 ## [2.12.2]
 
 ### Bug Fixes

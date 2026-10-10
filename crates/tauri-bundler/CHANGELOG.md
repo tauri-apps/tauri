@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.10.2]
+
+### Bug Fixes
+
+- [`eeeaa0ff9`](https://www.github.com/tauri-apps/tauri/commit/eeeaa0ff945f0e9aca177676e153a0fb426190a8) ([#16230](https://www.github.com/tauri-apps/tauri/pull/16230)) Fix NSIS installers not blocking downgrades in silent (`/S`), passive (`/P`) and update (`/UPDATE`) modes when `bundle.windows.allowDowngrades` is `false`.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.4.1`
+
 ## [2.10.1]
 
 ### Bug Fixes

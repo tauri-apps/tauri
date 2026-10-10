@@ -304,7 +304,15 @@ impl<R: Runtime> PluginHandle<R> {
       command,
       serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
       move |response| {
-        tx.lock().unwrap().take().unwrap().send(response).unwrap();
+        // The receiver is gone when the caller stopped waiting, for example because
+        // the future was dropped by a timeout, and the sender is gone when the
+        // response arrives twice (the Android `run_command` keeps a clone of the
+        // handler for its error path). This closure runs inside the native response
+        // handler, an `extern "C"` / JNI function where a panic cannot unwind and
+        // aborts the process, so a late or duplicate response is dropped instead.
+        if let Some(tx) = tx.lock().unwrap().take() {
+          let _ = tx.send(response);
+        }
       },
     )?;
 
@@ -333,7 +341,8 @@ impl<R: Runtime> PluginHandle<R> {
       command,
       serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
       move |response| {
-        tx.send(response).unwrap();
+        // Never panic inside the native response handler, see `run_mobile_plugin_async`.
+        let _ = tx.send(response);
       },
     )?;
 

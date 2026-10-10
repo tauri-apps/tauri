@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: 'Setup Rust'
-        uses: dtolnay/rust-toolchain@1.90
+        uses: dtolnay/rust-toolchain@1.92
         with:
           targets: ${{ matrix.platform.target }}
 
@@ -66,7 +66,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           # One entry per platform with tauri-cli's dependencies built in the dev profile on
-          # the 1.90 toolchain. This job saves it; test-cli-js and test-android restore it
+          # the 1.92 toolchain. This job saves it; test-cli-js and test-android restore it
           # (same shared-key, same CARGO_*/RUST* env, same toolchain).
           shared-key: tauri-cli
           # Only `dev` writes to the cache: an entry saved from a pull request lives on its

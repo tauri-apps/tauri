@@ -5,10 +5,10 @@
 use std::{
   collections::{HashMap, HashSet},
   fmt,
-  path::{Path, PathBuf, MAIN_SEPARATOR},
+  path::{MAIN_SEPARATOR, Path, PathBuf},
   sync::{
-    atomic::{AtomicBool, AtomicU32, Ordering},
     Arc, Mutex,
+    atomic::{AtomicBool, AtomicU32, Ordering},
   },
 };
 
@@ -432,15 +432,13 @@ impl Scope {
       if forbidden {
         false
       } else {
-        let allowed = self
+        self
           .inner
           .allowed_patterns
           .lock()
           .unwrap()
           .iter()
-          .any(|p| p.matches_path_with(&path, self.inner.match_options));
-
-        allowed
+          .any(|p| p.matches_path_with(&path, self.inner.match_options))
       }
     } else {
       false
@@ -506,7 +504,7 @@ mod tests {
 
   use crate::fs::ScopeInner;
 
-  use super::{push_pattern, Scope};
+  use super::{Scope, push_pattern};
 
   fn new_scope() -> Scope {
     Scope {

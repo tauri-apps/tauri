@@ -10,6 +10,9 @@ on:
   repository_dispatch:
     types: [publish-clirs]
 
+permissions:
+  contents: write # required to create new releases
+
 jobs:
   build:
     runs-on: ${{ matrix.config.os }}
@@ -52,11 +55,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
-
-      - uses: Swatinem/rust-cache@v2
-        if: ${{ !matrix.config.cross }}
-        with:
-          key: ${{ matrix.config.rust_target }}
 
       - name: install Linux dependencies
         if: ${{ !matrix.config.cross && startsWith(matrix.config.os, 'ubuntu') }}

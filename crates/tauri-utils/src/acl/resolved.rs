@@ -9,11 +9,11 @@ use std::{collections::BTreeMap, fmt};
 use crate::platform::Target;
 
 use super::{
+  APP_ACL_KEY, Commands, Error, ExecutionContext, Identifier, Permission, PermissionSet, Scopes,
+  Value,
   capability::{Capability, PermissionEntry},
   has_app_manifest,
   manifest::Manifest,
-  Commands, Error, ExecutionContext, Identifier, Permission, PermissionSet, Scopes, Value,
-  APP_ACL_KEY,
 };
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
@@ -125,15 +125,34 @@ pub struct Resolved {
 
 impl Resolved {
   /// Resolves the ACL for the given plugin permissions and app capabilities.
+  ///
+  /// Command scope ids are assigned sequentially starting from `1`.
+  /// See [`Self::resolve_with_base_scope_id`] to assign them past a different id.
+  // TODO: Take `base_scope_id` here and remove `resolve_with_base_scope_id` in v3,
+  // so that callers merging into an already resolved ACL cannot forget to offset the scope ids.
   pub fn resolve(
+    acl: &BTreeMap<String, Manifest>,
+    capabilities: BTreeMap<String, Capability>,
+    target: Target,
+  ) -> Result<Self, Error> {
+    Self::resolve_with_base_scope_id(acl, capabilities, target, 0)
+  }
+
+  /// Resolves the ACL for the given plugin permissions and app capabilities,
+  /// assigning command scope ids sequentially after `base_scope_id` (starting from `base_scope_id + 1`).
+  ///
+  /// This is useful when the result is merged into an already resolved ACL:
+  /// pass its highest scope id so the new [`Self::command_scope`] keys do not collide.
+  pub fn resolve_with_base_scope_id(
     acl: &BTreeMap<String, Manifest>,
     mut capabilities: BTreeMap<String, Capability>,
     target: Target,
+    base_scope_id: ScopeKey,
   ) -> Result<Self, Error> {
     let mut allowed_commands = BTreeMap::new();
     let mut denied_commands = BTreeMap::new();
 
-    let mut current_scope_id = 0;
+    let mut current_scope_id = base_scope_id;
     let mut command_scope = BTreeMap::new();
     let mut global_scope: BTreeMap<String, Vec<Scopes>> = BTreeMap::new();
 
@@ -484,7 +503,7 @@ fn display_perm_key(prefix: &str) -> &str {
 #[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
   use std::convert::identity;
 
   use super::*;
@@ -594,7 +613,7 @@ mod build {
 #[cfg(test)]
 mod tests {
 
-  use super::{get_permissions, Identifier, Manifest, Permission, PermissionSet};
+  use super::{Identifier, Manifest, Permission, PermissionSet, get_permissions};
 
   fn manifest<const P: usize, const S: usize>(
     name: &str,
@@ -710,5 +729,60 @@ mod tests {
     assert_eq!(permissions[4].permission_name, "fetch");
     assert_eq!(permissions[5].key, "http");
     assert_eq!(permissions[5].permission_name, "fetch-cancel");
+  }
+
+  #[test]
+  fn resolve_assigns_scope_ids_from_base() {
+    use super::{Capability, Resolved, Target};
+    use std::collections::BTreeMap;
+
+    let acl: BTreeMap<String, Manifest> = [(
+      "http".to_string(),
+      Manifest {
+        permissions: [(
+          "allow-fetch".to_string(),
+          serde_json::from_value::<Permission>(serde_json::json!({
+            "identifier": "allow-fetch",
+            "commands": { "allow": ["fetch"] },
+            "scope": { "allow": [{ "url": "https://example.com" }] }
+          }))
+          .unwrap(),
+        )]
+        .into(),
+        ..Default::default()
+      },
+    )]
+    .into();
+    let capabilities: BTreeMap<String, Capability> = [(
+      "main".to_string(),
+      serde_json::from_value(serde_json::json!({
+        "identifier": "main",
+        "windows": ["main"],
+        "permissions": ["http:allow-fetch"]
+      }))
+      .unwrap(),
+    )]
+    .into();
+
+    let resolved = Resolved::resolve(&acl, capabilities.clone(), Target::current()).unwrap();
+    assert_eq!(
+      resolved.command_scope.keys().copied().collect::<Vec<_>>(),
+      vec![1]
+    );
+    assert_eq!(
+      resolved.allowed_commands["plugin:http|fetch"][0].scope_id,
+      Some(1)
+    );
+
+    let resolved =
+      Resolved::resolve_with_base_scope_id(&acl, capabilities, Target::current(), 10).unwrap();
+    assert_eq!(
+      resolved.command_scope.keys().copied().collect::<Vec<_>>(),
+      vec![11]
+    );
+    assert_eq!(
+      resolved.allowed_commands["plugin:http|fetch"][0].scope_id,
+      Some(11)
+    );
   }
 }

@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::updater_signature::{generate_key, save_keypair},
   Result,
+  error::Context,
+  helpers::updater_signature::{generate_key, save_keypair},
 };
 use clap::Parser;
 use std::path::PathBuf;
@@ -29,15 +30,17 @@ pub struct Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   if options.ci && options.password.is_none() {
-    log::warn!("Generating new private key without password. For security reasons, we recommend setting a password instead.");
+    log::warn!(
+      "Generating new private key without password. For security reasons, we recommend setting a password instead."
+    );
     options.password.replace("".into());
   }
-  let keypair = generate_key(options.password).expect("Failed to generate key");
+  let keypair = generate_key(options.password)?;
 
   if let Some(output_path) = options.write_keys {
     let (secret_path, public_path) =
       save_keypair(options.force, output_path, &keypair.sk, &keypair.pk)
-        .expect("Unable to write keypair");
+        .context("unable to write keypair")?;
 
     println!();
     println!("Your keypair was generated successfully:");
@@ -57,11 +60,19 @@ pub fn command(mut options: Options) -> Result<()> {
 
   println!();
   println!("Environment variables used to sign:");
-  println!("- `TAURI_SIGNING_PRIVATE_KEY`: Your private key. For the `build` and `bundle` command it can be either a string or a path to the file, for the `signer sign` command it must be the literal key string");
-  println!("- `TAURI_SIGNING_PRIVATE_KEY_PATH`: Path to your private key file, used by the `signer sign` command");
-  println!("- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`:  Your private key password (optional if key has no password)");
+  println!(
+    "- `TAURI_SIGNING_PRIVATE_KEY`: Your private key. For the `build` and `bundle` command it can be either a string or a path to the file, for the `signer sign` command it must be the literal key string"
+  );
+  println!(
+    "- `TAURI_SIGNING_PRIVATE_KEY_PATH`: Path to your private key file, used by the `signer sign` command"
+  );
+  println!(
+    "- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`:  Your private key password (optional if key has no password)"
+  );
   println!();
-  println!("ATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not work");
+  println!(
+    "ATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not work"
+  );
 
   Ok(())
 }

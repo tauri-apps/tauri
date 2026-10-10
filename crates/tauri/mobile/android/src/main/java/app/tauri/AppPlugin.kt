@@ -46,9 +46,11 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
     (activity as AppCompatActivity).onBackPressedDispatcher.addCallback(activity, callback)
   }
 
+  // Called by the Rust side when the app exits so the activity (and any other activity
+  // of the task, i.e. other windows) is closed gracefully instead of the process being killed
   @Command
   fun exit(invoke: Invoke) {
     invoke.resolve()
-    activity.finish()
+    activity.finishAffinity()
   }
 }

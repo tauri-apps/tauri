@@ -6,7 +6,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use std::env::var;
-use syn::{parse_macro_input, spanned::Spanned, ItemFn};
+use syn::{ItemFn, parse_macro_input, spanned::Spanned};
 
 fn get_env_var(name: &str, error: &mut Option<TokenStream2>, function: &ItemFn) -> TokenStream2 {
   match var(name) {
@@ -84,7 +84,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
 
       // be careful when renaming this, the `start_app` symbol is checked by the CLI
       #[cfg(not(target_os = "android"))]
-      #[no_mangle]
+      #[unsafe(no_mangle)]
       #[inline(never)]
       pub extern "C" fn start_app() {
         _start_app()

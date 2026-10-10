@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  ConfigValue, Result,
   bundle::BundleFormat,
   error::{Context, ErrorExt},
   helpers::{
     self,
     app_paths::Dirs,
-    config::{get_config, ConfigMetadata, FrontendDist},
+    config::{ConfigMetadata, FrontendDist, get_config},
   },
   info::plugins::check_mismatched_packages,
-  interface::{rust::get_cargo_target_dir, AppInterface},
-  ConfigValue, Result,
+  interface::{AppInterface, rust::get_cargo_target_dir},
 };
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
@@ -61,7 +61,7 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
-  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  /// Skip stapling the notarization ticket onto the app and do not wait for notarization to finish.
   ///
   /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
   /// reaching out to Apple's servers which is helpful in offline environments.
@@ -115,7 +115,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   setup(&interface, &mut options, &config, &dirs, false)?;
 
   if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
-    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+    unsafe { std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version) };
   }
 
   let app_settings = interface.app_settings();
@@ -171,7 +171,8 @@ pub fn setup(
 
   if config.identifier == "com.tauri.dev" {
     crate::error::bail!(
-      "You must change the bundle identifier in `{bundle_identifier_source} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+      "You must change the bundle identifier in `{} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+      bundle_identifier_source.to_string_lossy()
     );
   }
 
@@ -190,6 +191,12 @@ pub fn setup(
     log::warn!(
       "The bundle identifier \"{}\" set in `{bundle_identifier_source:?} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
       config.identifier,
+    );
+  }
+
+  if config.product_name.as_deref() == Some("tauri-app") {
+    log::warn!(
+      "The `productName` is still set to the default value `tauri-app`, it must be unique across applications since it is written into install paths and platform metadata that are expected to be unique to your application, like the Windows installer upgrade code."
     );
   }
 
@@ -212,7 +219,8 @@ pub fn setup(
         .unwrap_or_else(|| std::env::current_dir().unwrap().join(web_asset_path));
       crate::error::bail!(
         "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
-        web_asset_path.display(), absolute_path.display(),
+        web_asset_path.display(),
+        absolute_path.display(),
       );
     }
     if web_asset_path
@@ -222,8 +230,8 @@ pub fn setup(
       == Some(std::ffi::OsStr::new("src-tauri"))
     {
       crate::error::bail!(
-          "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
-        );
+        "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+      );
     }
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
@@ -250,13 +258,17 @@ pub fn setup(
       crate::error::bail!(
         "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
         out_folders,
-        if out_folders.len() == 1 { "folder" } else { "folders" }
+        if out_folders.len() == 1 {
+          "folder"
+        } else {
+          "folders"
+        }
       );
     }
   }
 
   if options.runner.is_none() {
-    options.runner = config.build.runner.clone();
+    options.runner.clone_from(&config.build.runner);
   }
 
   options

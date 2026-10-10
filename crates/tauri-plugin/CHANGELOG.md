@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.7.1]
+
+### Bug Fixes
+
+- [`a4dcca829`](https://www.github.com/tauri-apps/tauri/commit/a4dcca829100304ad0fadfd66b03ba58a50e893f) ([#16186](https://www.github.com/tauri-apps/tauri/pull/16186) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Skip the Android and iOS project setup in `Builder::build` and `Builder::try_build` when building on docs.rs, which mounts the sources read-only, so plugins with native mobile projects can build their documentation for mobile targets.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+
+## [2.7.0]
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+
 ## \[2.6.3]
 
 ### Dependencies

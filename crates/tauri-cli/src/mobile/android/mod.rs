@@ -24,7 +24,7 @@ use std::{
   fs::{create_dir, create_dir_all, read_dir, write},
   io::Cursor,
   path::{Path, PathBuf},
-  process::{exit, Command},
+  process::{Command, exit},
   sync::OnceLock,
   thread::sleep,
   time::Duration,
@@ -33,14 +33,14 @@ use sublime_fuzzy::best_match;
 use tauri_utils::resources::ResourcePaths;
 
 use super::{
-  ensure_init, get_app, init::command as init_command, log_finished, read_options, CliOptions,
-  OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
+  CliOptions, MIN_DEVICE_MATCH_SCORE, OptionsHandle, Target as MobileTarget, ensure_init, get_app,
+  init::command as init_command, log_finished, read_options,
 };
 use crate::{
+  ConfigValue, Error, ErrorExt, Result,
   error::Context,
   helpers::config::{BundleResources, Config as TauriConfig},
   mobile::android::check_java_gradle_versions::check_java_gradle_versions,
-  ConfigValue, Error, ErrorExt, Result,
 };
 
 mod android_studio_script;
@@ -51,7 +51,7 @@ pub(crate) mod project;
 mod run;
 
 const NDK_VERSION: &str = "29.0.13846066";
-const SDK_VERSION: u8 = 36;
+const SDK_VERSION: u8 = 37;
 
 #[cfg(target_os = "macos")]
 const CMDLINE_TOOLS_URL: &str =
@@ -160,13 +160,15 @@ pub fn get_config(
     ..Default::default()
   };
 
-  set_var(
-    "WRY_ANDROID_PACKAGE",
-    app.android_identifier_escape_kotlin_keyword(),
-  );
-  set_var("TAURI_ANDROID_PACKAGE_UNESCAPED", app.identifier());
-  set_var("WRY_ANDROID_LIBRARY", app.lib_name());
-  set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
+  unsafe {
+    set_var(
+      "WRY_ANDROID_PACKAGE",
+      app.android_identifier_escape_kotlin_keyword(),
+    )
+  };
+  unsafe { set_var("TAURI_ANDROID_PACKAGE_UNESCAPED", app.identifier()) };
+  unsafe { set_var("WRY_ANDROID_LIBRARY", app.lib_name()) };
+  unsafe { set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir()) };
 
   let src_main_dir = config
     .project_dir()
@@ -177,16 +179,18 @@ pub fn get_config(
       let _ = create_dir(src_main_dir.join("generated"));
     } else {
       log::error!(
-      "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
-      src_main_dir.display()
-    );
+        "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
+        src_main_dir.display()
+      );
       exit(1);
     }
   }
-  set_var(
-    "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
-    src_main_dir.join("generated"),
-  );
+  unsafe {
+    set_var(
+      "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
+      src_main_dir.join("generated"),
+    )
+  };
 
   check_java_gradle_versions();
 
@@ -227,26 +231,37 @@ fn sync_debug_application_id_suffix(
 }
 
 fn set_debug_application_id_suffix(build_gradle: &str, suffix: Option<&str>) -> Option<String> {
+  static BUILD_TYPES_RE: OnceLock<regex::Regex> = OnceLock::new();
   static DEBUG_BUILD_TYPE_RE: OnceLock<regex::Regex> = OnceLock::new();
 
+  let build_types_re = BUILD_TYPES_RE
+    .get_or_init(|| regex::Regex::new(r#"\bbuildTypes\s*\{"#).expect("valid build types regex"));
   let debug_build_type_re = DEBUG_BUILD_TYPE_RE.get_or_init(|| {
     regex::Regex::new(r#"(?m)(?:\bgetByName\(\s*"debug"\s*\)|\bdebug\b)\s*\{"#)
       .expect("valid debug build type regex")
   });
 
-  for build_type_match in debug_build_type_re.find_iter(build_gradle) {
-    let Some(opening_brace) = build_gradle[build_type_match.start()..]
-      .find('{')
-      .map(|index| build_type_match.start() + index)
-    else {
-      continue;
-    };
+  // only look for the debug block inside `buildTypes { ... }`,
+  // so we do not match e.g. `signingConfigs { getByName("debug") { ... } }`
+  let (search_start, search_end) = build_types_re
+    .find(build_gradle)
+    .and_then(|build_types_match| {
+      let opening_brace = build_types_match.end() - 1;
+      find_matching_brace(build_gradle, opening_brace)
+        .map(|closing_brace| (opening_brace + 1, closing_brace))
+    })
+    .unwrap_or((0, build_gradle.len()));
+
+  for build_type_match in debug_build_type_re.find_iter(&build_gradle[search_start..search_end]) {
+    let opening_brace = search_start + build_type_match.end() - 1;
     let Some(closing_brace) = find_matching_brace(build_gradle, opening_brace) else {
       continue;
     };
 
+    let closing_indentation = line_indentation(build_gradle, opening_brace);
     let debug_block = &build_gradle[opening_brace..closing_brace];
-    let updated_debug_block = set_application_id_suffix_in_block(debug_block, suffix);
+    let updated_debug_block =
+      set_application_id_suffix_in_block(debug_block, suffix, closing_indentation);
     let mut updated_build_gradle =
       String::with_capacity(build_gradle.len() + updated_debug_block.len());
     updated_build_gradle.push_str(&build_gradle[..opening_brace]);
@@ -258,7 +273,27 @@ fn set_debug_application_id_suffix(build_gradle: &str, suffix: Option<&str>) -> 
   None
 }
 
-fn set_application_id_suffix_in_block(debug_block: &str, suffix: Option<&str>) -> String {
+/// Returns the leading whitespace of the line containing `index`.
+fn line_indentation(content: &str, index: usize) -> &str {
+  let line_start = content[..index].rfind('\n').map_or(0, |i| i + 1);
+  let line = &content[line_start..index];
+  &line[..line.len() - line.trim_start().len()]
+}
+
+fn set_application_id_suffix_in_block(
+  debug_block: &str,
+  suffix: Option<&str>,
+  closing_indentation: &str,
+) -> String {
+  // a single-line block such as `getByName("debug") { isDebuggable = true }`
+  if !debug_block.contains('\n') {
+    return set_application_id_suffix_in_single_line_block(
+      debug_block,
+      suffix,
+      closing_indentation,
+    );
+  }
+
   static APPLICATION_ID_SUFFIX_RE: OnceLock<regex::Regex> = OnceLock::new();
 
   let application_id_suffix_re = APPLICATION_ID_SUFFIX_RE.get_or_init(|| {
@@ -294,16 +329,87 @@ fn set_application_id_suffix_in_block(debug_block: &str, suffix: Option<&str>) -
     escape_kotlin_string(suffix)
   );
 
-  if let Some(first_newline) = debug_block.find('\n') {
-    let mut updated_debug_block =
-      String::with_capacity(debug_block.len() + application_id_suffix.len());
-    updated_debug_block.push_str(&debug_block[..=first_newline]);
-    updated_debug_block.push_str(&application_id_suffix);
-    updated_debug_block.push_str(&debug_block[first_newline + 1..]);
-    updated_debug_block
-  } else {
-    format!("{{\n{application_id_suffix}")
+  // the block is known to span multiple lines at this point
+  let first_newline = debug_block.find('\n').unwrap_or(debug_block.len() - 1);
+  let mut updated_debug_block =
+    String::with_capacity(debug_block.len() + application_id_suffix.len());
+  updated_debug_block.push_str(&debug_block[..=first_newline]);
+  updated_debug_block.push_str(&application_id_suffix);
+  updated_debug_block.push_str(&debug_block[first_newline + 1..]);
+  updated_debug_block
+}
+
+/// Rewrites a single-line block (`{ a = 1; b = 2 `, without the closing brace)
+/// into a multi-line block with the `applicationIdSuffix` set, keeping the other statements.
+fn set_application_id_suffix_in_single_line_block(
+  debug_block: &str,
+  suffix: Option<&str>,
+  closing_indentation: &str,
+) -> String {
+  static APPLICATION_ID_SUFFIX_STATEMENT_RE: OnceLock<regex::Regex> = OnceLock::new();
+
+  let application_id_suffix_statement_re = APPLICATION_ID_SUFFIX_STATEMENT_RE.get_or_init(|| {
+    regex::Regex::new(r#"^applicationIdSuffix\s*="#)
+      .expect("valid applicationIdSuffix statement regex")
+  });
+
+  let statements = split_kotlin_statements(&debug_block[1..]);
+  let has_application_id_suffix = statements
+    .iter()
+    .any(|statement| application_id_suffix_statement_re.is_match(statement));
+
+  if suffix.is_none() && !has_application_id_suffix {
+    return debug_block.to_string();
   }
+
+  let indentation = format!("{closing_indentation}    ");
+  let mut updated_debug_block = String::from("{\n");
+  if let Some(suffix) = suffix {
+    updated_debug_block.push_str(&format!(
+      "{indentation}applicationIdSuffix = \"{}\"\n",
+      escape_kotlin_string(suffix)
+    ));
+  }
+  for statement in statements
+    .iter()
+    .filter(|statement| !application_id_suffix_statement_re.is_match(statement))
+  {
+    updated_debug_block.push_str(&format!("{indentation}{statement}\n"));
+  }
+  updated_debug_block.push_str(closing_indentation);
+  updated_debug_block
+}
+
+/// Splits Kotlin statements separated by `;`, ignoring separators inside string literals.
+fn split_kotlin_statements(content: &str) -> Vec<&str> {
+  let mut statements = Vec::new();
+  let mut in_string = false;
+  let mut escaped = false;
+  let mut start = 0;
+
+  for (index, character) in content.char_indices() {
+    if in_string {
+      if escaped {
+        escaped = false;
+      } else if character == '\\' {
+        escaped = true;
+      } else if character == '"' {
+        in_string = false;
+      }
+    } else if character == '"' {
+      in_string = true;
+    } else if character == ';' {
+      statements.push(&content[start..index]);
+      start = index + 1;
+    }
+  }
+  statements.push(&content[start..]);
+
+  statements
+    .into_iter()
+    .map(str::trim)
+    .filter(|statement| !statement.is_empty())
+    .collect()
 }
 
 fn debug_block_indentation(debug_block: &str) -> &str {
@@ -484,9 +590,11 @@ fn ensure_java() -> Result<()> {
 
     if Path::new(default_java_home).exists() {
       log::info!("Using Android Studio's default Java installation: {default_java_home}");
-      std::env::set_var("JAVA_HOME", default_java_home);
+      unsafe { std::env::set_var("JAVA_HOME", default_java_home) };
     } else if which::which("java").is_err() {
-      crate::error::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");
+      crate::error::bail!(
+        "Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding"
+      );
     }
   }
 
@@ -520,7 +628,9 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
         default_android_home.display()
       );
     } else if non_interactive {
-      crate::error::bail!("Android SDK not found. Make sure the SDK and NDK are installed and the ANDROID_HOME and NDK_HOME environment variables are set.");
+      crate::error::bail!(
+        "Android SDK not found. Make sure the SDK and NDK are installed and the ANDROID_HOME and NDK_HOME environment variables are set."
+      );
     } else {
       log::error!(
         "Android SDK not found at {}",
@@ -547,7 +657,9 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
         .unwrap_or_default();
 
         if !granted_permission_to_install {
-          crate::error::bail!("Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
+          crate::error::bail!(
+            "Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android"
+          );
         }
 
         download_cmdline_tools(&extract_path)?;
@@ -561,11 +673,16 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
         .unwrap_or_default();
 
         if !granted_permission_to_install {
-          crate::error::bail!("Skipping Android Studio SDK installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
+          crate::error::bail!(
+            "Skipping Android Studio SDK installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android"
+          );
         }
       }
 
-      log::info!("Running sdkmanager to install platform-tools, android-{SDK_VERSION} and ndk-{NDK_VERSION} on {}...", default_android_home.display());
+      log::info!(
+        "Running sdkmanager to install platform-tools, android-{SDK_VERSION} and ndk-{NDK_VERSION} on {}...",
+        default_android_home.display()
+      );
       let status = Command::new(&sdk_manager_path)
         .arg(format!("--sdk_root={}", default_android_home.display()))
         .arg("--install")
@@ -583,7 +700,7 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
       }
     }
 
-    std::env::set_var("ANDROID_HOME", default_android_home);
+    unsafe { std::env::set_var("ANDROID_HOME", default_android_home) };
   }
 
   Ok(())
@@ -620,9 +737,11 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 
   if let Some(ndk) = installed_ndks.last() {
     log::info!("Using installed NDK: {}", ndk.display());
-    std::env::set_var("NDK_HOME", ndk);
+    unsafe { std::env::set_var("NDK_HOME", ndk) };
   } else if non_interactive {
-    crate::error::bail!("Android NDK not found. Make sure the NDK is installed and the NDK_HOME environment variable is set.");
+    crate::error::bail!(
+      "Android NDK not found. Make sure the NDK is installed and the NDK_HOME environment variable is set."
+    );
   } else {
     let sdk_manager_path = android_home
       .join("cmdline-tools/bin/sdkmanager")
@@ -638,7 +757,9 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
       .unwrap_or_default();
 
       if !granted_permission_to_install {
-        crate::error::bail!("Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
+        crate::error::bail!(
+          "Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android"
+        );
       }
 
       download_cmdline_tools(&android_home)?;
@@ -652,7 +773,9 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
       .unwrap_or_default();
 
       if !granted_permission_to_install {
-        crate::error::bail!("Skipping Android Studio NDK installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
+        crate::error::bail!(
+          "Skipping Android Studio NDK installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android"
+        );
       }
     }
 
@@ -680,7 +803,7 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 
     let ndk_path = android_home.join("ndk").join(NDK_VERSION);
     log::info!("Installed NDK: {}", ndk_path.display());
-    std::env::set_var("NDK_HOME", ndk_path);
+    unsafe { std::env::set_var("NDK_HOME", ndk_path) };
   }
 
   Ok(())
@@ -689,7 +812,7 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 fn delete_codegen_vars() {
   for (k, _) in std::env::vars() {
     if k.starts_with("WRY_") && (k.ends_with("CLASS_EXTENSION") || k.ends_with("CLASS_INIT")) {
-      std::env::remove_var(k);
+      unsafe { std::env::remove_var(k) };
     }
   }
 }
@@ -871,7 +994,9 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
           }
 
           if tries >= 3 {
-            log::info!("Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)");
+            log::info!(
+              "Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)"
+            );
           } else {
             log::info!("Waiting for emulator to start...");
           }
@@ -1172,6 +1297,88 @@ android {
   }
 
   #[test]
+  fn skips_debug_signing_config_before_build_types() {
+    let build_gradle = r#"
+android {
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+        }
+    }
+    buildTypes {
+        getByName("debug") {
+            isDebuggable = true
+        }
+    }
+}
+"#;
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
+
+    assert!(updated.contains(
+      r#"        getByName("debug") {
+            storeFile = file("debug.keystore")
+        }"#
+    ));
+    assert!(updated.contains(
+      r#"        getByName("debug") {
+            applicationIdSuffix = ".debug"
+            isDebuggable = true
+        }"#
+    ));
+  }
+
+  #[test]
+  fn keeps_single_line_debug_block_content() {
+    let build_gradle = r#"
+android {
+    buildTypes {
+        getByName("debug") { isDebuggable = true; manifestPlaceholders["a"] = "b;c" }
+    }
+}
+"#;
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
+
+    assert_eq!(
+      updated,
+      r#"
+android {
+    buildTypes {
+        getByName("debug") {
+            applicationIdSuffix = ".debug"
+            isDebuggable = true
+            manifestPlaceholders["a"] = "b;c"
+        }
+    }
+}
+"#
+    );
+
+    let removed = set_debug_application_id_suffix(
+      r#"buildTypes { debug { applicationIdSuffix = ".old"; isDebuggable = true } }"#,
+      None,
+    )
+    .unwrap();
+    assert_eq!(
+      removed,
+      "buildTypes { debug {\n    isDebuggable = true\n} }"
+    );
+  }
+
+  #[test]
+  fn writes_suffix_to_empty_single_line_debug_block() {
+    let build_gradle = "    buildTypes {\n        debug {}\n    }\n";
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
+
+    assert_eq!(
+      updated,
+      "    buildTypes {\n        debug {\n            applicationIdSuffix = \".debug\"\n        }\n    }\n"
+    );
+  }
+
+  #[test]
   fn ignores_braces_inside_kotlin_raw_strings() {
     let build_gradle = r#"
 android {
@@ -1194,8 +1401,10 @@ android {
       .unwrap();
     let closing_brace = find_matching_brace(build_gradle, opening_brace).unwrap();
 
-    assert!(build_gradle[opening_brace..closing_brace]
-      .contains(r#"manifestPlaceholders["usesCleartextTraffic"] = "true""#));
+    assert!(
+      build_gradle[opening_brace..closing_brace]
+        .contains(r#"manifestPlaceholders["usesCleartextTraffic"] = "true""#)
+    );
 
     let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
 

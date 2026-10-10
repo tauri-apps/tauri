@@ -5,9 +5,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-  error::Context,
-  helpers::updater_signature::{secret_key, sign_file},
   Result,
+  error::{Context, ErrorExt},
+  helpers::updater_signature::{secret_key, sign_file},
 };
 use base64::Engine;
 use clap::Parser;
@@ -35,6 +35,16 @@ pub struct Options {
   /// Set private key password when signing
   #[clap(short, long, env = "TAURI_SIGNING_PRIVATE_KEY_PASSWORD")]
   password: Option<String>,
+  /// Bind the signature to this app version.
+  ///
+  /// The version is embedded in the signature's trusted comment, which is covered by the
+  /// signature itself. Updaters configured with `requireSignedVersion` reject an update whose
+  /// manifest announces a different version than the one signed here, which prevents a
+  /// tampered manifest from pairing a new version number with an older release.
+  ///
+  /// `tauri build` sets this automatically; pass it when signing updater artifacts by hand.
+  #[clap(long)]
+  app_version: Option<String>,
   /// Sign the specified file
   file: PathBuf,
 }
@@ -45,8 +55,8 @@ fn backward_env_vars(mut options: Options) -> Options {
   let get_env = |old, new| {
     if let Ok(old_value) = std::env::var(old) {
       println!(
-      "\x1b[33mWarning: The environment variable '{old}' is deprecated. Please use '{new}' instead.\x1b[0m",
-    );
+        "\x1b[33mWarning: The environment variable '{old}' is deprecated. Please use '{new}' instead.\x1b[0m",
+      );
       Some(old_value)
     } else {
       None
@@ -74,7 +84,10 @@ pub fn command(mut options: Options) -> Result<()> {
   options = backward_env_vars(options);
 
   options.private_key = if let Some(private_key) = options.private_key_path {
-    Some(std::fs::read_to_string(Path::new(&private_key)).expect("Unable to extract private key"))
+    Some(
+      std::fs::read_to_string(Path::new(&private_key))
+        .fs_context("failed to read private key file", private_key)?,
+    )
   } else {
     options.private_key
   };
@@ -84,19 +97,24 @@ pub fn command(mut options: Options) -> Result<()> {
     crate::error::bail!("Key generation aborted: Unable to find the private key");
   };
 
-  if options.password.is_none() {
-    println!("Signing without password.");
+  if options.app_version.is_none() {
+    println!(
+      "Signing without an app version. Pass --app-version to bind this signature to a version; updaters configured with `requireSignedVersion` will reject this signature."
+    );
   }
 
-  let (manifest_dir, signature) =
-    sign_file(&secret_key(private_key, options.password)?, options.file)
-      .with_context(|| "failed to sign file")?;
+  let (manifest_dir, signature) = sign_file(
+    &secret_key(private_key, options.password)?,
+    options.file,
+    options.app_version.as_deref(),
+  )
+  .with_context(|| "failed to sign file")?;
 
   println!(
-           "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
-           display_path(manifest_dir),
-           base64::engine::general_purpose::STANDARD.encode(signature.to_string())
-         );
+    "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
+    display_path(manifest_dir),
+    base64::engine::general_purpose::STANDARD.encode(signature.to_string())
+  );
 
   Ok(())
 }

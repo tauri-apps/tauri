@@ -27,6 +27,7 @@ ManifestDPIAwareness PerMonitorV2
 !include "FileAssociation.nsh"
 !include "Win\COM.nsh"
 !include "Win\Propkey.nsh"
+!include "Win\RestartManager.nsh"
 !include "StrFunc.nsh"
 ${StrCase}
 ${StrLoc}
@@ -521,27 +522,33 @@ Function .onInit
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_INIT
   !endif
-FunctionEnd
 
-
-Section EarlyChecks
-  ; Abort silent installer if downgrades is disabled
+  ; Abort downgrades if they are disabled, in the modes that skip the reinstall page choice:
+  ; silent, passive and update
   !if "${ALLOWDOWNGRADES}" == "false"
   ${If} ${Silent}
+  ${OrIf} $PassiveMode = 1
+  ${OrIf} $UpdateMode = 1
+    ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
+    nsis_tauri_utils::SemverCompare "${VERSION}" $R0
+    Pop $R0
     ; If downgrading
     ${If} $R0 = -1
-      System::Call 'kernel32::AttachConsole(i -1)i.r0'
-      ${If} $0 <> 0
-        System::Call 'kernel32::GetStdHandle(i -11)i.r0'
-        System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-        FileWrite $0 "$(silentDowngrades)"
+      ${If} ${Silent}
+        System::Call 'kernel32::AttachConsole(i -1)i.r0'
+        ${If} $0 <> 0
+          System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+          System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
+          FileWrite $0 "$(silentDowngrades)"
+        ${EndIf}
+      ${Else}
+        MessageBox MB_ICONSTOP "$(silentDowngrades)"
       ${EndIf}
       Abort
     ${EndIf}
   ${EndIf}
   !endif
-
-SectionEnd
+FunctionEnd
 
 Section WebView2
   ; Check if Webview2 is already installed and skip this section
@@ -642,7 +649,7 @@ Section Install
     !insertmacro NSIS_HOOK_PREINSTALL
   !endif
 
-  !insertmacro CheckIfAppIsRunning "${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
+  !insertmacro CheckIfAppIsRunning "$INSTDIR\${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
 
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
@@ -779,7 +786,7 @@ Section Uninstall
     !insertmacro NSIS_HOOK_PREUNINSTALL
   !endif
 
-  !insertmacro CheckIfAppIsRunning "${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
+  !insertmacro CheckIfAppIsRunning "$INSTDIR\${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
 
   ; Delete the app directory and its content from disk
   ; Copy main executable

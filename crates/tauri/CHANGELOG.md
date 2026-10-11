@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.12.3]
+
+### Bug Fixes
+
+- [`0204f6f3a`](https://www.github.com/tauri-apps/tauri/commit/0204f6f3ae1e8dda195b216b32c3ab1d95d928e0) ([#16244](https://www.github.com/tauri-apps/tauri/pull/16244)) Keep delivering `Channel` messages after the `onmessage` handler throws. The error is rethrown asynchronously so it is still reported as uncaught, instead of leaving every later message queued.
+- [`c48e1ca89`](https://www.github.com/tauri-apps/tauri/commit/c48e1ca891a3b82770b6b03f87eba740344cf2f1) ([#16246](https://www.github.com/tauri-apps/tauri/pull/16246)) On iOS, mark the Swift `@_cdecl` entry points that Rust links against as `public` (in the iOS API and in the plugin templates), so release builds made with Xcode 27 keep them global and link.
+- [`eeeaa0ff9`](https://www.github.com/tauri-apps/tauri/commit/eeeaa0ff945f0e9aca177676e153a0fb426190a8) ([#16230](https://www.github.com/tauri-apps/tauri/pull/16230)) Fix NSIS installers not blocking downgrades in silent (`/S`), passive (`/P`) and update (`/UPDATE`) modes when `bundle.windows.allowDowngrades` is `false`.
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.7.2`
+- Upgraded to `tauri-build@2.7.2`
+
 ## [2.12.2]
 
 ### Bug Fixes

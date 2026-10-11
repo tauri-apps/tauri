@@ -38,9 +38,6 @@
       "../../.icons/icon.ico"
     ],
     "linux": {
-      "assetGstPlugin": {
-        "active": true
-      },
       "appimage": {
         "bundleMediaFramework": true
       }

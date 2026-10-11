@@ -79,6 +79,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let (data_dir, _) =
     generate_data(settings, &package_dir).context("Failed to build data folders and files")?;
+  copy_gst_plugin(settings, &data_dir)
+    .with_context(|| "Failed to copy the asset GStreamer plugin")?;
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
     .context("Failed to copy custom files")?;
 
@@ -125,9 +127,6 @@ pub fn generate_data(
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
-
-  copy_gst_plugin(settings, &data_dir)
-    .with_context(|| "Failed to copy the asset GStreamer plugin")?;
 
   settings
     .copy_binaries(&bin_dir)
@@ -335,7 +334,7 @@ fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()
 }
 
 fn copy_gst_plugin(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  if let Some(plugin) = gst_plugin::resolve(settings)? {
+  if let Some(plugin) = gst_plugin::download(settings)? {
     let dest = data_dir
       .join(gst_plugin::plugin_dir(settings.product_name()))
       .join(gst_plugin::PLUGIN_FILE_NAME);

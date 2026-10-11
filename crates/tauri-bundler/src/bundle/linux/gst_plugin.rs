@@ -39,28 +39,21 @@ pub fn plugin_dir(product_name: &str) -> PathBuf {
     .join("gstreamer-1.0")
 }
 
-/// Resolves the plugin to bundle, or `None` when it is not enabled.
-pub fn resolve(settings: &Settings) -> crate::Result<Option<PathBuf>> {
-  if !settings.asset_gst_plugin().active {
-    return Ok(None);
-  }
-
-  download_plugin(settings).map(Some)
-}
-
 /// Downloads the prebuilt plugin for the target architecture, caching it in the
 /// tools directory alongside the AppImage tooling.
 ///
+/// Returns `None` when no prebuilt plugin exists for the target architecture.
 /// The download and the cached copy are both checked against the pinned hash,
 /// a mismatching cached copy is downloaded again.
-fn download_plugin(settings: &Settings) -> crate::Result<PathBuf> {
+pub fn download(settings: &Settings) -> crate::Result<Option<PathBuf>> {
   let (arch, hash) = match settings.binary_arch() {
     Arch::X86_64 => ("x86_64", PLUGIN_SHA256_X86_64),
     Arch::AArch64 => ("aarch64", PLUGIN_SHA256_AARCH64),
     target => {
-      return Err(crate::Error::ArchError(format!(
-        "the asset GStreamer plugin is not available for {target:?}"
-      )))
+      log::warn!(
+        "no prebuilt asset GStreamer plugin for {target:?}, audio and video over `asset://` will not work"
+      );
+      return Ok(None);
     }
   };
 
@@ -71,7 +64,7 @@ fn download_plugin(settings: &Settings) -> crate::Result<PathBuf> {
   let cached = tools_path.join(&file_name);
   if cached.exists() {
     if verify_file_hash(&cached, hash, HashAlgorithm::Sha256).is_ok() {
-      return Ok(cached);
+      return Ok(Some(cached));
     }
     log::warn!("{file_name} in the tools directory is mis-hashed. Redownloading it.");
   }
@@ -85,6 +78,5 @@ fn download_plugin(settings: &Settings) -> crate::Result<PathBuf> {
   fs::write(&cached, data)
     .fs_context("failed to save the asset GStreamer plugin", cached.clone())?;
 
-  Ok(cached)
+  Ok(Some(cached))
 }
-

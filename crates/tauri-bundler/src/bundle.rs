@@ -27,11 +27,10 @@ use tauri_utils::{display_path, platform::Target as TargetPlatform};
 pub use {
   category::AppCategory,
   settings::{
-    AppImageSettings, AssetGstPluginSettings, BundleBinary, BundleSettings,
-    CustomSignCommandSettings, DebianSettings, DmgSettings, Entitlements, IosSettings,
-    MacOsSettings, NsisSettings, PackageSettings, PackageType, PlistKind, Position, RpmSettings,
-    Settings, SettingsBuilder, Size, UpdaterSettings, WindowsSettings, WixLanguage,
-    WixLanguageConfig, WixSettings,
+    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
+    DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings, PackageSettings,
+    PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
   },
   windows::vswhere_path,
 };

@@ -199,7 +199,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   // Add the `asset://` GStreamer plugin
-  if let Some(plugin) = gst_plugin::resolve(settings)? {
+  if let Some(plugin) = gst_plugin::download(settings)? {
     let plugin_dir = Path::new("/").join(gst_plugin::plugin_dir(product_name));
     // Create an empty file, needed to add a directory to the RPM package
     // (cf https://github.com/rpm-rs/rpm/issues/177)

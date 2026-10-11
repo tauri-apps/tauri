@@ -38,7 +38,34 @@ impl StartingBinary {
     }
 
     // we canonicalize the path to resolve any symlinks to the real exe path
-    Self(dangerous_path.canonicalize())
+    let path = dangerous_path.canonicalize();
+    #[cfg(target_os = "macos")]
+    let path = path.map(|path| Self::dev_bundle_origin(&path).unwrap_or(path));
+    Self(path)
+  }
+
+  /// In development, macOS apps run from a bundle that hard links the binary in the cargo output,
+  /// `<target dir>/.tauri-dev/<binary>.app/Contents/MacOS/<binary>`; resolve to that binary instead.
+  #[cfg(target_os = "macos")]
+  fn dev_bundle_origin(path: &Path) -> Option<PathBuf> {
+    use std::os::unix::fs::MetadataExt;
+
+    let bin_name = path.file_name()?;
+    let macos_dir = path.parent()?;
+    let contents_dir = macos_dir.parent()?;
+    let bundle_dir = contents_dir.parent()?;
+    let bundle_parent = bundle_dir.parent()?;
+    if macos_dir.file_name()? != "MacOS"
+      || contents_dir.file_name()? != "Contents"
+      || bundle_dir.extension()? != "app"
+      || bundle_parent.file_name()? != ".tauri-dev"
+    {
+      return None;
+    }
+
+    let origin = bundle_parent.parent()?.join(bin_name);
+    let (a, b) = (path.metadata().ok()?, origin.metadata().ok()?);
+    (a.dev() == b.dev() && a.ino() == b.ino()).then_some(origin)
   }
 
   /// A clone of the [`PathBuf`] found to be the starting path.

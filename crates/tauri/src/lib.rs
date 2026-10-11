@@ -93,6 +93,8 @@ pub use url::Url;
 
 pub(crate) mod app;
 pub mod async_runtime;
+#[cfg(all(dev, target_os = "macos"))]
+mod dev_bundle;
 mod error;
 mod event;
 pub mod ipc;

@@ -291,6 +291,12 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     };
 
     if let Some(plist) = info_plist.as_dictionary_mut() {
+      // gives the development binary its own app identity, see the tauri `dev_bundle` module
+      plist.insert(
+        "CFBundleIdentifier".into(),
+        config.identifier.as_str().into(),
+      );
+
       if let Some(bundle_name) = config
         .bundle
         .macos

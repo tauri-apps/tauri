@@ -39,6 +39,13 @@ pub fn plugin_dir(product_name: &str) -> PathBuf {
     .join("gstreamer-1.0")
 }
 
+/// Directory the plugin is installed to inside the AppImage's AppDir.
+///
+/// The media framework's AppRun hook points `GST_PLUGIN_PATH_1_0` here, which
+/// GStreamer reads before `GST_PLUGIN_PATH`, so the per-app directory used by
+/// deb/rpm would never be scanned inside an AppImage.
+pub const APPIMAGE_PLUGIN_DIR: &str = "usr/lib/gstreamer-1.0";
+
 /// Downloads the prebuilt plugin for the target architecture, caching it in the
 /// tools directory alongside the AppImage tooling.
 ///

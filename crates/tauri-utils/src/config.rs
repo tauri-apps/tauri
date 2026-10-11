@@ -320,6 +320,7 @@ impl BundleTarget {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppImageConfig {
   /// Include additional gstreamer dependencies needed for audio and video playback.
+  /// This also bundles Tauri's GStreamer plugin so audio and video can be streamed over `asset://`.
   /// This increases the bundle size by ~15-35MB depending on your build system.
   #[serde(default, alias = "bundle-media-framework")]
   pub bundle_media_framework: bool,

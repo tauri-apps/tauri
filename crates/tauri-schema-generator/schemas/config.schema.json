@@ -3521,133 +3521,9 @@
             "string",
             "null"
           ]
-        },
-        "compression": {
-          "description": "Compression algorithm and level. Defaults to `Gzip` with level 6.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/DebCompression"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "additionalProperties": false
-    },
-    "DebCompression": {
-      "description": "Compression algorithms used when bundling DEB packages.",
-      "oneOf": [
-        {
-          "description": "Gzip compression",
-          "type": "object",
-          "required": [
-            "level",
-            "type"
-          ],
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "gzip"
-              ]
-            },
-            "level": {
-              "description": "Gzip compression level (0-9).",
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "description": "Zstd compression",
-          "type": "object",
-          "required": [
-            "level",
-            "type"
-          ],
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "zstd"
-              ]
-            },
-            "level": {
-              "description": "Zstd compression level (1-22).",
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "description": "Xz compression",
-          "type": "object",
-          "required": [
-            "level",
-            "type"
-          ],
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "xz"
-              ]
-            },
-            "level": {
-              "description": "Xz compression level (0-9).",
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "description": "Bzip2 compression",
-          "type": "object",
-          "required": [
-            "level",
-            "type"
-          ],
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "bzip2"
-              ]
-            },
-            "level": {
-              "description": "Bzip2 compression level (1-9).",
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "description": "Disable compression",
-          "type": "object",
-          "required": [
-            "type"
-          ],
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "none"
-              ]
-            }
-          },
-          "additionalProperties": false
-        }
-      ]
     },
     "RpmConfig": {
       "description": "Configuration for RPM bundles.",
@@ -3790,7 +3666,7 @@
               ]
             },
             "level": {
-              "description": "Gzip compression level (0-9).",
+              "description": "Gzip compression level",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -3813,7 +3689,7 @@
               ]
             },
             "level": {
-              "description": "Zstd compression level (1-22).",
+              "description": "Zstd compression level",
               "type": "integer",
               "format": "int32"
             }
@@ -3835,7 +3711,7 @@
               ]
             },
             "level": {
-              "description": "Xz compression level (0-9).",
+              "description": "Xz compression level",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -3858,7 +3734,7 @@
               ]
             },
             "level": {
-              "description": "Bzip2 compression level (1-9).",
+              "description": "Bzip2 compression level",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0

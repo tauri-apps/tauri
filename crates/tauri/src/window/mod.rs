@@ -946,15 +946,24 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
 
 #[cfg(target_os = "android")]
 impl<R: Runtime, M: Manager<R>> WindowBuilder<'_, R, M> {
-  /// The name of the activity to create for this webview window.
+  /// The name of the Android activity class to create for this window.
+  ///
+  /// Each window is an activity in a task of its own, which the system shows as a separate window:
+  /// its own entry in Recents, its own split-screen pane and its own desktop window. On phones it covers
+  /// the window that opened it, and the back button closes it.
+  ///
+  /// Defaults to the launcher activity (`MainActivity`), which must allow an instance per task
+  /// (`android:launchMode="singleInstancePerTask"` or `"standard"`).
+  /// The activity must extend `TauriActivity` and be declared in `AndroidManifest.xml`.
   pub fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
     self.window_builder = self.window_builder.activity_name(class_name);
     self
   }
 
-  /// Sets the name of the activity that is creating this webview window.
+  /// The name of the Android activity that is opening this window.
   ///
-  /// This is important to determine which stack the activity will belong to.
+  /// The new window's task is started from that activity. When not set, it is inherited from the manager
+  /// (for instance the window this builder was created from).
   pub fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
     self.created_by_activity_name_set = true;
     self.window_builder = self.window_builder.created_by_activity_name(class_name);
@@ -1162,7 +1171,12 @@ impl<R: Runtime> Window<R> {
   ///
   /// This is the multiwebview API: a single window can host any number of webviews,
   /// each of them positioned and sized by you. It requires the `unstable` Cargo feature
-  /// and is only available on desktop.
+  /// and is available on desktop and Android.
+  ///
+  /// On Android, the first webview of a window lives in the window's activity, and each other webview
+  /// in an activity of its own, started in the window's task (see `WebviewBuilder::activity_name`).
+  /// The system lays them out: [activity embedding](https://developer.android.com/develop/ui/views/layout/activity-embedding)
+  /// rules can show them side by side on large screens, and `position` and `size` are ignored.
   ///
   /// The webview is not resized or moved when the parent window is resized unless
   /// auto resize is enabled, either at build time with
@@ -1221,8 +1235,11 @@ impl<R: Runtime> Window<R> {
   /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
-  #[cfg(any(test, all(desktop, feature = "unstable")))]
-  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
+  #[cfg(any(test, all(any(desktop, target_os = "android"), feature = "unstable")))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(all(any(desktop, target_os = "android"), feature = "unstable")))
+  )]
   pub fn add_child<P: Into<Position>, S: Into<Size>>(
     &self,
     webview_builder: WebviewBuilder<R>,

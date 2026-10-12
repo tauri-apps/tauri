@@ -349,7 +349,8 @@ async function onBackButtonPress(
  * #### Platform-specific
  *
  * - **Windows / Linux / macOS:** Always `true`.
- * - **Android:** `true` on API level 32 (Android 12L) and above.
+ * - **Android:** Always `true`. Each window is a separate task, which the system shows as a separate window
+ *   (its own entry in Recents, split-screen pane and desktop window); on phones it covers the previous one.
  * - **iOS:** Reflects [`UIApplication.supportsMultipleScenes`](https://developer.apple.com/documentation/uikit/uiapplication/supportsmultiplescenes),
  *   so it is `true` on iPadOS and `false` on iPhone.
  *

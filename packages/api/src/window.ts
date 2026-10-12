@@ -3051,13 +3051,20 @@ interface WindowOptions {
    */
   scrollBarStyle?: ScrollBarStyle
   /**
-   * The name of the Android activity to create for this window.
+   * The name of the Android activity class to create for this window.
+   *
+   * Each window is an activity in a task of its own, which the system shows as a separate window:
+   * its own entry in Recents, its own split-screen pane and its own desktop window. On phones it covers
+   * the window that opened it, and the back button closes it.
+   *
+   * Defaults to the launcher activity (`MainActivity`), which must allow an instance per task
+   * (`android:launchMode="singleInstancePerTask"` or `"standard"`).
    */
   activityName?: string
   /**
-   * The name of the Android activity that is creating this webview window.
+   * The name of the Android activity that is opening this window.
    *
-   * This is important to determine which stack the activity will belong to.
+   * The new window's task is started from that activity.
    */
   createdByActivityName?: string
   /**

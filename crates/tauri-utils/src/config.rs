@@ -2358,12 +2358,20 @@ pub struct WindowConfig {
   /// - **Linux / Windows / Android / macOS:** Unsupported.
   #[serde(default, alias = "limit-navigations-to-app-bound-domains")]
   pub limit_navigations_to_app_bound_domains: bool,
-  /// The name of the Android activity to create for this window.
+  /// The name of the Android activity class to create for this window.
+  ///
+  /// Each window is an activity in a task of its own, which the system shows as a separate window:
+  /// its own entry in Recents, its own split-screen pane and its own desktop window.
+  /// Defaults to the launcher activity (`MainActivity`), which must allow an instance per task
+  /// (`android:launchMode="singleInstancePerTask"` or `"standard"`).
+  ///
+  /// For a webview added to a window that already hosts one (multiwebview), this is the activity
+  /// started in the window's task to host the webview, which activity embedding rules can show next to the window's own.
   #[serde(default, alias = "activity-name")]
   pub activity_name: Option<String>,
-  /// The name of the Android activity that is creating this webview window.
+  /// The name of the Android activity that is opening this window.
   ///
-  /// This is important to determine which stack the activity will belong to.
+  /// The new window's task is started from that activity.
   #[serde(default, alias = "created-by-activity-name")]
   pub created_by_activity_name: Option<String>,
 

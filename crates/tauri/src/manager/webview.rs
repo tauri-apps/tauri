@@ -42,6 +42,9 @@ use super::{
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
 pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
 
+const WEBVIEW_DESTROYED_EVENT: crate::event::EventName<&str> =
+  crate::event::EventName::from_str("tauri://destroyed");
+
 pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
   include_str!("../../scripts/process-ipc-message-fn.js");
 
@@ -646,6 +649,11 @@ impl<R: Runtime> WebviewManager<R> {
       for handler in webview_event_listeners.iter() {
         handler(&webview_, event);
       }
+      // the runtime already dropped it, like `Webview::close` does
+      #[cfg(target_os = "android")]
+      if matches!(event, WebviewEvent::Destroyed) {
+        webview_.manager().on_webview_close(webview_.label());
+      }
     });
 
     // insert the webview into our manager
@@ -760,6 +768,7 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
       DragDropEvent::Leave => webview.emit_to_webview(DRAG_LEAVE_EVENT, &())?,
       _ => unimplemented!(),
     },
+    WebviewEvent::Destroyed => webview.emit_to_webview(WEBVIEW_DESTROYED_EVENT, &())?,
   }
 
   Ok(())

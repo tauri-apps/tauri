@@ -91,6 +91,15 @@ pub enum WindowEvent {
 pub enum WebviewEvent {
   /// An event associated with the drag and drop action.
   DragDrop(DragDropEvent),
+  /// The webview has been destroyed by the system.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: emitted when the activity hosting a webview that was added to a window
+  ///   (see `WebviewAttributes::activity_name`) is closed,
+  ///   for instance with the back button.
+  /// - **Linux / macOS / Windows / iOS**: Unsupported.
+  Destroyed,
 }
 
 /// The drag drop event payload.
@@ -505,13 +514,15 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn no_redirection_bitmap(self, enable: bool) -> Self;
 
-  /// The name of the activity to create for this webview window.
+  /// The name of the activity to create for this window, in a task of its own.
+  ///
+  /// Defaults to the launcher activity.
   #[cfg(target_os = "android")]
   fn activity_name<S: Into<String>>(self, class_name: S) -> Self;
 
-  /// Sets the name of the activity that is creating this webview window.
+  /// Sets the name of the activity that is opening this window.
   ///
-  /// This is important to determine which stack the activity will belong to.
+  /// The new window's task is started from that activity.
   #[cfg(target_os = "android")]
   fn created_by_activity_name<S: Into<String>>(self, class_name: S) -> Self;
 

@@ -13,6 +13,7 @@ import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
+import app.tauri.plugin.PluginManager
 
 @TauriPlugin
 class AppPlugin(private val activity: Activity): Plugin(activity) {
@@ -46,11 +47,13 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
     (activity as AppCompatActivity).onBackPressedDispatcher.addCallback(activity, callback)
   }
 
-  // Called by the Rust side when the app exits so the activity (and any other activity
-  // of the task, i.e. other windows) is closed gracefully instead of the process being killed
+  // Called by the Rust side when the app exits so the activities are closed gracefully instead of the process
+  // being killed. Each window has a task of its own, so every activity is finished, not only this task's.
   @Command
   fun exit(invoke: Invoke) {
     invoke.resolve()
-    activity.finishAffinity()
+    for (activity in PluginManager.activities()) {
+      activity.finish()
+    }
   }
 }

@@ -72,8 +72,11 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
             address: '127.0.0.1',
             // Appium 3 requires insecure features to be scoped to a driver.
             // chromedriver_autodownload lets the UiAutomator2 driver fetch a
-            // chromedriver matching the device's WebView (see E2E_CHROMEDRIVER).
-            allowInsecure: 'uiautomator2:chromedriver_autodownload'
+            // chromedriver matching the device's WebView (see E2E_CHROMEDRIVER);
+            // adb_shell lets the multiwindow specs read the activity tasks
+            // (`mobile: shell`, see `androidTasks` in test/helpers).
+            allowInsecure:
+              'uiautomator2:chromedriver_autodownload,uiautomator2:adb_shell'
           },
           // First-session setup (chromedriver download, WebDriverAgent build)
           // can be slow, hence the generous timeout.
@@ -122,6 +125,9 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
         ) {
           tauriCli([platform, 'init', '--ci', '--skip-targets-install'])
         }
+        if (!ios) {
+          prepareAndroidProject()
+        }
         // A debug build, so wry turns on webview debugging (Android
         // `setWebContentsDebuggingEnabled`, iOS `isInspectable`), which is what
         // lets Appium reach the page. Only the target that the device/emulator
@@ -144,7 +150,10 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
                 '--debug',
                 '--apk',
                 '--target',
-                androidTarget()
+                androidTarget(),
+                // the multiwebview API, for the specs adding webviews to a window
+                '--features',
+                'unstable'
               ]
         )
       }
@@ -245,6 +254,23 @@ function tauriCli(args: string[]): void {
 }
 
 // --- Android -----------------------------------------------------------------
+
+/**
+ * Adds the activity the multiwebview specs host webviews in to the generated
+ * Android project (scripts/prepare-android.mjs, which CI also runs).
+ */
+function prepareAndroidProject(): void {
+  const result = spawnSync(
+    process.execPath,
+    [path.join(dirname, 'scripts', 'prepare-android.mjs')],
+    { stdio: 'inherit' }
+  )
+  if (result.status !== 0) {
+    throw new Error(
+      `scripts/prepare-android.mjs failed with status ${result.status}`
+    )
+  }
+}
 
 function androidCapabilities(app: string): WebdriverIO.Capabilities {
   return {

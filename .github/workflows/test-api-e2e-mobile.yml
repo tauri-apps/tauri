@@ -108,9 +108,11 @@ jobs:
       # during the Rust and Gradle builds; the suite then reuses the APK.
       - name: build the APK
         working-directory: ./examples/api
+        # Same project fixture and features as packages/api-e2e/wdio.mobile.ts builds with.
         run: |
           pnpm tauri android init --ci --skip-targets-install
-          pnpm tauri android build --debug --apk --target $E2E_ANDROID_TARGET
+          node ../../packages/api-e2e/scripts/prepare-android.mjs
+          pnpm tauri android build --debug --apk --target $E2E_ANDROID_TARGET --features unstable
 
       - name: run e2e tests
         uses: reactivecircus/android-emulator-runner@v2

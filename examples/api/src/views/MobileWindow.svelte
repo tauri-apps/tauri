@@ -58,7 +58,7 @@
   }
 
   // a webview next to this window's own; on Android it is hosted by `EmbeddedWebviewActivity`,
-  // which packages/api-e2e/scripts/prepare-android.mjs adds to the Android project
+  // which activity embedding shows next to it when the window is wide enough (src-tauri/gen/android)
   function addWebview() {
     const webview = new Webview(
       currentWindow,

@@ -14,5 +14,9 @@
     <SplitPairFilter
       window:primaryActivityName=".MainActivity"
       window:secondaryActivityName=".EmbeddedWebviewActivity" />
+    <!-- windows that do not set an activity name, like the multiwebview window -->
+    <SplitPairFilter
+      window:primaryActivityName=".TauriWindowActivity"
+      window:secondaryActivityName=".EmbeddedWebviewActivity" />
   </SplitPairRule>
 </resources>

@@ -66,7 +66,7 @@ pub fn spam(channel: Channel<i32>) -> tauri::Result<()> {
 ///
 /// On Android the window is a task of its own; the first webview lives in the window's activity and the
 /// second one in `EmbeddedWebviewActivity`, started in the window's task, which activity embedding split rules
-/// can show side by side. `packages/api-e2e/scripts/prepare-android.mjs` adds that activity to the Android project.
+/// show side by side when the window is wide enough (`gen/android/app/src/main/res/xml/main_split_config.xml`).
 #[command]
 pub async fn spawn_multiwebview_window<R: tauri::Runtime>(
   app: tauri::AppHandle<R>,

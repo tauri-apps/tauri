@@ -89,5 +89,11 @@
             android:name=".EmbeddedWebviewActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
             android:exported="false" />
+        <!-- tauri-window-activity. AUTO-GENERATED. DO NOT REMOVE. -->
+        <activity
+            android:name=".TauriWindowActivity"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+            android:exported="false" />
+        <!-- tauri-window-activity. AUTO-GENERATED. DO NOT REMOVE. -->
     </application>
 </manifest>

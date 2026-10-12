@@ -90,7 +90,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     let clamped = level.clamp(min_level, max_level);
     if clamped != level {
       log::warn!(
-        "rpm compression level {level} is outside the range {min_level}-{max_level} supported by this algorithm, clamping to {clamped}"
+        "rpm compression level {level} is outside the range {min_level} - {max_level} supported by this algorithm, clamping to {clamped}"
       );
       level = clamped;
     }

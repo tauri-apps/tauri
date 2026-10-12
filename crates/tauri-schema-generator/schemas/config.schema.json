@@ -3425,7 +3425,7 @@
           "type": "object",
           "properties": {
             "level": {
-              "description": "Zstd compression level (1-22).",
+              "description": "Zstd compression level (-131072 - 22).",
               "type": "integer",
               "format": "int32"
             },
@@ -3650,7 +3650,7 @@
           "type": "object",
           "properties": {
             "level": {
-              "description": "Zstd compression level (1-22).",
+              "description": "Zstd compression level (-131072 - 22).",
               "type": "integer",
               "format": "int32"
             },

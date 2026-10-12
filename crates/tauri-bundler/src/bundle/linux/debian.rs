@@ -492,7 +492,7 @@ fn tar_and_compress_dir<P: AsRef<Path>>(
     let clamped = level.clamp(min_level, max_level);
     if clamped != level {
       log::warn!(
-        "deb compression level {level} is outside the range {min_level}-{max_level} supported by this algorithm, clamping to {clamped}"
+        "deb compression level {level} is outside the range {min_level} - {max_level} supported by this algorithm, clamping to {clamped}"
       );
       level = clamped;
     }

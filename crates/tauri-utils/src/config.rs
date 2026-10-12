@@ -281,6 +281,8 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+const ZSTD_MIN_CLEVEL: i32 = -1 << 17;
+
 /// Compression algorithms used when bundling DEB packages.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -294,7 +296,7 @@ pub enum DebCompression {
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level (1-22).
+    /// Zstd compression level (-131072 - 22).
     level: i32,
   },
   /// Xz compression
@@ -340,8 +342,7 @@ impl DebCompression {
       Self::None => None,
       Self::Gzip { .. } => Some(0),
       Self::Xz { .. } => Some(0),
-      // zstd also has negative levels for its fast modes, but `none` covers that use case
-      Self::Zstd { .. } => Some(1),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
       // bzip2 levels are block sizes, which start at 1
       Self::Bzip2 { .. } => Some(1),
     }
@@ -454,7 +455,7 @@ pub enum RpmCompression {
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level (1-22).
+    /// Zstd compression level (-131072 - 22).
     level: i32,
   },
   /// Xz compression
@@ -489,8 +490,7 @@ impl RpmCompression {
       Self::None => None,
       Self::Gzip { .. } => Some(0),
       Self::Xz { .. } => Some(0),
-      // zstd also has negative levels for its fast modes, but `none` covers that use case
-      Self::Zstd { .. } => Some(1),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
       // bzip2 levels are block sizes, which start at 1
       Self::Bzip2 { .. } => Some(1),
     }

@@ -1,6 +1,6 @@
 {
   // transparent windows on macOS
   app: {
-    "macos-private-api": true,
-  },
+    'macos-private-api': true
+  }
 }

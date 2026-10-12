@@ -117,16 +117,14 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
         // `examples/api`'s `tauri` script is `node ../../packages/cli/tauri.js`,
         // which requires the native CLI to be built (`pnpm build:cli`).
         //
-        // The generated Android Studio / Xcode project lives in `src-tauri/gen`
-        // (gitignored), so it is initialized on a fresh checkout. The build
-        // installs the Rust target it needs itself, so init skips that.
+        // The Xcode project lives in `src-tauri/gen/apple` (gitignored), so it is
+        // initialized on a fresh checkout; the Android project is committed, as it
+        // hosts the multiwebview activities. The build installs the Rust target it
+        // needs itself, so init skips that.
         if (
           !fs.existsSync(path.join(tauriDir, 'gen', ios ? 'apple' : 'android'))
         ) {
           tauriCli([platform, 'init', '--ci', '--skip-targets-install'])
-        }
-        if (!ios) {
-          prepareAndroidProject()
         }
         // A debug build, so wry turns on webview debugging (Android
         // `setWebContentsDebuggingEnabled`, iOS `isInspectable`), which is what
@@ -254,23 +252,6 @@ function tauriCli(args: string[]): void {
 }
 
 // --- Android -----------------------------------------------------------------
-
-/**
- * Adds the activity the multiwebview specs host webviews in to the generated
- * Android project (scripts/prepare-android.mjs, which CI also runs).
- */
-function prepareAndroidProject(): void {
-  const result = spawnSync(
-    process.execPath,
-    [path.join(dirname, 'scripts', 'prepare-android.mjs')],
-    { stdio: 'inherit' }
-  )
-  if (result.status !== 0) {
-    throw new Error(
-      `scripts/prepare-android.mjs failed with status ${result.status}`
-    )
-  }
-}
 
 function androidCapabilities(app: string): WebdriverIO.Capabilities {
   return {

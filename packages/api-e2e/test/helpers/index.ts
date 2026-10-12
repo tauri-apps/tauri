@@ -247,7 +247,7 @@ const androidPackage = 'com.tauri.api'
 
 /**
  * The activity that hosts the webviews the multiwebview specs add to a window
- * on Android, added to the generated project by scripts/prepare-android.mjs.
+ * on Android, declared in examples/api's committed Android project.
  */
 export const EMBEDDED_ACTIVITY = 'EmbeddedWebviewActivity'
 

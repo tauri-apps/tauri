@@ -384,7 +384,8 @@ Function PageLeaveReinstall
     ${EndIf}
 
     ; The NSIS uninstaller was run in place (`_?=`), so it cannot delete itself
-    ; and the install directory, clean them up here
+    ; and the install directory, clean them up here once the uninstall succeeded
+    ; https://nsis.sourceforge.io/Docs/Chapter3.html#:~:text=path%20contains%20spaces.-,3.2.3%20Examples,-installer.exe%20/NCRC
     ${If} $WixMode = 0
     ${AndIf} $4 != ""
       Delete "$4\uninstall.exe"

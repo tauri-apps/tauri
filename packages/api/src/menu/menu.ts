@@ -17,7 +17,7 @@ import { itemFromKind, Submenu } from './submenu'
 import { type LogicalPosition, PhysicalPosition, Position } from '../dpi'
 import { type Window } from '../window'
 import { invoke } from '../core'
-import { type ItemKind, MenuItemBase, newMenu } from './base'
+import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base'
 
 /** Options for creating a new menu. */
 export interface MenuOptions {
@@ -130,9 +130,7 @@ export class Menu extends MenuItemBase {
     return invoke('plugin:menu|append', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      )
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem)
     })
   }
 
@@ -159,9 +157,7 @@ export class Menu extends MenuItemBase {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      )
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem)
     })
   }
 
@@ -188,9 +184,7 @@ export class Menu extends MenuItemBase {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      ),
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem),
       position
     })
   }

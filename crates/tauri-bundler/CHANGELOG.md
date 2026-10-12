@@ -33,11 +33,11 @@
 ### New Features
 
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Added `BundleSettings::webview_runtime` to tell the bundler which webview runtime the application uses, so it only ships what that runtime needs:
-    
+
     - `WebviewRuntime::Wry` (the default): the AppImage ships the webkit2gtk helper processes, and the NSIS and WiX installers include the WebView2 installation step (`webviewInstallMode`, `minimumWebview2Version` and the `WebView2Loader.dll` resource).
     - `WebviewRuntime::Cef`: its `distribution` field is the CEF distribution to copy into the bundle, or `None` for an app that loads CEF from a shared runtime outside its bundle, which ships no CEF files. Its `helper` field carries the `CefHelperSettings` used to build the executable of the macOS helper apps, which are created either way.
     - `WebviewRuntime::Other`: nothing runtime-specific is shipped.
-    
+
     The `BundleSettings::cef_path` and `BundleSettings::cef_shared_runtime` fields were removed in favor of the `Cef` variant.
 - [`8254e5af6`](https://www.github.com/tauri-apps/tauri/commit/8254e5af6df4f780bf5bd879ada4ab69599b6545) ([#14207](https://www.github.com/tauri-apps/tauri/pull/14207)) Added support to Liquid Glass icons.
 
@@ -58,6 +58,15 @@
 
 - Upgraded to `tauri-utils@3.0.0-alpha.0`
 - Upgraded to `tauri-macos-sign@3.0.0-alpha.0`
+## [2.10.2]
+
+### Bug Fixes
+
+- [`eeeaa0ff9`](https://www.github.com/tauri-apps/tauri/commit/eeeaa0ff945f0e9aca177676e153a0fb426190a8) ([#16230](https://www.github.com/tauri-apps/tauri/pull/16230)) Fix NSIS installers not blocking downgrades in silent (`/S`), passive (`/P`) and update (`/UPDATE`) modes when `bundle.windows.allowDowngrades` is `false`.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.4.1`
 
 ## [2.10.1]
 

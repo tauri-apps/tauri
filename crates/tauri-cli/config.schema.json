@@ -3577,10 +3577,9 @@
               ]
             },
             "level": {
-              "description": "Zstd compression level (1-22).",
+              "description": "Zstd compression level (-131072 - 22).",
               "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
+              "format": "int32"
             }
           },
           "additionalProperties": false
@@ -3813,7 +3812,7 @@
               ]
             },
             "level": {
-              "description": "Zstd compression level (1-22).",
+              "description": "Zstd compression level (-131072 - 22).",
               "type": "integer",
               "format": "int32"
             }

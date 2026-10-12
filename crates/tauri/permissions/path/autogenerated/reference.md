@@ -5,6 +5,7 @@ Default permissions for the plugin, which enables all commands.
 #### This default permission set includes the following:
 
 - `allow-resolve-directory`
+- `allow-resolve-sidecar`
 - `allow-resolve`
 - `allow-normalize`
 - `allow-join`
@@ -226,6 +227,32 @@ Enables the resolve_directory command without any pre-configured scope.
 <td>
 
 Denies the resolve_directory command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:path:allow-resolve-sidecar`
+
+</td>
+<td>
+
+Enables the resolve_sidecar command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:path:deny-resolve-sidecar`
+
+</td>
+<td>
+
+Denies the resolve_sidecar command without any pre-configured scope.
 
 </td>
 </tr>

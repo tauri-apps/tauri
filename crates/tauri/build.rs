@@ -19,6 +19,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     "core:path",
     &[
       ("resolve_directory", true),
+      ("resolve_sidecar", true),
       ("resolve", true),
       ("normalize", true),
       ("join", true),

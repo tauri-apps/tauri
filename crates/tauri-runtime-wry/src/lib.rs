@@ -792,6 +792,15 @@ impl WindowBuilder for WindowBuilderWrapper {
       builder = builder.window_classname("Tauri Window");
     }
 
+    // generated and declared in AndroidManifest.xml by tauri; the launcher activity (`singleTask`) can only have
+    // one instance, so it only hosts the window it was started for
+    #[cfg(target_os = "android")]
+    {
+      builder.inner = builder
+        .inner
+        .with_default_activity_name("TauriWindowActivity".into());
+    }
+
     builder
   }
 
@@ -4763,7 +4772,6 @@ You may have it installed on another user account, but it is not available for t
 
   #[cfg(target_os = "android")]
   let embedded_activity = if embed {
-    use tao::platform::android::WindowExtAndroid;
     let activity_name = webview_attributes.activity_name.as_deref().ok_or_else(|| {
       Error::CreateWebview(
         format!(

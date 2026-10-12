@@ -3057,8 +3057,9 @@ interface WindowOptions {
    * its own entry in Recents, its own split-screen pane and its own desktop window. On phones it covers
    * the window that opened it, and the back button closes it.
    *
-   * Defaults to the launcher activity (`MainActivity`), which must allow an instance per task
-   * (`android:launchMode="singleInstancePerTask"` or `"standard"`).
+   * Defaults to `TauriWindowActivity`, which Tauri generates and declares in `AndroidManifest.xml`.
+   * A custom activity must extend `TauriActivity` and allow an instance in each task
+   * (`android:launchMode="standard"` or `"singleInstancePerTask"`).
    */
   activityName?: string
   /**

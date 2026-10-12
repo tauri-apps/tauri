@@ -516,7 +516,7 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// The name of the activity to create for this window, in a task of its own.
   ///
-  /// Defaults to the launcher activity.
+  /// Defaults to `TauriWindowActivity`, which Tauri generates and declares in `AndroidManifest.xml`.
   #[cfg(target_os = "android")]
   fn activity_name<S: Into<String>>(self, class_name: S) -> Self;
 

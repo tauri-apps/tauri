@@ -2362,8 +2362,9 @@ pub struct WindowConfig {
   ///
   /// Each window is an activity in a task of its own, which the system shows as a separate window:
   /// its own entry in Recents, its own split-screen pane and its own desktop window.
-  /// Defaults to the launcher activity (`MainActivity`), which must allow an instance per task
-  /// (`android:launchMode="singleInstancePerTask"` or `"standard"`).
+  /// Defaults to `TauriWindowActivity`, which Tauri generates and declares in `AndroidManifest.xml`.
+  /// A custom activity must extend `TauriActivity` and allow an instance in each task
+  /// (`android:launchMode="standard"` or `"singleInstancePerTask"`).
   ///
   /// For a webview added to a window that already hosts one (multiwebview), this is the activity
   /// started in the window's task to host the webview, which activity embedding rules can show next to the window's own.

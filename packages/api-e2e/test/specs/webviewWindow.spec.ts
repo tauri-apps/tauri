@@ -70,8 +70,9 @@ describeApi('webviewWindow', () => {
 
   // Each window is an activity in a task of its own (a separate window in
   // Recents, split screen and desktop windowing), by default a new instance of
-  // the launcher activity. The new task comes to the foreground, but the
-  // session stays attached to the main window's page, which keeps running.
+  // the TauriWindowActivity that Tauri declares. The new task comes to the
+  // foreground, but the session stays attached to the main window's page, which
+  // keeps running.
   itOn(
     'android',
     'opens a window in a task of its own and removes the task on close',
@@ -110,7 +111,7 @@ describeApi('webviewWindow', () => {
         }
       })
       expect(window.labels).toContain('main-e2e-task')
-      expect(window.activity).toMatch(/MainActivity/)
+      expect(window.activity).toMatch(/TauriWindowActivity/)
 
       const opened = await eventually(async () => {
         const activities = await androidActivities()
@@ -121,9 +122,9 @@ describeApi('webviewWindow', () => {
         }
         return activities
       })
-      expect(opened.every((a) => a.activity === '.MainActivity')).toBe(true)
-      expect(new Set(opened.map((a) => a.task)).size).toBe(2)
-      expect(opened.map((a) => a.task)).toContain(main.task)
+      expect(opened).toContainEqual(main)
+      const newWindow = opened.find((a) => a.task !== main.task)
+      expect(newWindow?.activity).toBe('.TauriWindowActivity')
 
       await tauri(async (api) => {
         const w =

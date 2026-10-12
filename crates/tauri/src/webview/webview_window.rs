@@ -1529,9 +1529,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// its own entry in Recents, its own split-screen pane and its own desktop window. On phones it covers
   /// the window that opened it, and the back button closes it.
   ///
-  /// Defaults to the launcher activity (`MainActivity`), which must allow an instance per task
-  /// (`android:launchMode="singleInstancePerTask"` or `"standard"`).
-  /// The activity must extend `TauriActivity` and be declared in `AndroidManifest.xml`.
+  /// Defaults to `TauriWindowActivity`, which Tauri generates and declares in `AndroidManifest.xml`.
+  /// A custom activity must extend `TauriActivity` and be declared in `AndroidManifest.xml` with a launch mode
+  /// that allows an instance in each task (`standard` or `singleInstancePerTask`).
   pub fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
     self.window_builder = self.window_builder.activity_name(class_name);
     self

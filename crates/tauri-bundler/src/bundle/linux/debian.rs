@@ -43,6 +43,9 @@ use std::{
   path::{Path, PathBuf},
 };
 
+/// The compression used when none is configured.
+const DEFAULT_COMPRESSION: DebCompression = DebCompression::Gzip { level: 6 };
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -97,15 +100,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   create_file_with_data(&debian_binary_path, "2.0\n")
     .context("Failed to create debian-binary file")?;
 
-  let compression = settings
-    .deb()
-    .compression
-    .unwrap_or(DebCompression::Gzip { level: Some(6) });
+  let compression = settings.deb().compression.unwrap_or(DEFAULT_COMPRESSION);
 
   // Apply tar/compression/ar to create the final package file.
-  let control_tar_path = tar_and_compress_dir(control_dir, &compression)
+  let control_tar_path = tar_and_compress_dir(control_dir, compression)
     .with_context(|| "Failed to tar/compress control directory")?;
-  let data_tar_path = tar_and_compress_dir(data_dir, &compression)
+  let data_tar_path = tar_and_compress_dir(data_dir, compression)
     .with_context(|| "Failed to tar/compress data directory")?;
   create_archive(
     vec![debian_binary_path, control_tar_path, data_tar_path],
@@ -384,77 +384,53 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
   Ok(dest_file)
 }
 
-/// Creates a compressed or uncompressed tar archive from the given directory (placing the new file
-/// within the given directory's parent directory) using the specified compression algorithm,
+/// Creates a tar archive from the given directory (placing the new file within
+/// the given directory's parent directory), compressed with the given algorithm,
 /// and returns the path to the new file.
 fn tar_and_compress_dir<P: AsRef<Path>>(
   src_dir: P,
-  compression: &DebCompression,
+  compression: DebCompression,
 ) -> crate::Result<PathBuf> {
+  let mut level = compression.level().unwrap_or_default();
+
+  if let Some(min_level) = compression.min_level()
+    && let Some(max_level) = compression.max_level()
+  {
+    let clamped = level.clamp(min_level, max_level);
+    if clamped != level {
+      log::warn!(
+        "deb compression level {level} is outside the range {min_level}-{max_level} supported by this algorithm, clamping to {clamped}"
+      );
+      level = clamped;
+    }
+  }
+
   let src_dir = src_dir.as_ref();
-
-  let (ext, level) = match compression {
-    DebCompression::Gzip { level } => {
-      let level = level.or_else(|| compression.default_level()).unwrap_or(9);
-      if level > 9 {
-        log::warn!("Gzip compression level {level} exceeds maximum 9, clamping to 9");
-      }
-      ("tar.gz", level.min(9))
-    }
-    DebCompression::Xz { level } => {
-      let level = level.or_else(|| compression.default_level()).unwrap_or(9);
-      if level > 9 {
-        log::warn!("Xz compression level {level} exceeds maximum 9, clamping to 9");
-      }
-      ("tar.xz", level.min(9))
-    }
-    DebCompression::Zstd { level } => {
-      let level = level.unwrap_or(19);
-      ("tar.zst", level as u32)
-    }
-    DebCompression::Bzip2 { level } => {
-      let level = level.or_else(|| compression.default_level()).unwrap_or(9);
-      if level > 9 {
-        log::warn!("Bzip2 compression level {level} exceeds maximum 9, clamping to 9");
-      }
-      ("tar.bz2", level.min(9))
-    }
-    DebCompression::None => ("tar", 0),
-    _ => {
-      log::warn!("Unknown DEB compression variant, falling back to Gzip with level 6");
-      ("tar.gz", 6)
-    }
-  };
-
-  let dest_path = src_dir.with_extension(ext);
+  let dest_path = src_dir.with_extension(compression.ext());
   let dest_file = fs_utils::create_file(&dest_path)?;
 
   let mut dest_file = match compression {
-    DebCompression::Gzip { .. } => {
-      let gzip_encoder = GzEncoder::new(dest_file, Compression::new(level));
-      let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
-      gzip_encoder.finish()?
-    }
     DebCompression::Xz { .. } => {
-      let xz_encoder = xz2::write::XzEncoder::new(dest_file, level);
-      let xz_encoder = create_tar_from_dir(src_dir, xz_encoder)?;
-      xz_encoder.finish()?
+      let encoder = xz2::write::XzEncoder::new(dest_file, level);
+      let encoder = create_tar_from_dir(src_dir, encoder)?;
+      encoder.finish()?
     }
     DebCompression::Zstd { .. } => {
-      let zstd_encoder = zstd::stream::Encoder::new(dest_file, level as i32)?;
-      let zstd_encoder = create_tar_from_dir(src_dir, zstd_encoder)?;
-      zstd_encoder.finish()?
+      let encoder = zstd::stream::Encoder::new(dest_file, level as i32)?;
+      let encoder = create_tar_from_dir(src_dir, encoder)?;
+      encoder.finish()?
     }
     DebCompression::Bzip2 { .. } => {
-      let bz_encoder = bzip2::write::BzEncoder::new(dest_file, bzip2::Compression::new(level));
-      let bz_encoder = create_tar_from_dir(src_dir, bz_encoder)?;
-      bz_encoder.finish()?
+      let encoder = bzip2::write::BzEncoder::new(dest_file, bzip2::Compression::new(level));
+      let encoder = create_tar_from_dir(src_dir, encoder)?;
+      encoder.finish()?
     }
     DebCompression::None => create_tar_from_dir(src_dir, dest_file)?,
+    // gzip, which unknown algorithms also fall back to
     _ => {
-      let gzip_encoder = GzEncoder::new(dest_file, Compression::new(6));
-      let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
-      gzip_encoder.finish()?
+      let encoder = GzEncoder::new(dest_file, Compression::new(level));
+      let encoder = create_tar_from_dir(src_dir, encoder)?;
+      encoder.finish()?
     }
   };
 

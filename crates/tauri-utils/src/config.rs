@@ -339,33 +339,40 @@ pub struct AppImageConfig {
 pub enum DebCompression {
   /// Gzip compression
   Gzip {
-    /// Gzip compression level (0-9). Defaults to 9 if not specified.
-    #[serde(default)]
-    level: Option<u32>,
+    /// Gzip compression level (0-9).
+    level: u32,
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level. Defaults to 19 if not specified.
-    #[serde(default)]
-    level: Option<i32>,
+    /// Zstd compression level (1-22).
+    level: u32,
   },
   /// Xz compression
   Xz {
-    /// Xz compression level (0-9). Defaults to 9 if not specified.
-    #[serde(default)]
-    level: Option<u32>,
+    /// Xz compression level (0-9).
+    level: u32,
   },
   /// Bzip2 compression
   Bzip2 {
-    /// Bzip2 compression level (0-9). Defaults to 9 if not specified.
-    #[serde(default)]
-    level: Option<u32>,
+    /// Bzip2 compression level (1-9).
+    level: u32,
   },
   /// Disable compression
   None,
 }
 
 impl DebCompression {
+  /// The file extension of a tar archive compressed with this algorithm.
+  pub fn ext(&self) -> &'static str {
+    match self {
+      Self::None => "tar",
+      Self::Gzip { .. } => "tar.gz",
+      Self::Xz { .. } => "tar.xz",
+      Self::Zstd { .. } => "tar.zst",
+      Self::Bzip2 { .. } => "tar.bz2",
+    }
+  }
+
   /// The default compression level for this algorithm.
   pub fn default_level(&self) -> Option<u32> {
     match self {
@@ -374,6 +381,39 @@ impl DebCompression {
       Self::Xz { .. } => Some(9),
       Self::Zstd { .. } => Some(19),
       Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<u32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(1),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<u32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<u32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Zstd { level } | Self::Bzip2 { level } => {
+        Some(*level)
+      }
     }
   }
 }
@@ -459,22 +499,23 @@ pub struct LinuxConfig {
 pub enum RpmCompression {
   /// Gzip compression
   Gzip {
-    /// Gzip compression level
+    /// Gzip compression level (0-9).
     level: u32,
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level
+    /// Zstd compression level (1-22).
+    // TODO: change to u32 in v3 to match the other levels
     level: i32,
   },
   /// Xz compression
   Xz {
-    /// Xz compression level
+    /// Xz compression level (0-9).
     level: u32,
   },
   /// Bzip2 compression
   Bzip2 {
-    /// Bzip2 compression level
+    /// Bzip2 compression level (1-9).
     level: u32,
   },
   /// Disable compression
@@ -483,13 +524,45 @@ pub enum RpmCompression {
 
 impl RpmCompression {
   /// The default compression level for this algorithm.
-  pub fn default_level(&self) -> Option<u32> {
+  pub fn default_level(&self) -> Option<i32> {
     match self {
       Self::None => None,
       Self::Gzip { .. } => Some(9),
       Self::Xz { .. } => Some(9),
       Self::Zstd { .. } => Some(19),
       Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(1),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
     }
   }
 }

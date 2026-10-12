@@ -3543,6 +3543,7 @@
           "description": "Gzip compression",
           "type": "object",
           "required": [
+            "level",
             "type"
           ],
           "properties": {
@@ -3553,12 +3554,8 @@
               ]
             },
             "level": {
-              "description": "Gzip compression level (0-9). Defaults to 9 if not specified.",
-              "default": null,
-              "type": [
-                "integer",
-                "null"
-              ],
+              "description": "Gzip compression level (0-9).",
+              "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             }
@@ -3569,6 +3566,7 @@
           "description": "Zstd compression",
           "type": "object",
           "required": [
+            "level",
             "type"
           ],
           "properties": {
@@ -3579,13 +3577,10 @@
               ]
             },
             "level": {
-              "description": "Zstd compression level. Defaults to 19 if not specified.",
-              "default": null,
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "int32"
+              "description": "Zstd compression level (1-22).",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
           },
           "additionalProperties": false
@@ -3594,6 +3589,7 @@
           "description": "Xz compression",
           "type": "object",
           "required": [
+            "level",
             "type"
           ],
           "properties": {
@@ -3604,12 +3600,8 @@
               ]
             },
             "level": {
-              "description": "Xz compression level (0-9). Defaults to 9 if not specified.",
-              "default": null,
-              "type": [
-                "integer",
-                "null"
-              ],
+              "description": "Xz compression level (0-9).",
+              "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             }
@@ -3620,6 +3612,7 @@
           "description": "Bzip2 compression",
           "type": "object",
           "required": [
+            "level",
             "type"
           ],
           "properties": {
@@ -3630,12 +3623,8 @@
               ]
             },
             "level": {
-              "description": "Bzip2 compression level (0-9). Defaults to 9 if not specified.",
-              "default": null,
-              "type": [
-                "integer",
-                "null"
-              ],
+              "description": "Bzip2 compression level (1-9).",
+              "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             }
@@ -3801,7 +3790,7 @@
               ]
             },
             "level": {
-              "description": "Gzip compression level",
+              "description": "Gzip compression level (0-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -3824,7 +3813,7 @@
               ]
             },
             "level": {
-              "description": "Zstd compression level",
+              "description": "Zstd compression level (1-22).",
               "type": "integer",
               "format": "int32"
             }
@@ -3846,7 +3835,7 @@
               ]
             },
             "level": {
-              "description": "Xz compression level",
+              "description": "Xz compression level (0-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -3869,7 +3858,7 @@
               ]
             },
             "level": {
-              "description": "Bzip2 compression level",
+              "description": "Bzip2 compression level (1-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0

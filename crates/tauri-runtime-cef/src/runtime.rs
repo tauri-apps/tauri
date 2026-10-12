@@ -2675,7 +2675,11 @@ pub fn run_cef_helper_process() {
 
   // Declare the version the browser process passed, if any.
   let version = child_process_api_version(std::env::args_os()).unwrap_or(sys::CEF_API_VERSION_LAST);
-  let _ = cef::api_hash(version, 0);
+  // `cef_api_hash` returns NULL if the loaded libcef does not support the version, and
+  // the next CEF call would crash.
+  if cef::api_hash(version, 0).is_null() {
+    panic!("the loaded CEF library does not support CEF API version {version}",);
+  }
   let mut app = TauriCefHelperApp::new();
   let _ = cef::execute_process(
     Some(args.as_main_args()),
@@ -2971,7 +2975,12 @@ impl<T: UserEvent> CefRuntime<T> {
     let version = child_process_api_version(std::env::args_os())
       .or(api_version)
       .unwrap_or(sys::CEF_API_VERSION_LAST);
-    let _ = cef::api_hash(version, 0);
+    // `cef_api_hash` returns NULL if the loaded libcef does not support the version.
+    // Log the details and return the same error as for a missing runtime.
+    if cef::api_hash(version, 0).is_null() {
+      log::error!("the loaded CEF library does not support CEF API version {version}");
+      return Err(Error::WebviewRuntimeNotInstalled);
+    }
 
     // Handle CEF subprocesses (renderer/GPU/utility) before any browser-only
     // setup such as building the event loop, creating cache directories, or the

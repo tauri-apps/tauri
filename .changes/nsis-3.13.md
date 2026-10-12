@@ -1,7 +1,7 @@
 ---
-"tauri-cli": "minor:deps"
-"@tauri-apps/cli": "minor:deps"
-"tauri-bundler": "minor:deps"
+"tauri-cli": "patch:deps"
+"@tauri-apps/cli": "patch:deps"
+"tauri-bundler": "patch:deps"
 ---
 
 Updated NSIS to 3.13

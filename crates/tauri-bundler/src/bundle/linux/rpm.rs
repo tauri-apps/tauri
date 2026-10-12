@@ -32,11 +32,8 @@ fn to_rpm_version(version: &str) -> String {
   }
 }
 
-/// The compression used when none is configured.
-///
-/// This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
-// TODO: Default to Zstd in v3 to match rpm-rs new default in 0.16
-const DEFAULT_COMPRESSION: RpmCompression = RpmCompression::Gzip { level: 6 };
+/// The compression used when none is configured, which matches rpm's own default.
+const DEFAULT_COMPRESSION: RpmCompression = RpmCompression::Zstd { level: 19 };
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.

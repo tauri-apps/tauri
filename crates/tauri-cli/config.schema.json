@@ -3427,8 +3427,7 @@
             "level": {
               "description": "Zstd compression level (1-22).",
               "type": "integer",
-              "format": "uint32",
-              "minimum": 0
+              "format": "int32"
             },
             "type": {
               "type": "string",

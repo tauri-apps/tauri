@@ -295,7 +295,7 @@ pub enum DebCompression {
   /// Zstd compression
   Zstd {
     /// Zstd compression level (1-22).
-    level: u32,
+    level: i32,
   },
   /// Xz compression
   Xz {
@@ -324,7 +324,7 @@ impl DebCompression {
   }
 
   /// The default compression level for this algorithm.
-  pub fn default_level(&self) -> Option<u32> {
+  pub fn default_level(&self) -> Option<i32> {
     match self {
       Self::None => None,
       Self::Gzip { .. } => Some(9),
@@ -335,11 +335,12 @@ impl DebCompression {
   }
 
   /// The minimum compression level supported by this algorithm.
-  pub fn min_level(&self) -> Option<u32> {
+  pub fn min_level(&self) -> Option<i32> {
     match self {
       Self::None => None,
       Self::Gzip { .. } => Some(0),
       Self::Xz { .. } => Some(0),
+      // zstd also has negative levels for its fast modes, but `none` covers that use case
       Self::Zstd { .. } => Some(1),
       // bzip2 levels are block sizes, which start at 1
       Self::Bzip2 { .. } => Some(1),
@@ -347,7 +348,7 @@ impl DebCompression {
   }
 
   /// The maximum compression level supported by this algorithm.
-  pub fn max_level(&self) -> Option<u32> {
+  pub fn max_level(&self) -> Option<i32> {
     match self {
       Self::None => None,
       Self::Gzip { .. } => Some(9),
@@ -358,12 +359,11 @@ impl DebCompression {
   }
 
   /// The compression level configured for this algorithm.
-  pub fn level(&self) -> Option<u32> {
+  pub fn level(&self) -> Option<i32> {
     match self {
       Self::None => None,
-      Self::Gzip { level } | Self::Xz { level } | Self::Zstd { level } | Self::Bzip2 { level } => {
-        Some(*level)
-      }
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
     }
   }
 }
@@ -455,7 +455,6 @@ pub enum RpmCompression {
   /// Zstd compression
   Zstd {
     /// Zstd compression level (1-22).
-    // TODO: change to u32 in v3 to match the other levels
     level: i32,
   },
   /// Xz compression
@@ -490,6 +489,7 @@ impl RpmCompression {
       Self::None => None,
       Self::Gzip { .. } => Some(0),
       Self::Xz { .. } => Some(0),
+      // zstd also has negative levels for its fast modes, but `none` covers that use case
       Self::Zstd { .. } => Some(1),
       // bzip2 levels are block sizes, which start at 1
       Self::Bzip2 { .. } => Some(1),

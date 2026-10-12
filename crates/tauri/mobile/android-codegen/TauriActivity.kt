@@ -16,6 +16,9 @@ abstract class TauriActivity : WryActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    if (forwardedToWindow) {
+      return
+    }
     PluginManager.onCreate(this)
   }
 
@@ -50,6 +53,9 @@ abstract class TauriActivity : WryActivity() {
 
   override fun onDestroy() {
     super.onDestroy()
+    if (forwardedToWindow) {
+      return
+    }
     PluginManager.onDestroy(this)
   }
 

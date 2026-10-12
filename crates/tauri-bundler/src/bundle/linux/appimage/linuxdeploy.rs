@@ -46,7 +46,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs::remove_dir_all(&output_path)?;
   }
 
-  let tools_path = tools_directory(settings, &output_path);
+  let tools_path = tools_directory(settings.local_tools_directory(), settings.project_out_directory());
 
   fs::create_dir_all(&tools_path)?;
 

@@ -35,6 +35,9 @@ pub use {
   windows::vswhere_path,
 };
 
+#[cfg(target_os = "linux")]
+pub use linux::{gst_plugin, tools_directory};
+
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {

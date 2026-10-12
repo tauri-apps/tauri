@@ -6,7 +6,6 @@
 
 use super::tools_directory;
 use crate::{
-  bundle::settings::Arch,
   error::{Context, ErrorExt},
   utils::http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
   Settings,
@@ -53,19 +52,31 @@ pub const APPIMAGE_PLUGIN_DIR: &str = "usr/lib/gstreamer-1.0";
 /// The download and the cached copy are both checked against the pinned hash,
 /// a mismatching cached copy is downloaded again.
 pub fn download(settings: &Settings) -> crate::Result<Option<PathBuf>> {
-  let (arch, hash) = match settings.binary_arch() {
-    Arch::X86_64 => ("x86_64", PLUGIN_SHA256_X86_64),
-    Arch::AArch64 => ("aarch64", PLUGIN_SHA256_AARCH64),
-    target => {
-      log::warn!(
-        "no prebuilt asset GStreamer plugin for {target:?}, audio and video over `asset://` will not work"
-      );
-      return Ok(None);
-    }
+  download_for_target(
+    settings.target(),
+    &tools_directory(
+      settings.local_tools_directory(),
+      settings.project_out_directory(),
+    ),
+  )
+}
+
+/// Downloads the prebuilt plugin for the `target` triple, caching it in `tools_path`.
+///
+/// Same as [`download`] for callers that don't have bundler [`Settings`].
+pub fn download_for_target(target: &str, tools_path: &Path) -> crate::Result<Option<PathBuf>> {
+  let (arch, hash) = if target.starts_with("x86_64") {
+    ("x86_64", PLUGIN_SHA256_X86_64)
+  } else if target.starts_with("aarch64") {
+    ("aarch64", PLUGIN_SHA256_AARCH64)
+  } else {
+    log::warn!(
+      "no prebuilt asset GStreamer plugin for {target}, audio and video over `asset://` will not work"
+    );
+    return Ok(None);
   };
 
-  let tools_path = tools_directory(settings, settings.project_out_directory());
-  fs::create_dir_all(&tools_path)?;
+  fs::create_dir_all(tools_path)?;
 
   let file_name = format!("libgsttauriasset-{arch}.so");
   let cached = tools_path.join(&file_name);

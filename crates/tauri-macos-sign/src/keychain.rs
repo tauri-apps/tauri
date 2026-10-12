@@ -8,7 +8,7 @@ use std::{
   process::Command,
 };
 
-use crate::{assert_command, CommandExt, Error, Result};
+use crate::{CommandExt, Error, Result, assert_command};
 use rand::distr::{Alphanumeric, SampleString};
 
 mod identity;

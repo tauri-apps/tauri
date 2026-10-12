@@ -4,8 +4,8 @@
 
 use serde::de::DeserializeOwned;
 use tauri::{
-  plugin::{PluginApi, PluginHandle},
   AppHandle, Runtime,
+  plugin::{PluginApi, PluginHandle},
 };
 
 use crate::models::*;
@@ -37,5 +37,9 @@ impl<R: Runtime> Sample<R> {
       .0
       .run_mobile_plugin("ping", payload)
       .map_err(Into::into)
+  }
+
+  pub fn js_values(&self) -> crate::Result<serde_json::Value> {
+    self.0.run_mobile_plugin("jsValues", ()).map_err(Into::into)
   }
 }

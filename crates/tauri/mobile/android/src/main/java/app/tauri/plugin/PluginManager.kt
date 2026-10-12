@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsonorg.JsonOrgModule
 import com.fasterxml.jackson.databind.module.SimpleModule
 import java.lang.reflect.InvocationTargetException
 
@@ -60,6 +61,10 @@ object PluginManager {
     }, jsonMapper)
     jsonMapper
       .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
+      // Without it, the mapper's field visibility serializes an org.json value through
+      // its private fields: a `JSArray` as `{"values":[...]}` and a `JSObject` as
+      // `{"nameValuePairs":{...}}`.
+      .registerModule(JsonOrgModule())
   }
 
   fun onCreate(activity: AppCompatActivity) {

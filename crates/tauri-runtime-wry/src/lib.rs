@@ -240,6 +240,9 @@ pub struct Context<T: UserEvent> {
   plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
+  /// Whether a window took the activity the system started the app with.
+  #[cfg(target_os = "android")]
+  launch_activity_claimed: Arc<AtomicBool>,
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
   webview_runtime_installed: bool,
@@ -749,6 +752,8 @@ pub struct WindowBuilderWrapper {
   prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
+  #[cfg(target_os = "android")]
+  activity_name: Option<String>,
 }
 
 impl std::fmt::Debug for WindowBuilderWrapper {
@@ -792,15 +797,6 @@ impl WindowBuilder for WindowBuilderWrapper {
       builder = builder.window_classname("Tauri Window");
     }
 
-    // generated and declared in AndroidManifest.xml by tauri; the launcher activity (`singleTask`) can only have
-    // one instance, so it only hosts the window it was started for
-    #[cfg(target_os = "android")]
-    {
-      builder.inner = builder
-        .inner
-        .with_default_activity_name("TauriWindowActivity".into());
-    }
-
     builder
   }
 
@@ -836,9 +832,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
     #[cfg(target_os = "android")]
     {
-      if let Some(activity_name) = &config.activity_name {
-        window.inner = window.inner.with_activity_name(activity_name.clone());
-      }
+      window.activity_name.clone_from(&config.activity_name);
       if let Some(activity_name) = &config.created_by_activity_name {
         window.inner = window
           .inner
@@ -1245,7 +1239,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "android")]
   fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
-    self.inner = self.inner.with_activity_name(class_name.into());
+    self.activity_name = Some(class_name.into());
     self
   }
 
@@ -2796,6 +2790,8 @@ impl<T: UserEvent> Wry<T> {
       plugins: Default::default(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
+      #[cfg(target_os = "android")]
+      launch_activity_claimed: Default::default(),
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
       webview_runtime_installed: wry::webview_version().is_ok(),
@@ -4594,11 +4590,35 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   }
 
+  // the first window that does not set an activity takes the one the system started the app with (the launcher
+  // activity); the others start `TauriWindowActivity`, generated and declared in AndroidManifest.xml by tauri,
+  // since the launcher activity is usually `singleTask` and can only have one instance
+  #[cfg(target_os = "android")]
+  let claims_launch_activity = {
+    let claims_launch_activity = window_builder.activity_name.is_none()
+      && !context.launch_activity_claimed.load(Ordering::Relaxed);
+    if !claims_launch_activity {
+      let activity_name = window_builder
+        .activity_name
+        .take()
+        .unwrap_or_else(|| "TauriWindowActivity".into());
+      window_builder.inner = window_builder.inner.with_activity_name(activity_name);
+    }
+    claims_launch_activity
+  };
+
   let window = window_builder
     .inner
     .build(event_loop)
     .inspect_err(|e| log::error!("Error creating window: {e:?}"))
     .map_err(|_| Error::CreateWindow)?;
+
+  #[cfg(target_os = "android")]
+  if claims_launch_activity {
+    context
+      .launch_activity_claimed
+      .store(true, Ordering::Relaxed);
+  }
 
   // On macOS, `with_position` uses the content origin; the title bar is added
   // above it. `set_outer_position` is needed for precise window placement.

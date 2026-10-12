@@ -18,6 +18,11 @@
 
 - [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
 - [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+## [2.4.1]
+
+### Dependencies
+
+- [`fd319dd43`](https://www.github.com/tauri-apps/tauri/commit/fd319dd432e36748483ae93e6cdea1c44a66fe79) Update `base64` to 0.23.
 
 ## [2.4.0]
 

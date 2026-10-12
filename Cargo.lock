@@ -672,6 +672,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8695,9 +8701,9 @@ dependencies = [
 
 [[package]]
 name = "swift-rs"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e45c444e496845d3f2a351146bff59aae4975b2280238df1dfaa0c7d1846f38e"
+checksum = "cefd87076fd385308ee4aff597256c902f1fbb4d031de1558efc12f8ffefadd9"
 dependencies = [
  "base64 0.21.7",
  "serde",
@@ -8849,7 +8855,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.12.2"
+version = "2.12.3"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8910,7 +8916,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.7.1"
+version = "2.7.2"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -8932,7 +8938,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.10.1"
+version = "2.10.2"
 dependencies = [
  "anyhow",
  "ar",
@@ -8979,11 +8985,11 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.12.1"
+version = "2.12.2"
 dependencies = [
  "ar",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "cargo-mobile2",
  "clap",
  "clap_complete",
@@ -9073,9 +9079,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.7.1"
+version = "2.7.2"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "brotli",
  "ico",
  "json-patch",
@@ -9139,10 +9145,10 @@ dependencies = [
 
 [[package]]
 name = "tauri-macos-sign"
-version = "2.4.0"
+version = "2.4.1"
 dependencies = [
  "apple-codesign",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "dirs 7.0.0",
  "log",
@@ -9161,7 +9167,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.7.1"
+version = "2.7.2"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",

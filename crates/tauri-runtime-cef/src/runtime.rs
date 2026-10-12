@@ -2615,6 +2615,15 @@ wrap_with_args! {
 /// application spawns, including other CEF applications.
 ///
 /// Only appended when [`Cef::cef_api_version`] was called.
+///
+/// Only children launched through `on_before_child_process_launch` get it: the
+/// processes Chromium starts itself (renderer, GPU, utility and, on Linux, the
+/// zygote). A process CEF starts another way, such as the crashpad handler if crash
+/// reporting is enabled, falls back to `CEF_API_VERSION_LAST`.
+///
+/// On macOS, child processes run the `tauri-cef-helper` binary the bundler compiles
+/// (`crates/tauri-bundler/cef-helper/main.rs`), which parses this switch itself. Keep
+/// both in sync.
 pub(crate) const API_VERSION_SWITCH: &str = "tauri-cef-api-version";
 
 /// The CEF API version the browser process passed to this child process.
@@ -2954,7 +2963,9 @@ impl<T: UserEvent> CefRuntime<T> {
     // (e.g. `args.as_cmd_line()` below), otherwise the process crashes with no
     // diagnostics.
     //
-    // A child process that reaches this path uses the version the browser process
+    // Child processes normally never get here: `#[cef_entry_point]` sends them to
+    // `run_cef_helper_process` first. An app that does not use the macro runs its
+    // children through this path, and they use the version the browser process
     // passed.
     let api_version = runtime_args.runtime_init_attrs.api_version;
     let version = child_process_api_version(std::env::args_os())

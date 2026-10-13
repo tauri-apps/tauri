@@ -43,7 +43,7 @@ repository = "https://github.com/tauri-apps/tauri"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.92"
 
 [workspace.dependencies]
 tauri = { version = "2.12.3", path = "./crates/tauri", default-features = false }
@@ -83,6 +83,14 @@ opt-level = "s"
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
+
+webkit2gtk = { git = "https://github.com/tauri-apps/webkit2gtk-rs.git", branch = "bump-gir" }
+webkit2gtk-sys = { git = "https://github.com/tauri-apps/webkit2gtk-rs.git", branch = "bump-gir" }
+tao = { git = "https://github.com/tauri-apps/tao.git", branch = "gtk-0.19" }
+wry = { git = "https://github.com/tauri-apps/wry.git", branch = "gtk-0.19" }
+muda = { git = "https://github.com/tauri-apps/muda.git", branch = "renovate/gtk-0.x" }
+tray-icon = { git = "https://github.com/tauri-apps/tray-icon.git", branch = "gtk-0.19" }
+libappindicator = { git = "https://github.com/tauri-apps/libappindicator-rs.git", branch = "gtk-0.19" }
 
 [workspace.lints.clippy]
 # TODO: Update in next PR to keep changes small, see https://github.com/tauri-apps/tauri/pull/16029

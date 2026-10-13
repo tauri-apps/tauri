@@ -2678,7 +2678,7 @@ pub fn run_cef_helper_process() {
   // `cef_api_hash` returns NULL if the loaded libcef does not support the version, and
   // the next CEF call would crash.
   if cef::api_hash(version, 0).is_null() {
-    panic!("the loaded CEF library does not support CEF API version {version}",);
+    panic!("the loaded CEF library does not support CEF API version {version}");
   }
   let mut app = TauriCefHelperApp::new();
   let _ = cef::execute_process(

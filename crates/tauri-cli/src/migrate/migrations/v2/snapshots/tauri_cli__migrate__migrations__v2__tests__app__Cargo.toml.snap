@@ -13,12 +13,12 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "3.0.0-alpha.2", features = [] }
+tauri-build = { version = "[version]", features = [] }
 
 [dependencies]
 # the core crate
-tauri = { version = "3.0.0-alpha.3", features = ["tray-icon", "tracing"] }
-tauri-runtime-wry = { version = "3.0.0-alpha.3", features = ["devtools", "tracing"] }
+tauri = { version = "[version]", features = ["tray-icon", "tracing"] }
+tauri-runtime-wry = { version = "[version]", features = ["devtools", "tracing"] }
 tauri-plugin-opener = "3.0.0-alpha"
 tauri-plugin-log = { version = "3.0.0-alpha", features = ["colored"] }
 tauri-plugin-community = "0.3" # not an official plugin
@@ -31,7 +31,7 @@ tauri-plugin-updater = { version = "3.0.0-alpha" }
 tauri-plugin-window-state = "3.0.0-alpha"
 
 [dev-dependencies]
-tauri = { version = "3.0.0-alpha.3", features = ["test"] }
+tauri = { version = "[version]", features = ["test"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

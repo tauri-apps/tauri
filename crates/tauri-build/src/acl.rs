@@ -389,19 +389,15 @@ fn validate_capabilities(
           }
         }
 
-        match suggest_identifier(permission_id.get(), &available_permissions) {
-          Some(suggestion) => anyhow::bail!(
-            "Permission {} not found, expected one of {} (did you mean \"{}\"?)",
-            permission_id.get(),
-            available_permissions.join(", "),
-            suggestion
-          ),
-          None => anyhow::bail!(
-            "Permission {} not found, expected one of {}",
-            permission_id.get(),
-            available_permissions.join(", ")
-          ),
-        }
+        let hint = suggest_identifier(permission_id.get(), &available_permissions)
+          .map(|suggestion| format!(" (did you mean \"{suggestion}\"?)"))
+          .unwrap_or_default();
+
+        anyhow::bail!(
+          "Permission {} not found{hint}, expected one of {}",
+          permission_id.get(),
+          available_permissions.join(", ")
+        );
       }
     }
   }

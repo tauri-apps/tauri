@@ -8947,6 +8947,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "static_vcruntime",
+ "strsim",
  "tauri-codegen",
  "tauri-utils",
  "tauri-winres",

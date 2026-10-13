@@ -389,11 +389,19 @@ fn validate_capabilities(
           }
         }
 
-        anyhow::bail!(
-          "Permission {} not found, expected one of {}",
-          permission_id.get(),
-          available_permissions.join(", ")
-        );
+        match suggest_identifier(permission_id.get(), &available_permissions) {
+          Some(suggestion) => anyhow::bail!(
+            "Permission {} not found, expected one of {} (did you mean \"{}\"?)",
+            permission_id.get(),
+            available_permissions.join(", "),
+            suggestion
+          ),
+          None => anyhow::bail!(
+            "Permission {} not found, expected one of {}",
+            permission_id.get(),
+            available_permissions.join(", ")
+          ),
+        }
       }
     }
   }
@@ -476,4 +484,101 @@ pub fn build(
   )?;
 
   Ok(())
+}
+
+/// Minimum [`strsim::jaro_winkler`] similarity for a candidate to be suggested as a
+/// "did you mean" hint.
+///
+/// Matches the threshold used by the application-category parser in `tauri-bundler`,
+/// so the two suggestion surfaces behave consistently.
+const SUGGESTION_CONFIDENCE_THRESHOLD: f64 = 0.8;
+
+/// Returns the identifier from `candidates` that most closely resembles `input`, if any
+/// is similar enough to be worth suggesting.
+///
+/// Used to turn a rejected permission identifier into an actionable build error. Returns
+/// `None` when no candidate clears [`SUGGESTION_CONFIDENCE_THRESHOLD`], so unrelated typos
+/// do not get a misleading hint.
+fn suggest_identifier(input: &str, candidates: &[String]) -> Option<String> {
+  let mut best_confidence = 0.0;
+  let mut best_match: Option<&String> = None;
+
+  for candidate in candidates {
+    if candidate == input {
+      continue;
+    }
+    let confidence = strsim::jaro_winkler(input, candidate);
+    if confidence >= SUGGESTION_CONFIDENCE_THRESHOLD && confidence > best_confidence {
+      best_confidence = confidence;
+      best_match = Some(candidate);
+    }
+  }
+
+  best_match.cloned()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::suggest_identifier;
+
+  fn candidates() -> Vec<String> {
+    [
+      "fs:allow-read-text-file",
+      "fs:allow-write-text-file",
+      "fs:default",
+      "core:default",
+      "core:event:allow-listen",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect()
+  }
+
+  #[test]
+  fn suggests_on_missing_trailing_character() {
+    assert_eq!(
+      suggest_identifier("fs:allow-read-text-fil", &candidates()).as_deref(),
+      Some("fs:allow-read-text-file")
+    );
+  }
+
+  #[test]
+  fn suggests_nearest_candidate_for_prefix_typo() {
+    assert_eq!(
+      suggest_identifier("fs:allow-read", &candidates()).as_deref(),
+      Some("fs:allow-read-text-file")
+    );
+  }
+
+  #[test]
+  fn picks_the_closest_candidate() {
+    let candidates: Vec<String> = ["core:event:allow-listen", "core:event:allow-unlisten"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(
+      suggest_identifier("core:event:allow-listenx", &candidates).as_deref(),
+      Some("core:event:allow-listen")
+    );
+  }
+
+  #[test]
+  fn no_suggestion_for_totally_different_identifier() {
+    assert_eq!(suggest_identifier("totally-unrelated", &candidates()), None);
+    assert_eq!(suggest_identifier("", &candidates()), None);
+  }
+
+  #[test]
+  fn no_suggestion_without_candidates() {
+    assert_eq!(suggest_identifier("fs:allow-read", &[]), None);
+  }
+
+  #[test]
+  fn exact_match_is_never_suggested() {
+    assert_eq!(
+      suggest_identifier("fs:default", &candidates()),
+      None,
+      "an exact match is not a misspelling, so nothing should be suggested"
+    );
+  }
 }

@@ -36,8 +36,9 @@ async fn get_response(
   window_origin: &str,
 ) -> Result<Response<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   // skip leading `/`
+  let path = request.uri().path().as_bytes();
   let path =
-    percent_encoding::percent_decode(&request.uri().path().as_bytes()[1..]).decode_utf8_lossy();
+    percent_encoding::percent_decode(path.strip_prefix(b"/").unwrap_or(path)).decode_utf8_lossy();
 
   let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
 
@@ -305,5 +306,25 @@ mod tests {
         .body()
         .ends_with(format!("\r\n--{boundary}--\r\n").as_bytes())
     );
+  }
+
+  #[test]
+  fn empty_path_request() {
+    let app = crate::test::mock_app();
+
+    let scope = Scope::new(&app, &FsScope::default()).unwrap();
+
+    // `asset:foo` parses as authority-form, so its path is empty;
+    // this used to panic when stripping the leading `/`
+    let uri = http::Uri::from_static("asset:foo");
+    assert_eq!(uri.path(), "");
+
+    let request = Request::builder().uri(uri).body(Vec::new()).unwrap();
+
+    let response =
+      crate::async_runtime::block_on(get_response(request, &scope, "http://tauri.localhost"))
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
   }
 }

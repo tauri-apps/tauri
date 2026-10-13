@@ -331,6 +331,94 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+const ZSTD_MIN_CLEVEL: i32 = -1 << 17;
+
+/// Compression algorithms used when bundling DEB packages.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "type")]
+#[non_exhaustive]
+pub enum DebCompression {
+  /// Gzip compression
+  Gzip {
+    /// Gzip compression level (0-9).
+    level: u32,
+  },
+  /// Zstd compression
+  Zstd {
+    /// Zstd compression level (-131072 - 22).
+    level: i32,
+  },
+  /// Xz compression
+  Xz {
+    /// Xz compression level (0-9).
+    level: u32,
+  },
+  /// Bzip2 compression
+  Bzip2 {
+    /// Bzip2 compression level (1-9).
+    level: u32,
+  },
+  /// Disable compression
+  None,
+}
+
+impl DebCompression {
+  /// The file extension of a tar archive compressed with this algorithm.
+  pub fn ext(&self) -> &'static str {
+    match self {
+      Self::None => "tar",
+      Self::Gzip { .. } => "tar.gz",
+      Self::Xz { .. } => "tar.xz",
+      Self::Zstd { .. } => "tar.zst",
+      Self::Bzip2 { .. } => "tar.bz2",
+    }
+  }
+
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
+}
+
 /// Configuration for Debian (.deb) bundles.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#debconfig>
@@ -381,6 +469,8 @@ pub struct DebConfig {
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// Configuration for Linux bundles.
@@ -410,26 +500,71 @@ pub struct LinuxConfig {
 pub enum RpmCompression {
   /// Gzip compression
   Gzip {
-    /// Gzip compression level
+    /// Gzip compression level (0-9).
     level: u32,
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level
+    /// Zstd compression level (-131072 - 22).
     level: i32,
   },
   /// Xz compression
   Xz {
-    /// Xz compression level
+    /// Xz compression level (0-9).
     level: u32,
   },
   /// Bzip2 compression
   Bzip2 {
-    /// Bzip2 compression level
+    /// Bzip2 compression level (1-9).
     level: u32,
   },
   /// Disable compression
   None,
+}
+
+impl RpmCompression {
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
 }
 
 /// Configuration for RPM bundles.
@@ -1056,9 +1191,13 @@ pub struct WindowsConfig {
   /// The installation mode for the Webview2 runtime.
   #[serde(default, alias = "webview-install-mode")]
   pub webview_install_mode: WebviewInstallMode,
-  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  /// Whether an older version can be installed when a newer one is already installed.
   ///
-  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  /// For instance, if `1.2.1` is installed and this is set to `false`:
+  ///
+  /// - The MSI installer won't install version `1.2.0` or `1.1.5`.
+  /// - The NSIS installer won't install them over `1.2.1` in silent, passive or update mode.
+  ///   The interactive installer only lets the user install them after uninstalling `1.2.1` first.
   ///
   /// The default value of this flag is `true`.
   #[serde(default = "default_true", alias = "allow-downgrades")]
@@ -1956,7 +2095,7 @@ pub struct WindowConfig {
   ///
   /// ## Example:
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
@@ -3353,7 +3492,7 @@ pub struct AppConfig {
   ///
   /// and use it like this
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
@@ -3451,11 +3590,12 @@ pub struct AppConfig {
   /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
   /// before building the app:
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// use tauri::utils::config::AppDirectoriesOverride;
   ///
   /// fn main() {
-  ///   let mut context = tauri::generate_context!();
+  ///   // on an actual app, remove the string argument
+  ///   let mut context = tauri::generate_context!("../tauri/test/fixture/src-tauri/tauri.conf.json");
   ///
   ///   if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
   ///     context.config_mut().app.app_directories_override =

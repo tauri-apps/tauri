@@ -41,6 +41,11 @@ async function checkFile(file) {
     let contents = ``
     let i = 0
     for await (let line of rl) {
+      // accept temporary inlined apple-codesign code under MPL-2.0 license
+      if (line === appleCodesignLicense) {
+        return true;
+      }
+
       // ignore empty lines, allow shebang and bundler license
       if (
         line.length === 0
@@ -50,11 +55,6 @@ async function checkFile(file) {
         || line === denoLicense
       ) {
         continue
-      }
-
-      // accept temporary inlined apple-codesign code under MPL-2.0 license
-      if (line === appleCodesignLicense) {
-        return true;
       }
 
       // strip comment marker

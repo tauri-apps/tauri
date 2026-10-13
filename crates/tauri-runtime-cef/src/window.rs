@@ -1192,9 +1192,30 @@ impl<T: UserEvent> WinitCefApp<T> {
         #[cfg(windows)]
         appwindow.set_overlay_icon(_icon);
       }
-      WindowMessage::StartDragging => _ = window.drag_window(),
+      WindowMessage::StartDragging => {
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        appwindow.start_move_resize(None);
+        #[cfg(any(windows, target_os = "macos"))]
+        let _ = window.drag_window();
+      }
       WindowMessage::StartResizeDragging(direction) => {
-        let _ = window.drag_resize_window(tauri_resize_direction_to_winit(direction));
+        let direction = tauri_resize_direction_to_winit(direction);
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        appwindow.start_move_resize(Some(direction));
+        #[cfg(any(windows, target_os = "macos"))]
+        let _ = window.drag_resize_window(direction);
       }
       WindowMessage::SetSizeConstraints(constraints) => {
         // TODO: upstream individual width/height size constraints to winit.

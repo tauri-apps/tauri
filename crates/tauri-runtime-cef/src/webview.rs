@@ -513,10 +513,33 @@ pub(crate) struct AppWebview {
   /// stays available either way — the runtime's own startup rides on it.
   pub(crate) devtools_enabled: bool,
   pub(crate) listeners: WebviewEventListeners,
-  pub(crate) bounds_rate: Option<BoundsRate>,
+  pub(crate) bounds_rate: Arc<Mutex<Option<BoundsRate>>>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub(crate) native_layout: Option<Arc<crate::platform::linux::NativeChildLayout>>,
 }
 
 impl AppWebview {
+  fn attach_native_layout(&mut self, parent: &AppWindow) {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      self.native_layout = Some(parent.cef_host.track_child(self.xid(), self.bounds_rate.clone()));
+    }
+    #[cfg(any(windows, target_os = "macos"))]
+    let _ = parent;
+  }
+
   pub(crate) fn set_bounds(&mut self, parent_size: PhysicalSize<u32>, scale: f64, bounds: Rect) {
     let position = bounds.position.to_physical::<i32>(scale);
     let size = bounds.size.to_physical::<u32>(scale);
@@ -526,16 +549,18 @@ impl AppWebview {
     let w = size.width as i32;
     let h = size.height as i32;
 
-    if self.bounds_rate.is_some() {
+    let mut bounds_rate = self.bounds_rate.lock().unwrap();
+    if bounds_rate.is_some() {
       let win_w = parent_size.width.max(1) as f32;
       let win_h = parent_size.height.max(1) as f32;
-      self.bounds_rate = Some(BoundsRate {
+      *bounds_rate = Some(BoundsRate {
         x: x as f32 / win_w,
         y: y as f32 / win_h,
         width: w as f32 / win_w,
         height: h as f32 / win_h,
       });
     }
+    drop(bounds_rate);
 
     self.host.notify_move_or_resize_started();
     self.apply_physical_bounds(scale, x, y, w, h);
@@ -603,7 +628,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     let scale = appwindow.window.scale_factor();
     let app_wide_theme = *context.app_wide_theme.lock().unwrap();
     let theme = appwindow.resolved_theme(app_wide_theme);
-    let Some(child) = Self::build_browser_child(
+    let Some(mut child) = Self::build_browser_child(
       context,
       scheme_registry,
       appwindow.id,
@@ -628,6 +653,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     child.raise_to_top();
 
     *live_browsers += 1;
+    child.attach_native_layout(appwindow);
     appwindow.children.push(child);
     layout_app_window(appwindow);
     Ok(())
@@ -894,7 +920,15 @@ impl<T: UserEvent> WinitCefApp<T> {
             devtools_observer_registration,
             devtools_enabled,
             listeners: Default::default(),
-            bounds_rate,
+            bounds_rate: Arc::new(Mutex::new(bounds_rate)),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            native_layout: None,
           })
           .expect("failed to send initialized CEF browser");
       }
@@ -1036,10 +1070,11 @@ impl<T: UserEvent> WinitCefApp<T> {
           let scale = appwindow.window.scale_factor();
           let child = &mut appwindow.children[child_index];
           let bounds = child.bounds();
-          child.bounds_rate = compute_child_bounds_rate(bounds.as_ref(), true, parent_size, scale);
+          *child.bounds_rate.lock().unwrap() =
+            compute_child_bounds_rate(bounds.as_ref(), true, parent_size, scale);
         } else {
           let child = &mut appwindow.children[child_index];
-          child.bounds_rate = None;
+          *child.bounds_rate.lock().unwrap() = None;
         }
       }
       WebviewMessage::Reparent(target_window_id, tx) => {
@@ -1083,6 +1118,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           size: parent_size.into(),
         });
         child.reparent(target_appwindow);
+        child.attach_native_layout(target_appwindow);
         child.set_bounds(parent_size, target_appwindow.window.scale_factor(), bounds);
         // Re-parenting does not preserve z-order: a view docked back into a
         // window that already owns a full-window main webview must be put back
@@ -1969,7 +2005,7 @@ pub(crate) fn layout_app_window(appwindow: &AppWindow) {
   let win_h = parent_size.height as f32;
   let scale = appwindow.window.scale_factor();
   for child in &appwindow.children {
-    let Some(rate) = child.bounds_rate else {
+    let Some(rate) = *child.bounds_rate.lock().unwrap() else {
       continue;
     };
     let x = (rate.x * win_w).round() as i32;

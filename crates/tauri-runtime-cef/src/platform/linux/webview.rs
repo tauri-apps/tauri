@@ -54,7 +54,7 @@ impl AppWebview {
     })
   }
 
-  fn xid(&self) -> xlib::Window {
+  pub(crate) fn xid(&self) -> xlib::Window {
     let xid = self.host.window_handle();
     assert_ne!(xid, 0, "failed to get XID");
     xid as xlib::Window

@@ -74,6 +74,81 @@ pub(super) fn atom(xlib: &xlib::Xlib, display: *mut xlib::Display, name: &str) -
   unsafe { (xlib.XInternAtom)(display, cname.as_ptr(), 0) }
 }
 
+pub(super) fn start_move_resize(xid: c_ulong, direction: Option<winit::window::ResizeDirection>) {
+  let direction = match direction {
+    Some(winit::window::ResizeDirection::NorthWest) => 0,
+    Some(winit::window::ResizeDirection::North) => 1,
+    Some(winit::window::ResizeDirection::NorthEast) => 2,
+    Some(winit::window::ResizeDirection::East) => 3,
+    Some(winit::window::ResizeDirection::SouthEast) => 4,
+    Some(winit::window::ResizeDirection::South) => 5,
+    Some(winit::window::ResizeDirection::SouthWest) => 6,
+    Some(winit::window::ResizeDirection::West) => 7,
+    None => 8,
+  };
+
+  with_cef_display((), |xlib, display| unsafe {
+    let root = (xlib.XDefaultRootWindow)(display);
+    let mut root_return = 0;
+    let mut child_return = 0;
+    let mut root_x = 0;
+    let mut root_y = 0;
+    let mut window_x = 0;
+    let mut window_y = 0;
+    let mut mask = 0;
+    if (xlib.XQueryPointer)(
+      display,
+      root,
+      &mut root_return,
+      &mut child_return,
+      &mut root_x,
+      &mut root_y,
+      &mut window_x,
+      &mut window_y,
+      &mut mask,
+    ) == 0 {
+      return;
+    }
+    let button = if mask & xlib::Button1Mask != 0 {
+      1
+    } else if mask & xlib::Button2Mask != 0 {
+      2
+    } else if mask & xlib::Button3Mask != 0 {
+      3
+    } else {
+      return;
+    };
+
+    (xlib.XUngrabPointer)(display, CURRENT_TIME as _);
+    (xlib.XUngrabKeyboard)(display, CURRENT_TIME as _);
+
+    let mut event: xlib::XEvent = std::mem::zeroed();
+    event.client_message = xlib::XClientMessageEvent {
+      type_: CLIENT_MESSAGE,
+      serial: 0,
+      send_event: 1,
+      display,
+      window: xid,
+      message_type: atom(xlib, display, "_NET_WM_MOVERESIZE"),
+      format: 32,
+      data: xlib::ClientMessageData::from([
+        root_x as c_long,
+        root_y as c_long,
+        direction,
+        button,
+        1,
+      ]),
+    };
+    (xlib.XSendEvent)(
+      display,
+      root,
+      0,
+      SUBSTRUCTURE_REDIRECT_MASK | SUBSTRUCTURE_NOTIFY_MASK,
+      &mut event,
+    );
+  });
+}
+
 /// Ask the window manager to make `xid` the active window.
 ///
 /// The source indication is `2` ("pager"): EWMH tells window managers to treat

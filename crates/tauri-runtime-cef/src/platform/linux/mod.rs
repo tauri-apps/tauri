@@ -10,3 +10,4 @@ mod webview;
 mod window;
 
 pub(crate) use window::CefX11Host;
+pub(crate) use window::NativeChildLayout;

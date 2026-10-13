@@ -120,7 +120,7 @@ download-cef = "3"
 
 [dev-dependencies]
 serial_test = "3.5"
-insta = "1"
+insta = { version = "1", features = ["filters"] }
 pretty_assertions = "1"
 
 [target."cfg(windows)".dependencies.windows-sys]

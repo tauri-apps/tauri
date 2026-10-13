@@ -507,8 +507,23 @@ fn suggest_identifier(input: &str, candidates: &[String]) -> Option<String> {
     if candidate == input {
       continue;
     }
+
+    // Permission identifiers must belong to the same namespace.
+    let input_namespace = input.rsplit_once(':').map(|(namespace, _)| namespace);
+    let candidate_namespace = candidate.rsplit_once(':').map(|(namespace, _)| namespace);
+
+    if input_namespace != candidate_namespace {
+      continue;
+    }
+
     let confidence = strsim::jaro_winkler(input, candidate);
-    if confidence >= SUGGESTION_CONFIDENCE_THRESHOLD && confidence > best_confidence {
+    let edit_similarity = strsim::normalized_levenshtein(input, candidate);
+
+    // Jaro-Winkler alone overvalues shared prefixes.
+    if confidence >= SUGGESTION_CONFIDENCE_THRESHOLD
+      && edit_similarity >= SUGGESTION_CONFIDENCE_THRESHOLD
+      && confidence > best_confidence
+    {
       best_confidence = confidence;
       best_match = Some(candidate);
     }
@@ -543,9 +558,9 @@ mod tests {
   }
 
   #[test]
-  fn suggests_nearest_candidate_for_prefix_typo() {
+  fn suggests_nearest_candidate_for_typo() {
     assert_eq!(
-      suggest_identifier("fs:allow-read", &candidates()).as_deref(),
+      suggest_identifier("fs:allow-read-text-fiel", &candidates()).as_deref(),
       Some("fs:allow-read-text-file")
     );
   }
@@ -566,6 +581,20 @@ mod tests {
   fn no_suggestion_for_totally_different_identifier() {
     assert_eq!(suggest_identifier("totally-unrelated", &candidates()), None);
     assert_eq!(suggest_identifier("", &candidates()), None);
+  }
+
+  #[test]
+  fn no_suggestion_for_incomplete_permission() {
+    assert_eq!(suggest_identifier("fs:allow", &candidates()), None);
+    assert_eq!(suggest_identifier("fs:allow-foo", &candidates()), None);
+  }
+
+  #[test]
+  fn no_suggestion_for_different_namespace() {
+    assert_eq!(
+      suggest_identifier("xx:allow-read-text-file", &candidates()),
+      None
+    );
   }
 
   #[test]

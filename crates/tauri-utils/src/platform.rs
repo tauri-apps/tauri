@@ -254,6 +254,46 @@ fn is_cargo_output_directory(path: &std::path::Path) -> bool {
     .any(|dirname| &last_component.as_os_str() == dirname)
 }
 
+/// Checks if the given directory is a Cargo output directory, which means it's an executable in a development machine.
+///
+/// We check if the directory is inside a `target` folder which can be either `target/$profile` or `target/$triple/$profile`
+/// and see if there's a .cargo-lock file along the executable.
+/// This ensures the check is safer so it doesn't affect apps in production.
+#[cfg(not(target_os = "android"))]
+fn is_cargo_target_directory(dir: &std::path::Path) -> bool {
+  let mut parents = dir.components().rev().skip(1).take(2);
+  parents.any(|c| c.as_os_str() == "target") && is_cargo_output_directory(dir)
+}
+
+/// Computes the directory where the sidecars configured in `bundle > externalBin` are located.
+///
+/// The bundler places sidecars next to the main executable, so this is usually the directory of the current executable.
+/// When running tests from the Cargo output directory (`target/$profile/deps`), the sidecars are located in `target/$profile` instead.
+///
+/// # Security
+///
+/// See [`current_exe`] for possible security implications.
+pub fn external_bin_dir() -> std::io::Result<PathBuf> {
+  let exe = current_exe()?;
+  let exe_dir = exe.parent().ok_or_else(|| {
+    std::io::Error::new(
+      std::io::ErrorKind::NotFound,
+      "current executable has no parent directory",
+    )
+  })?;
+  Ok(external_bin_dir_from(exe_dir).to_path_buf())
+}
+
+fn external_bin_dir_from(exe_dir: &std::path::Path) -> &std::path::Path {
+  #[cfg(not(target_os = "android"))]
+  if exe_dir.ends_with("deps") {
+    if let Some(parent) = exe_dir.parent().filter(|p| is_cargo_target_directory(p)) {
+      return parent;
+    }
+  }
+  exe_dir
+}
+
 /// Computes the resource directory of the current environment.
 ///
 /// ## Platform-specific
@@ -292,20 +332,9 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
   env: &Env,
 ) -> crate::Result<PathBuf> {
   let exe_dir = exe.as_ref().parent().expect("failed to get exe directory");
-  let curr_dir = exe_dir.display().to_string();
 
-  let parts: Vec<&str> = curr_dir.split(std::path::MAIN_SEPARATOR).collect();
-  let len = parts.len();
-
-  // Check if running from the Cargo output directory, which means it's an executable in a development machine
-  // We check if the binary is inside a `target` folder which can be either `target/$profile` or `target/$triple/$profile`
-  // and see if there's a .cargo-lock file along the executable
-  // This ensures the check is safer so it doesn't affect apps in production
-  // Windows also includes the resources in the executable folder so we check that too
-  if cfg!(target_os = "windows")
-    || ((len >= 2 && parts[len - 2] == "target") || (len >= 3 && parts[len - 3] == "target"))
-      && is_cargo_output_directory(exe_dir)
-  {
+  // Windows also includes the resources in the executable folder
+  if cfg!(target_os = "windows") || is_cargo_target_directory(exe_dir) {
     return Ok(exe_dir.to_path_buf());
   }
 
@@ -438,5 +467,29 @@ mod tests {
     assert_eq!(resource_dir.unwrap(), PathBuf::from("/usr/lib/MyApp"));
     #[cfg(windows)]
     assert_eq!(resource_dir.unwrap(), path.parent().unwrap());
+  }
+
+  #[test]
+  #[cfg(not(target_os = "android"))]
+  fn resolve_external_bin_dir() {
+    use std::path::Path;
+
+    let dir = Path::new("/path/to/target/debug/deps");
+    assert_eq!(
+      super::external_bin_dir_from(dir),
+      Path::new("/path/to/target/debug")
+    );
+
+    let dir = Path::new("/path/to/target/aarch64-apple-darwin/release/deps");
+    assert_eq!(
+      super::external_bin_dir_from(dir),
+      Path::new("/path/to/target/aarch64-apple-darwin/release")
+    );
+
+    let dir = Path::new("/path/to/target/debug");
+    assert_eq!(super::external_bin_dir_from(dir), dir);
+
+    let dir = Path::new("/usr/lib/my-app/deps");
+    assert_eq!(super::external_bin_dir_from(dir), dir);
   }
 }

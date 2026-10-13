@@ -95,7 +95,7 @@ pub fn resolve_directory<R: Runtime>(
 }
 
 #[command(root = "crate")]
-pub fn resolve_sidecar<R: Runtime>(
+pub fn resolve_external_bin<R: Runtime>(
   _app: AppHandle<R>,
   resolver: State<'_, PathResolver<R>>,
   name: PathBuf,
@@ -230,7 +230,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     .invoke_handler(crate::generate_handler![
       #![plugin(path)]
       resolve_directory,
-      resolve_sidecar,
+      resolve_external_bin,
       resolve,
       normalize,
       join,

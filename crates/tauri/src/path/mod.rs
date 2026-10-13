@@ -337,22 +337,7 @@ impl<R: Runtime> PathResolver<R> {
   ///   });
   /// ```
   pub fn sidecar_path<P: AsRef<Path>>(&self, name: P) -> Result<PathBuf> {
-    let exe_path = tauri_utils::platform::current_exe()?;
-    let exe_dir = exe_path.parent().ok_or_else(|| {
-      std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "current executable has no parent directory",
-      )
-    })?;
-
-    // when running tests the executable is in the `deps` directory
-    let base_dir = if exe_dir.ends_with("deps") {
-      exe_dir.parent().unwrap_or(exe_dir)
-    } else {
-      exe_dir
-    };
-
-    let mut path = base_dir.join(name);
+    let mut path = tauri_utils::platform::external_bin_dir()?.join(name);
 
     #[cfg(windows)]
     if path.extension().is_none_or(|ext| ext != "exe") {

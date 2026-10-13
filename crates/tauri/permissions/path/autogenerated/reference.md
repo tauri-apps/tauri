@@ -5,7 +5,7 @@ Default permissions for the plugin, which enables all commands.
 #### This default permission set includes the following:
 
 - `allow-resolve-directory`
-- `allow-resolve-sidecar`
+- `allow-resolve-external-bin`
 - `allow-resolve`
 - `allow-normalize`
 - `allow-join`
@@ -234,12 +234,12 @@ Denies the resolve_directory command without any pre-configured scope.
 <tr>
 <td>
 
-`core:path:allow-resolve-sidecar`
+`core:path:allow-resolve-external-bin`
 
 </td>
 <td>
 
-Enables the resolve_sidecar command without any pre-configured scope.
+Enables the resolve_external_bin command without any pre-configured scope.
 
 </td>
 </tr>
@@ -247,12 +247,12 @@ Enables the resolve_sidecar command without any pre-configured scope.
 <tr>
 <td>
 
-`core:path:deny-resolve-sidecar`
+`core:path:deny-resolve-external-bin`
 
 </td>
 <td>
 
-Denies the resolve_sidecar command without any pre-configured scope.
+Denies the resolve_external_bin command without any pre-configured scope.
 
 </td>
 </tr>

@@ -581,8 +581,8 @@ async function resolveResource(resourcePath: string): Promise<string> {
  *
  * @example
  * ```typescript
- * import { resolveSidecar } from '@tauri-apps/api/path';
- * const sidecarPath = await resolveSidecar('my-sidecar');
+ * import { resolveExternalBin } from '@tauri-apps/api/path';
+ * const binPath = await resolveExternalBin('my-sidecar');
  * ```
  *
  * @param name The file name of the sidecar without the target triple suffix,
@@ -591,8 +591,8 @@ async function resolveResource(resourcePath: string): Promise<string> {
  *
  * @since 2.13.0
  */
-async function resolveSidecar(name: string): Promise<string> {
-  return invoke('plugin:path|resolve_sidecar', { name })
+async function resolveExternalBin(name: string): Promise<string> {
+  return invoke('plugin:path|resolve_external_bin', { name })
 }
 
 /**
@@ -865,7 +865,7 @@ export {
   publicDir,
   resourceDir,
   resolveResource,
-  resolveSidecar,
+  resolveExternalBin,
   runtimeDir,
   templateDir,
   videoDir,

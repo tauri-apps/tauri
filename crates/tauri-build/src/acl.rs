@@ -493,6 +493,58 @@ pub fn build(
 /// so the two suggestion surfaces behave consistently.
 const SUGGESTION_CONFIDENCE_THRESHOLD: f64 = 0.8;
 
+/// Returns whether two components match exactly or with one edit or adjacent transposition.
+fn components_match(input: &str, candidate: &str) -> bool {
+  if input == candidate {
+    return true;
+  }
+
+  let a: Vec<char> = input.chars().collect();
+  let b: Vec<char> = candidate.chars().collect();
+
+  if a.len().max(b.len()) < 4 || a.len().abs_diff(b.len()) > 1 {
+    return false;
+  }
+
+  let mut prev_prev = vec![0; b.len() + 1];
+  let mut prev: Vec<usize> = (0..=b.len()).collect();
+
+  for i in 1..=a.len() {
+    let mut curr = vec![0; b.len() + 1];
+    curr[0] = i;
+
+    for j in 1..=b.len() {
+      let cost = usize::from(a[i - 1] != b[j - 1]);
+      curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
+
+      if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+        curr[j] = curr[j].min(prev_prev[j - 2] + 1);
+      }
+    }
+
+    prev_prev = prev;
+    prev = curr;
+  }
+
+  prev[b.len()] <= 1
+}
+
+/// Checks the action components after the final namespace separator.
+fn identifier_components_match(input: &str, candidate: &str) -> bool {
+  let input_base = input.rsplit_once(':').map_or(input, |(_, base)| base);
+  let candidate_base = candidate
+    .rsplit_once(':')
+    .map_or(candidate, |(_, base)| base);
+  let input_parts: Vec<&str> = input_base.split('-').collect();
+  let candidate_parts: Vec<&str> = candidate_base.split('-').collect();
+
+  input_parts.len() == candidate_parts.len()
+    && input_parts
+      .iter()
+      .zip(candidate_parts.iter())
+      .all(|(a, b)| components_match(a, b))
+}
+
 /// Returns the identifier from `candidates` that most closely resembles `input`, if any
 /// is similar enough to be worth suggesting.
 ///
@@ -513,6 +565,10 @@ fn suggest_identifier(input: &str, candidates: &[String]) -> Option<String> {
     let candidate_namespace = candidate.rsplit_once(':').map(|(namespace, _)| namespace);
 
     if input_namespace != candidate_namespace {
+      continue;
+    }
+
+    if !identifier_components_match(input, candidate) {
       continue;
     }
 
@@ -575,6 +631,54 @@ mod tests {
       suggest_identifier("core:event:allow-listenx", &candidates).as_deref(),
       Some("core:event:allow-listen")
     );
+  }
+
+  #[test]
+  fn no_suggestion_for_read_write_mismatch() {
+    let c: Vec<String> = ["fs:allow-write-text-file"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("fs:allow-read-text-file", &c), None);
+  }
+
+  #[test]
+  fn no_suggestion_for_listen_unlisten_mismatch() {
+    let c: Vec<String> = ["core:event:allow-unlisten"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("core:event:allow-listen", &c), None);
+  }
+
+  #[test]
+  fn suggests_transposed_letters_in_action() {
+    let c: Vec<String> = ["core:event:allow-listen"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(
+      suggest_identifier("core:event:allow-lisetn", &c).as_deref(),
+      Some("core:event:allow-listen")
+    );
+  }
+
+  #[test]
+  fn no_suggestion_for_different_hyphenation() {
+    let c: Vec<String> = ["fs:allow-read-text-file"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("fs:allow-readtext-file", &c), None);
+  }
+
+  #[test]
+  fn short_action_components_must_match_exactly() {
+    let c: Vec<String> = ["core:window:allow-in"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("core:window:allow-on", &c), None);
   }
 
   #[test]

@@ -492,7 +492,7 @@ fn tar_and_compress_dir<P: AsRef<Path>>(
     let clamped = level.clamp(min_level, max_level);
     if clamped != level {
       log::warn!(
-        "deb compression level {level} is outside the range {min_level}-{max_level} supported by this algorithm, clamping to {clamped}"
+        "deb compression level {level} is outside the range {min_level} - {max_level} supported by this algorithm, clamping to {clamped}"
       );
       level = clamped;
     }
@@ -504,24 +504,24 @@ fn tar_and_compress_dir<P: AsRef<Path>>(
 
   let mut dest_file = match compression {
     DebCompression::Xz { .. } => {
-      let encoder = xz2::write::XzEncoder::new(dest_file, level);
+      let encoder = xz2::write::XzEncoder::new(dest_file, level as u32);
       let encoder = create_tar_from_dir(src_dir, encoder)?;
       encoder.finish()?
     }
     DebCompression::Zstd { .. } => {
-      let encoder = zstd::stream::Encoder::new(dest_file, level as i32)?;
+      let encoder = zstd::stream::Encoder::new(dest_file, level)?;
       let encoder = create_tar_from_dir(src_dir, encoder)?;
       encoder.finish()?
     }
     DebCompression::Bzip2 { .. } => {
-      let encoder = bzip2::write::BzEncoder::new(dest_file, bzip2::Compression::new(level));
+      let encoder = bzip2::write::BzEncoder::new(dest_file, bzip2::Compression::new(level as u32));
       let encoder = create_tar_from_dir(src_dir, encoder)?;
       encoder.finish()?
     }
     DebCompression::None => create_tar_from_dir(src_dir, dest_file)?,
     // gzip, which unknown algorithms also fall back to
     _ => {
-      let encoder = GzEncoder::new(dest_file, Compression::new(level));
+      let encoder = GzEncoder::new(dest_file, Compression::new(level as u32));
       let encoder = create_tar_from_dir(src_dir, encoder)?;
       encoder.finish()?
     }

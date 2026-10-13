@@ -48,9 +48,13 @@ async function checkFile(file) {
         || line.startsWith('// swift-tools-version:')
         || line === bundlerLicense
         || line === denoLicense
-        || line === appleCodesignLicense
       ) {
         continue
+      }
+
+      // accept temporary inlined apple-codesign code under MPL-2.0 license
+      if (line === appleCodesignLicense) {
+        return true;
       }
 
       // strip comment marker

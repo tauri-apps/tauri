@@ -23,10 +23,18 @@ plist = "1"
 rand = "0.10"
 dirs = "7"
 log = { version = "0.4.21", features = ["kv"] }
-apple-codesign = { version = "0.29", default-features = false }
+# apple-codesign = { version = "0.29", default-features = false }
 chrono = "0.4"
 p12 = "0.6"
 base64 = "0.23"
+
+# apple-codesign
+rsa = "0.9"
+rand08 = { package = "rand", version = "0.8" }
+hex = "0.4"
+bcder = "0.7"
+bytes = "1"
+pkcs8 = { version = "0.10.2", features = ["alloc", "std"] }
 
 [lints]
 workspace = true

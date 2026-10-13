@@ -15,6 +15,7 @@ const bundlerLicense =
   '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
 const denoLicense =
   '// Copyright 2018-2023 the Deno authors. All rights reserved. MIT license.'
+const appleCodesignLicense = `// Copyright 2018-2026 apple-codesign-rs developers <https://github.com/indygreg/apple-platform-rs>`
 
 const extensions = ['.rs', '.js', '.ts', '.yml', '.swift', '.kt']
 const ignore = [
@@ -47,6 +48,7 @@ async function checkFile(file) {
         || line.startsWith('// swift-tools-version:')
         || line === bundlerLicense
         || line === denoLicense
+        || line === appleCodesignLicense
       ) {
         continue
       }

@@ -1060,7 +1060,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::Unminimize => window.set_minimized(false),
       WindowMessage::Show => window.set_visible(true),
       WindowMessage::Hide => window.set_visible(false),
-      WindowMessage::SetDecorations(value) => window.set_decorations(value),
+      WindowMessage::SetDecorations(value) => {
+        window.set_decorations(value);
+        #[cfg(target_os = "macos")]
+        appwindow.apply_movability();
+      }
       WindowMessage::SetSize(size) => _ = window.request_surface_size(size),
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
       WindowMessage::SetFullscreen(value) => {

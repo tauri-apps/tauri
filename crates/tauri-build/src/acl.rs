@@ -495,38 +495,9 @@ const SUGGESTION_CONFIDENCE_THRESHOLD: f64 = 0.8;
 
 /// Returns whether two components match exactly or with one edit or adjacent transposition.
 fn components_match(input: &str, candidate: &str) -> bool {
-  if input == candidate {
-    return true;
-  }
-
-  let a: Vec<char> = input.chars().collect();
-  let b: Vec<char> = candidate.chars().collect();
-
-  if a.len().max(b.len()) < 4 || a.len().abs_diff(b.len()) > 1 {
-    return false;
-  }
-
-  let mut prev_prev = vec![0; b.len() + 1];
-  let mut prev: Vec<usize> = (0..=b.len()).collect();
-
-  for i in 1..=a.len() {
-    let mut curr = vec![0; b.len() + 1];
-    curr[0] = i;
-
-    for j in 1..=b.len() {
-      let cost = usize::from(a[i - 1] != b[j - 1]);
-      curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
-
-      if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
-        curr[j] = curr[j].min(prev_prev[j - 2] + 1);
-      }
-    }
-
-    prev_prev = prev;
-    prev = curr;
-  }
-
-  prev[b.len()] <= 1
+  input == candidate
+    || (input.chars().count().max(candidate.chars().count()) >= 4
+      && strsim::osa_distance(input, candidate) <= 1)
 }
 
 /// Checks the action components after the final namespace separator.

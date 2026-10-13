@@ -1,9 +1,12 @@
-// Copyright 2018-2026 apple-codesign-rs developers <https://github.com/indygreg/apple-platform-rs>
-// SPDX-License-Identifier: MPL-2.0
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// SPDX-License-Identifier: MPL-2.0
+//
+// Vendored from apple-codesign 0.29.0 <https://github.com/indygreg/apple-platform-rs>,
+// Copyright Gregory Szorc and contributors. Modified by the Tauri Programme
+// within The Commons Conservancy. See README.md in this directory.
 
 //! Functionality related to certificates.
 

@@ -15,8 +15,12 @@ const bundlerLicense =
   '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
 const denoLicense =
   '// Copyright 2018-2023 the Deno authors. All rights reserved. MIT license.'
-const appleCodesignLicense =
-  '// Copyright 2018-2026 apple-codesign-rs developers <https://github.com/indygreg/apple-platform-rs>'
+// files vendored from apple-codesign keep their original MPL-2.0 notice
+const mplLicense =
+  '// This Source Code Form is subject to the terms of the Mozilla Public'
+const mplVendored = [
+  path.join('crates', 'tauri-macos-sign', 'src', 'apple_codesign')
+]
 
 const extensions = ['.rs', '.js', '.ts', '.yml', '.swift', '.kt']
 const ignore = [
@@ -42,8 +46,8 @@ async function checkFile(file) {
     let contents = ``
     let i = 0
     for await (let line of rl) {
-      // accept temporary inlined apple-codesign code under MPL-2.0 license
-      if (line === appleCodesignLicense) {
+      // accept vendored apple-codesign code under the MPL-2.0 license
+      if (line === mplLicense && mplVendored.some((d) => file.includes(d))) {
         return false
       }
 

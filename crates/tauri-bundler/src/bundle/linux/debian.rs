@@ -7,12 +7,12 @@
 //
 // foobar_1.2.3_i386.deb   # Actually an ar archive
 //     debian-binary           # Specifies deb format version (2.0 in our case)
-//     control.tar.gz          # Contains files controlling the installation:
+//     control.tar.*           # Contains files controlling the installation:
 //         control                  # Basic package metadata
-//         md5sums                  # Checksums for files in data.tar.gz below
+//         md5sums                  # Checksums for files in data.tar.* below
 //         postinst                 # Post-installation script (optional)
 //         prerm                    # Pre-uninstallation script (optional)
-//     data.tar.gz             # Contains files to be installed:
+//     data.tar.*              # Contains files to be installed:
 //         usr/bin/foobar                            # Binary executable file
 //         usr/share/applications/foobar.desktop     # Desktop file (for apps)
 //         usr/share/icons/hicolor/...               # Icon files (for apps)
@@ -22,6 +22,8 @@
 // and then generate the desktop file and control file from the bundle
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
+
+use tauri_utils::config::DebCompression;
 
 use super::freedesktop;
 use crate::{
@@ -40,6 +42,9 @@ use std::{
   os::unix::fs::{MetadataExt, OpenOptionsExt},
   path::{Path, PathBuf},
 };
+
+/// The compression used when none is configured.
+const DEFAULT_COMPRESSION: DebCompression = DebCompression::Gzip { level: 6 };
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.
@@ -95,13 +100,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   create_file_with_data(&debian_binary_path, "2.0\n")
     .context("Failed to create debian-binary file")?;
 
-  // Apply tar/gzip/ar to create the final package file.
-  let control_tar_gz_path =
-    tar_and_gzip_dir(control_dir).with_context(|| "Failed to tar/gzip control directory")?;
-  let data_tar_gz_path =
-    tar_and_gzip_dir(data_dir).with_context(|| "Failed to tar/gzip data directory")?;
+  let compression = settings.deb().compression.unwrap_or(DEFAULT_COMPRESSION);
+
+  // Apply tar/compression/ar to create the final package file.
+  let control_tar_path = tar_and_compress_dir(control_dir, compression)
+    .with_context(|| "Failed to tar/compress control directory")?;
+  let data_tar_path = tar_and_compress_dir(data_dir, compression)
+    .with_context(|| "Failed to tar/compress data directory")?;
   create_archive(
-    vec![debian_binary_path, control_tar_gz_path, data_tar_gz_path],
+    vec![debian_binary_path, control_tar_path, data_tar_path],
     &package_path,
   )
   .with_context(|| "Failed to create package archive")?;
@@ -377,16 +384,56 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
   Ok(dest_file)
 }
 
-/// Creates a `.tar.gz` file from the given directory (placing the new file
-/// within the given directory's parent directory), then deletes the original
-/// directory and returns the path to the new file.
-fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
+/// Creates a tar archive from the given directory (placing the new file within
+/// the given directory's parent directory), compressed with the given algorithm,
+/// and returns the path to the new file.
+fn tar_and_compress_dir<P: AsRef<Path>>(
+  src_dir: P,
+  compression: DebCompression,
+) -> crate::Result<PathBuf> {
+  let mut level = compression.level().unwrap_or_default();
+
+  if let Some(min_level) = compression.min_level()
+    && let Some(max_level) = compression.max_level()
+  {
+    let clamped = level.clamp(min_level, max_level);
+    if clamped != level {
+      log::warn!(
+        "deb compression level {level} is outside the range {min_level} - {max_level} supported by this algorithm, clamping to {clamped}"
+      );
+      level = clamped;
+    }
+  }
+
   let src_dir = src_dir.as_ref();
-  let dest_path = src_dir.with_extension("tar.gz");
+  let dest_path = src_dir.with_extension(compression.ext());
   let dest_file = fs_utils::create_file(&dest_path)?;
-  let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
-  let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
-  let mut dest_file = gzip_encoder.finish()?;
+
+  let mut dest_file = match compression {
+    DebCompression::Xz { .. } => {
+      let encoder = xz2::write::XzEncoder::new(dest_file, level as u32);
+      let encoder = create_tar_from_dir(src_dir, encoder)?;
+      encoder.finish()?
+    }
+    DebCompression::Zstd { .. } => {
+      let encoder = zstd::stream::Encoder::new(dest_file, level)?;
+      let encoder = create_tar_from_dir(src_dir, encoder)?;
+      encoder.finish()?
+    }
+    DebCompression::Bzip2 { .. } => {
+      let encoder = bzip2::write::BzEncoder::new(dest_file, bzip2::Compression::new(level as u32));
+      let encoder = create_tar_from_dir(src_dir, encoder)?;
+      encoder.finish()?
+    }
+    DebCompression::None => create_tar_from_dir(src_dir, dest_file)?,
+    // gzip, which unknown algorithms also fall back to
+    _ => {
+      let encoder = GzEncoder::new(dest_file, Compression::new(level as u32));
+      let encoder = create_tar_from_dir(src_dir, encoder)?;
+      encoder.finish()?
+    }
+  };
+
   dest_file.flush()?;
   Ok(dest_path)
 }

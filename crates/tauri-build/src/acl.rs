@@ -513,6 +513,28 @@ fn base_components_match(input_parts: &[&str], candidate_base: &str) -> bool {
       .all(|(a, b)| components_match(a, b))
 }
 
+/// Checks whether a candidate namespace is acceptable for the rejected identifier's namespace.
+///
+/// The namespace must match exactly, unless no candidate uses it (an unknown plugin or a typo in
+/// its name), in which case each `:` separated component may contain a single typo.
+fn namespaces_match(
+  input_namespace: Option<&str>,
+  candidate_namespace: Option<&str>,
+  input_namespace_known: bool,
+) -> bool {
+  match (input_namespace, candidate_namespace) {
+    (input, candidate) if input == candidate => true,
+    (Some(input), Some(candidate)) if !input_namespace_known => {
+      input.split(':').count() == candidate.split(':').count()
+        && input
+          .split(':')
+          .zip(candidate.split(':'))
+          .all(|(a, b)| components_match(a, b))
+    }
+    _ => false,
+  }
+}
+
 /// Returns the identifier from `candidates` that most closely resembles `input`, if any
 /// is similar enough to be worth suggesting.
 ///
@@ -521,37 +543,53 @@ fn base_components_match(input_parts: &[&str], candidate_base: &str) -> bool {
 /// do not get a misleading hint.
 fn suggest_identifier(input: &str, candidates: &[String]) -> Option<String> {
   let (input_namespace, input_base) = split_identifier(input);
-  let input_parts: Vec<&str> = input_base.split('-').collect();
+  let input_namespace_known = candidates
+    .iter()
+    .any(|candidate| split_identifier(candidate).0 == input_namespace);
+
+  // Also try the input with the `allow-` prefix, which is easy to forget.
+  let mut queries = vec![(input.to_string(), input_base.to_string())];
+  if !input_base.starts_with("allow-") && !input_base.starts_with("deny-") {
+    let base = format!("allow-{input_base}");
+    let query = match input_namespace {
+      Some(namespace) => format!("{namespace}:{base}"),
+      None => base.clone(),
+    };
+    queries.push((query, base));
+  }
 
   let mut best_confidence = 0.0;
   let mut best_match: Option<&String> = None;
 
-  for candidate in candidates {
-    if candidate == input {
-      continue;
-    }
+  for (query, query_base) in &queries {
+    let query_parts: Vec<&str> = query_base.split('-').collect();
 
-    let (candidate_namespace, candidate_base) = split_identifier(candidate);
+    for candidate in candidates {
+      if candidate == input {
+        continue;
+      }
 
-    // Permission identifiers must belong to the same namespace.
-    if input_namespace != candidate_namespace {
-      continue;
-    }
+      let (candidate_namespace, candidate_base) = split_identifier(candidate);
 
-    if !base_components_match(&input_parts, candidate_base) {
-      continue;
-    }
+      if !namespaces_match(input_namespace, candidate_namespace, input_namespace_known) {
+        continue;
+      }
 
-    let confidence = strsim::jaro_winkler(input, candidate);
-    let edit_similarity = strsim::normalized_levenshtein(input, candidate);
+      if !base_components_match(&query_parts, candidate_base) {
+        continue;
+      }
 
-    // Jaro-Winkler alone overvalues shared prefixes.
-    if confidence >= SUGGESTION_CONFIDENCE_THRESHOLD
-      && edit_similarity >= SUGGESTION_CONFIDENCE_THRESHOLD
-      && confidence > best_confidence
-    {
-      best_confidence = confidence;
-      best_match = Some(candidate);
+      let confidence = strsim::jaro_winkler(query, candidate);
+      let edit_similarity = strsim::normalized_levenshtein(query, candidate);
+
+      // Jaro-Winkler alone overvalues shared prefixes.
+      if confidence >= SUGGESTION_CONFIDENCE_THRESHOLD
+        && edit_similarity >= SUGGESTION_CONFIDENCE_THRESHOLD
+        && confidence > best_confidence
+      {
+        best_confidence = confidence;
+        best_match = Some(candidate);
+      }
     }
   }
 
@@ -668,6 +706,55 @@ mod tests {
     assert_eq!(
       suggest_identifier("xx:allow-read-text-file", &candidates()),
       None
+    );
+  }
+
+  #[test]
+  fn suggests_for_namespace_typo() {
+    let c: Vec<String> = ["core:window:allow-set-title", "dialog:default"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(
+      suggest_identifier("core:windw:allow-set-title", &c).as_deref(),
+      Some("core:window:allow-set-title")
+    );
+    assert_eq!(
+      suggest_identifier("dialgo:default", &c).as_deref(),
+      Some("dialog:default")
+    );
+  }
+
+  #[test]
+  fn no_namespace_typo_suggestion_when_namespace_exists() {
+    let c: Vec<String> = ["core:window:allow-close", "core:webview:allow-print"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("core:window:allow-print", &c), None);
+  }
+
+  #[test]
+  fn suggests_missing_allow_prefix() {
+    let c: Vec<String> = [
+      "core:window:allow-set-title",
+      "core:window:deny-set-title",
+      "allow-echo",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    assert_eq!(
+      suggest_identifier("core:window:set-title", &c).as_deref(),
+      Some("core:window:allow-set-title")
+    );
+    assert_eq!(
+      suggest_identifier("core:window:set-titel", &c).as_deref(),
+      Some("core:window:allow-set-title")
+    );
+    assert_eq!(
+      suggest_identifier("echo", &c).as_deref(),
+      Some("allow-echo")
     );
   }
 

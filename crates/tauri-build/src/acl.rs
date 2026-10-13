@@ -496,19 +496,20 @@ fn components_match(input: &str, candidate: &str) -> bool {
       && strsim::osa_distance(input, candidate) <= 1)
 }
 
-/// Checks the action components after the final namespace separator.
-fn identifier_components_match(input: &str, candidate: &str) -> bool {
-  let input_base = input.rsplit_once(':').map_or(input, |(_, base)| base);
-  let candidate_base = candidate
-    .rsplit_once(':')
-    .map_or(candidate, |(_, base)| base);
-  let input_parts: Vec<&str> = input_base.split('-').collect();
-  let candidate_parts: Vec<&str> = candidate_base.split('-').collect();
+/// Splits an identifier into its namespace (everything before the last `:`) and its base.
+fn split_identifier(identifier: &str) -> (Option<&str>, &str) {
+  match identifier.rsplit_once(':') {
+    Some((namespace, base)) => (Some(namespace), base),
+    None => (None, identifier),
+  }
+}
 
-  input_parts.len() == candidate_parts.len()
+/// Checks the `-` separated components of two identifier bases.
+fn base_components_match(input_parts: &[&str], candidate_base: &str) -> bool {
+  candidate_base.split('-').count() == input_parts.len()
     && input_parts
       .iter()
-      .zip(candidate_parts.iter())
+      .zip(candidate_base.split('-'))
       .all(|(a, b)| components_match(a, b))
 }
 
@@ -519,6 +520,9 @@ fn identifier_components_match(input: &str, candidate: &str) -> bool {
 /// `None` when no candidate clears [`SUGGESTION_CONFIDENCE_THRESHOLD`], so unrelated typos
 /// do not get a misleading hint.
 fn suggest_identifier(input: &str, candidates: &[String]) -> Option<String> {
+  let (input_namespace, input_base) = split_identifier(input);
+  let input_parts: Vec<&str> = input_base.split('-').collect();
+
   let mut best_confidence = 0.0;
   let mut best_match: Option<&String> = None;
 
@@ -527,15 +531,14 @@ fn suggest_identifier(input: &str, candidates: &[String]) -> Option<String> {
       continue;
     }
 
-    // Permission identifiers must belong to the same namespace.
-    let input_namespace = input.rsplit_once(':').map(|(namespace, _)| namespace);
-    let candidate_namespace = candidate.rsplit_once(':').map(|(namespace, _)| namespace);
+    let (candidate_namespace, candidate_base) = split_identifier(candidate);
 
+    // Permission identifiers must belong to the same namespace.
     if input_namespace != candidate_namespace {
       continue;
     }
 
-    if !identifier_components_match(input, candidate) {
+    if !base_components_match(&input_parts, candidate_base) {
       continue;
     }
 

@@ -15,7 +15,8 @@ const bundlerLicense =
   '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
 const denoLicense =
   '// Copyright 2018-2023 the Deno authors. All rights reserved. MIT license.'
-const appleCodesignLicense = '// Copyright 2018-2026 apple-codesign-rs developers <https://github.com/indygreg/apple-platform-rs>'
+const appleCodesignLicense =
+  '// Copyright 2018-2026 apple-codesign-rs developers <https://github.com/indygreg/apple-platform-rs>'
 
 const extensions = ['.rs', '.js', '.ts', '.yml', '.swift', '.kt']
 const ignore = [
@@ -43,7 +44,7 @@ async function checkFile(file) {
     for await (let line of rl) {
       // accept temporary inlined apple-codesign code under MPL-2.0 license
       if (line === appleCodesignLicense) {
-        return false;
+        return false
       }
 
       // ignore empty lines, allow shebang and bundler license

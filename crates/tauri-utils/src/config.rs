@@ -363,7 +363,9 @@ impl DebCompression {
   pub fn level(&self) -> Option<i32> {
     match self {
       Self::None => None,
-      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => {
+        Some(i32::try_from(*level).unwrap_or(i32::MAX))
+      }
       Self::Zstd { level } => Some(*level),
     }
   }
@@ -511,7 +513,9 @@ impl RpmCompression {
   pub fn level(&self) -> Option<i32> {
     match self {
       Self::None => None,
-      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => {
+        Some(i32::try_from(*level).unwrap_or(i32::MAX))
+      }
       Self::Zstd { level } => Some(*level),
     }
   }

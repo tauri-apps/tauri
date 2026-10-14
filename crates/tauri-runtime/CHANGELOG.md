@@ -79,6 +79,12 @@
     - Runtime crates must implement `From<Self>` for `dynamic::DynRuntimeInitAttrs` so their attributes can be passed to the type-erased builder.
     - `Runtime::WindowOpener` and `window::WindowBuilderBase` now require `'static`, so they can be type-erased.
 
+## [2.12.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+
 ## [2.12.1]
 
 ### Bug Fixes

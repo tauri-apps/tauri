@@ -18,6 +18,17 @@
 
 - [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
 - [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
+## [2.4.2]
+
+### Bug Fixes
+
+- [`b9487627b`](https://www.github.com/tauri-apps/tauri/commit/b9487627b17f07c70db68d890a560112bdbf3505) ([#15844](https://www.github.com/tauri-apps/tauri/pull/15844)) Fixed importing a signing certificate failing with `MAC verification failed during PKCS12 import` for p12 files that use modern PBES2/AES encryption. The certificate format is now detected and passed to `security import` explicitly (PKCS#12 or a PEM bundle), and import failures explain the expected certificate format and password.
+
+### Dependencies
+
+- [`5a3cbfcdc`](https://www.github.com/tauri-apps/tauri/commit/5a3cbfcdcaad82185ce2cc9f4d246c78e144c78c) ([#16279](https://www.github.com/tauri-apps/tauri/pull/16279)) **Breaking Change:** Temporarily inlined the code we need from apple-codesign-rs until its next release to unblock important dependency updates. Technically this is a breaking change to the `CertificateProfile` enum re-export and the `Error::FailedToCreateSelfSignedCertificate` enum variant.
+
 ## [2.4.1]
 
 ### Dependencies

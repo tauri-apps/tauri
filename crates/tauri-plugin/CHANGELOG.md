@@ -49,6 +49,12 @@
 
 - Upgraded to `tauri-utils@3.0.0-alpha.0`
 
+## [2.7.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+
 ## [2.7.1]
 
 ### Bug Fixes

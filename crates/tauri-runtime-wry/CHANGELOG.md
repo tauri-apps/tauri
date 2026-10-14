@@ -99,6 +99,13 @@
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `Wry<T>` runtime type was renamed to `WryRuntime<T>` (defaulting to `tauri::EventLoopMessage`), and `Wry` is now the unit-like attributes type that selects the runtime, e.g. `tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default())`. `WryHandle::plugin` now takes `&self`.
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `WebviewAttribute` enum was replaced by the `WryWebviewAttributes` struct, with the `environment` (Windows), `related_view` (Linux) and `webview_configuration` (macOS) fields. The `AsWryWebviewAttributes` trait gives the `WebviewWindowBuilderWryExt` and `WebviewBuilderWryExt` extension traits access to it on both `WryRuntime` and `tauri::DynRuntime`.
 
+## [2.12.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-runtime@2.12.2`
+
 ## [2.12.1]
 
 ### Bug Fixes

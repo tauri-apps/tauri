@@ -32,3 +32,10 @@ auditConfig:
   ignoreGhsas:
     # braces, no fix available yet
     - GHSA-vfj7-8cjw-p6xm
+
+minimumReleaseAgeExclude:
+  - '@crabnebula/test-runner-backend-darwin-arm64@0.3.1'
+  - '@crabnebula/test-runner-backend-darwin-x64@0.3.1'
+  - '@crabnebula/test-runner-backend-linux-x64-gnu@0.3.1'
+  - '@crabnebula/test-runner-backend-win32-x64-msvc@0.3.1'
+  - '@crabnebula/test-runner-backend@0.3.1'

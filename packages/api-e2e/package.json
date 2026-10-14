@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@crabnebula/tauri-driver": "^2.0.9",
-    "@crabnebula/test-runner-backend": "^0.3.0",
+    "@crabnebula/test-runner-backend": "^0.3.1",
     "@tauri-apps/api": "../api/dist",
     "@types/node": "^22.10.0",
     "@wdio/appium-service": "^10.0.0",

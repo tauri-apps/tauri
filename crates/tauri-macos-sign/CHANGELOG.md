@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0-alpha.3]
+
+### What's Changed
+
+- [``](https://www.github.com/tauri-apps/tauri/commit/undefined) Ported changes from v2.
+
 ## [3.0.0-alpha.2]
 
 ### What's Changed

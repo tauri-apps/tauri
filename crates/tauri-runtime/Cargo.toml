@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "3.0.0-alpha.3"
+version = "3.0.0-alpha.4"
 description = "Runtime for Tauri applications"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true

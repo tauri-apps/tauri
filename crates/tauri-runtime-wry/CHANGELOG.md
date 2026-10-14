@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.4`
+- Upgraded to `tauri-runtime@3.0.0-alpha.4`
+- Upgraded to `tauri@3.0.0-alpha.5`
+
 ## [3.0.0-alpha.4]
 
 ### Dependencies

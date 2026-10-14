@@ -7,9 +7,12 @@ use std::os::raw::c_int;
 use std::sync::OnceLock;
 
 use cef::*;
+use tauri_runtime::{UserEvent, window::WindowId};
 
 use crate::ChromeCommandGroup;
 use crate::macros::wrap_with_args;
+use crate::runtime::{Message, RuntimeContext};
+use crate::window::WindowMessage;
 
 /// Commands that open a second browser window or drive a tab strip.
 ///
@@ -177,6 +180,15 @@ fn blocked_commands() -> &'static BlockedCommands {
   })
 }
 
+fn fullscreen_command() -> Option<c_int> {
+  static COMMAND: OnceLock<Option<c_int>> = OnceLock::new();
+  *COMMAND.get_or_init(|| {
+    command_ids(&[&[cef::resources::IDC_FULLSCREEN]])
+      .first()
+      .copied()
+  })
+}
+
 /// The numeric ids of `groups` in the running CEF build.
 ///
 /// A name this build does not know resolves to -1 and is dropped, so an IDC name
@@ -194,7 +206,9 @@ fn command_ids(groups: &[&[&CStr]]) -> Vec<c_int> {
 wrap_with_args! {
   wrap_command_handler => TauriCefCommandHandlerArgs;
 
-  pub struct TauriCefCommandHandler {
+  pub struct TauriCefCommandHandler<T: UserEvent> {
+    window_id: WindowId,
+    context: RuntimeContext<T>,
     devtools_enabled: bool,
     zoom_hotkeys_enabled: bool,
     allowed_chrome_commands: Vec<ChromeCommandGroup>,
@@ -217,8 +231,22 @@ wrap_with_args! {
       // The identity is bound by the frame observer, which the root client always
       // installs, so it is recorded on this browser's first frame notification,
       // long before an accelerator can reach it.
+      let popup = browser.as_deref().is_some_and(|browser| browser.is_popup() != 0);
       if !self.owns(browser) {
         return 0;
+      }
+
+      if Some(command_id) == fullscreen_command() {
+        // Popup clients retain the opener's window id despite owning a separate browser.
+        if popup {
+          return 0;
+        }
+        let _ = self.context.sender.send(Message::Window {
+          window_id: self.window_id,
+          message: WindowMessage::ToggleFullscreen,
+        });
+        self.context.wake_event_loop();
+        return 1;
       }
 
       if self.blocks(command_id) { 1 } else { 0 }
@@ -276,7 +304,7 @@ wrap_with_args! {
   }
 }
 
-impl TauriCefCommandHandler {
+impl<T: UserEvent> TauriCefCommandHandler<T> {
   /// Whether `browser` is the native browser this client's webview owns.
   ///
   /// CEF routes browsers this webview does not own through this very client — a
@@ -301,8 +329,8 @@ impl TauriCefCommandHandler {
   /// Whether this webview swallows `command_id`.
   ///
   /// Anything not named in the tables above runs unchanged: clipboard, find in
-  /// page, text selection, undo and redo, fullscreen and reload are all things an
-  /// app window legitimately uses. A group the webview named in
+  /// page, text selection, undo and redo and reload are all things an app window
+  /// legitimately uses. A group the webview named in
   /// `allowed_chrome_commands` is skipped entirely, so its commands run the way
   /// they would in a browser.
   fn blocks(&self, command_id: c_int) -> bool {

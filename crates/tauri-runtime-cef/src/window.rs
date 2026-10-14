@@ -390,6 +390,8 @@ pub(crate) enum WindowMessage {
   SetPosition(Position),
   SetFullscreen(bool),
   SetFullscreenOnMonitor(PhysicalPosition<f64>),
+  ToggleFullscreen,
+  ElementFullscreen(bool),
   /// Applies the fullscreen request held back during a transition, now that it ended. See
   /// [`AppWindow::request_fullscreen`].
   #[cfg(target_os = "macos")]
@@ -471,6 +473,7 @@ const PENDING_ACTIVATION_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub(crate) struct AppWindow {
   pub(crate) lifetime: NativeWindowToken,
+  pub(crate) fullscreen_for_element: bool,
   #[allow(unused)]
   pub(crate) id: WindowId,
   pub(crate) label: String,
@@ -736,6 +739,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       children: Vec::new(),
       listeners: Default::default(),
       native_drag_drop: None,
+      fullscreen_for_element: false,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -1063,10 +1067,33 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetSize(size) => _ = window.request_surface_size(size),
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
       WindowMessage::SetFullscreen(value) => {
+        appwindow.fullscreen_for_element = false;
         appwindow.request_fullscreen(value.then_some(FullscreenTarget::CurrentMonitor))
       }
       WindowMessage::SetFullscreenOnMonitor(position) => {
+        appwindow.fullscreen_for_element = false;
         appwindow.request_fullscreen(Some(FullscreenTarget::MonitorAt(position)))
+      }
+      WindowMessage::ToggleFullscreen => {
+        appwindow.fullscreen_for_element = false;
+        appwindow.request_fullscreen(
+          window
+            .fullscreen()
+            .is_none()
+            .then_some(FullscreenTarget::CurrentMonitor),
+        );
+      }
+      WindowMessage::ElementFullscreen(true) => {
+        if window.fullscreen().is_none() {
+          appwindow.fullscreen_for_element = true;
+          appwindow.request_fullscreen(Some(FullscreenTarget::CurrentMonitor));
+        }
+      }
+      WindowMessage::ElementFullscreen(false) => {
+        if appwindow.fullscreen_for_element {
+          appwindow.fullscreen_for_element = false;
+          appwindow.request_fullscreen(None);
+        }
       }
       #[cfg(target_os = "macos")]
       WindowMessage::ApplyPendingFullscreen => {

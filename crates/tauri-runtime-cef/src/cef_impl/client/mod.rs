@@ -224,6 +224,8 @@ wrap_with_args! {
 
     fn display_handler(&self) -> Option<DisplayHandler> {
       Some(TauriCefDisplayHandler::build(TauriCefDisplayHandlerArgs {
+        window_id: self.window_id,
+        context: self.context.clone(),
         document_title_changed_handler: self.handlers.document_title_changed_handler.clone(),
         frame_event_handler: self.handlers.frame_event_handler.clone(),
         console_message_handler: self.handlers.console_message_handler.clone(),
@@ -249,6 +251,8 @@ wrap_with_args! {
 
     fn command_handler(&self) -> Option<CommandHandler> {
       Some(TauriCefCommandHandler::build(TauriCefCommandHandlerArgs {
+        window_id: self.window_id,
+        context: self.context.clone(),
         devtools_enabled: self.devtools_enabled,
         zoom_hotkeys_enabled: self.zoom_hotkeys_enabled,
         allowed_chrome_commands: self.allowed_chrome_commands.clone(),

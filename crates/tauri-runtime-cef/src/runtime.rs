@@ -70,6 +70,12 @@ use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(windows)]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 
+/// Native events for application rendering and input forwarding, on the event-loop thread.
+/// `Destroyed` is delivered before the runtime releases the window, including on exit.
+pub type NativeWindowEventHandler = dyn Fn(&str, &dyn ActiveEventLoop, Arc<dyn winit::window::Window>, &WinitWindowEvent)
+  + Send
+  + Sync;
+
 /// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
 type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
 
@@ -492,6 +498,7 @@ pub struct Cef {
   sandbox: SandboxPolicy,
   downgrade: DowngradePolicy,
   settings_callback: Option<Box<SettingsCallback>>,
+  window_event_handler: Option<Arc<NativeWindowEventHandler>>,
 }
 
 impl fmt::Debug for Cef {
@@ -530,11 +537,30 @@ impl fmt::Debug for Cef {
       .field("sandbox", &self.sandbox)
       .field("downgrade", &self.downgrade)
       .field("settings_callback", &self.settings_callback.is_some())
+      .field("window_event_handler", &self.window_event_handler.is_some())
       .finish()
   }
 }
 
 impl Cef {
+  /// Observes native input, resize and redraw events without replacing Tauri's handling.
+  ///
+  /// Runs before Tauri handles the event. Offscreen embedders forward input, focus and IME
+  /// to CEF and present their own GPU surface here.
+  /// Release GPU resources and retained native window references on `Destroyed`.
+  /// Registering this callback does not enable OSR or forward input automatically.
+  #[must_use]
+  pub fn on_window_event<F>(mut self, handler: F) -> Self
+  where
+    F: Fn(&str, &dyn ActiveEventLoop, Arc<dyn winit::window::Window>, &WinitWindowEvent)
+      + Send
+      + Sync
+      + 'static,
+  {
+    self.window_event_handler = Some(Arc::new(handler));
+    self
+  }
+
   /// Sets a callback to customize the settings passed to [`cef::initialize`].
   ///
   /// If called more than once, only the last callback is used.
@@ -1228,6 +1254,7 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   /// Whether [`Cef::devtools`] lets this application open DevTools at all. Combined with
   /// the per-webview `WebviewAttributes::devtools`, which can only narrow it further.
   pub(crate) devtools_allowed: bool,
+  window_event_handler: Option<Arc<NativeWindowEventHandler>>,
 }
 
 /// Scoped access to the current winit callback state.
@@ -1428,6 +1455,26 @@ impl<T: UserEvent> RuntimeContext<T> {
 
   pub(crate) fn is_main_thread(&self) -> bool {
     std::thread::current().id() == self.main_thread_id
+  }
+
+  /// Waits for the result of a `CreateWindow` or `CreateWebview` message just sent.
+  ///
+  /// On the main thread outside a winit callback the message is queued, not handled
+  /// inline, and blocking on it would deadlock the loop that has to handle it. CEF calls
+  /// back from its external message pump that way: a new-window handler building a window
+  /// from `on_before_popup` would freeze the app. The creation then completes on the
+  /// loop's next pass and a failure is only logged (see `Message::CreateWindow`).
+  pub(crate) fn wait_for_creation(&self, result_rx: Receiver<Result<()>>) -> Result<()> {
+    if self.is_main_thread() {
+      return match result_rx.try_recv() {
+        Ok(result) => result,
+        Err(mpsc::TryRecvError::Empty) => Ok(()),
+        Err(mpsc::TryRecvError::Disconnected) => Err(Error::FailedToReceiveMessage),
+      };
+    }
+    result_rx
+      .recv()
+      .map_err(|_| Error::FailedToReceiveMessage)?
   }
 
   /// Run `f` on the main (event-loop) thread.
@@ -1796,6 +1843,10 @@ impl<T: UserEvent> WinitCefApp<T> {
             .position(|child| child.webview_id == webview_id)
             .map(|index| {
               let child = appwindow.children.remove(index);
+              if let Some(view) = &child.offscreen {
+                view.visible.store(false, Ordering::Relaxed);
+                view.request_redraw();
+              }
               (*id, child, appwindow.children.is_empty())
             })
         });
@@ -1868,7 +1919,10 @@ impl<T: UserEvent> WinitCefApp<T> {
           pending,
           after_window_creation,
         );
-        let _ = result_tx.send(result);
+        // The caller stopped waiting: see `RuntimeContext::wait_for_creation`.
+        if let Err(mpsc::SendError(Err(error))) = result_tx.send(result) {
+          log::error!("failed to create window: {error}");
+        }
       }
       Message::CreateWebview {
         window_id,
@@ -1876,7 +1930,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         pending,
         result_tx,
       } => {
-        let _ = result_tx.send(self.create_webview(window_id, webview_id, *pending));
+        let result = self.create_webview(window_id, webview_id, *pending);
+        if let Err(mpsc::SendError(Err(error))) = result_tx.send(result) {
+          log::error!("failed to create webview: {error}");
+        }
       }
       Message::Window { window_id, message } => {
         self.handle_window_message(event_loop, window_id, message)
@@ -2082,6 +2139,19 @@ impl<T: UserEvent> WinitCefApp<T> {
     let Some(appwindow) = self.state.windows.remove(&window_id) else {
       return;
     };
+    for child in &appwindow.children {
+      if let Some(view) = &child.offscreen {
+        view.visible.store(false, Ordering::Relaxed);
+      }
+    }
+    if let Some(handler) = self.context.window_event_handler.clone() {
+      handler(
+        &appwindow.label,
+        event_loop,
+        appwindow.window.clone(),
+        &WinitWindowEvent::Destroyed,
+      );
+    }
     self
       .state
       .winid_id_to_window_id_map
@@ -2280,6 +2350,18 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     let Some(window_id) = self.state.winid_id_to_window_id_map.get(&winit_id).copied() else {
       return;
     };
+    if !matches!(event, WinitWindowEvent::Destroyed)
+      && let (Some(handler), Some((label, window))) = (
+        self.context.window_event_handler.clone(),
+        self
+          .state
+          .windows
+          .get(&window_id)
+          .map(|window| (window.label.clone(), window.window.clone())),
+      )
+    {
+      handler(&label, event_loop, window, &event);
+    }
     let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
@@ -2303,6 +2385,12 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
           .surface_size()
           .unwrap_or_else(|_| appwindow.window.surface_size());
         webview::layout_app_window(appwindow);
+        // A windowed browser follows its native view to the new display; an
+        // offscreen one only re-reads `screen_info` when told to.
+        for child in appwindow.children.iter().filter(|c| c.offscreen.is_some()) {
+          child.host.notify_screen_info_changed();
+          child.host.was_resized();
+        }
         self.emit_window_event(
           window_id,
           WindowEvent::ScaleFactorChanged {
@@ -3031,6 +3119,7 @@ impl<T: UserEvent> CefRuntime<T> {
       sandbox: sandbox_policy,
       downgrade: downgrade_policy,
       settings_callback,
+      window_event_handler,
       // Already applied, above, before the first CEF call.
       api_version: _,
     } = runtime_args.runtime_init_attrs;
@@ -3279,6 +3368,7 @@ impl<T: UserEvent> CefRuntime<T> {
       crate::platform::macos::MainThreadWake::new(move || slot.deliver_wake(&proxy))
     };
     let context = RuntimeContext {
+      window_event_handler,
       sender: sender.clone(),
       #[cfg(not(target_os = "macos"))]
       proxy,

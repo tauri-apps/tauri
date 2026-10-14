@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "offscreen",
+  "description": "what the off-screen page drives through the Tauri API",
+  "windows": ["offscreen-*"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-size",
+    "core:webview:allow-webview-hide",
+    "core:webview:allow-webview-show"
+  ]
+}

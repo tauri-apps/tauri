@@ -284,6 +284,22 @@ $('open-children').addEventListener('click', async () => {
   }
 })
 
+// --- off-screen rendering -----------------------------------------------------
+
+document.querySelectorAll('[data-offscreen]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    try {
+      const label = await invoke('open_offscreen_window', {
+        transparent: button.dataset.offscreen === 'transparent'
+      })
+      log('popup-log', 'window', `opened ${label}, rendered off-screen`)
+      await refreshSnapshotTargets()
+    } catch (error) {
+      log('popup-log', 'error', String(error), 'error')
+    }
+  })
+})
+
 // --- popups ------------------------------------------------------------------
 
 document.querySelectorAll('[data-popup]').forEach((button) => {

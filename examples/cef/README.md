@@ -54,6 +54,7 @@ by an environment variable so its effect can be seen without editing the file:
 | `CEF_EXAMPLE_AUTOPLAY`              | `on` (default), `off`                            | Whether `--autoplay-policy=no-user-gesture-required` is set, which the page reads back as an `AudioContext`'s state.                                                                                                                                                                       |
 | `CEF_EXAMPLE_REMOTE_DEBUGGING_PORT` | a port from 1024 up, unset by default            | `Cef::remote_debugging`: Chromium's DevTools protocol server, the one behind `chrome://inspect`. Off unless named — anything that can reach the port can drive the app — and the only way to get it in a release build, which ignores a `--remote-debugging-port` on its own command line. |
 | `CEF_EXAMPLE_CACHE_DIR`             | a directory                                      | `root_cache_path`: where the Chromium profile lives, cookie jar and persisted permission decisions included. Defaults to `{user cache}/com.tauri.cef-example/cef`.                                                                                                                         |
+| `CEF_EXAMPLE_OFFSCREEN`             | `off` (default), `on`                            | `settings.windowless_rendering_enabled`, which the off-screen windows of [`offscreen.rs`](./src-tauri/src/offscreen.rs) need. A process-wide setting CEF advises against when nothing renders off-screen.                                                                                  |
 
 The app also sets raw Chromium switches — one through `command_line_arg` and two
 through `command_line_args` — an `Accept-Language` list, a cache directory and a
@@ -120,6 +121,31 @@ another locale leaves Chromium unable to load the strings of its own UI.
   with `tauri-cef-example://hello` as its argument elsewhere. Schemes declared
   under `plugins > deep-link > desktop` in the config are picked up automatically,
   so an app using the deep link plugin does not name them twice.
+
+### Off-screen rendering — [`offscreen.rs`](./src-tauri/src/offscreen.rs)
+
+With `CEF_EXAMPLE_OFFSCREEN=on`, the main page's off-screen rendering panel
+(`open_offscreen_window`) opens a window whose webview is a windowless
+browser: it has no native view, CEF paints it into the application's
+`cef::RenderHandler`, and the application puts the pixels on screen and feeds
+the browser its input. Three pieces, all in `offscreen.rs`:
+
+- **`Offscreen`** on the webview's runtime attributes, whose factory builds the
+  render handler for each webview. It reads the bounds, visibility and host
+  window from the `OffscreenView` the runtime keeps up to date, and keeps the
+  latest painted image of the page and of its popup widget (an open
+  `<select>`, painted as `PET_POPUP`).
+- **`Cef::on_window_event`**, which sees every native window event before the
+  runtime handles it. Redraws present the images with `softbuffer` over a
+  striped native scene; pointer, wheel, keyboard, IME and focus events are
+  forwarded to the `cef::BrowserHost`. The native window and event types are
+  `tauri-winit`'s, which this example depends on directly.
+- **`windowless_rendering_enabled`** in the CEF settings.
+
+The webview is inset from the window's edges, so the native scene shows around
+it, and the page paints no background of its own: an opaque webview shows the
+browser's white behind it, a transparent one (`transparent: true`) the native
+scene. A popup it opens is an ordinary windowed browser.
 
 ### The entry point
 

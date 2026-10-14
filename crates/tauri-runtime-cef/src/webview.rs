@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::{
   Mutex,
-  atomic::Ordering,
+  atomic::{AtomicBool, Ordering},
   mpsc::{self, Receiver, Sender},
 };
 
@@ -68,12 +68,15 @@ pub struct WebviewSnapshot {
   /// `None` means the platform could not establish the relationship. A
   /// CEF-owned popup always reports `None`, permanently rather than
   /// transiently: CEF owns its native window, so there is no independently
-  /// observed parent for the runtime to check it against.
+  /// observed parent for the runtime to check it against. Offscreen webviews
+  /// also report `None` because there is no native browser child.
   pub parent_matches: Option<bool>,
   /// Current bounds relative to the native parent, in the indicated DPI units.
+  /// Offscreen bounds are the requested layout, in logical pixels.
   pub bounds: Option<Rect>,
   /// Native view visibility. `None` means native inspection was unavailable.
   /// Visibility is separate from occlusion, minimization, and page lifecycle.
+  /// Offscreen webviews report their requested visibility.
   pub visible: Option<bool>,
 }
 
@@ -158,9 +161,9 @@ fn color_to_argb(color: Color) -> u32 {
 ///   feature (`OverlayScrollbar`), reachable through `Cef::enable_features`.
 /// - `background_throttling`: Chromium throttles hidden pages process-wide;
 ///   `--disable-background-timer-throttling` turns that off for every webview.
-/// - `transparent`: a windowed browser whose background alpha is 0 falls back
-///   to `CefSettings.background_color`; transparent painting exists only in
-///   off-screen rendering, which this runtime does not use.
+/// - `transparent` on a windowed browser: a background alpha of 0 falls back to
+///   `CefSettings.background_color`; transparent painting exists only in
+///   off-screen rendering, where `offscreen` maps it below.
 /// - `accept_first_mouse`: Chromium's own view decides whether the click that
 ///   activates a window reaches the page.
 /// - `browser_extensions_enabled`, `extensions_path`: CEF removed its extension
@@ -180,8 +183,13 @@ fn color_to_argb(color: Color) -> u32 {
 /// browser setting, and `user_agent` through the DevTools protocol (see
 /// [`apply_user_agent_override`]), because `CefSettings.user_agent` is fixed for
 /// the whole process before any webview is created.
+///
+/// An off-screen browser reads a background alpha of 0 as transparent painting
+/// rather than as "unset", so it gets an opaque white background unless the
+/// webview asks to be transparent or names a color of its own.
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
+  offscreen: bool,
 ) -> cef::BrowserSettings {
   cef::BrowserSettings {
     javascript: cef::State::from(if webview_attributes.javascript_disabled {
@@ -194,10 +202,11 @@ fn browser_settings_from_webview_attributes(
     } else {
       cef::sys::cef_state_t::STATE_DISABLED
     }),
-    background_color: webview_attributes
-      .background_color
-      .map(color_to_argb)
-      .unwrap_or(0),
+    background_color: match webview_attributes.background_color {
+      Some(color) => color_to_argb(color),
+      None if offscreen && !webview_attributes.transparent => 0xFFFF_FFFF,
+      None => 0,
+    },
     // Browser chrome a Tauri window has no business showing: the status bubble is
     // the link target that slides in over the bottom-left of the page on hover,
     // and the zoom bubble the popup Chrome anchors to its (absent) toolbar on
@@ -215,7 +224,7 @@ fn browser_settings_from_webview_attributes(
 /// leaves an attribute at its default stays quiet. Each message names the runtime-wide
 /// API that does the same thing where one exists: an application ported from WebView2 or
 /// WKWebView may rely on the attribute, and silently dropping it is the worst outcome.
-fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes) {
+fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes, offscreen: bool) {
   if attributes.additional_browser_args.is_some() {
     log::warn!(
       "webview {label:?} sets additional_browser_args, which the CEF runtime does not support: \
@@ -223,7 +232,7 @@ fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes
        to pass switches to the browser process."
     );
   }
-  if attributes.transparent {
+  if attributes.transparent && !offscreen {
     log::warn!(
       "webview {label:?} asks to be transparent, which the CEF runtime does not support: a \
        windowed Chromium browser paints an opaque background, and transparent painting exists \
@@ -514,9 +523,26 @@ pub(crate) struct AppWebview {
   pub(crate) devtools_enabled: bool,
   pub(crate) listeners: WebviewEventListeners,
   pub(crate) bounds_rate: Option<BoundsRate>,
+  pub(crate) offscreen: Option<crate::OffscreenView>,
 }
 
 impl AppWebview {
+  fn resize(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
+    if let Some(view) = &self.offscreen {
+      *view.bounds.lock().unwrap_or_else(|e| e.into_inner()) = Rect {
+        position: tauri_runtime::dpi::LogicalPosition::new(x as f64 / scale, y as f64 / scale)
+          .into(),
+        size: tauri_runtime::dpi::LogicalSize::new(
+          width.max(0) as f64 / scale,
+          height.max(0) as f64 / scale,
+        )
+        .into(),
+      };
+    } else {
+      self.apply_physical_bounds(scale, x, y, width, height);
+    }
+  }
+
   pub(crate) fn set_bounds(&mut self, parent_size: PhysicalSize<u32>, scale: f64, bounds: Rect) {
     let position = bounds.position.to_physical::<i32>(scale);
     let size = bounds.size.to_physical::<u32>(scale);
@@ -538,13 +564,18 @@ impl AppWebview {
     }
 
     self.host.notify_move_or_resize_started();
-    self.apply_physical_bounds(scale, x, y, w, h);
+    self.resize(scale, x, y, w, h);
     self.host.was_resized();
   }
 
   pub(crate) fn set_visible(&self, visible: bool) {
     self.host.was_hidden(if visible { 0 } else { 1 });
-    self.apply_visible(visible);
+    if let Some(view) = &self.offscreen {
+      view.visible.store(visible, Ordering::Relaxed);
+      view.request_redraw();
+    } else {
+      self.apply_visible(visible);
+    }
   }
 
   pub fn url(&self) -> Option<String> {
@@ -598,6 +629,29 @@ impl<T: UserEvent> WinitCefApp<T> {
   ) -> Result<()> {
     // Windows/macOS use the native window/view; Linux uses the GTK content-area
     // X11 host so CEF children cannot cover GTK UI like menus.
+    let offscreen = pending
+      .runtime_specific_attributes
+      .offscreen
+      .as_ref()
+      .map(|_| {
+        let scale = appwindow.window.scale_factor();
+        let bounds = pending
+          .webview_attributes
+          .bounds
+          .unwrap_or_else(|| Rect {
+            position: PhysicalPosition::new(0, 0).into(),
+            size: appwindow.safe_surface_size().into(),
+          })
+          .to_logical::<f64, f64>(scale);
+        crate::OffscreenView {
+          window: Arc::downgrade(&appwindow.window),
+          bounds: Arc::new(Mutex::new(Rect {
+            position: bounds.position.into(),
+            size: bounds.size.into(),
+          })),
+          visible: Arc::new(AtomicBool::new(true)),
+        }
+      });
     let parent = appwindow.cef_host_handle();
     let parent_size = appwindow.safe_surface_size();
     let scale = appwindow.window.scale_factor();
@@ -613,6 +667,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       scale,
       theme,
       drag_drop_event_target,
+      offscreen,
       pending,
     ) else {
       return Err(Error::CreateWebview(
@@ -625,7 +680,11 @@ impl<T: UserEvent> WinitCefApp<T> {
     // pin it, so Chromium's focus raise cannot reshuffle them behind our back
     // and bury an overlay webview under the one that fills the window.
     #[cfg(windows)]
-    child.raise_to_top();
+    if child.offscreen.is_none() {
+      child.raise_to_top();
+    } else {
+      appwindow.background_surface = None;
+    }
 
     *live_browsers += 1;
     appwindow.children.push(child);
@@ -643,6 +702,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     scale: f64,
     theme: Option<Theme>,
     drag_drop_event_target: browser_client::DragDropEventTarget,
+    offscreen: Option<crate::OffscreenView>,
     mut pending: PendingWebview<T, CefRuntime<T>>,
   ) -> Option<AppWebview> {
     let bounds_rate = compute_child_bounds_rate(
@@ -661,7 +721,9 @@ impl<T: UserEvent> WinitCefApp<T> {
     // the same chord, and with both in place the toggle closes the window the
     // accelerator just opened.
     #[cfg(any(debug_assertions, feature = "devtools"))]
-    if devtools_enabled && is_alloy_style(pending.runtime_specific_attributes.runtime_style) {
+    if devtools_enabled
+      && (offscreen.is_some() || is_alloy_style(pending.runtime_specific_attributes.runtime_style))
+    {
       pending.webview_attributes.initialization_scripts.push(
         tauri_runtime::webview::InitializationScript {
           script: tauri_runtime::webview::devtools_shortcut_script(),
@@ -746,6 +808,15 @@ impl<T: UserEvent> WinitCefApp<T> {
         frame_navigation_state: frame_navigation_state.clone(),
         popup_family: Arc::downgrade(&popup_family),
         opener: None,
+        render_handler: offscreen
+          .as_ref()
+          .zip(pending.runtime_specific_attributes.offscreen.as_ref())
+          .map(|(view, options)| (options.render_handler)(view.clone())),
+        cursor_handler: pending
+          .runtime_specific_attributes
+          .offscreen
+          .as_ref()
+          .and_then(|options| options.cursor_handler.clone()),
         handlers,
         sender: context.sender.clone(),
       });
@@ -774,9 +845,15 @@ impl<T: UserEvent> WinitCefApp<T> {
       None => cef::RuntimeStyle::DEFAULT,
     };
 
-    let mut window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
-    window_info.runtime_style = cef_runtime_style;
-    let mut settings = browser_settings_from_webview_attributes(&pending.webview_attributes);
+    let window_info = if let Some(options) = &pending.runtime_specific_attributes.offscreen {
+      options.window_info(parent)
+    } else {
+      let mut info = cef::WindowInfo::default().set_as_child(parent, &bounds);
+      info.runtime_style = cef_runtime_style;
+      info
+    };
+    let mut settings =
+      browser_settings_from_webview_attributes(&pending.webview_attributes, offscreen.is_some());
     // Applied last so an application can override what the runtime mapped.
     if let Some(callback) = &pending
       .runtime_specific_attributes
@@ -791,7 +868,11 @@ impl<T: UserEvent> WinitCefApp<T> {
     // `navigator.userAgent` for this one target.
     let user_agent = pending.webview_attributes.user_agent.clone();
 
-    warn_about_unsupported_attributes(&pending.label, &pending.webview_attributes);
+    warn_about_unsupported_attributes(
+      &pending.label,
+      &pending.webview_attributes,
+      offscreen.is_some(),
+    );
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {
       "https"
@@ -895,6 +976,7 @@ impl<T: UserEvent> WinitCefApp<T> {
             devtools_enabled,
             listeners: Default::default(),
             bounds_rate,
+            offscreen,
           })
           .expect("failed to send initialized CEF browser");
       }
@@ -1043,6 +1125,13 @@ impl<T: UserEvent> WinitCefApp<T> {
         }
       }
       WebviewMessage::Reparent(target_window_id, tx) => {
+        // CEF fixes an OSR browser's native dialog parent at creation.
+        if appwindow.children[child_index].offscreen.is_some() && window_id != target_window_id {
+          let _ = tx.send(Err(Error::CreateWebview(
+            "offscreen webviews cannot be reparented".into(),
+          )));
+          return;
+        }
         if window_id == target_window_id {
           let _ = tx.send(Ok(()));
           return;
@@ -1105,9 +1194,17 @@ impl<T: UserEvent> WinitCefApp<T> {
           document,
           window_label: Some(appwindow.label.clone()),
           window: Some(appwindow.lifetime.clone()),
-          parent_matches: child.native_parent_matches(appwindow),
+          parent_matches: if child.offscreen.is_some() {
+            None
+          } else {
+            child.native_parent_matches(appwindow)
+          },
           bounds: child.bounds(),
-          visible: child.native_visible(),
+          visible: child
+            .offscreen
+            .as_ref()
+            .map(|view| view.is_visible())
+            .or_else(|| child.native_visible()),
         };
         let mut native = Webview::new(
           child.browser.clone(),
@@ -1399,6 +1496,8 @@ pub enum RuntimeStyle {
 ///   can take the accelerators back with [`ChromeCommandGroup::History`].
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
+  /// Windowless rendering and application-provided CEF callbacks.
+  pub offscreen: Option<crate::Offscreen>,
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
   pub runtime_style: Option<RuntimeStyle>,
   /// Observer of the native lifecycle events of every frame of the webview.
@@ -1435,6 +1534,7 @@ impl std::fmt::Debug for CefWebviewAttributes {
     formatter
       .debug_struct("CefWebviewAttributes")
       .field("runtime_style", &self.runtime_style)
+      .field("offscreen", &self.offscreen.is_some())
       .field("frame_event_handler", &self.frame_event_handler.is_some())
       .field(
         "console_message_handler",
@@ -1579,11 +1679,9 @@ pub(crate) fn create_webview_detached<T: UserEvent>(
     pending: Box::new(pending),
     result_tx,
   })?;
-  // Block until the event loop has created the browser so a creation failure
-  // is surfaced to the caller instead of leaving a detached, dead webview.
-  result_rx
-    .recv()
-    .map_err(|_| Error::FailedToReceiveMessage)??;
+  // Wait until the event loop has created the browser so a creation failure is
+  // surfaced to the caller instead of leaving a detached, dead browser.
+  context.wait_for_creation(result_rx)?;
   Ok(DetachedWebview {
     label,
     dispatcher: CefWebviewDispatcher {
@@ -1964,6 +2062,17 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
 /// from the current window size; children with fixed bounds keep whatever bounds
 /// they were last given.
 pub(crate) fn layout_app_window(appwindow: &AppWindow) {
+  // An offscreen webview paints into the toplevel itself, so the X11 host the
+  // windowed browsers live in would only cover it. Unmap the host while every
+  // webview of the window is offscreen.
+  #[cfg(target_os = "linux")]
+  appwindow.cef_host.set_visible(
+    appwindow.children.is_empty()
+      || appwindow
+        .children
+        .iter()
+        .any(|child| child.offscreen.is_none()),
+  );
   let parent_size = appwindow.safe_surface_size();
   let win_w = parent_size.width as f32;
   let win_h = parent_size.height as f32;
@@ -1977,7 +2086,7 @@ pub(crate) fn layout_app_window(appwindow: &AppWindow) {
     let w = (rate.width * win_w).round() as i32;
     let h = (rate.height * win_h).round() as i32;
     child.host.notify_move_or_resize_started();
-    child.apply_physical_bounds(scale, x, y, w, h);
+    child.resize(scale, x, y, w, h);
     child.host.was_resized();
   }
 }
@@ -2371,5 +2480,35 @@ pub(crate) fn load_initial_url_after_registering_initialization_scripts(
 fn load_initial_url(browser: &Browser, initial_url: &str) {
   if let Some(frame) = browser.main_frame() {
     frame.load_url(Some(&CefString::from(initial_url)));
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn offscreen_background_is_transparent_only_on_request() {
+    let mut attributes = WebviewAttributes::new(tauri_utils::config::WebviewUrl::default());
+    assert_eq!(
+      browser_settings_from_webview_attributes(&attributes, false).background_color,
+      0
+    );
+    assert_eq!(
+      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      0xFFFF_FFFF
+    );
+
+    attributes.transparent = true;
+    assert_eq!(
+      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      0
+    );
+
+    attributes.background_color = Some(Color(1, 2, 3, 255));
+    assert_eq!(
+      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      0xFF01_0203
+    );
   }
 }

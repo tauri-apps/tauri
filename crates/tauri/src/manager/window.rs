@@ -21,7 +21,7 @@ use crate::{
   app::GlobalWindowEventListener, event::EventName, image::Image, sealed::ManagerBase,
 };
 
-use super::EmitPayload;
+use super::{EmitPayload, scoped_listener::ScopedEventListeners};
 
 const WINDOW_RESIZED_EVENT: EventName<&str> = EventName::from_str("tauri://resize");
 const WINDOW_MOVED_EVENT: EventName<&str> = EventName::from_str("tauri://move");
@@ -47,6 +47,9 @@ pub struct WindowManager<R: Runtime> {
   pub default_icon: Option<Image<'static>>,
   /// Window event listeners to all windows.
   pub event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
+  /// Window event listeners to a single window, registered through
+  /// [`Window::on_window_event`].
+  pub(crate) scoped_event_listeners: ScopedEventListeners<WindowEvent>,
 }
 
 impl<R: Runtime> fmt::Debug for WindowManager<R> {

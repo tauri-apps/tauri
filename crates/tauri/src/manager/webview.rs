@@ -30,6 +30,7 @@ use crate::{
 use crate::app::OnWebContentProcessTerminate;
 
 use super::{
+  scoped_listener::ScopedEventListeners,
   window::{DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT, DragDropPayload},
   {AppManager, EmitPayload},
 };
@@ -79,6 +80,9 @@ pub struct WebviewManager<R: Runtime> {
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
   /// Webview event listeners to all webviews.
   pub event_listeners: Arc<Vec<GlobalWebviewEventListener<R>>>,
+  /// Webview event listeners to a single webview, registered through
+  /// [`Webview::on_webview_event`].
+  pub(crate) scoped_event_listeners: ScopedEventListeners<WebviewEvent>,
 
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,

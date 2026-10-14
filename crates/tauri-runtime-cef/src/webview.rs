@@ -13,13 +13,13 @@ use std::sync::{
 use cef::*;
 use sha2::{Digest, Sha256};
 use tauri_runtime::{
-  Cookie, Error, Result, Runtime, UserEvent, WebviewDispatch, WebviewEventId,
+  Cookie, Error, Result, Runtime, UserEvent, WebviewDispatch,
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   webview::{
     DetachedWebview, InitializationScript, PendingWebview, UriSchemeProtocolHandler,
     WebviewAttributes,
   },
-  window::{WebviewEvent, WindowId},
+  window::WindowId,
 };
 use tauri_utils::{
   Theme,
@@ -430,11 +430,7 @@ impl ConsoleMessage {
     }
   }
 }
-pub(crate) type WebviewEventHandler = Box<dyn Fn(&WebviewEvent) + Send>;
-pub(crate) type WebviewEventListeners = Arc<Mutex<HashMap<WebviewEventId, WebviewEventHandler>>>;
-
 pub(crate) enum WebviewMessage {
-  AddEventListener(WebviewEventId, Box<dyn Fn(&WebviewEvent) + Send>),
   EvaluateScript(String),
   EvaluateScriptWithCallback(String, Box<dyn Fn(String) + Send + 'static>),
   Navigate(Url),
@@ -512,7 +508,6 @@ pub(crate) struct AppWebview {
   /// Whether a DevTools window may be opened for this webview. The DevTools *protocol*
   /// stays available either way — the runtime's own startup rides on it.
   pub(crate) devtools_enabled: bool,
-  pub(crate) listeners: WebviewEventListeners,
   pub(crate) bounds_rate: Option<BoundsRate>,
 }
 
@@ -893,7 +888,6 @@ impl<T: UserEvent> WinitCefApp<T> {
             devtools_protocol_handlers,
             devtools_observer_registration,
             devtools_enabled,
-            listeners: Default::default(),
             bounds_rate,
           })
           .expect("failed to send initialized CEF browser");
@@ -1193,9 +1187,6 @@ impl<T: UserEvent> WinitCefApp<T> {
         unreachable!("window-dependent message routed to window-independent handler")
       }
       WebviewMessage::Print => child.host.print(),
-      WebviewMessage::AddEventListener(event_id, handler) => {
-        child.listeners.lock().unwrap().insert(event_id, handler);
-      }
       WebviewMessage::Show => child.set_visible(true),
       WebviewMessage::Hide => child.set_visible(false),
       WebviewMessage::SetZoom(scale_factor) => {
@@ -1677,16 +1668,6 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.run_on_main_thread(f)
-  }
-
-  fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId {
-    let id = self.context.next_webview_event_id();
-    let _ = self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::AddEventListener(id, Box::new(f)),
-    });
-    id
   }
 
   fn with_webview<F: FnOnce(<Self::Runtime as Runtime<T>>::Webview) + Send + 'static>(

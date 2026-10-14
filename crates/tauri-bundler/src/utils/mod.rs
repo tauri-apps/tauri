@@ -104,9 +104,15 @@ impl CommandExt for Command {
     if output.status.success() {
       Ok(output)
     } else {
+      // some tools (WiX, signtool) report their errors on stdout
+      let diagnosis = if output.stderr.iter().all(u8::is_ascii_whitespace) {
+        &output.stdout
+      } else {
+        &output.stderr
+      };
       Err(crate::Error::GenericError(format!(
         "failed to run {program}: {}",
-        String::from_utf8_lossy(&output.stderr).trim_end()
+        String::from_utf8_lossy(diagnosis).trim_end()
       )))
     }
   }
@@ -124,6 +130,15 @@ mod tests {
   fn output_ok_keeps_stderr_in_the_error() {
     let err = std::process::Command::new("sh")
       .args(["-c", "echo the-diagnosis >&2; exit 1"])
+      .output_ok()
+      .unwrap_err();
+    assert!(err.to_string().contains("the-diagnosis"));
+  }
+
+  #[test]
+  fn output_ok_falls_back_to_stdout_without_stderr() {
+    let err = std::process::Command::new("sh")
+      .args(["-c", "echo the-diagnosis; exit 1"])
       .output_ok()
       .unwrap_err();
     assert!(err.to_string().contains("the-diagnosis"));

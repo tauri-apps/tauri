@@ -24,10 +24,11 @@ pub struct Bundled {
 }
 
 // bundle_dmg.sh drives Finder through osascript, and macOS denies that unless
-// the terminal has Finder automation permission (#3055).
+// the terminal has Finder automation permission (#3055). Match the error code
+// (errAEEventNotPermitted), since the message itself is localized.
 fn finder_permission_hint(stderr: &str) -> Option<&'static str> {
   stderr
-    .contains("Not authorized to send Apple events")
+    .contains("(-1743)")
     .then_some(
       "the terminal needs permission to control Finder: System Settings > Privacy & Security > Automation",
     )
@@ -196,14 +197,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .current_dir(bundle_dir.clone())
     .args(vec![dmg_name.as_str(), bundle_file_name.as_str()])
     .output_ok();
-  if let Err(err) = &result {
-    if let Some(hint) = finder_permission_hint(&err.to_string()) {
-      return Err(crate::Error::GenericError(format!(
-        "error running bundle_dmg.sh: {hint}"
-      )));
-    }
-  }
-  result.context("error running bundle_dmg.sh")?;
+  let hint = result
+    .as_ref()
+    .err()
+    .and_then(|err| finder_permission_hint(&err.to_string()));
+  result.with_context(|| match hint {
+    Some(hint) => format!("error running bundle_dmg.sh ({hint})"),
+    None => "error running bundle_dmg.sh".to_string(),
+  })?;
 
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
 
@@ -237,6 +238,7 @@ mod tests {
   fn names_the_finder_permission_fix() {
     let stderr = "bundle_dmg.sh: Failed running AppleScript\nexecution error: Not authorized to send Apple events to Finder. (-1743)\n";
     assert!(finder_permission_hint(stderr).is_some_and(|hint| hint.contains("Automation")));
+    assert!(finder_permission_hint("execution error: Finder n'a pas autorisé (-1743)").is_some());
     assert!(finder_permission_hint("some other failure").is_none());
   }
 }

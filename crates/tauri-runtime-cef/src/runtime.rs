@@ -646,7 +646,11 @@ impl Cef {
   }
 
   /// CEF API version this process declares (`cef_api_hash`), defaulting to
-  /// `cef::sys::CEF_API_VERSION_LAST`.
+  /// `cef::sys::CEF_API_VERSION_LAST`. Child processes declare the same one.
+  ///
+  /// The Rust bindings are compiled for `CEF_API_VERSION_LAST` whatever is declared
+  /// here. Declaring another version is only sound if the API the application uses is
+  /// the same in both.
   #[must_use]
   pub fn cef_api_version(mut self, version: i32) -> Self {
     self.api_version = Some(version);
@@ -2613,6 +2617,9 @@ wrap_with_args! {
     // supplied through `Cef::command_line_arg` - goes here. The application's own
     // switches are appended last so they win over the runtime's defaults.
     browser_command_line_args: Vec<(String, Option<String>)>,
+    // The `Cef::cef_api_version` override, passed on to child processes. See
+    // `API_VERSION_SWITCH`.
+    api_version: Option<i32>,
     // Names merged into `--disable-features` and `--enable-features` rather than
     // appended over them.
     //
@@ -2634,6 +2641,7 @@ wrap_with_args! {
         self.context.clone(),
         self.context_initialized.clone(),
         self.deep_link_schemes.clone(),
+        self.api_version,
       ))
     }
 
@@ -2684,6 +2692,55 @@ wrap_with_args! {
   }
 }
 
+/// Switch that passes the browser process's CEF API version to its child processes.
+///
+/// A child must declare its version before any other CEF call, and it never sees the
+/// `Cef` builder, so it reads the version from its own command line. The browser
+/// process appends the switch in
+/// `BrowserProcessHandler::on_before_child_process_launch`.
+///
+/// Not an environment variable: that would also be inherited by anything else the
+/// application spawns, including other CEF applications.
+///
+/// Only appended when [`Cef::cef_api_version`] was called.
+///
+/// Only children launched through `on_before_child_process_launch` get it: the
+/// processes Chromium starts itself (renderer, GPU, utility and, on Linux, the
+/// zygote). A process CEF starts another way, such as the crashpad handler if crash
+/// reporting is enabled, falls back to `CEF_API_VERSION_LAST`.
+///
+/// On macOS, child processes run the `tauri-cef-helper` binary the bundler compiles
+/// (`crates/tauri-bundler/cef-helper/main.rs`), which parses this switch itself. Keep
+/// both in sync.
+pub(crate) const API_VERSION_SWITCH: &str = "tauri-cef-api-version";
+
+/// The CEF API version the browser process passed to this child process.
+///
+/// `None` if this is not a child process (no `--type=` switch), if no version was
+/// passed, or if the value is not a number. The last occurrence wins.
+///
+/// Must not call CEF: nothing may be called before the version is declared.
+fn child_process_api_version<I>(args: I) -> Option<i32>
+where
+  I: IntoIterator<Item = std::ffi::OsString>,
+{
+  let prefix = format!("--{API_VERSION_SWITCH}=");
+  let mut is_child_process = false;
+  let mut version = None;
+  // Non-Unicode arguments are skipped; `std::env::args` would panic on them.
+  for arg in args {
+    let Some(arg) = arg.to_str() else {
+      continue;
+    };
+    if arg.starts_with("--type=") {
+      is_child_process = true;
+    } else if let Some(value) = arg.strip_prefix(&prefix) {
+      version = value.parse().ok();
+    }
+  }
+  version.filter(|_| is_child_process)
+}
+
 pub fn run_cef_helper_process() {
   let args = cef::args::Args::new();
 
@@ -2704,7 +2761,13 @@ pub fn run_cef_helper_process() {
     loader
   };
 
-  let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+  // Declare the version the browser process passed, if any.
+  let version = child_process_api_version(std::env::args_os()).unwrap_or(sys::CEF_API_VERSION_LAST);
+  // `cef_api_hash` returns NULL if the loaded libcef does not support the version, and
+  // the next CEF call would crash.
+  if cef::api_hash(version, 0).is_null() {
+    panic!("the loaded CEF library does not support CEF API version {version}");
+  }
   let mut app = TauriCefHelperApp::new();
   let _ = cef::execute_process(
     Some(args.as_main_args()),
@@ -2991,11 +3054,21 @@ impl<T: UserEvent> CefRuntime<T> {
     // The CEF API version table must be initialized before any other CEF call
     // (e.g. `args.as_cmd_line()` below), otherwise the process crashes with no
     // diagnostics.
-    let version = runtime_args
-      .runtime_init_attrs
-      .api_version
+    //
+    // Child processes normally never get here: `#[cef_entry_point]` sends them to
+    // `run_cef_helper_process` first. An app that does not use the macro runs its
+    // children through this path, and they use the version the browser process
+    // passed.
+    let api_version = runtime_args.runtime_init_attrs.api_version;
+    let version = child_process_api_version(std::env::args_os())
+      .or(api_version)
       .unwrap_or(sys::CEF_API_VERSION_LAST);
-    let _ = cef::api_hash(version, 0);
+    // `cef_api_hash` returns NULL if the loaded libcef does not support the version.
+    // Log the details and return the same error as for a missing runtime.
+    if cef::api_hash(version, 0).is_null() {
+      log::error!("the loaded CEF library does not support CEF API version {version}");
+      return Err(Error::WebviewRuntimeNotInstalled);
+    }
 
     // Handle CEF subprocesses (renderer/GPU/utility) before any browser-only
     // setup such as building the event loop, creating cache directories, or the
@@ -3341,6 +3414,7 @@ impl<T: UserEvent> CefRuntime<T> {
       restore_deep_link_arguments: command_line_args_disabled,
       internal_command_line_args,
       browser_command_line_args,
+      api_version,
       disabled_features,
       enabled_features,
     });
@@ -3805,6 +3879,110 @@ mod configuration_tests {
       [serde_json::json!(false), serde_json::json!(true)],
       "both are kept, in call order, so the application's last word wins"
     );
+  }
+}
+
+#[cfg(test)]
+mod child_process_api_version_tests {
+  use super::{API_VERSION_SWITCH, child_process_api_version};
+
+  fn version(args: &[&str]) -> Option<i32> {
+    child_process_api_version(args.iter().map(std::ffi::OsString::from))
+  }
+
+  #[test]
+  fn reads_the_version_the_browser_process_passed() {
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15101",
+        "--lang=en-US"
+      ]),
+      Some(15101)
+    );
+    // Order relative to `--type` must not matter.
+    assert_eq!(
+      version(&["app", "--tauri-cef-api-version=15101", "--type=zygote"]),
+      Some(15101)
+    );
+  }
+
+  #[test]
+  fn the_switch_is_spelled_the_way_it_is_appended() {
+    let arg = format!("--{API_VERSION_SWITCH}=15101");
+    assert_eq!(version(&["app", "--type=gpu-process", &arg]), Some(15101));
+  }
+
+  #[test]
+  fn absent_means_the_default() {
+    assert_eq!(version(&[]), None);
+    assert_eq!(version(&["app", "--type=renderer"]), None);
+    // A switch with a longer name is a different switch.
+    assert_eq!(
+      version(&["app", "--type=renderer", "--tauri-cef-api-version-x=15101"]),
+      None
+    );
+  }
+
+  #[test]
+  fn garbage_means_the_default() {
+    for value in ["", "latest", "15101x", "1.5", "99999999999", " 15101"] {
+      let arg = format!("--tauri-cef-api-version={value}");
+      assert_eq!(
+        version(&["app", "--type=renderer", &arg]),
+        None,
+        "{value:?}"
+      );
+    }
+    // A bare switch has no value.
+    assert_eq!(
+      version(&["app", "--type=renderer", "--tauri-cef-api-version"]),
+      None
+    );
+  }
+
+  #[test]
+  fn the_last_occurrence_wins() {
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15000",
+        "--tauri-cef-api-version=15101"
+      ]),
+      Some(15101)
+    );
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15101",
+        "--tauri-cef-api-version=latest"
+      ]),
+      None
+    );
+  }
+
+  #[test]
+  fn a_browser_process_ignores_the_switch() {
+    // Not a child process, so the switch is ignored. Users must not be able to set
+    // the version from the command line.
+    assert_eq!(version(&["app", "--tauri-cef-api-version=15101"]), None);
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn an_argument_that_is_not_unicode_is_skipped() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let args = vec![
+      std::ffi::OsString::from("app"),
+      std::ffi::OsString::from_vec(vec![0xff, 0xfe]),
+      std::ffi::OsString::from("--type=renderer"),
+      std::ffi::OsString::from("--tauri-cef-api-version=15101"),
+    ];
+    assert_eq!(child_process_api_version(args), Some(15101));
   }
 }
 

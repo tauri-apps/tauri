@@ -170,10 +170,25 @@ mod tests {
 
     super::migrate_tauri_dir(temp_dir.path()).expect("failed to migrate");
     let migrated = read_files(temp_dir.path());
-    for (file, contents) in &migrated {
-      let snapshot_name = format!("{name}__{}", file.display()).replace(['/', '\\'], "__");
-      insta::assert_snapshot!(snapshot_name, contents);
-    }
+    // the exact versions come from `metadata-v2.json` and change on every release
+    let metadata = super::version_metadata().unwrap();
+    let filters = [
+      &metadata.tauri,
+      &metadata.tauri_build,
+      &metadata.tauri_plugin,
+      &metadata.tauri_runtime_wry,
+    ]
+    .map(|version| (format!("\"{}\"", regex::escape(version)), "\"[version]\""));
+    let filters = filters
+      .iter()
+      .map(|(pattern, replacement)| (pattern.as_str(), *replacement))
+      .collect::<Vec<_>>();
+    insta::with_settings!({ filters => filters }, {
+      for (file, contents) in &migrated {
+        let snapshot_name = format!("{name}__{}", file.display()).replace(['/', '\\'], "__");
+        insta::assert_snapshot!(snapshot_name, contents);
+      }
+    });
 
     // migrating again is a no-op
     super::migrate_tauri_dir(temp_dir.path()).expect("failed to migrate again");

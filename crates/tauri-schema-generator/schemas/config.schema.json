@@ -172,7 +172,7 @@
       "type": "object",
       "properties": {
         "windows": {
-          "description": "The app windows configuration.\n\n## Example:\n\nTo create a window at app startup\n\n```json\n{\n  \"app\": {\n    \"windows\": [\n      { \"width\": 800, \"height\": 600 }\n    ]\n  }\n}\n```\n\nIf not specified, the window's label (its identifier) defaults to \"main\",\nyou can use this label to get the window through\n`app.get_webview_window` in Rust or `WebviewWindow.getByLabel` in JavaScript\n\nWhen working with multiple windows, each window will need an unique label\n\n```json\n{\n  \"app\": {\n    \"windows\": [\n      { \"label\": \"main\", \"width\": 800, \"height\": 600 },\n      { \"label\": \"secondary\", \"width\": 800, \"height\": 600 }\n    ]\n  }\n}\n```\n\nYou can also set `create` to false and use this config through the Rust APIs\n\n```json\n{\n  \"app\": {\n    \"windows\": [\n      { \"create\": false, \"width\": 800, \"height\": 600 }\n    ]\n  }\n}\n```\n\nand use it like this\n\n```rust\ntauri::Builder::default()\n  .setup(|app| {\n    tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;\n    Ok(())\n  });\n```",
+          "description": "The app windows configuration.\n\n## Example:\n\nTo create a window at app startup\n\n```json\n{\n  \"app\": {\n    \"windows\": [\n      { \"width\": 800, \"height\": 600 }\n    ]\n  }\n}\n```\n\nIf not specified, the window's label (its identifier) defaults to \"main\",\nyou can use this label to get the window through\n`app.get_webview_window` in Rust or `WebviewWindow.getByLabel` in JavaScript\n\nWhen working with multiple windows, each window will need an unique label\n\n```json\n{\n  \"app\": {\n    \"windows\": [\n      { \"label\": \"main\", \"width\": 800, \"height\": 600 },\n      { \"label\": \"secondary\", \"width\": 800, \"height\": 600 }\n    ]\n  }\n}\n```\n\nYou can also set `create` to false and use this config through the Rust APIs\n\n```json\n{\n  \"app\": {\n    \"windows\": [\n      { \"create\": false, \"width\": 800, \"height\": 600 }\n    ]\n  }\n}\n```\n\nand use it like this\n\n```rust,no_run\ntauri::Builder::default()\n  .setup(|app| {\n    tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;\n    Ok(())\n  });\n```",
           "type": "array",
           "items": {
             "$ref": "#/definitions/WindowConfig"
@@ -221,7 +221,7 @@
           "default": false
         },
         "appDirectoriesOverride": {
-          "description": "Overrides the directories returned by the `app_*_dir` path APIs (`app_config_dir`, `app_data_dir`,\n`app_local_data_dir`, `app_cache_dir` and `app_log_dir`) and the matching `$APPCONFIG`, `$APPDATA`,\n`$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.\n\nThis is useful for portable apps that keep all of their data next to the executable,\nand for apps that want their app directories in a location they choose, such as `$DOCUMENT/my-app`.\nEverything that resolves paths through these APIs follows the override, including Tauri itself\n(the default webview data directory on Windows and Linux) and plugins,\nso the storage locations do not need to be configured one by one.\nThe only exception is a window's `dataDirectory` config, which is not affected.\n\nIt can also isolate the data of a development build from an installed version of the app,\nthough a distinct `identifier` for development builds achieves that while keeping the production directory layout.\n\nThe value is either a single path used as the root of every app directory\n(config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),\nor an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),\neach resolving to exactly the configured path. Directories that are not listed in the object keep their default location.\n\nEach path is resolved as follows:\n\n- A path starting with a base directory variable is resolved relative to that directory.\n  The supported variables are `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`,\n  `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.\n  `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.\n- An absolute path is used as is.\n- Any other path is resolved relative to the directory containing the executable,\n  which must be writable, see the platform-specific notes below.\n\n## Examples\n\nKeep all data in an `app-data` folder next to the executable, for a portable build:\n\n```json\n{\n  \"app\": {\n    \"appDirectoriesOverride\": \"./app-data\"\n  }\n}\n```\n\nOnly move the logs and the cache:\n\n```json\n{\n  \"app\": {\n    \"appDirectoriesOverride\": {\n      \"log\": \"$DATA/my-app/logs\",\n      \"cache\": \"$CACHE/my-app\"\n    }\n  }\n}\n```\n\nSet the override at runtime, for instance from an environment variable, a command line flag\nor a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`\nbefore building the app:\n\n```rust\nuse tauri::utils::config::AppDirectoriesOverride;\n\nfn main() {\n  let mut context = tauri::generate_context!();\n\n  if let Ok(data_dir) = std::env::var(\"MY_APP_DATA_DIR\") {\n    context.config_mut().app.app_directories_override =\n      Some(AppDirectoriesOverride::Root(data_dir.into()));\n  }\n\n  tauri::Builder::default()\n    .run(context)\n    .expect(\"error while running tauri application\");\n}\n```\n\n## Security\n\nScopes and permissions that use the `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG`\nvariables follow the override, so the configured paths must be directories dedicated to the app.\nA single root is used as is for the config, data and local data directories, so a root that is not dedicated\nto the app, such as `\"./\"` or `\"$DOCUMENT\"`, extends those scopes to everything it contains.\nWith `\"./\"`, `fs:default` (which allows reading the app directories recursively) lets the webview read\nevery file next to the executable, including anything else in the folder the app was run from,\nsuch as the downloads folder. If the app also grants write access to an app directory, a compromised webview\n(e.g. through XSS) can replace files next to the executable, such as dropping a DLL that Windows loads\nfrom the executable's directory on the next launch, leading to code execution.\nAlways point the override to a subfolder owned by the app, such as `\"./app-data\"` or `\"$DOCUMENT/my-app\"`.\n\n## Platform-specific\n\nA path relative to the executable only works where the executable's directory is writable:\nportable builds, `tauri dev` builds in the `target` directory and the cases listed below.\nEverywhere else every write to an app directory fails at runtime, so installed apps should use\na base directory variable or an absolute path instead. Unless every distribution of the app is portable,\nkeep relative paths out of the shared configuration and apply them to the portable build flavor only,\nfor instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:\n\n```sh\ntauri build --config '{ \"app\": { \"appDirectoriesOverride\": \"./app-data\" } }'\n```\n\n- **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,\n  as long as it is kept in a writable directory. `.deb` and `.rpm` packages install the executable to `/usr/bin`.\n- **macOS**: Relative paths are resolved next to the `.app` bundle. This does not work for installed apps,\n  since `/Applications` is not writable for standard users, nor for bundles downloaded from the internet,\n  which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.\n- **Windows**: Relative paths also work for per-user NSIS installers,\n  but not for per-machine installers in `Program Files`.\n- **Android / iOS**: Relative paths are not supported, since there is no writable directory next to the executable.\n  Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.",
+          "description": "Overrides the directories returned by the `app_*_dir` path APIs (`app_config_dir`, `app_data_dir`,\n`app_local_data_dir`, `app_cache_dir` and `app_log_dir`) and the matching `$APPCONFIG`, `$APPDATA`,\n`$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.\n\nThis is useful for portable apps that keep all of their data next to the executable,\nand for apps that want their app directories in a location they choose, such as `$DOCUMENT/my-app`.\nEverything that resolves paths through these APIs follows the override, including Tauri itself\n(the default webview data directory on Windows and Linux) and plugins,\nso the storage locations do not need to be configured one by one.\nThe only exception is a window's `dataDirectory` config, which is not affected.\n\nIt can also isolate the data of a development build from an installed version of the app,\nthough a distinct `identifier` for development builds achieves that while keeping the production directory layout.\n\nThe value is either a single path used as the root of every app directory\n(config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),\nor an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),\neach resolving to exactly the configured path. Directories that are not listed in the object keep their default location.\n\nEach path is resolved as follows:\n\n- A path starting with a base directory variable is resolved relative to that directory.\n  The supported variables are `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`,\n  `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.\n  `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.\n- An absolute path is used as is.\n- Any other path is resolved relative to the directory containing the executable,\n  which must be writable, see the platform-specific notes below.\n\n## Examples\n\nKeep all data in an `app-data` folder next to the executable, for a portable build:\n\n```json\n{\n  \"app\": {\n    \"appDirectoriesOverride\": \"./app-data\"\n  }\n}\n```\n\nOnly move the logs and the cache:\n\n```json\n{\n  \"app\": {\n    \"appDirectoriesOverride\": {\n      \"log\": \"$DATA/my-app/logs\",\n      \"cache\": \"$CACHE/my-app\"\n    }\n  }\n}\n```\n\nSet the override at runtime, for instance from an environment variable, a command line flag\nor a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`\nbefore building the app:\n\n```rust,no_run\nuse tauri::utils::config::AppDirectoriesOverride;\n\nfn main() {\n  // on an actual app, remove the string argument\n  let mut context = tauri::generate_context!(\"../tauri/test/fixture/src-tauri/tauri.conf.json\");\n\n  if let Ok(data_dir) = std::env::var(\"MY_APP_DATA_DIR\") {\n    context.config_mut().app.app_directories_override =\n      Some(AppDirectoriesOverride::Root(data_dir.into()));\n  }\n\n  tauri::Builder::default()\n    .run(context)\n    .expect(\"error while running tauri application\");\n}\n```\n\n## Security\n\nScopes and permissions that use the `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG`\nvariables follow the override, so the configured paths must be directories dedicated to the app.\nA single root is used as is for the config, data and local data directories, so a root that is not dedicated\nto the app, such as `\"./\"` or `\"$DOCUMENT\"`, extends those scopes to everything it contains.\nWith `\"./\"`, `fs:default` (which allows reading the app directories recursively) lets the webview read\nevery file next to the executable, including anything else in the folder the app was run from,\nsuch as the downloads folder. If the app also grants write access to an app directory, a compromised webview\n(e.g. through XSS) can replace files next to the executable, such as dropping a DLL that Windows loads\nfrom the executable's directory on the next launch, leading to code execution.\nAlways point the override to a subfolder owned by the app, such as `\"./app-data\"` or `\"$DOCUMENT/my-app\"`.\n\n## Platform-specific\n\nA path relative to the executable only works where the executable's directory is writable:\nportable builds, `tauri dev` builds in the `target` directory and the cases listed below.\nEverywhere else every write to an app directory fails at runtime, so installed apps should use\na base directory variable or an absolute path instead. Unless every distribution of the app is portable,\nkeep relative paths out of the shared configuration and apply them to the portable build flavor only,\nfor instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:\n\n```sh\ntauri build --config '{ \"app\": { \"appDirectoriesOverride\": \"./app-data\" } }'\n```\n\n- **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,\n  as long as it is kept in a writable directory. `.deb` and `.rpm` packages install the executable to `/usr/bin`.\n- **macOS**: Relative paths are resolved next to the `.app` bundle. This does not work for installed apps,\n  since `/Applications` is not writable for standard users, nor for bundles downloaded from the internet,\n  which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.\n- **Windows**: Relative paths also work for per-user NSIS installers,\n  but not for per-machine installers in `Program Files`.\n- **Android / iOS**: Relative paths are not supported, since there is no writable directory next to the executable.\n  Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.",
           "anyOf": [
             {
               "$ref": "#/definitions/AppDirectoriesOverride"
@@ -244,7 +244,7 @@
           "default": "main"
         },
         "create": {
-          "description": "Whether Tauri should create this window at app startup or not.\n\nWhen this is set to `false` you must manually grab the config object via `app.config().app.windows`\nand create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).\n\n## Example:\n\n```rust\ntauri::Builder::default()\n  .setup(|app| {\n    tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;\n    Ok(())\n  });\n```",
+          "description": "Whether Tauri should create this window at app startup or not.\n\nWhen this is set to `false` you must manually grab the config object via `app.config().app.windows`\nand create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).\n\n## Example:\n\n```rust,no_run\ntauri::Builder::default()\n  .setup(|app| {\n    tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;\n    Ok(())\n  });\n```",
           "type": "boolean",
           "default": true
         },
@@ -2717,7 +2717,7 @@
           ]
         },
         "allowDowngrades": {
-          "description": "Validates a second app installation, blocking the user from installing an older version if set to `false`.\n\nFor instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.\n\nThe default value of this flag is `true`.",
+          "description": "Whether an older version can be installed when a newer one is already installed.\n\nFor instance, if `1.2.1` is installed and this is set to `false`:\n\n- The MSI installer won't install version `1.2.0` or `1.1.5`.\n- The NSIS installer won't install them over `1.2.1` in silent, passive or update mode.\n  The interactive installer only lets the user install them after uninstalling `1.2.1` first.\n\nThe default value of this flag is `true`.",
           "type": "boolean",
           "default": true
         },
@@ -3381,9 +3381,122 @@
             "string",
             "null"
           ]
+        },
+        "compression": {
+          "description": "Compression algorithm and level. Defaults to `Gzip` with level 6.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DebCompression"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
+    },
+    "DebCompression": {
+      "description": "Compression algorithms used when bundling DEB packages.",
+      "oneOf": [
+        {
+          "description": "Gzip compression",
+          "type": "object",
+          "properties": {
+            "level": {
+              "description": "Gzip compression level (0-9).",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "gzip"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "level"
+          ]
+        },
+        {
+          "description": "Zstd compression",
+          "type": "object",
+          "properties": {
+            "level": {
+              "description": "Zstd compression level (-131072 - 22).",
+              "type": "integer",
+              "format": "int32"
+            },
+            "type": {
+              "type": "string",
+              "const": "zstd"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "level"
+          ]
+        },
+        {
+          "description": "Xz compression",
+          "type": "object",
+          "properties": {
+            "level": {
+              "description": "Xz compression level (0-9).",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "xz"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "level"
+          ]
+        },
+        {
+          "description": "Bzip2 compression",
+          "type": "object",
+          "properties": {
+            "level": {
+              "description": "Bzip2 compression level (1-9).",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "bzip2"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "level"
+          ]
+        },
+        {
+          "description": "Disable compression",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
     },
     "RpmConfig": {
       "description": "Configuration for RPM bundles.",
@@ -3516,7 +3629,7 @@
           "type": "object",
           "properties": {
             "level": {
-              "description": "Gzip compression level",
+              "description": "Gzip compression level (0-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0
@@ -3537,7 +3650,7 @@
           "type": "object",
           "properties": {
             "level": {
-              "description": "Zstd compression level",
+              "description": "Zstd compression level (-131072 - 22).",
               "type": "integer",
               "format": "int32"
             },
@@ -3557,7 +3670,7 @@
           "type": "object",
           "properties": {
             "level": {
-              "description": "Xz compression level",
+              "description": "Xz compression level (0-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0
@@ -3578,7 +3691,7 @@
           "type": "object",
           "properties": {
             "level": {
-              "description": "Bzip2 compression level",
+              "description": "Bzip2 compression level (1-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0

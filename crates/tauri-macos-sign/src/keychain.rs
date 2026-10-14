@@ -90,8 +90,8 @@ impl Keychain {
       error,
     })?;
 
-    // owns the keychain from here on so it is deleted if any of the remaining
-    // setup steps fail; the signing identity is resolved last
+    // owns the keychain from here on so it is deleted via the Drop impl above if
+    // any of the remaining setup steps fail; the signing identity is resolved last
     let mut keychain = Self {
       path: Some(keychain_path.clone()),
       signing_identity: SigningIdentity::Identifier(String::new()),

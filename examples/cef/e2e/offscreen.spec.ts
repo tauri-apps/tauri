@@ -158,7 +158,10 @@ test.describe('Off-screen rendering: Offscreen', () => {
     await expect
       .poll(async () => (await stats(main, page, label)).popupRect)
       .not.toBeNull()
-    expect((await stats(main, page, label)).popupPaints).toBeGreaterThan(0)
+    // CEF sizes the popup widget before it paints it.
+    await expect
+      .poll(async () => (await stats(main, page, label)).popupPaints)
+      .toBeGreaterThan(0)
     await page.keyboard.press('Escape')
     await expect
       .poll(async () => (await stats(main, page, label)).popupRect)

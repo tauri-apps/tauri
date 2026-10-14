@@ -15,7 +15,10 @@ dirs = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Presents what an off-screen browser paints, see `src/offscreen.rs`.
-softbuffer = { version = "0.4", default-features = false, features = ["x11", "x11-dlopen"] }
+softbuffer = { version = "0.4", default-features = false, features = [
+  "x11",
+  "x11-dlopen",
+] }
 tauri = { workspace = true, default-features = true }
 # Depending on this crate is what selects the CEF runtime: `tauri-build` and the
 # Tauri CLI both detect it from the manifest, and only then do they ship the CEF

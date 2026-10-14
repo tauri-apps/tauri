@@ -21,8 +21,8 @@ fundedBy:
   - name: CrabNebula
     uri: 'https://crabnebula.dev'
 
-softwareVersion: '2.12.3'
-releaseDate: '2026-10-10'
+softwareVersion: '2.12.4'
+releaseDate: '2026-10-14'
 
 platforms:
   - windows

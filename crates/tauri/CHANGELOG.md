@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.12.4]
+
+### Enhancements
+
+- [`5d1e8777a`](https://www.github.com/tauri-apps/tauri/commit/5d1e8777a04dfee9eb4e5ef4eb4664c8914ef79c) ([#16286](https://www.github.com/tauri-apps/tauri/pull/16286)) Improve the error message on iOS when the development server cannot be reached through a `localhost` URL, suggesting `tauri ios dev --host`.
+
+### Bug Fixes
+
+- [`9c3fb8865`](https://www.github.com/tauri-apps/tauri/commit/9c3fb8865fcc33982dff31c821d988a9a038ff8c) ([#16197](https://www.github.com/tauri-apps/tauri/pull/16197)) Fix a panic in the IPC and asset protocol handlers when the request URI has an empty path (for example `ipc:foo`).
+- [`7b673ddaa`](https://www.github.com/tauri-apps/tauri/commit/7b673ddaaf885ecaecfe79dfeb4cac1c6880fce6) ([#16146](https://www.github.com/tauri-apps/tauri/pull/16146)) `PluginHandle::run_mobile_plugin_async` and `PluginHandle::run_mobile_plugin` no longer panic (which aborts the process on iOS and Android) when a mobile plugin command resolves after its caller stopped waiting, for example when the async call was cancelled by a timeout. The late response is dropped instead.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.7.3`
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-runtime@2.12.2`
+- Upgraded to `tauri-runtime-wry@2.12.2`
+- Upgraded to `tauri-macros@2.7.3`
+
 ## [2.12.3]
 
 ### Bug Fixes

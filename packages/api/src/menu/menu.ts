@@ -56,18 +56,18 @@ export class Menu extends MenuItemBase {
    *
    * @example
    * ```typescript
-   * import { Menu, Submenu } from '@tauri-apps/api/menu';
+   * import { Menu } from '@tauri-apps/api/menu';
    *
    * const menu = await Menu.new({
    *   items: [
-   *     await Submenu.new({
+   *     {
    *       text: 'File',
    *       items: [
    *         { id: 'open', text: 'Open', accelerator: 'CmdOrCtrl+O', action: () => console.log('open') },
    *         { item: 'Separator' },
    *         { item: 'Quit' }
    *       ]
-   *     })
+   *     }
    *   ]
    * });
    * ```
@@ -94,10 +94,10 @@ export class Menu extends MenuItemBase {
    *
    * @example
    * ```typescript
-   * import { Menu, Submenu } from '@tauri-apps/api/menu';
+   * import { Menu } from '@tauri-apps/api/menu';
    *
-   * const menu = await Menu.default();
-   * await menu.append(await Submenu.new({ text: 'Tools', items: [{ id: 'fmt', text: 'Format' }] }));
+   * await using menu = await Menu.default();
+   * await menu.append({ text: 'Tools', items: [{ id: 'fmt', text: 'Format' }] });
    * await menu.setAsAppMenu();
    * ```
    */
@@ -301,7 +301,7 @@ export class Menu extends MenuItemBase {
    * ```typescript
    * import { Menu } from '@tauri-apps/api/menu';
    *
-   * const menu = await Menu.default();
+   * await using menu = await Menu.default();
    * const previous = await menu.setAsAppMenu();
    * await previous?.close();
    * ```
@@ -327,7 +327,7 @@ export class Menu extends MenuItemBase {
    * import { Menu } from '@tauri-apps/api/menu';
    * import { getCurrentWindow } from '@tauri-apps/api/window';
    *
-   * const menu = await Menu.default();
+   * await using menu = await Menu.default();
    * await menu.setAsWindowMenu(getCurrentWindow());
    * ```
    *

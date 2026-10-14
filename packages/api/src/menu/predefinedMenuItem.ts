@@ -123,7 +123,7 @@ export interface PredefinedMenuItemOptions {
    * ```typescript
    * import { Menu, PredefinedMenuItem, Submenu } from '@tauri-apps/api/menu';
    *
-   * const edit = await Submenu.new({
+   * await using edit = await Submenu.new({
    *   text: 'Edit',
    *   items: [
    *     { item: 'Undo' },
@@ -136,7 +136,7 @@ export interface PredefinedMenuItemOptions {
    *   ]
    * });
    *
-   * const quit = await PredefinedMenuItem.new({ item: 'Quit', text: 'Quit my app' });
+   * await using quit = await PredefinedMenuItem.new({ item: 'Quit', text: 'Quit my app' });
    * const menu = await Menu.new({ items: [edit, quit] });
    * ```
    */

@@ -365,7 +365,8 @@ pub struct DebConfig {
   /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg` (optional), `icon`,
   /// `name`, `mime_type` (optional) and `long_description`.
   ///
-  /// `exec_arg` is `%u` when deep link schemes are configured, so launchers pass the URL to the app.
+  /// `exec_arg` is the `Exec` field code: `%U` when deep link schemes are configured, `%F` when only
+  /// file associations are, so launchers pass the opened URLs or files to the app.
   /// Use it as `Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
@@ -468,7 +469,8 @@ pub struct RpmConfig {
   /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg` (optional), `icon`,
   /// `name`, `mime_type` (optional) and `long_description`.
   ///
-  /// `exec_arg` is `%u` when deep link schemes are configured, so launchers pass the URL to the app.
+  /// `exec_arg` is the `Exec` field code: `%U` when deep link schemes are configured, `%F` when only
+  /// file associations are, so launchers pass the opened URLs or files to the app.
   /// Use it as `Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,

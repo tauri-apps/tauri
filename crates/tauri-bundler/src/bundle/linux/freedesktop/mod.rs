@@ -153,9 +153,20 @@ pub fn generate_desktop_file(
     .map(|s| format!("x-scheme-handler/{s}"))
     .collect();
 
-  // Launchers fall back to `%f` when Exec has no field code, which passes
-  // local files but drops URLs without a local path, such as deep links.
-  let exec_arg = (!schemes.is_empty()).then_some("%u");
+  // Launchers fall back to `%f` when Exec has no field code, which drops URLs
+  // without a local path (deep links) and starts one process per file.
+  // `%U` passes local files as paths and URLs as-is, all in one process;
+  // `%F` also maps remote files to local paths for file-only apps.
+  let has_file_associations = settings
+    .file_associations()
+    .is_some_and(|associations| !associations.is_empty());
+  let exec_arg = if !schemes.is_empty() {
+    Some("%U")
+  } else if has_file_associations {
+    Some("%F")
+  } else {
+    None
+  };
 
   mime_type.extend(schemes);
 
@@ -196,9 +207,12 @@ pub fn generate_desktop_file(
 mod tests {
   use super::*;
   use crate::bundle::{BundleBinary, BundleSettings, PackageSettings, SettingsBuilder};
-  use tauri_utils::config::DeepLinkProtocol;
+  use tauri_utils::config::{AssociationExt, DeepLinkProtocol, FileAssociation};
 
-  fn render(deep_link_protocols: Option<Vec<DeepLinkProtocol>>) -> String {
+  fn render(
+    deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
+    file_associations: Option<Vec<FileAssociation>>,
+  ) -> String {
     let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
     let settings = SettingsBuilder::new()
       .project_out_directory(tmp_dir.path())
@@ -212,6 +226,7 @@ mod tests {
       })
       .bundle_settings(BundleSettings {
         deep_link_protocols,
+        file_associations,
         ..Default::default()
       })
       .binaries(vec![BundleBinary::new("test-app".into(), true)])
@@ -224,24 +239,59 @@ mod tests {
     std::fs::read_to_string(path).expect("failed to read desktop file")
   }
 
+  fn deep_link() -> Vec<DeepLinkProtocol> {
+    vec![DeepLinkProtocol {
+      schemes: vec!["my-app".into(), "other".into()],
+      domains: Vec::new(),
+      name: None,
+      role: Default::default(),
+    }]
+  }
+
+  fn file_association() -> Vec<FileAssociation> {
+    vec![FileAssociation {
+      ext: vec![AssociationExt("png".into())],
+      content_types: None,
+      name: None,
+      description: None,
+      role: Default::default(),
+      mime_type: Some("image/png".into()),
+      rank: Default::default(),
+      exported_type: None,
+      android_intent_action_filters: None,
+    }]
+  }
+
   #[test]
-  fn exec_without_deep_links_has_no_field_code() {
-    let desktop = render(None);
+  fn exec_without_associations_has_no_field_code() {
+    let desktop = render(None, None);
     assert!(desktop.contains("\nExec=test-app\n"), "{desktop}");
     assert!(!desktop.contains("MimeType="), "{desktop}");
   }
 
   #[test]
-  fn exec_with_deep_links_takes_url() {
-    let desktop = render(Some(vec![DeepLinkProtocol {
-      schemes: vec!["my-app".into(), "other".into()],
-      domains: Vec::new(),
-      name: None,
-      role: Default::default(),
-    }]));
-    assert!(desktop.contains("\nExec=test-app %u\n"), "{desktop}");
+  fn exec_with_file_associations_takes_files() {
+    let desktop = render(None, Some(file_association()));
+    assert!(desktop.contains("\nExec=test-app %F\n"), "{desktop}");
+    assert!(desktop.contains("\nMimeType=image/png\n"), "{desktop}");
+  }
+
+  #[test]
+  fn exec_with_deep_links_takes_urls() {
+    let desktop = render(Some(deep_link()), None);
+    assert!(desktop.contains("\nExec=test-app %U\n"), "{desktop}");
     assert!(
       desktop.contains("\nMimeType=x-scheme-handler/my-app;x-scheme-handler/other\n"),
+      "{desktop}"
+    );
+  }
+
+  #[test]
+  fn exec_with_deep_links_and_file_associations_takes_urls() {
+    let desktop = render(Some(deep_link()), Some(file_association()));
+    assert!(desktop.contains("\nExec=test-app %U\n"), "{desktop}");
+    assert!(
+      desktop.contains("\nMimeType=image/png;x-scheme-handler/my-app;x-scheme-handler/other\n"),
       "{desktop}"
     );
   }

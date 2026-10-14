@@ -3488,7 +3488,7 @@
           ]
         },
         "desktopTemplate": {
-          "description": "Path to a custom desktop file Handlebars template.\n\n Available variables: `categories`, `comment` (optional), `exec`, `exec_arg` (optional), `icon`,\n `name`, `mime_type` (optional) and `long_description`.\n\n `exec_arg` is `%u` when deep link schemes are configured, so launchers pass the URL to the app.\n Use it as `Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}`.",
+          "description": "Path to a custom desktop file Handlebars template.\n\n Available variables: `categories`, `comment` (optional), `exec`, `exec_arg` (optional), `icon`,\n `name`, `mime_type` (optional) and `long_description`.\n\n `exec_arg` is the `Exec` field code: `%U` when deep link schemes are configured, `%F` when only\n file associations are, so launchers pass the opened URLs or files to the app.\n Use it as `Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}`.",
           "type": [
             "string",
             "null"
@@ -3600,7 +3600,7 @@
           }
         },
         "desktopTemplate": {
-          "description": "Path to a custom desktop file Handlebars template.\n\n Available variables: `categories`, `comment` (optional), `exec`, `exec_arg` (optional), `icon`,\n `name`, `mime_type` (optional) and `long_description`.\n\n `exec_arg` is `%u` when deep link schemes are configured, so launchers pass the URL to the app.\n Use it as `Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}`.",
+          "description": "Path to a custom desktop file Handlebars template.\n\n Available variables: `categories`, `comment` (optional), `exec`, `exec_arg` (optional), `icon`,\n `name`, `mime_type` (optional) and `long_description`.\n\n `exec_arg` is the `Exec` field code: `%U` when deep link schemes are configured, `%F` when only\n file associations are, so launchers pass the opened URLs or files to the app.\n Use it as `Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}`.",
           "type": [
             "string",
             "null"

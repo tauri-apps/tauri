@@ -67,6 +67,30 @@ function checkChangeFiles(changeFiles) {
   }
 }
 
+// in prerelease mode covector lists the consumed change files in pre.json
+// instead of deleting them
+const releasedChangeFiles = (() => {
+  const preFile = '.changes/pre.json'
+  if (!fs.existsSync(preFile)) return new Set()
+  const changes = JSON.parse(fs.readFileSync(preFile, 'utf8')).changes || []
+  return new Set(changes.map((f) => path.posix.normalize(f)))
+})()
+
+function isPendingChangeFile(file) {
+  return (
+    !file.toLowerCase().endsWith('readme.md')
+    && !releasedChangeFiles.has(path.posix.normalize(file))
+  )
+}
+
+function pendingChangeFiles() {
+  return fs
+    .readdirSync('.changes')
+    .filter((f) => f.endsWith('.md'))
+    .map((p) => path.posix.join('.changes', p))
+    .filter(isPendingChangeFile)
+}
+
 function git(...args) {
   return execFileSync('git', args, { encoding: 'utf8' }).trim()
 }
@@ -142,19 +166,9 @@ function checkMissingBumps(baseRef) {
     )
     changeFiles = out ? out.split('\n') : []
   } else {
-    const preFile = '.changes/pre.json'
-    const consumed = fs.existsSync(preFile)
-      ? JSON.parse(fs.readFileSync(preFile, 'utf8')).changes || []
-      : []
-    changeFiles = fs
-      .readdirSync('.changes')
-      .filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md')
-      .map((p) => path.posix.join('.changes', p))
-      .filter((f) => !consumed.includes(f))
+    changeFiles = pendingChangeFiles()
   }
-  changeFiles = changeFiles.filter(
-    (f) => !f.toLowerCase().endsWith('readme.md')
-  )
+  changeFiles = changeFiles.filter(isPendingChangeFile)
 
   const bumped = new Set(changeFiles.flatMap(changeFilePackages))
   const covered = withDependents(packages, bumped)
@@ -212,13 +226,7 @@ const [_bin, _script, ...files] = process.argv
 if (files[0] === '--missing-bumps') {
   checkMissingBumps(files[1])
 } else if (files.length > 0) {
-  checkChangeFiles(
-    files.filter((f) => f.toLowerCase() !== '.changes/readme.md')
-  )
+  checkChangeFiles(files.filter(isPendingChangeFile))
 } else {
-  const changeFiles = fs
-    .readdirSync('.changes')
-    .filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md')
-    .map((p) => path.join('.changes', p))
-  checkChangeFiles(changeFiles)
+  checkChangeFiles(pendingChangeFiles())
 }

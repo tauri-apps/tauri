@@ -65,22 +65,26 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  // `xcode-script` is ran from the `gen/apple` folder unless the package manager moves the working directory
-  // to the package root (which NPM, yarn, deno, bun@>=1.2 and most pnpm versions do).
-  // In that case we must change working directory to the src-tauri folder to resolve the tauri dir.
-  // We can't rely on the package manager env vars to detect this: bun@<1.2 sets them without changing the directory,
-  // pnpm@12.3 runs the binary in place when called outside a package,
-  // and Xcode inherits them from the `tauri ios dev --open` process anyway.
+  // Xcode runs `xcode-script` from `gen/apple`. Most package managers move the working directory to the
+  // package root, but some don't (cargo, bun@<1.2, pnpm@12.3 outside a package), so if the tauri dir
+  // can't be resolved and we're in `gen/apple`, move up to the src-tauri folder.
+  // Package manager env vars are unreliable here (Xcode inherits them from `tauri ios dev --open`).
   if crate::helpers::app_paths::resolve_tauri_dir().is_none() {
-    set_current_dir(
-      current_dir()
-        .context("failed to resolve current directory")?
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap(),
-    )
-    .unwrap();
+    let cwd = current_dir().context("failed to resolve current directory")?;
+    let gen_dir = cwd
+      .parent()
+      .filter(|_| cwd.file_name() == Some(OsStr::new("apple")));
+    if let Some(tauri_dir) = gen_dir
+      .filter(|gen_dir| gen_dir.file_name() == Some(OsStr::new("gen")))
+      .and_then(Path::parent)
+    {
+      set_current_dir(tauri_dir).with_context(|| {
+        format!(
+          "failed to change current directory to {}",
+          tauri_dir.display()
+        )
+      })?;
+    }
   }
 
   let dirs = crate::helpers::app_paths::resolve_dirs();

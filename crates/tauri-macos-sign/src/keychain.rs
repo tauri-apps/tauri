@@ -109,29 +109,7 @@ impl Keychain {
       error,
     })?;
 
-    assert_command(
-      Command::new("security")
-        .arg("import")
-        .arg(cert_path)
-        .arg("-P")
-        .arg(certificate_password)
-        .args([
-          "-T",
-          "/usr/bin/codesign",
-          "-T",
-          "/usr/bin/pkgbuild",
-          "-T",
-          "/usr/bin/productbuild",
-        ])
-        .arg("-k")
-        .arg(&keychain_path)
-        .piped(),
-      "failed to import keychain certificate",
-    )
-    .map_err(|error| Error::CommandFailed {
-      command: "security import".to_string(),
-      error,
-    })?;
+    import_certificate(cert_path, certificate_password, &keychain_path)?;
 
     assert_command(
       Command::new("security")
@@ -259,10 +237,105 @@ impl Keychain {
   }
 }
 
-#[cfg(all(test, target_os = "macos"))]
+/// Format of the certificate file handed to `security import`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CertificateFormat {
+  /// PKCS#12 archive (.p12).
+  Pkcs12,
+  /// Sequence of PEM items, e.g. a private key followed by its certificate.
+  PemSequence,
+}
+
+impl CertificateFormat {
+  fn detect(contents: &[u8]) -> Self {
+    if contents.trim_ascii_start().starts_with(b"-----BEGIN ") {
+      Self::PemSequence
+    } else {
+      Self::Pkcs12
+    }
+  }
+
+  fn security_format(self) -> &'static str {
+    match self {
+      Self::Pkcs12 => "pkcs12",
+      Self::PemSequence => "pemseq",
+    }
+  }
+
+  fn description(self) -> &'static str {
+    match self {
+      Self::Pkcs12 => "a PKCS#12 (.p12) file",
+      Self::PemSequence => "a PEM bundle",
+    }
+  }
+}
+
+/// Imports the certificate and its private key into the given keychain.
+///
+/// The format is passed explicitly because `security` fails to infer it for
+/// p12 files using PBES2/AES encryption (the OpenSSL 3 default).
+fn import_certificate(
+  cert_path: &Path,
+  certificate_password: &OsString,
+  keychain_path: &Path,
+) -> Result<()> {
+  let contents = std::fs::read(cert_path).map_err(|error| Error::Fs {
+    context: "failed to read certificate file",
+    path: cert_path.to_path_buf(),
+    error,
+  })?;
+  let format = CertificateFormat::detect(&contents);
+
+  assert_command(
+    Command::new("security")
+      .arg("import")
+      .arg(cert_path)
+      .args(["-f", format.security_format(), "-t", "agg"])
+      .arg("-P")
+      .arg(certificate_password)
+      .args([
+        "-T",
+        "/usr/bin/codesign",
+        "-T",
+        "/usr/bin/pkgbuild",
+        "-T",
+        "/usr/bin/productbuild",
+      ])
+      .arg("-k")
+      .arg(keychain_path)
+      .piped(),
+    &format!(
+      "failed to import the signing certificate as {}; the certificate must be a PKCS#12 (.p12) file or a PEM bundle containing both the certificate and its private key, and the password must match the one used to export it",
+      format.description()
+    ),
+  )
+  .map_err(|error| Error::CommandFailed {
+    command: format!("security import -f {}", format.security_format()),
+    error,
+  })
+}
+
+#[cfg(test)]
 mod tests {
   use super::*;
 
+  #[test]
+  fn detects_certificate_format() {
+    assert_eq!(
+      CertificateFormat::detect(include_bytes!("../tests/fixtures/pbes2.p12")),
+      CertificateFormat::Pkcs12
+    );
+    assert_eq!(
+      CertificateFormat::detect(include_bytes!("../tests/fixtures/bundle.pem")),
+      CertificateFormat::PemSequence
+    );
+    assert_eq!(
+      CertificateFormat::detect(b"\n  -----BEGIN CERTIFICATE-----\n"),
+      CertificateFormat::PemSequence
+    );
+  }
+
+  #[cfg(target_os = "macos")]
   #[test]
   fn failed_setup_deletes_keychain() {
     let keychains_dir = dirs::home_dir().unwrap().join("Library").join("Keychains");
@@ -286,5 +359,75 @@ mod tests {
       .collect::<Vec<_>>();
 
     assert!(leaked.is_empty(), "leaked keychains: {leaked:?}");
+  }
+
+  #[cfg(target_os = "macos")]
+  mod import {
+    use super::super::*;
+
+    const PASSWORD: &str = "tauri";
+
+    /// Temporary keychain that is not added to the user's search list.
+    struct TempKeychain {
+      _dir: tempfile::TempDir,
+      path: PathBuf,
+    }
+
+    impl TempKeychain {
+      fn new() -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.keychain-db");
+        let status = Command::new("security")
+          .args(["create-keychain", "-p", "test"])
+          .arg(&path)
+          .status()
+          .unwrap();
+        assert!(status.success(), "failed to create test keychain");
+        Self { _dir: dir, path }
+      }
+    }
+
+    impl Drop for TempKeychain {
+      fn drop(&mut self) {
+        let _ = Command::new("security")
+          .arg("delete-keychain")
+          .arg(&self.path)
+          .status();
+      }
+    }
+
+    fn fixture(name: &str) -> PathBuf {
+      Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name)
+    }
+
+    fn import(name: &str, password: &str) -> Result<()> {
+      let keychain = TempKeychain::new();
+      import_certificate(&fixture(name), &password.into(), &keychain.path)
+    }
+
+    // regression test for https://github.com/tauri-apps/tauri/issues/15843
+    #[test]
+    fn imports_pbes2_p12() {
+      import("pbes2.p12", PASSWORD).unwrap();
+    }
+
+    #[test]
+    fn imports_legacy_p12() {
+      import("legacy.p12", PASSWORD).unwrap();
+    }
+
+    #[test]
+    fn imports_pem_bundle() {
+      import("bundle.pem", PASSWORD).unwrap();
+    }
+
+    #[test]
+    fn wrong_password_error_explains_requirements() {
+      let error = import("pbes2.p12", "wrong").unwrap_err().to_string();
+      assert!(error.contains("security import -f pkcs12"), "{error}");
+      assert!(error.contains("password must match"), "{error}");
+    }
   }
 }

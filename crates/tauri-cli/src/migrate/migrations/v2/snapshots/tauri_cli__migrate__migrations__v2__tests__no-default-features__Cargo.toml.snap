@@ -8,14 +8,14 @@ version = "0.1.0"
 edition = "2021"
 
 [build-dependencies.tauri-build]
-version = "3.0.0-alpha.2"
+version = "[version]"
 
 [dependencies.tauri]
-version = "3.0.0-alpha.3"
+version = "[version]"
 default-features = false
 features = [
   "compression",
 ]
 
 [dependencies]
-tauri-runtime-wry = { version = "3.0.0-alpha.3", features = ["x11", "unstable"] }
+tauri-runtime-wry = { version = "[version]", features = ["x11", "unstable"] }

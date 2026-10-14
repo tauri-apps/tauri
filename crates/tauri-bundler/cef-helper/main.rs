@@ -212,7 +212,11 @@ fn main() {
 
   // Declare the version the browser process passed, if any.
   let version = child_process_api_version(std::env::args_os()).unwrap_or(sys::CEF_API_VERSION_LAST);
-  let _ = api_hash(version, 0);
+  // `cef_api_hash` returns NULL if the loaded libcef does not support the version, and
+  // the next CEF call would crash.
+  if api_hash(version, 0).is_null() {
+    panic!("the loaded CEF library does not support CEF API version {version}");
+  }
   let mut app = TauriRenderApp::new();
   execute_process(
     Some(args.as_main_args()),

@@ -136,25 +136,18 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
           .get("CFBundleExecutable")
           .and_then(|v| v.as_string())
       {
+        use std::os::unix::process::CommandExt;
+
+        // same reasoning as above: do not share our stdio or process group with the new instance
         if let Err(e) = Command::new(macos_directory.join(binary_name))
           .args(env.args_os.iter().skip(1))
+          .stdin(std::process::Stdio::null())
+          .stdout(std::process::Stdio::null())
+          .stderr(std::process::Stdio::null())
+          .process_group(0)
           .spawn()
         {
-          use std::os::unix::process::CommandExt;
-
-          // same reasoning as above: do not share our stdio or process group with the new instance
-          if let Err(e) = Command::new(macos_directory.join(binary_name))
-            .args(env.args_os.iter().skip(1))
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .process_group(0)
-            .spawn()
-          {
-            log::error!("failed to restart app: {e}");
-          }
-
-          exit(0);
+          log::error!("failed to restart app: {e}");
         }
 
         exit(0);

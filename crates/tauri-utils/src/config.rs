@@ -281,6 +281,8 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+const ZSTD_MIN_CLEVEL: i32 = -1 << 17;
+
 /// Compression algorithms used when bundling DEB packages.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -294,8 +296,8 @@ pub enum DebCompression {
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level (1-22).
-    level: u32,
+    /// Zstd compression level (-131072 - 22).
+    level: i32,
   },
   /// Xz compression
   Xz {
@@ -324,7 +326,7 @@ impl DebCompression {
   }
 
   /// The default compression level for this algorithm.
-  pub fn default_level(&self) -> Option<u32> {
+  pub fn default_level(&self) -> Option<i32> {
     match self {
       Self::None => None,
       Self::Gzip { .. } => Some(9),
@@ -335,19 +337,19 @@ impl DebCompression {
   }
 
   /// The minimum compression level supported by this algorithm.
-  pub fn min_level(&self) -> Option<u32> {
+  pub fn min_level(&self) -> Option<i32> {
     match self {
       Self::None => None,
       Self::Gzip { .. } => Some(0),
       Self::Xz { .. } => Some(0),
-      Self::Zstd { .. } => Some(1),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
       // bzip2 levels are block sizes, which start at 1
       Self::Bzip2 { .. } => Some(1),
     }
   }
 
   /// The maximum compression level supported by this algorithm.
-  pub fn max_level(&self) -> Option<u32> {
+  pub fn max_level(&self) -> Option<i32> {
     match self {
       Self::None => None,
       Self::Gzip { .. } => Some(9),
@@ -358,12 +360,13 @@ impl DebCompression {
   }
 
   /// The compression level configured for this algorithm.
-  pub fn level(&self) -> Option<u32> {
+  pub fn level(&self) -> Option<i32> {
     match self {
       Self::None => None,
-      Self::Gzip { level } | Self::Xz { level } | Self::Zstd { level } | Self::Bzip2 { level } => {
-        Some(*level)
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => {
+        Some(i32::try_from(*level).unwrap_or(i32::MAX))
       }
+      Self::Zstd { level } => Some(*level),
     }
   }
 }
@@ -454,8 +457,7 @@ pub enum RpmCompression {
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level (1-22).
-    // TODO: change to u32 in v3 to match the other levels
+    /// Zstd compression level (-131072 - 22).
     level: i32,
   },
   /// Xz compression
@@ -490,7 +492,7 @@ impl RpmCompression {
       Self::None => None,
       Self::Gzip { .. } => Some(0),
       Self::Xz { .. } => Some(0),
-      Self::Zstd { .. } => Some(1),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
       // bzip2 levels are block sizes, which start at 1
       Self::Bzip2 { .. } => Some(1),
     }
@@ -511,7 +513,9 @@ impl RpmCompression {
   pub fn level(&self) -> Option<i32> {
     match self {
       Self::None => None,
-      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => {
+        Some(i32::try_from(*level).unwrap_or(i32::MAX))
+      }
       Self::Zstd { level } => Some(*level),
     }
   }

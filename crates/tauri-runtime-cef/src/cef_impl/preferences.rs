@@ -112,6 +112,18 @@ const PREFERENCES: &[(&str, bool)] = &[
   ("privacy_sandbox.m1.ad_measurement_enabled", false),
 ];
 
+/// `session.restore_on_startup`, the profile preference Chrome consults when the first
+/// browser of a profile opens, and the value the runtime pins it to.
+///
+/// `1` ("continue where you left off") makes `SessionService::RestoreIfNecessary`
+/// reopen every tab the profile's last session had — after a crash or a kill too — in
+/// Chrome browser windows of its own. Those tabs are the application's own webviews, so
+/// each launch would bring back hidden copies of the previous run's windows that the
+/// runtime does not own, never closes, and that keep the process alive once the
+/// application's windows are gone. `5` is Chrome's "open the New Tab page", which for a
+/// CEF browser restores nothing.
+const SESSION_RESTORE_ON_STARTUP: (&str, i64) = ("session.restore_on_startup", 5);
+
 /// Converts a JSON value into the `CefValue` the preference API takes.
 ///
 /// Chromium preferences are `base::Value`s of every shape - `proxy` is a dictionary,
@@ -187,7 +199,11 @@ pub(crate) fn apply_app_webview_preferences(
 ) {
   let defaults = PREFERENCES
     .iter()
-    .map(|(name, enabled)| ((*name).to_string(), serde_json::Value::Bool(*enabled)));
+    .map(|(name, enabled)| ((*name).to_string(), serde_json::Value::Bool(*enabled)))
+    .chain(std::iter::once((
+      SESSION_RESTORE_ON_STARTUP.0.to_string(),
+      serde_json::Value::from(SESSION_RESTORE_ON_STARTUP.1),
+    )));
 
   for (name, value) in defaults.chain(overrides.iter().cloned()) {
     let _ = set_preference(request_context, &name, &value);

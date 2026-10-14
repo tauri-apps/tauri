@@ -362,7 +362,11 @@ pub struct DebConfig {
   pub changelog: Option<PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg` (optional), `icon`,
+  /// `name`, `mime_type` (optional) and `long_description`.
+  ///
+  /// `exec_arg` is `%u` when deep link schemes are configured, so launchers pass the URL to the app.
+  /// Use it as `Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -461,7 +465,11 @@ pub struct RpmConfig {
   pub files: HashMap<PathBuf, PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg` (optional), `icon`,
+  /// `name`, `mime_type` (optional) and `long_description`.
+  ///
+  /// `exec_arg` is `%u` when deep link schemes are configured, so launchers pass the URL to the app.
+  /// Use it as `Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See

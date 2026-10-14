@@ -191,3 +191,58 @@ pub fn generate_desktop_file(
 
   Ok((file_path, dest_path))
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::bundle::{BundleBinary, BundleSettings, PackageSettings, SettingsBuilder};
+  use tauri_utils::config::DeepLinkProtocol;
+
+  fn render(deep_link_protocols: Option<Vec<DeepLinkProtocol>>) -> String {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+    let settings = SettingsBuilder::new()
+      .project_out_directory(tmp_dir.path())
+      .package_settings(PackageSettings {
+        product_name: "TestApp".into(),
+        version: "0.1.0".into(),
+        description: "test".into(),
+        homepage: None,
+        authors: None,
+        default_run: None,
+      })
+      .bundle_settings(BundleSettings {
+        deep_link_protocols,
+        ..Default::default()
+      })
+      .binaries(vec![BundleBinary::new("test-app".into(), true)])
+      .target("x86_64-unknown-linux-gnu".into())
+      .build()
+      .expect("failed to build settings");
+
+    let (path, _) =
+      generate_desktop_file(&settings, &None, tmp_dir.path()).expect("failed to generate");
+    std::fs::read_to_string(path).expect("failed to read desktop file")
+  }
+
+  #[test]
+  fn exec_without_deep_links_has_no_field_code() {
+    let desktop = render(None);
+    assert!(desktop.contains("\nExec=test-app\n"), "{desktop}");
+    assert!(!desktop.contains("MimeType="), "{desktop}");
+  }
+
+  #[test]
+  fn exec_with_deep_links_takes_url() {
+    let desktop = render(Some(vec![DeepLinkProtocol {
+      schemes: vec!["my-app".into(), "other".into()],
+      domains: Vec::new(),
+      name: None,
+      role: Default::default(),
+    }]));
+    assert!(desktop.contains("\nExec=test-app %u\n"), "{desktop}");
+    assert!(
+      desktop.contains("\nMimeType=x-scheme-handler/my-app;x-scheme-handler/other\n"),
+      "{desktop}"
+    );
+  }
+}

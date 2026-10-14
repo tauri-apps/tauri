@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  ffi::OsString,
+  ffi::{OsStr, OsString},
+  io::Write,
   path::{Path, PathBuf},
-  process::Command,
+  process::{Command, Stdio},
 };
 
 use crate::{CommandExt, Error, Result, assert_command};
@@ -102,29 +103,7 @@ impl Keychain {
       error,
     })?;
 
-    assert_command(
-      Command::new("security")
-        .arg("import")
-        .arg(cert_path)
-        .arg("-P")
-        .arg(certificate_password)
-        .args([
-          "-T",
-          "/usr/bin/codesign",
-          "-T",
-          "/usr/bin/pkgbuild",
-          "-T",
-          "/usr/bin/productbuild",
-        ])
-        .arg("-k")
-        .arg(&keychain_path)
-        .piped(),
-      "failed to import keychain certificate",
-    )
-    .map_err(|error| Error::CommandFailed {
-      command: "security import".to_string(),
-      error,
-    })?;
+    import_certificate(cert_path, certificate_password, &keychain_path)?;
 
     assert_command(
       Command::new("security")
@@ -250,5 +229,177 @@ impl Keychain {
 
   pub fn path(&self) -> Option<&Path> {
     self.path.as_deref()
+  }
+}
+
+/// Imports the certificate and its private key into the given keychain.
+///
+/// The command is written to the stdin of `security -i` instead of being passed
+/// as arguments, so the certificate password does not show up in the process list.
+fn import_certificate(
+  cert_path: &Path,
+  certificate_password: &OsString,
+  keychain_path: &Path,
+) -> Result<()> {
+  let command_failed = |error| Error::CommandFailed {
+    command: "security import".to_string(),
+    error,
+  };
+
+  let mut command_line = b"import".to_vec();
+  for arg in [
+    cert_path.as_os_str(),
+    OsStr::new("-P"),
+    certificate_password,
+  ]
+  .into_iter()
+  .chain(
+    [
+      "-T",
+      "/usr/bin/codesign",
+      "-T",
+      "/usr/bin/pkgbuild",
+      "-T",
+      "/usr/bin/productbuild",
+      "-k",
+    ]
+    .map(OsStr::new),
+  )
+  .chain([keychain_path.as_os_str()])
+  {
+    command_line.push(b' ');
+    command_line.extend(quote_interactive_arg(arg).map_err(command_failed)?);
+  }
+  command_line.push(b'\n');
+
+  log::debug!(action = "Running"; "Command `security -i` with `security import` on stdin");
+  let mut child = Command::new("security")
+    .arg("-i")
+    .stdin(Stdio::piped())
+    .stdout(os_pipe::dup_stdout().map_err(command_failed)?)
+    .stderr(os_pipe::dup_stderr().map_err(command_failed)?)
+    .spawn()
+    .map_err(command_failed)?;
+  let write_result = child
+    .stdin
+    .take()
+    .expect("stdin is piped")
+    .write_all(&command_line);
+  let status = child.wait();
+  write_result.map_err(command_failed)?;
+
+  assert_command(status, "failed to import keychain certificate").map_err(command_failed)
+}
+
+/// Quotes an argument for the `security -i` command parser,
+/// which splits on whitespace and supports `"` quoting with `\` escapes.
+fn quote_interactive_arg(arg: &OsStr) -> std::io::Result<Vec<u8>> {
+  let bytes = arg.as_encoded_bytes();
+  if bytes.iter().any(|b| matches!(b, b'\n' | b'\r')) {
+    return Err(std::io::Error::new(
+      std::io::ErrorKind::InvalidInput,
+      "certificate path, password and keychain path must not contain line breaks",
+    ));
+  }
+
+  let mut quoted = Vec::with_capacity(bytes.len() + 2);
+  quoted.push(b'"');
+  for &b in bytes {
+    if matches!(b, b'"' | b'\\') {
+      quoted.push(b'\\');
+    }
+    quoted.push(b);
+  }
+  quoted.push(b'"');
+  Ok(quoted)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn quotes_interactive_args() {
+    assert_eq!(
+      quote_interactive_arg(OsStr::new(r#"p a"s\s'x"#)).unwrap(),
+      br#""p a\"s\\s'x""#
+    );
+    assert_eq!(quote_interactive_arg(OsStr::new("")).unwrap(), b"\"\"");
+    assert!(quote_interactive_arg(OsStr::new("a\nimport")).is_err());
+  }
+
+  #[cfg(target_os = "macos")]
+  mod import {
+    use super::super::*;
+    use crate::certificate::{
+      CertificateProfile, SelfSignedCertificateRequest, generate_self_signed,
+    };
+
+    /// Temporary keychain that is not added to the user's search list.
+    struct TempKeychain {
+      dir: tempfile::TempDir,
+      path: PathBuf,
+    }
+
+    impl TempKeychain {
+      fn new() -> Self {
+        // includes a space to exercise quoting
+        let dir = tempfile::Builder::new()
+          .prefix("tauri sign")
+          .tempdir()
+          .unwrap();
+        let path = dir.path().join("test.keychain-db");
+        let status = Command::new("security")
+          .args(["create-keychain", "-p", "test"])
+          .arg(&path)
+          .status()
+          .unwrap();
+        assert!(status.success(), "failed to create test keychain");
+        Self { dir, path }
+      }
+    }
+
+    impl Drop for TempKeychain {
+      fn drop(&mut self) {
+        let _ = Command::new("security")
+          .arg("delete-keychain")
+          .arg(&self.path)
+          .status();
+      }
+    }
+
+    fn import(password: &str, import_password: &str) -> Result<TempKeychain> {
+      let keychain = TempKeychain::new();
+      let cert_path = keychain.dir.path().join("cert.p12");
+      let p12 = generate_self_signed(SelfSignedCertificateRequest {
+        algorithm: "rsa".into(),
+        profile: CertificateProfile::AppleDevelopment,
+        team_id: "TAURITEST".into(),
+        person_name: "Tauri Test".into(),
+        country_name: "US".into(),
+        validity_days: 1,
+        password: password.into(),
+      })?;
+      std::fs::write(&cert_path, p12).unwrap();
+      import_certificate(&cert_path, &import_password.into(), &keychain.path)?;
+      Ok(keychain)
+    }
+
+    #[test]
+    fn imports_with_password_needing_quotes() {
+      let password = r#"p a"s\s'x -k /tmp/other"#;
+      let keychain = import(password, password).unwrap();
+      let output = Command::new("security")
+        .args(["find-certificate", "-c", "Tauri Test"])
+        .arg(&keychain.path)
+        .output()
+        .unwrap();
+      assert!(output.status.success(), "certificate was not imported");
+    }
+
+    #[test]
+    fn wrong_password_fails() {
+      assert!(import("right", "wrong").is_err());
+    }
   }
 }

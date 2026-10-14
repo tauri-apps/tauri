@@ -165,11 +165,7 @@ test.describe('Off-screen rendering: Offscreen', () => {
       .toBeNull()
   })
 
-  // Not specific to off-screen rendering: the same test in popups.spec.ts is a
-  // fixme too. `on_before_popup` runs on the main thread, and the window the
-  // handler builds there waits on the event loop that thread is blocked in, so
-  // every platform deadlocks in `create_window_detached`.
-  test.fixme('window.open becomes a Tauri window', async ({ app, main }) => {
+  test('window.open becomes a Tauri window', async ({ app, main }) => {
     const { page } = await open(app, main)
     await page.locator('[data-popup="popup.html"]').click()
 

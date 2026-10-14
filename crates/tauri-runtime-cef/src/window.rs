@@ -1784,11 +1784,9 @@ where
     after_window_creation: after_window_creation.map(|f| Box::new(f) as _),
     result_tx,
   })?;
-  // Block until the event loop has created the window so a creation failure is
+  // Wait until the event loop has created the window so a creation failure is
   // surfaced to the caller instead of leaving a detached, dead window.
-  result_rx
-    .recv()
-    .map_err(|_| Error::FailedToReceiveMessage)??;
+  context.wait_for_creation(result_rx)?;
 
   let webview = webview_id.map(|webview_id| DetachedWindowWebview {
     webview: DetachedWebview {

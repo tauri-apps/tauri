@@ -1453,6 +1453,26 @@ impl<T: UserEvent> RuntimeContext<T> {
     std::thread::current().id() == self.main_thread_id
   }
 
+  /// Waits for the result of a `CreateWindow` or `CreateWebview` message just sent.
+  ///
+  /// On the main thread outside a winit callback the message is queued, not handled
+  /// inline, and blocking on it would deadlock the loop that has to handle it. CEF calls
+  /// back from its external message pump that way: a new-window handler building a window
+  /// from `on_before_popup` would freeze the app. The creation then completes on the
+  /// loop's next pass and a failure is only logged (see `Message::CreateWindow`).
+  pub(crate) fn wait_for_creation(&self, result_rx: Receiver<Result<()>>) -> Result<()> {
+    if self.is_main_thread() {
+      return match result_rx.try_recv() {
+        Ok(result) => result,
+        Err(mpsc::TryRecvError::Empty) => Ok(()),
+        Err(mpsc::TryRecvError::Disconnected) => Err(Error::FailedToReceiveMessage),
+      };
+    }
+    result_rx
+      .recv()
+      .map_err(|_| Error::FailedToReceiveMessage)?
+  }
+
   /// Run `f` on the main (event-loop) thread.
   ///
   /// When called from the main thread we execute `f` inline instead of posting
@@ -1895,7 +1915,10 @@ impl<T: UserEvent> WinitCefApp<T> {
           pending,
           after_window_creation,
         );
-        let _ = result_tx.send(result);
+        // The caller stopped waiting: see `RuntimeContext::wait_for_creation`.
+        if let Err(mpsc::SendError(Err(error))) = result_tx.send(result) {
+          log::error!("failed to create window: {error}");
+        }
       }
       Message::CreateWebview {
         window_id,
@@ -1903,7 +1926,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         pending,
         result_tx,
       } => {
-        let _ = result_tx.send(self.create_webview(window_id, webview_id, *pending));
+        let result = self.create_webview(window_id, webview_id, *pending);
+        if let Err(mpsc::SendError(Err(error))) = result_tx.send(result) {
+          log::error!("failed to create webview: {error}");
+        }
       }
       Message::Window { window_id, message } => {
         self.handle_window_message(event_loop, window_id, message)

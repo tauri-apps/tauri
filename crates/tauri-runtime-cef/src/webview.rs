@@ -1679,11 +1679,9 @@ pub(crate) fn create_webview_detached<T: UserEvent>(
     pending: Box::new(pending),
     result_tx,
   })?;
-  // Block until the event loop has created the browser so a creation failure
-  // is surfaced to the caller instead of leaving a detached, dead webview.
-  result_rx
-    .recv()
-    .map_err(|_| Error::FailedToReceiveMessage)??;
+  // Wait until the event loop has created the browser so a creation failure is
+  // surfaced to the caller instead of leaving a detached, dead browser.
+  context.wait_for_creation(result_rx)?;
   Ok(DetachedWebview {
     label,
     dispatcher: CefWebviewDispatcher {

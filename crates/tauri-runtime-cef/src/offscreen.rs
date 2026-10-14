@@ -20,6 +20,9 @@ pub type CursorHandler = dyn Fn(cef::CursorType, Option<&cef::CursorInfo>) + Sen
 /// Enable `settings.windowless_rendering_enabled` through [`crate::Cef::with_settings`]
 /// before creating an offscreen webview. Use [`crate::Cef::on_window_event`] for
 /// native input and redraws, and [`crate::Webview::browser`] to reach CEF's host API.
+///
+/// The native window and event types are `tauri-winit`'s: depend on the same
+/// `tauri-winit` version this crate uses to name them.
 #[derive(Clone)]
 pub struct Offscreen {
   /// Delivers shared resources through `RenderHandler::on_accelerated_paint`.

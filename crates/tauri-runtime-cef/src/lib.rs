@@ -25,8 +25,6 @@ mod locale;
 mod macros;
 mod offscreen;
 pub use offscreen::{CursorHandler, Offscreen, OffscreenView};
-/// Native window and event types for offscreen embedding.
-pub use winit;
 mod platform;
 mod popup;
 mod runtime;

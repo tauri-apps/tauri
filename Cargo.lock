@@ -8306,7 +8306,6 @@ dependencies = [
  "ar",
  "bitness",
  "bytesize",
- "bzip2",
  "dirs",
  "dunce",
  "flate2",
@@ -8343,9 +8342,7 @@ dependencies = [
  "which",
  "windows-registry",
  "windows-sys 0.61.2",
- "xz2",
  "zip",
- "zstd",
 ]
 
 [[package]]

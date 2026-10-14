@@ -90,6 +90,13 @@ impl Keychain {
       error,
     })?;
 
+    // owns the keychain from here on so it is deleted if any of the remaining
+    // setup steps fail; the signing identity is resolved last
+    let mut keychain = Self {
+      path: Some(keychain_path.clone()),
+      signing_identity: SigningIdentity::Identifier(String::new()),
+    };
+
     assert_command(
       Command::new("security")
         .args(["unlock-keychain", "-p", &keychain_password])
@@ -184,10 +191,9 @@ impl Keychain {
       .map(|l| l.first().cloned())?
       .ok_or(Error::ResolveSigningIdentity)?;
 
-    Ok(Self {
-      path: Some(keychain_path),
-      signing_identity: SigningIdentity::Team(signing_identity),
-    })
+    keychain.signing_identity = SigningIdentity::Team(signing_identity);
+
+    Ok(keychain)
   }
 
   pub fn signing_identity(&self) -> String {
@@ -250,5 +256,35 @@ impl Keychain {
 
   pub fn path(&self) -> Option<&Path> {
     self.path.as_deref()
+  }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn failed_setup_deletes_keychain() {
+    let keychains_dir = dirs::home_dir().unwrap().join("Library").join("Keychains");
+    let list_keychains = || {
+      std::fs::read_dir(&keychains_dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .filter(|name| name.to_string_lossy().ends_with(".keychain-db"))
+        .collect::<std::collections::BTreeSet<_>>()
+    };
+
+    let dir = tempfile::tempdir().unwrap();
+    let cert_path = dir.path().join("cert.p12");
+    std::fs::write(&cert_path, b"not a certificate").unwrap();
+
+    let before = list_keychains();
+    assert!(Keychain::with_certificate_file(&cert_path, &"password".into()).is_err());
+    let leaked = list_keychains()
+      .difference(&before)
+      .cloned()
+      .collect::<Vec<_>>();
+
+    assert!(leaked.is_empty(), "leaked keychains: {leaked:?}");
   }
 }

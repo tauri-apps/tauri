@@ -1,5 +1,51 @@
 # Changelog
 
+## [2.12.3]
+
+### Bug Fixes
+
+- [`0204f6f3a`](https://www.github.com/tauri-apps/tauri/commit/0204f6f3ae1e8dda195b216b32c3ab1d95d928e0) ([#16244](https://www.github.com/tauri-apps/tauri/pull/16244)) Keep delivering `Channel` messages after the `onmessage` handler throws. The error is rethrown asynchronously so it is still reported as uncaught, instead of leaving every later message queued.
+- [`c48e1ca89`](https://www.github.com/tauri-apps/tauri/commit/c48e1ca891a3b82770b6b03f87eba740344cf2f1) ([#16246](https://www.github.com/tauri-apps/tauri/pull/16246)) On iOS, mark the Swift `@_cdecl` entry points that Rust links against as `public` (in the iOS API and in the plugin templates), so release builds made with Xcode 27 keep them global and link.
+- [`eeeaa0ff9`](https://www.github.com/tauri-apps/tauri/commit/eeeaa0ff945f0e9aca177676e153a0fb426190a8) ([#16230](https://www.github.com/tauri-apps/tauri/pull/16230)) Fix NSIS installers not blocking downgrades in silent (`/S`), passive (`/P`) and update (`/UPDATE`) modes when `bundle.windows.allowDowngrades` is `false`.
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.7.2`
+- Upgraded to `tauri-build@2.7.2`
+
+## [2.12.2]
+
+### Bug Fixes
+
+- [`79d353762`](https://www.github.com/tauri-apps/tauri/commit/79d3537620ddd136b81896b2048207e7c15e08b9) ([#15783](https://www.github.com/tauri-apps/tauri/pull/15783) by [@sijie-Z](https://www.github.com/tauri-apps/tauri/../../sijie-Z)) On macOS, `process::restart` (and `AppHandle::restart`) now relaunches the app bundle through LaunchServices (`open -n`) so the new instance no longer inherits the exiting process's stdio and process group, which crashed it on its first print when the original stdout/stderr reader was gone (e.g. launched from a terminal that was closed). Arguments are still forwarded.
+- [`a225a18e6`](https://www.github.com/tauri-apps/tauri/commit/a225a18e601c1d8c3c24536a2137bff263ea74bf) ([#16222](https://www.github.com/tauri-apps/tauri/pull/16222) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a panic when a `once` event listener receives multiple events before its queued removal is processed.
+- [`7c24f5b15`](https://www.github.com/tauri-apps/tauri/commit/7c24f5b154822acc53bb1a1e0186e3e972c76160) ([#16231](https://www.github.com/tauri-apps/tauri/pull/16231) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Menu` creation no longer takes `MenuItemOptions` with `action` directly
+    
+    ```ts
+    const menu = await Menu.new({
+      items: [{
+        text: "Hello", action: () => { alert('World') }
+      }]
+    })
+    await menu.popup()
+    ```
+    
+    The `Hello` item should now trigger the `alert('World')` action again.
+
+## [2.12.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+- Upgraded to `tauri-runtime@2.12.1`
+- Upgraded to `tauri-runtime-wry@2.12.1`
+- Upgraded to `tauri-build@2.7.1`
+- Upgraded to `tauri-macros@2.7.1`
+
 ## [2.12.0]
 
 ### New Features

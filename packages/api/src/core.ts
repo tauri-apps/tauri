@@ -154,13 +154,13 @@ class Channel<T = unknown> {
       const message = rawMessage.message
       // Process the message if we're at the right order
       if (index == this.#nextMessageIndex) {
-        this.#onmessage(message)
+        this.#deliver(message)
         this.#nextMessageIndex += 1
 
         // process pending messages
         while (this.#nextMessageIndex in this.#pendingMessages) {
           const message = this.#pendingMessages[this.#nextMessageIndex]
-          this.#onmessage(message)
+          this.#deliver(message)
           // eslint-disable-next-line @typescript-eslint/no-array-delete
           delete this.#pendingMessages[this.#nextMessageIndex]
           this.#nextMessageIndex += 1
@@ -176,6 +176,19 @@ class Channel<T = unknown> {
         this.#pendingMessages[index] = message
       }
     })
+  }
+
+  #deliver(message: T) {
+    try {
+      this.#onmessage(message)
+    } catch (error) {
+      // A throwing handler must not stall the channel: the message index would
+      // never advance and every later message would stay queued. Rethrow
+      // asynchronously so the error is still reported as uncaught.
+      queueMicrotask(() => {
+        throw error
+      })
+    }
   }
 
   private cleanupCallback() {

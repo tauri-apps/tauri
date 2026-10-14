@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.12.3]
+
+### Bug Fixes
+
+- [`0204f6f3a`](https://www.github.com/tauri-apps/tauri/commit/0204f6f3ae1e8dda195b216b32c3ab1d95d928e0) ([#16244](https://www.github.com/tauri-apps/tauri/pull/16244)) Keep delivering `Channel` messages after the `onmessage` handler throws. The error is rethrown asynchronously so it is still reported as uncaught, instead of leaving every later message queued.
+
+## [2.12.2]
+
+### Bug Fixes
+
+- [`a916205db`](https://www.github.com/tauri-apps/tauri/commit/a916205db2c21a2475502452efa9b70132ae52f3) ([#16195](https://www.github.com/tauri-apps/tauri/pull/16195) by [@alessandrorodi](https://www.github.com/tauri-apps/tauri/../../alessandrorodi)) Return an awaitable cleanup function from `Window.onDragDropEvent`, `Window.onFocusChanged` and `Webview.onDragDropEvent` so rejections from the inner unlisten calls can be handled instead of surfacing as unhandled promise rejections.
+- [`a98038ec7`](https://www.github.com/tauri-apps/tauri/commit/a98038ec78422b821b2e25b26fb71a2805741673) ([#16235](https://www.github.com/tauri-apps/tauri/pull/16235) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Menu`/`Submenu` `append`, `prepend`, `insert` not taking `MenuItemOptions` as the typescript type suggests
+
+## [2.12.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
 ## [2.12.0]
 
 ### New Features

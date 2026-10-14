@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.7.2]
+
+### Dependencies
+
+- [`fd319dd43`](https://www.github.com/tauri-apps/tauri/commit/fd319dd432e36748483ae93e6cdea1c44a66fe79) Update `base64` to 0.23.
+
+## [2.7.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+
 ## [2.7.0]
 
 ### New Features

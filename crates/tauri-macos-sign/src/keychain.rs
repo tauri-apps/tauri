@@ -232,7 +232,43 @@ impl Keychain {
   }
 }
 
+/// Format of the certificate file handed to `security import`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CertificateFormat {
+  /// PKCS#12 archive (.p12).
+  Pkcs12,
+  /// Sequence of PEM items, e.g. a private key followed by its certificate.
+  PemSequence,
+}
+
+impl CertificateFormat {
+  fn detect(contents: &[u8]) -> Self {
+    if contents.trim_ascii_start().starts_with(b"-----BEGIN ") {
+      Self::PemSequence
+    } else {
+      Self::Pkcs12
+    }
+  }
+
+  fn security_format(self) -> &'static str {
+    match self {
+      Self::Pkcs12 => "pkcs12",
+      Self::PemSequence => "pemseq",
+    }
+  }
+
+  fn description(self) -> &'static str {
+    match self {
+      Self::Pkcs12 => "a PKCS#12 (.p12) file",
+      Self::PemSequence => "a PEM bundle",
+    }
+  }
+}
+
 /// Imports the certificate and its private key into the given keychain.
+///
+/// The format is passed explicitly because `security` fails to infer it for
+/// p12 files using PBES2/AES encryption (the OpenSSL 3 default).
 ///
 /// The command is written to the stdin of `security -i` instead of being passed
 /// as arguments, so the certificate password does not show up in the process list.
@@ -241,31 +277,36 @@ fn import_certificate(
   certificate_password: &OsString,
   keychain_path: &Path,
 ) -> Result<()> {
+  let contents = std::fs::read(cert_path).map_err(|error| Error::Fs {
+    context: "failed to read certificate file",
+    path: cert_path.to_path_buf(),
+    error,
+  })?;
+  let format = CertificateFormat::detect(&contents);
+
   let command_failed = |error| Error::CommandFailed {
-    command: "security import".to_string(),
+    command: format!("security import -f {}", format.security_format()),
     error,
   };
 
   let mut command_line = b"import".to_vec();
-  for arg in [
-    cert_path.as_os_str(),
-    OsStr::new("-P"),
-    certificate_password,
-  ]
-  .into_iter()
-  .chain(
-    [
-      "-T",
-      "/usr/bin/codesign",
-      "-T",
-      "/usr/bin/pkgbuild",
-      "-T",
-      "/usr/bin/productbuild",
-      "-k",
-    ]
-    .map(OsStr::new),
-  )
-  .chain([keychain_path.as_os_str()])
+  for arg in [cert_path.as_os_str()]
+    .into_iter()
+    .chain(["-f", format.security_format(), "-t", "agg", "-P"].map(OsStr::new))
+    .chain([certificate_password.as_os_str()])
+    .chain(
+      [
+        "-T",
+        "/usr/bin/codesign",
+        "-T",
+        "/usr/bin/pkgbuild",
+        "-T",
+        "/usr/bin/productbuild",
+        "-k",
+      ]
+      .map(OsStr::new),
+    )
+    .chain([keychain_path.as_os_str()])
   {
     command_line.push(b' ');
     command_line.extend(quote_interactive_arg(arg).map_err(command_failed)?);
@@ -288,7 +329,14 @@ fn import_certificate(
   let status = child.wait();
   write_result.map_err(command_failed)?;
 
-  assert_command(status, "failed to import keychain certificate").map_err(command_failed)
+  assert_command(
+    status,
+    &format!(
+      "failed to import the signing certificate as {}; the certificate must be a PKCS#12 (.p12) file or a PEM bundle containing both the certificate and its private key, and the password must match the one used to export it",
+      format.description()
+    ),
+  )
+  .map_err(command_failed)
 }
 
 /// Quotes an argument for the `security -i` command parser,
@@ -328,12 +376,30 @@ mod tests {
     assert!(quote_interactive_arg(OsStr::new("a\nimport")).is_err());
   }
 
+  #[test]
+  fn detects_certificate_format() {
+    assert_eq!(
+      CertificateFormat::detect(include_bytes!("../tests/fixtures/pbes2.p12")),
+      CertificateFormat::Pkcs12
+    );
+    assert_eq!(
+      CertificateFormat::detect(include_bytes!("../tests/fixtures/bundle.pem")),
+      CertificateFormat::PemSequence
+    );
+    assert_eq!(
+      CertificateFormat::detect(b"\n  -----BEGIN CERTIFICATE-----\n"),
+      CertificateFormat::PemSequence
+    );
+  }
+
   #[cfg(target_os = "macos")]
   mod import {
     use super::super::*;
     use crate::certificate::{
       CertificateProfile, SelfSignedCertificateRequest, generate_self_signed,
     };
+
+    const PASSWORD: &str = "tauri";
 
     /// Temporary keychain that is not added to the user's search list.
     struct TempKeychain {
@@ -368,7 +434,18 @@ mod tests {
       }
     }
 
-    fn import(password: &str, import_password: &str) -> Result<TempKeychain> {
+    fn fixture(name: &str) -> PathBuf {
+      Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name)
+    }
+
+    fn import_fixture(name: &str, password: &str) -> Result<()> {
+      let keychain = TempKeychain::new();
+      import_certificate(&fixture(name), &password.into(), &keychain.path)
+    }
+
+    fn import_self_signed(password: &str, import_password: &str) -> Result<TempKeychain> {
       let keychain = TempKeychain::new();
       let cert_path = keychain.dir.path().join("cert.p12");
       let p12 = generate_self_signed(SelfSignedCertificateRequest {
@@ -385,10 +462,26 @@ mod tests {
       Ok(keychain)
     }
 
+    // regression test for https://github.com/tauri-apps/tauri/issues/15843
+    #[test]
+    fn imports_pbes2_p12() {
+      import_fixture("pbes2.p12", PASSWORD).unwrap();
+    }
+
+    #[test]
+    fn imports_legacy_p12() {
+      import_fixture("legacy.p12", PASSWORD).unwrap();
+    }
+
+    #[test]
+    fn imports_pem_bundle() {
+      import_fixture("bundle.pem", PASSWORD).unwrap();
+    }
+
     #[test]
     fn imports_with_password_needing_quotes() {
       let password = r#"p a"s\s'x -k /tmp/other"#;
-      let keychain = import(password, password).unwrap();
+      let keychain = import_self_signed(password, password).unwrap();
       let output = Command::new("security")
         .args(["find-certificate", "-c", "Tauri Test"])
         .arg(&keychain.path)
@@ -398,8 +491,12 @@ mod tests {
     }
 
     #[test]
-    fn wrong_password_fails() {
-      assert!(import("right", "wrong").is_err());
+    fn wrong_password_error_explains_requirements() {
+      let error = import_fixture("pbes2.p12", "wrong")
+        .unwrap_err()
+        .to_string();
+      assert!(error.contains("security import -f pkcs12"), "{error}");
+      assert!(error.contains("password must match"), "{error}");
     }
   }
 }

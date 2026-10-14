@@ -17,7 +17,8 @@ on:
     paths:
       - '.github/workflows/test-cli-xcode-script.yml'
       - '.scripts/ci/xcode-script-resolution.mjs'
-      - 'crates/tauri-cli/src/mobile/**'
+      - 'crates/tauri-cli/src/mobile/ios/**'
+      - 'crates/tauri-cli/src/mobile/init.rs'
       - 'crates/tauri-cli/src/helpers/app_paths.rs'
       - 'crates/tauri-utils/src/config/parse.rs'
       - 'packages/cli/*.js'
@@ -26,7 +27,8 @@ on:
     paths:
       - '.github/workflows/test-cli-xcode-script.yml'
       - '.scripts/ci/xcode-script-resolution.mjs'
-      - 'crates/tauri-cli/src/mobile/**'
+      - 'crates/tauri-cli/src/mobile/ios/**'
+      - 'crates/tauri-cli/src/mobile/init.rs'
       - 'crates/tauri-cli/src/helpers/app_paths.rs'
       - 'crates/tauri-utils/src/config/parse.rs'
       - 'packages/cli/*.js'

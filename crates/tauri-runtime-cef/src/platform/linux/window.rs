@@ -42,6 +42,8 @@ pub(crate) struct CefX11Host {
   /// CSS provider currently backing this window's background color, kept so it can be removed
   /// from the display instead of accumulating one provider per `set_background_color` call.
   background_color_provider: RefCell<Option<gtk::CssProvider>>,
+  /// Whether the host is mapped; created mapped, unmapped while it only hosts offscreen webviews.
+  mapped: Cell<bool>,
 }
 
 /// Geometry of the X11 host, shared with the GTK `layout` handler that keeps it up to date.
@@ -103,6 +105,7 @@ impl CefX11Host {
       colormap,
       geometry,
       background_color_provider: RefCell::new(None),
+      mapped: Cell::new(true),
     })
   }
 
@@ -117,6 +120,9 @@ impl CefX11Host {
   }
 
   pub(crate) fn set_visible(&self, visible: bool) {
+    if self.mapped.replace(visible) == visible {
+      return;
+    }
     super::utils::with_cef_display((), |xlib, display| unsafe {
       if visible {
         (xlib.XMapWindow)(display, self.xid);

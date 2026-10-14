@@ -2064,12 +2064,16 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
 /// from the current window size; children with fixed bounds keep whatever bounds
 /// they were last given.
 pub(crate) fn layout_app_window(appwindow: &AppWindow) {
+  // An offscreen webview paints into the toplevel itself, so the X11 host the
+  // windowed browsers live in would only cover it. Unmap the host while every
+  // webview of the window is offscreen.
   #[cfg(target_os = "linux")]
   appwindow.cef_host.set_visible(
-    appwindow
-      .children
-      .iter()
-      .any(|child| child.offscreen.is_none()),
+    appwindow.children.is_empty()
+      || appwindow
+        .children
+        .iter()
+        .any(|child| child.offscreen.is_none()),
   );
   let parent_size = appwindow.safe_surface_size();
   let win_w = parent_size.width as f32;

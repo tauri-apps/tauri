@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use apple_codesign::create_self_signed_code_signing_certificate;
+use crate::apple_codesign::create_self_signed_code_signing_certificate;
 use x509_certificate::{EcdsaCurve, KeyAlgorithm};
 
-pub use apple_codesign::CertificateProfile;
+pub use crate::apple_codesign::CertificateProfile;
 
 use crate::{Error, Result};
 

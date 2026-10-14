@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.12.0"
+version = "2.12.3"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 links = "Tauri"
@@ -159,7 +159,7 @@ jni = "0.21"
 # UIKit, i.e. iOS/tvOS/watchOS/visionOS
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
-swift-rs = "1.0.8"
+swift-rs = "1.0.9"
 objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIApplication",
   "UIResponder",
@@ -218,6 +218,7 @@ devtools = ["tauri-runtime/devtools", "tauri-runtime-wry?/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
+# TODO: Remove in v3 - wry does not have this feature anymore
 macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry?/macos-private-api",

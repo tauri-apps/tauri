@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::sync::{
-  Arc, Mutex,
+  Arc, Mutex, Weak,
   atomic::{AtomicBool, Ordering},
 };
 
@@ -39,7 +39,7 @@ impl Offscreen {
   /// Creates a render handler for each webview on the CEF UI thread.
   ///
   /// The handler must implement `view_rect` and a paint callback. Read the current
-  /// bounds and scale from `view`; call `view.window().request_redraw()` after painting.
+  /// bounds and scale from `view`; call [`OffscreenView::request_redraw`] after painting.
   /// CEF view rectangles use logical pixels, while paint buffers use physical pixels.
   /// CEF callbacks must not block on queued Tauri window operations.
   pub fn new<F: Fn(OffscreenView) -> cef::RenderHandler + Send + Sync + 'static>(
@@ -64,16 +64,25 @@ impl Offscreen {
 /// Live layout of one offscreen webview, shared with its render handler.
 #[derive(Clone)]
 pub struct OffscreenView {
-  pub(crate) window: Arc<dyn winit::window::Window>,
+  /// Weak, so a render handler CEF still holds does not keep a closed window alive.
+  pub(crate) window: Weak<dyn winit::window::Window>,
   pub(crate) bounds: Arc<Mutex<Rect>>,
   pub(crate) visible: Arc<AtomicBool>,
 }
 
 impl OffscreenView {
   /// Native host used for scale, screen coordinates, IME and redraw requests.
-  /// Release rendering resources and retained window references on `Destroyed`.
-  pub fn window(&self) -> &Arc<dyn winit::window::Window> {
-    &self.window
+  /// `None` once the runtime released the window; do not keep the returned
+  /// reference past `Destroyed`.
+  pub fn window(&self) -> Option<Arc<dyn winit::window::Window>> {
+    self.window.upgrade()
+  }
+
+  /// Asks the host window to redraw, if it still exists.
+  pub fn request_redraw(&self) {
+    if let Some(window) = self.window.upgrade() {
+      window.request_redraw();
+    }
   }
 
   /// Bounds relative to the host, in logical pixels.

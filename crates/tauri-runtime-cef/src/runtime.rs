@@ -1821,7 +1821,7 @@ impl<T: UserEvent> WinitCefApp<T> {
               let child = appwindow.children.remove(index);
               if let Some(view) = &child.offscreen {
                 view.visible.store(false, Ordering::Relaxed);
-                view.window.request_redraw();
+                view.request_redraw();
               }
               (*id, child, appwindow.children.is_empty())
             })

@@ -572,7 +572,7 @@ impl AppWebview {
     self.host.was_hidden(if visible { 0 } else { 1 });
     if let Some(view) = &self.offscreen {
       view.visible.store(visible, Ordering::Relaxed);
-      view.window.request_redraw();
+      view.request_redraw();
     } else {
       self.apply_visible(visible);
     }
@@ -644,7 +644,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           })
           .to_logical::<f64, f64>(scale);
         crate::OffscreenView {
-          window: appwindow.window.clone(),
+          window: Arc::downgrade(&appwindow.window),
           bounds: Arc::new(Mutex::new(Rect {
             position: bounds.position.into(),
             size: bounds.size.into(),

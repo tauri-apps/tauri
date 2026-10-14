@@ -58,7 +58,11 @@ export class CheckMenuItem extends MenuItemBase {
     })
   }
 
-  /** Sets the accelerator for this check menu item. */
+  /**
+   * Sets the accelerator for this check menu item, or removes it when given `null`.
+   *
+   * See {@linkcode MenuItemOptions.accelerator} for the accepted format.
+   */
   async setAccelerator(accelerator: string | null): Promise<void> {
     return invoke('plugin:menu|set_accelerator', {
       rid: this.rid,

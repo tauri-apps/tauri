@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
+use super::{MobileTarget, ensure_init, env, get_app, get_config, read_options};
 use crate::{
+  Error, Result,
   error::{Context, ErrorExt},
   helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
   interface::{AppInterface, Options as InterfaceOptions},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
-  Error, Result,
 };
 
 use cargo_mobile2::{apple::target::Target, opts::Profile, target::TargetTrait};
@@ -95,7 +95,7 @@ pub fn command(options: Options) -> Result<()> {
   let macos = macos_from_platform(&options.platform);
 
   let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[], dirs.tauri)?;
-  let cli_options = read_options(&tauri_config);
+  let cli_options = read_options(MobileTarget::Ios, dirs.tauri)?;
   if !cli_options.config.is_empty() {
     // reload config with merges from the ios dev|build script
     reload_tauri_config(
@@ -202,12 +202,14 @@ pub fn command(options: Options) -> Result<()> {
     options.platform == "iOS Simulator" || options.arches.contains(&"Simulator".to_string());
   let arches = if simulator {
     // when compiling for the simulator, we don't need to build other targets
-    vec![if cfg!(target_arch = "aarch64") {
-      "arm64"
-    } else {
-      "x86_64"
-    }
-    .to_string()]
+    vec![
+      if cfg!(target_arch = "aarch64") {
+        "arm64"
+      } else {
+        "x86_64"
+      }
+      .to_string(),
+    ]
   } else {
     options.arches
   };
@@ -229,7 +231,7 @@ pub fn command(options: Options) -> Result<()> {
     let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri)?;
 
     let cflags = format!("CFLAGS_{env_triple}");
-    let cxxflags = format!("CFLAGS_{env_triple}");
+    let cxxflags = format!("CXXFLAGS_{env_triple}");
     let objc_include_path = format!("OBJC_INCLUDE_PATH_{env_triple}");
     let mut target_env = host_env.clone();
     target_env.insert(cflags.as_ref(), isysroot.as_ref());
@@ -278,7 +280,10 @@ pub fn command(options: Options) -> Result<()> {
 
     let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
     if !lib_path.exists() {
-      crate::error::bail!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display());
+      crate::error::bail!(
+        "Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`",
+        lib_path.display()
+      );
     }
 
     validate_lib(&lib_path)?;

@@ -4,8 +4,8 @@
 
 use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
 use crate::{
-  error::{Context, ErrorExt},
   CommandExt, Error,
+  error::{Context, ErrorExt},
 };
 
 use shared_child::SharedChild;
@@ -15,9 +15,10 @@ use std::{
   path::{Path, PathBuf},
   process::{Command, ExitStatus, Stdio},
   sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
   },
+  time::Duration,
 };
 use tauri_utils::platform::Target as TargetPlatform;
 
@@ -79,7 +80,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
 
-  log::info!(action = "Running"; "DevCommand (`{} {}`)", &dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+  log::info!(action = "Running"; "DevCommand (`{} {}`)", dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
   let dev_child = match SharedChild::spawn(&mut dev_cmd) {
     Ok(c) => Ok(c),
@@ -99,11 +100,14 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let dev_child = Arc::new(dev_child);
   let dev_child_stderr = dev_child.take_stderr().unwrap();
   let mut stderr = BufReader::new(dev_child_stderr);
-  let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-  let stderr_lines_ = stderr_lines.clone();
+  // only the last line is needed to detect cargo compilation errors
+  let last_stderr_line = Arc::new(Mutex::new(None::<String>));
+  let last_stderr_line_ = last_stderr_line.clone();
+  // dropped when the reader thread finishes
+  let (stderr_done_tx, stderr_done_rx) = std::sync::mpsc::channel::<()>();
   std::thread::spawn(move || {
+    let _stderr_done_tx = stderr_done_tx;
     let mut buf = Vec::new();
-    let mut lines = stderr_lines_.lock().unwrap();
     let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
@@ -111,7 +115,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         break;
       }
       let _ = io_stderr.write_all(&buf);
-      lines.push(String::from_utf8_lossy(&buf).into_owned());
+      *last_stderr_line_.lock().unwrap() = Some(String::from_utf8_lossy(&buf).into_owned());
     }
   });
   let dev_child_ = dev_child.clone();
@@ -121,13 +125,15 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     if status.success() {
       on_exit(status.code(), ExitReason::NormalExit);
     } else {
-      let is_cargo_compile_error = stderr_lines
+      // give the reader a moment to consume the remaining output,
+      // without blocking forever if a grandchild process keeps stderr open
+      let _ = stderr_done_rx.recv_timeout(Duration::from_secs(1));
+      let is_cargo_compile_error = last_stderr_line
         .lock()
         .unwrap()
-        .last()
+        .take()
         .map(|l| l.contains("could not compile"))
         .unwrap_or_default();
-      stderr_lines.lock().unwrap().clear();
 
       on_exit(
         status.code(),
@@ -158,10 +164,6 @@ pub fn build(
 ) -> crate::Result<PathBuf> {
   let out_dir = app_settings.out_dir(&options, tauri_dir)?;
   let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
-
-  if std::env::var_os("STATIC_VCRUNTIME").is_none_or(|v| v != "false") {
-    std::env::set_var("STATIC_VCRUNTIME", "true");
-  }
 
   if options.target == Some("universal-apple-darwin".into()) {
     std::fs::create_dir_all(&out_dir)
@@ -265,7 +267,7 @@ fn cargo_command(
     build_cmd.arg(features.join(","));
   }
 
-  if !options.debug && !options.args.contains(&"--profile".to_string()) {
+  if !options.debug && super::get_cargo_option(&options.args, "--profile").is_none() {
     build_cmd.arg("--release");
   }
 
@@ -305,14 +307,22 @@ fn validate_target(
     if let Some(target) = available_targets.iter().find(|t| t.name == target) {
       if !target.installed {
         crate::error::bail!(
-            "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
-            target = target.name,
-            installed = available_targets.iter().filter(|t| t.installed).map(|t| t.name.as_str()).collect::<Vec<&str>>().join(", ")
-          );
+          "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
+          target = target.name,
+          installed = available_targets
+            .iter()
+            .filter(|t| t.installed)
+            .map(|t| t.name.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ")
+        );
       }
     }
     if !available_targets.iter().any(|t| t.name == target) {
-      crate::error::bail!("Target {target} does not exist. Please run `rustup target list` to see the available targets.", target = target);
+      crate::error::bail!(
+        "Target {target} does not exist. Please run `rustup target list` to see the available targets.",
+        target = target
+      );
     }
   }
   Ok(())
@@ -366,14 +376,14 @@ mod terminal {
   use std::{cmp, mem, ptr};
 
   use windows_sys::{
-    core::PCSTR,
     Win32::{
       Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE},
       Storage::FileSystem::{CreateFileA, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
       System::Console::{
-        GetConsoleScreenBufferInfo, GetStdHandle, CONSOLE_SCREEN_BUFFER_INFO, STD_ERROR_HANDLE,
+        CONSOLE_SCREEN_BUFFER_INFO, GetConsoleScreenBufferInfo, GetStdHandle, STD_ERROR_HANDLE,
       },
     },
+    core::PCSTR,
   };
 
   pub fn stderr_width() -> Option<usize> {
@@ -418,5 +428,29 @@ mod terminal {
 
       None
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{Options, cargo_command};
+
+  fn release_args(args: &[&str]) -> Vec<String> {
+    let options = Options {
+      args: args.iter().map(ToString::to_string).collect(),
+      ..Default::default()
+    };
+    cargo_command(false, options, &mut None, Vec::new())
+      .unwrap()
+      .get_args()
+      .map(|a| a.to_string_lossy().into_owned())
+      .collect()
+  }
+
+  #[test]
+  fn release_flag_respects_profile() {
+    assert!(release_args(&[]).contains(&"--release".to_string()));
+    assert!(!release_args(&["--profile", "custom"]).contains(&"--release".to_string()));
+    assert!(!release_args(&["--profile=custom"]).contains(&"--release".to_string()));
   }
 }

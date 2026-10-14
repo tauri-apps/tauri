@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Result,
   error::{Context, ErrorExt},
   helpers::{app_paths::Dirs, npm::PackageManager},
   interface::rust::manifest::{read_manifest, serialize_manifest},
-  Result,
 };
 
 use std::{fs::read_to_string, path::Path};
@@ -174,7 +174,9 @@ fn migrate_dependency(dependencies: &mut Table, name: &str, version: &str) {
     .and_then(|v| v.as_bool())
     .unwrap_or_default()
   {
-    log::info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten.");
+    log::info!(
+      "`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten."
+    );
     return;
   }
 

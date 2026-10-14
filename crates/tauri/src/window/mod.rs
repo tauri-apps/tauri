@@ -10,34 +10,34 @@ use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalRect, PhysicalSize},
   webview::PendingWebview,
 };
-pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
+pub use tauri_utils::{WindowEffect as Effect, WindowEffectState as EffectState, config::Color};
 
 #[cfg(desktop)]
 pub use crate::runtime::ProgressBarStatus;
 
+#[cfg(desktop)]
 use crate::{
+  CursorIcon,
+  image::Image,
+  menu::{ContextMenu, Menu, MenuId},
+  runtime::UserAttentionType,
+};
+use crate::{
+  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
+  WindowEvent,
   app::AppHandle,
   event::{Event, EventId, EventTarget},
   ipc::{CommandArg, CommandItem, InvokeError},
   manager::{AppManager, EmitPayload},
   runtime::{
+    RuntimeHandle, WindowDispatch,
     dpi::{Position, Size},
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
-    RuntimeHandle, WindowDispatch,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
-  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
-  WindowEvent,
-};
-#[cfg(desktop)]
-use crate::{
-  image::Image,
-  menu::{ContextMenu, Menu, MenuId},
-  runtime::UserAttentionType,
-  CursorIcon,
 };
 
 use serde::Serialize;
@@ -355,7 +355,7 @@ tauri::Builder::default()
 
   /// Creates a new window with an optional webview.
   fn build_internal(
-    // mutable on Android
+    // mutable on mobile
     #[allow(unused_mut)] mut self,
     webview: Option<PendingWebview<EventLoopMessage, R>>,
   ) -> crate::Result<Window<R>> {
@@ -608,6 +608,16 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   #[must_use]
   pub fn window_classname<S: Into<String>>(mut self, classname: S) -> Self {
     self.window_builder = self.window_builder.window_classname(classname);
+    self
+  }
+
+  /// This sets `WS_EX_NOREDIRECTIONBITMAP`.
+  ///
+  /// This can avoid the white flash that may appear before the webview content is rendered
+  /// when using a transparent window. **Windows only**.
+  #[must_use]
+  pub fn no_redirection_bitmap(mut self, enable: bool) -> Self {
+    self.window_builder = self.window_builder.no_redirection_bitmap(enable);
     self
   }
 
@@ -906,11 +916,9 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
 
   /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
+  ///
+  /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
+  /// creating a transparent window.
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.window_builder = self.window_builder.transparent(transparent);
@@ -1116,7 +1124,34 @@ impl<R: Runtime> Window<R> {
 
   /// Initializes a window builder with the given window label.
   ///
+  /// This creates a window without any webview attached to it;
+  /// use [`Window::add_child`] to add webviews to it.
+  /// To create a window with a single webview filling it, use
+  /// [`WebviewWindowBuilder`](crate::webview::WebviewWindowBuilder) instead.
+  ///
   /// Data URLs are only supported with the `webview-data-url` feature flag.
+  ///
+  /// This function requires the `unstable` Cargo feature.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers,
+  /// see [the Webview2 issue]. You should use `async` commands and separate threads when creating windows.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = tauri::Window::builder(app, "label")
+  ///       .title("Tauri")
+  ///       .inner_size(800., 600.)
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   #[cfg(feature = "unstable")]
   #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   pub fn builder<M: Manager<R>, L: Into<String>>(manager: &M, label: L) -> WindowBuilder<'_, R, M> {
@@ -1124,6 +1159,68 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Adds a new webview as a child of this window.
+  ///
+  /// This is the multiwebview API: a single window can host any number of webviews,
+  /// each of them positioned and sized by you. It requires the `unstable` Cargo feature
+  /// and is only available on desktop.
+  ///
+  /// The webview is not resized or moved when the parent window is resized unless
+  /// auto resize is enabled, either at build time with
+  /// [`WebviewBuilder::auto_resize`](crate::webview::WebviewBuilder::auto_resize)
+  /// or later with [`Webview::set_auto_resize`].
+  ///
+  /// # Arguments
+  ///
+  /// * `webview_builder` - the [`WebviewBuilder`] defining the webview to create.
+  /// * `position` - position of the webview's top-left corner, relative to the top-left corner of the window's
+  ///   client area. Any type that converts into [`Position`] is accepted, so you can use either logical
+  ///   ([`LogicalPosition`](crate::LogicalPosition)) or physical ([`PhysicalPosition`]) units.
+  /// * `size` - the webview size, also either logical ([`LogicalSize`](crate::LogicalSize)) or physical
+  ///   ([`PhysicalSize`]) - any type that converts into [`Size`].
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers,
+  /// see [the Webview2 issue]. You should use `async` commands and separate threads when creating webviews.
+  ///
+  /// # Examples
+  ///
+  /// Splitting a window between two webviews that resize with it:
+  ///
+  /// ```
+  /// use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let width = 800.;
+  ///     let height = 600.;
+  ///
+  ///     let window = tauri::Window::builder(app, "main")
+  ///       .inner_size(width, height)
+  ///       .build()?;
+  ///
+  ///     let _left = window.add_child(
+  ///       tauri::webview::WebviewBuilder::new("left", WebviewUrl::App(Default::default()))
+  ///         .auto_resize(),
+  ///       LogicalPosition::new(0., 0.),
+  ///       LogicalSize::new(width / 2., height),
+  ///     )?;
+  ///
+  ///     let _right = window.add_child(
+  ///       tauri::webview::WebviewBuilder::new(
+  ///         "right",
+  ///         WebviewUrl::External("https://tauri.app".parse().unwrap()),
+  ///       )
+  ///       .auto_resize(),
+  ///       LogicalPosition::new(width / 2., 0.),
+  ///       LogicalSize::new(width / 2., height),
+  ///     )?;
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   #[cfg(any(test, all(desktop, feature = "unstable")))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
   pub fn add_child<P: Into<Position>, S: Into<Size>>(
@@ -2124,6 +2221,41 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
+  /// Sets the window as fullscreen on the monitor that contains the given physical position,
+  /// such as a [`Monitor::position`](crate::Monitor::position).
+  ///
+  /// Does nothing if no monitor contains the position.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::Manager;
+tauri::Builder::default()
+  .setup(|app| {
+    let window = app.get_window("main").unwrap();
+    if let Some(monitor) = window.available_monitors()?.into_iter().nth(1) {
+      let position = monitor.position();
+      window.set_fullscreen_on_monitor(tauri::PhysicalPosition::new(
+        position.x as f64,
+        position.y as f64,
+      ))?;
+    }
+    Ok(())
+  });
+```
+  "####
+  )]
+  pub fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_fullscreen_on_monitor(position)
+      .map_err(Into::into)
+  }
+
   /// Toggles a fullscreen mode that doesn't require a new macOS space.
   /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
   ///
@@ -2457,6 +2589,12 @@ impl EffectsBuilder {
   /// Sets `color` field fo the [`WindowEffectsConfig`] **Windows Only**
   pub fn color(mut self, color: Color) -> Self {
     self.0.color = Some(color);
+    self
+  }
+
+  /// Sets `interactive` field for the [`WindowEffectsConfig`] **macOS 27.0+ Only**
+  pub fn interactive(mut self, interactive: bool) -> Self {
+    self.0.interactive = interactive;
     self
   }
 

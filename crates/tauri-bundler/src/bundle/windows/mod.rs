@@ -10,6 +10,8 @@ pub mod nsis;
 pub mod sign;
 
 mod util;
+#[cfg(windows)]
+pub use util::vswhere_path;
 pub use util::{
   NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, WIX_OUTPUT_FOLDER_NAME,
   WIX_UPDATER_OUTPUT_FOLDER_NAME,

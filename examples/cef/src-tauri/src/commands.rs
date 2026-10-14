@@ -96,6 +96,9 @@ pub struct BrowserInfo {
   /// The browser host's zoom level: 0.0 at 100%, one step per notch.
   zoom_level: f64,
   dev_tools_open: bool,
+  /// Whether the browser renders off-screen, into an application's render
+  /// handler, rather than into a native view of its own.
+  windowless: bool,
 }
 
 impl BrowserInfo {
@@ -121,7 +124,8 @@ impl BrowserInfo {
       },
       is_loading: browser.is_loading() != 0,
       zoom_level: host.as_ref().map(ImplBrowserHost::zoom_level).unwrap_or(0.),
-      dev_tools_open: host.is_some_and(|host| host.has_dev_tools() != 0),
+      dev_tools_open: host.as_ref().is_some_and(|host| host.has_dev_tools() != 0),
+      windowless: host.is_some_and(|host| host.is_window_rendering_disabled() != 0),
     }
   }
 }

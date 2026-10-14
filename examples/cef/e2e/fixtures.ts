@@ -133,6 +133,7 @@ export interface BrowserInfo {
   isLoading: boolean
   zoomLevel: number
   devToolsOpen: boolean
+  windowless: boolean
 }
 
 export interface PopupInfo {

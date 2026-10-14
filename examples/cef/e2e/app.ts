@@ -274,9 +274,10 @@ export class CefApp {
   }
 
   /**
-   * Evaluates `expression` in the main page, with a user gesture, while no
-   * Playwright connection to the app exists, then reconnects — once `until`,
-   * evaluated there too, holds. `main` and `browser` are new objects afterwards.
+   * Evaluates `expression` in the main page — or the page whose URL satisfies
+   * `on` — with a user gesture, while no Playwright connection to the app
+   * exists, then reconnects — once `until`, evaluated there too, holds. `main`,
+   * `browser` and every page are new objects afterwards.
    *
    * A popup CEF opens on its own (`NewWindowResponse::Allow`) never finishes
    * being created when a protocol client attaches to it the moment it appears:
@@ -288,17 +289,21 @@ export class CefApp {
    * back only when `until` says the popup has loaded — from then on it is a
    * page like any other.
    */
-  async evaluateDetached(expression: string, until?: string): Promise<unknown> {
+  async evaluateDetached(
+    expression: string,
+    until?: string,
+    on: (url: URL) => boolean = isMainPage
+  ): Promise<unknown> {
     await this.disconnect()
     const main = (await this.targets()).find((target) => {
       try {
-        return isMainPage(new URL(target.url))
+        return on(new URL(target.url))
       } catch {
         return false
       }
     })
     if (!main) {
-      throw new Error('the main page is not among the DevTools targets')
+      throw new Error('the page is not among the DevTools targets')
     }
     const session = await BareSession.open(main.webSocketDebuggerUrl)
     try {

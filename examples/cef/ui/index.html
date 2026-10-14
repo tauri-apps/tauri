@@ -283,6 +283,19 @@
       </section>
 
       <section>
+        <h2>Off-screen rendering <code>Offscreen</code></h2>
+        <p class="desc">
+          A windowless browser: CEF paints into the application's render
+          handler, and the application presents the pixels and forwards the
+          native window's input. Needs <code>CEF_EXAMPLE_OFFSCREEN=on</code>.
+        </p>
+        <div class="row">
+          <button class="primary" data-offscreen="opaque">Open window</button>
+          <button data-offscreen="transparent">Open transparent</button>
+        </div>
+      </section>
+
+      <section>
         <h2>Permissions <code>on_permission_request</code></h2>
         <p class="desc">
           Answered in Rust, before Chrome's own prompt. Chromium consults the

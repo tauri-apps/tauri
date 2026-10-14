@@ -28,6 +28,7 @@
 
 mod commands;
 mod events;
+mod offscreen;
 mod runtime_config;
 
 use std::sync::Arc;
@@ -57,12 +58,15 @@ fn main() {
     // `RuntimeInitAttrs`, so this both picks CEF and configures it.
     .runtime(config.cef())
     .manage(config)
+    .manage(offscreen::Offscreens::default())
     .invoke_handler(tauri::generate_handler![
       commands::runtime_info,
       commands::native_snapshot,
       commands::send_devtools_message,
       commands::open_accelerator_window,
       commands::open_child_webviews_window,
+      offscreen::open_offscreen_window,
+      offscreen::offscreen_stats,
     ])
     .setup(|app| {
       let sink = EventSink::new(app.handle());

@@ -2355,6 +2355,12 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
           .surface_size()
           .unwrap_or_else(|_| appwindow.window.surface_size());
         webview::layout_app_window(appwindow);
+        // A windowed browser follows its native view to the new display; an
+        // offscreen one only re-reads `screen_info` when told to.
+        for child in appwindow.children.iter().filter(|c| c.offscreen.is_some()) {
+          child.host.notify_screen_info_changed();
+          child.host.was_resized();
+        }
         self.emit_window_event(
           window_id,
           WindowEvent::ScaleFactorChanged {

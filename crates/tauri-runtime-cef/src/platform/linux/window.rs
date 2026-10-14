@@ -7,13 +7,14 @@ use std::{
   cell::{Cell, RefCell},
   os::raw::c_ulong,
   rc::Rc,
+  sync::{Arc, Mutex, Weak},
 };
 use tauri_runtime::ProgressBarState;
 use tauri_runtime::dpi::PhysicalSize;
 use tauri_utils::config::Color;
 use winit::platform::gtk4::WindowExtGtk4;
 
-use crate::window::AppWindow;
+use crate::{webview::BoundsRate, window::AppWindow};
 
 use super::{taskbar, utils::set_wm_state};
 
@@ -48,8 +49,14 @@ pub(crate) struct CefX11Host {
 #[derive(Default)]
 struct HostGeometry {
   size: Cell<PhysicalSize<u32>>,
+  children: RefCell<Vec<Weak<NativeChildLayout>>>,
   /// Set when [`Self::size`] changed and the CEF children have not been laid out against it yet.
   needs_relayout: Cell<bool>,
+}
+
+pub(crate) struct NativeChildLayout {
+  xid: c_ulong,
+  bounds_rate: Arc<Mutex<Option<BoundsRate>>>,
 }
 
 impl CefX11Host {
@@ -74,6 +81,7 @@ impl CefX11Host {
 
     let geometry = Rc::new(HostGeometry {
       size: Cell::new(initial_size),
+      children: RefCell::new(Vec::new()),
       needs_relayout: Cell::new(false),
     });
 
@@ -89,6 +97,25 @@ impl CefX11Host {
           surface.scale_factor().max(1) as f64,
         );
         if layout_geometry.size.replace(size) != size {
+          layout_geometry.children.borrow_mut().retain(|child| {
+            let Some(child) = child.upgrade() else {
+              return false;
+            };
+            let Some(rate) = *child.bounds_rate.lock().unwrap() else {
+              return true;
+            };
+            super::utils::with_cef_display((), |xlib, display| unsafe {
+              (xlib.XMoveResizeWindow)(
+                display,
+                child.xid,
+                (rate.x * size.width as f32).round() as i32,
+                (rate.y * size.height as f32).round() as i32,
+                ((rate.width * size.width as f32).round() as u32).max(1),
+                ((rate.height * size.height as f32).round() as u32).max(1),
+              );
+            });
+            true
+          });
           // The content area changed without the toplevel being resized - a menu bar was
           // attached, hidden or shown - so winit emits no `SurfaceResized` and the CEF children
           // would keep the bounds computed against the previous host size.
@@ -108,6 +135,21 @@ impl CefX11Host {
 
   pub(crate) fn default_vbox(&self) -> gtk::Box {
     self.default_vbox.clone()
+  }
+
+  pub(crate) fn track_child(
+    &self,
+    xid: c_ulong,
+    bounds_rate: Arc<Mutex<Option<BoundsRate>>>,
+  ) -> Arc<NativeChildLayout> {
+    let child = Arc::new(NativeChildLayout {
+      xid,
+      bounds_rate,
+    });
+    let mut children = self.geometry.children.borrow_mut();
+    children.retain(|child| child.strong_count() > 0);
+    children.push(Arc::downgrade(&child));
+    child
   }
 
   /// CSS class carrying this window's background color. The X11 host id makes it unique per
@@ -245,6 +287,10 @@ impl AppWindow {
   pub(crate) fn set_progress_bar(&self, state: ProgressBarState) {
     taskbar::set_progress_bar(state);
   }
+
+  pub(crate) fn start_move_resize(&self, direction: Option<winit::window::ResizeDirection>) {
+    super::utils::start_move_resize(self.xid(), direction);
+  }
 }
 
 fn window_xid(window: &dyn winit::window::Window) -> c_ulong {
@@ -334,7 +380,7 @@ fn set_cef_container_bounds(
   let x = (point.x() as f64 * scale_factor).round() as i32;
   let y = (point.y() as f64 * scale_factor).round() as i32;
 
-  super::utils::with_x11((), |xlib, display| unsafe {
+  super::utils::with_cef_display((), |xlib, display| unsafe {
     (xlib.XMoveResizeWindow)(display, xid as _, x, y, width, height);
   });
 

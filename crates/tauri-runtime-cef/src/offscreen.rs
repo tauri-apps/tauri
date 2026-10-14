@@ -87,7 +87,7 @@ impl OffscreenView {
 
   /// Bounds relative to the host, in logical pixels.
   pub fn bounds(&self) -> Rect {
-    *self.bounds.lock().unwrap()
+    *self.bounds.lock().unwrap_or_else(|e| e.into_inner())
   }
 
   /// Requested webview visibility, independent of native window occlusion.

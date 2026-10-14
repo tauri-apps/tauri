@@ -529,7 +529,7 @@ pub(crate) struct AppWebview {
 impl AppWebview {
   fn resize(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
     if let Some(view) = &self.offscreen {
-      *view.bounds.lock().unwrap() = Rect {
+      *view.bounds.lock().unwrap_or_else(|e| e.into_inner()) = Rect {
         position: tauri_runtime::dpi::LogicalPosition::new(x as f64 / scale, y as f64 / scale)
           .into(),
         size: tauri_runtime::dpi::LogicalSize::new(

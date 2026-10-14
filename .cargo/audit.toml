@@ -9,6 +9,9 @@ ignore = [
   # rand unsoundness, fixed when we remove kuchikiki from deps in v3, currently
   # remains for semver reasons but is not built in default configuration
   "RUSTSEC-2026-0097",
+  # This ruzstd vulnerability is denial of service only used in CLI for devs,
+  # the fix requires an upstream update in https://github.com/indygreg/apple-platform-rs/pull/342
+  "RUSTSEC-2026-0344",
   # glib 0.18.5 unsoundness, fixed by updating to gtk4
   "RUSTSEC-2024-0429",
 ]

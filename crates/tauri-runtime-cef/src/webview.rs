@@ -161,9 +161,9 @@ fn color_to_argb(color: Color) -> u32 {
 ///   feature (`OverlayScrollbar`), reachable through `Cef::enable_features`.
 /// - `background_throttling`: Chromium throttles hidden pages process-wide;
 ///   `--disable-background-timer-throttling` turns that off for every webview.
-/// - `transparent`: a windowed browser whose background alpha is 0 falls back
-///   to `CefSettings.background_color`; transparent painting exists only in
-///   off-screen rendering.
+/// - `transparent` on a windowed browser: a background alpha of 0 falls back to
+///   `CefSettings.background_color`; transparent painting exists only in
+///   off-screen rendering, where `offscreen` maps it below.
 /// - `accept_first_mouse`: Chromium's own view decides whether the click that
 ///   activates a window reaches the page.
 /// - `browser_extensions_enabled`, `extensions_path`: CEF removed its extension
@@ -183,8 +183,13 @@ fn color_to_argb(color: Color) -> u32 {
 /// browser setting, and `user_agent` through the DevTools protocol (see
 /// [`apply_user_agent_override`]), because `CefSettings.user_agent` is fixed for
 /// the whole process before any webview is created.
+///
+/// An off-screen browser reads a background alpha of 0 as transparent painting
+/// rather than as "unset", so it gets an opaque white background unless the
+/// webview asks to be transparent or names a color of its own.
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
+  offscreen: bool,
 ) -> cef::BrowserSettings {
   cef::BrowserSettings {
     javascript: cef::State::from(if webview_attributes.javascript_disabled {
@@ -197,10 +202,11 @@ fn browser_settings_from_webview_attributes(
     } else {
       cef::sys::cef_state_t::STATE_DISABLED
     }),
-    background_color: webview_attributes
-      .background_color
-      .map(color_to_argb)
-      .unwrap_or(0),
+    background_color: match webview_attributes.background_color {
+      Some(color) => color_to_argb(color),
+      None if offscreen && !webview_attributes.transparent => 0xFFFF_FFFF,
+      None => 0,
+    },
     // Browser chrome a Tauri window has no business showing: the status bubble is
     // the link target that slides in over the bottom-left of the page on hover,
     // and the zoom bubble the popup Chrome anchors to its (absent) toolbar on
@@ -846,7 +852,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       info.runtime_style = cef_runtime_style;
       info
     };
-    let mut settings = browser_settings_from_webview_attributes(&pending.webview_attributes);
+    let mut settings =
+      browser_settings_from_webview_attributes(&pending.webview_attributes, offscreen.is_some());
     // Applied last so an application can override what the runtime mapped.
     if let Some(callback) = &pending
       .runtime_specific_attributes
@@ -2471,5 +2478,35 @@ pub(crate) fn load_initial_url_after_registering_initialization_scripts(
 fn load_initial_url(browser: &Browser, initial_url: &str) {
   if let Some(frame) = browser.main_frame() {
     frame.load_url(Some(&CefString::from(initial_url)));
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn offscreen_background_is_transparent_only_on_request() {
+    let mut attributes = WebviewAttributes::new(tauri_utils::config::WebviewUrl::default());
+    assert_eq!(
+      browser_settings_from_webview_attributes(&attributes, false).background_color,
+      0
+    );
+    assert_eq!(
+      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      0xFFFF_FFFF
+    );
+
+    attributes.transparent = true;
+    assert_eq!(
+      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      0
+    );
+
+    attributes.background_color = Some(Color(1, 2, 3, 255));
+    assert_eq!(
+      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      0xFF01_0203
+    );
   }
 }

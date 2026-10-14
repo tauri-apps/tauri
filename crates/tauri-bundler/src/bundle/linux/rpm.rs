@@ -70,7 +70,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       RpmCompression::Bzip2 { level } => rpm::CompressionWithLevel::Bzip2(level),
       _ => rpm::CompressionWithLevel::None,
     })
-    .unwrap_or_default();
+    .unwrap_or(rpm::CompressionWithLevel::Gzip(6));
 
   let build_config = rpm::BuildConfig::default().compression(compression);
 

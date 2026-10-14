@@ -17,7 +17,7 @@ use object::{Object, ObjectSymbol};
 
 use std::{
   collections::HashMap,
-  env::{current_dir, set_current_dir, var, var_os},
+  env::{current_dir, set_current_dir},
   ffi::OsStr,
   fs::read_to_string,
   io::Read,
@@ -65,28 +65,19 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  let process_path = std::env::current_exe().unwrap_or_default();
-
-  // `xcode-script` is ran from the `gen/apple` folder when not using NPM/yarn/pnpm/deno.
-  // so we must change working directory to the src-tauri folder to resolve the tauri dir
-  // additionally, bun@<1.2 does not modify the current working directory, so it is also runs this script from `gen/apple`
-  // bun@>1.2 now actually moves the CWD to the package root so we shouldn't modify CWD in that case
-  // see https://bun.sh/blog/bun-v1.2#bun-run-uses-the-correct-directory
-  if (var_os("npm_lifecycle_event").is_none()
-    && var_os("PNPM_PACKAGE_NAME").is_none()
-    && process_path.file_stem().unwrap_or_default() != "deno")
-    || var("npm_config_user_agent")
-      .is_ok_and(|agent| agent.starts_with("bun/1.0") || agent.starts_with("bun/1.1"))
-  {
-    set_current_dir(
-      current_dir()
-        .context("failed to resolve current directory")?
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap(),
-    )
-    .unwrap();
+  // Xcode runs `xcode-script` from `gen/apple`. Most package managers move the working directory to the
+  // package root, but some don't (cargo, bun@<1.2, pnpm@12.3 outside a package), so if the tauri dir
+  // can't be resolved and we're in `gen/apple`, move up to the src-tauri folder.
+  // Package manager env vars are unreliable here (Xcode inherits them from `tauri ios dev --open`).
+  let cwd = current_dir().context("failed to resolve current directory")?;
+  if cwd.ends_with("gen/apple") && crate::helpers::app_paths::resolve_tauri_dir().is_none() {
+    let tauri_dir = cwd.parent().and_then(Path::parent).unwrap();
+    set_current_dir(tauri_dir).with_context(|| {
+      format!(
+        "failed to change current directory to {}",
+        tauri_dir.display()
+      )
+    })?;
   }
 
   let dirs = crate::helpers::app_paths::resolve_dirs();

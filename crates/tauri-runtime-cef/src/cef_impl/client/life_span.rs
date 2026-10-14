@@ -209,11 +209,14 @@ wrap_with_args! {
     ///
     /// On Linux the default only closes the browser's own X11 child window (and
     /// calls `WindowDestroyed` itself), so the default is already correct there.
+    ///
+    /// An offscreen browser has no native window or view of its own, so there is
+    /// nothing to destroy and no top-level window the default could close: CEF
+    /// completes the close itself.
     fn do_close(&self, browser: Option<&mut Browser>) -> std::os::raw::c_int {
       if browser.as_ref().is_none_or(|browser| browser.is_popup() != 0) {
         return 0;
       }
-
       if browser
         .and_then(|browser| browser.host())
         .is_some_and(|host| host.is_window_rendering_disabled() != 0)

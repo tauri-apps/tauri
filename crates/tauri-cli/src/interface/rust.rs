@@ -1559,6 +1559,7 @@ fn tauri_config_to_bundle_settings(
       post_install_script: config.linux.deb.post_install_script,
       pre_remove_script: config.linux.deb.pre_remove_script,
       post_remove_script: config.linux.deb.post_remove_script,
+      compression: config.linux.deb.compression,
     },
     appimage: AppImageSettings {
       files: appimage_files,

@@ -751,6 +751,7 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     #[cfg(target_os = "macos")]
     {
+      appwindow.apply_movability();
       appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
       if let Some(position) = &appwindow.attrs.traffic_light_position {
         appwindow.set_traffic_light_position(position);
@@ -1059,7 +1060,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::Unminimize => window.set_minimized(false),
       WindowMessage::Show => window.set_visible(true),
       WindowMessage::Hide => window.set_visible(false),
-      WindowMessage::SetDecorations(value) => window.set_decorations(value),
+      WindowMessage::SetDecorations(value) => {
+        window.set_decorations(value);
+        #[cfg(target_os = "macos")]
+        appwindow.apply_movability();
+      }
       WindowMessage::SetSize(size) => _ = window.request_surface_size(size),
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
       WindowMessage::SetFullscreen(value) => {
@@ -1076,7 +1081,10 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       #[cfg(target_os = "macos")]
       WindowMessage::SetSimpleFullscreen(value) => {
-        window.set_simple_fullscreen(value);
+        let changed = window.set_simple_fullscreen(value);
+        if changed && !value {
+          appwindow.apply_movability();
+        }
       }
       WindowMessage::SetFocus => appwindow.activate(),
       WindowMessage::SetMinSize(min_size) => window.set_min_surface_size(min_size),

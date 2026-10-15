@@ -410,6 +410,8 @@ pub struct WebviewAttributes {
   pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
   #[cfg(target_os = "ios")]
   pub limit_navigations_to_app_bound_domains: bool,
+  /// Serves the `tauri` protocol from `https://<android_hostname>` instead of `http(s)://tauri.localhost` on Android.
+  pub android_hostname: Option<String>,
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
@@ -546,6 +548,7 @@ impl WebviewAttributes {
       input_accessory_view_builder: None,
       #[cfg(target_os = "ios")]
       limit_navigations_to_app_bound_domains: false,
+      android_hostname: None,
       #[cfg(windows)]
       environment: None,
       #[cfg(any(

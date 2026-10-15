@@ -233,6 +233,17 @@
               "type": "null"
             }
           ]
+        },
+        "androidHostname": {
+          "description": "Serves the app from `https://<androidHostname>` instead of `http(s)://tauri.localhost` on Android, so autofill\n services can link webview credentials to the app through [Digital Asset Links](https://developers.google.com/digital-asset-links).\n\n The value is a lowercase domain name such as `app.example.com`, without a scheme, port or path.\n Tauri forces `useHttpsScheme` to `true` and trusts only this exact origin for IPC.\n\n ## Security\n\n Use a dedicated host that serves nothing but `/.well-known/assetlinks.json`, since WebSocket connections\n and some redirected requests to the host reach the real server. Service workers can't use the host.\n\n ## Warning\n\n Setting or changing this value changes the app origin, so the app can't access its old IndexedDB, cookies\n and localStorage. Backend CORS rules and Content Security Policy sources must allow the new origin.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AndroidHostname"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -547,7 +558,7 @@
           "type": "boolean"
         },
         "useHttpsScheme": {
-          "description": "Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.\n\n ## Note\n\n Using a `https` scheme will NOT allow mixed content when trying to fetch `http` endpoints and therefore will not match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.\n\n ## Warning\n\n Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.",
+          "description": "Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.\n\n ## Note\n\n Using a `https` scheme will NOT allow mixed content when trying to fetch `http` endpoints and therefore will not match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.\n\n ## Warning\n\n Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.\n\n ## Platform-specific\n\n - **Android**: Always `true` when `app > androidHostname` is set.",
           "default": false,
           "type": "boolean"
         },
@@ -1984,6 +1995,12 @@
         }
       },
       "additionalProperties": false
+    },
+    "AndroidHostname": {
+      "description": "The host the Android app is served from, see `app > androidHostname`.\n\n A lowercase domain name with at least two labels, such as `app.example.com`, without a scheme, port or path.",
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$"
     },
     "BuildConfig": {
       "description": "The Build configuration object.\n\n See more: <https://v2.tauri.app/reference/config/#buildconfig>",

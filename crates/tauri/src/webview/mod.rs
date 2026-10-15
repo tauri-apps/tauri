@@ -1173,6 +1173,10 @@ fn main() {
   /// ## Warning
   ///
   /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Always `true` when `app > androidHostname` is set.
   #[must_use]
   pub fn use_https_scheme(mut self, enabled: bool) -> Self {
     self.webview_attributes.use_https_scheme = enabled;
@@ -1962,10 +1966,13 @@ tauri::Builder::default()
     let uses_https = current_url.scheme() == "https";
 
     // if from `tauri://` custom protocol
-    ({
-      let protocol_url = self.manager().tauri_protocol_url(uses_https);
-      current_url.scheme() == protocol_url.scheme()
-      && current_url.domain() == protocol_url.domain()
+    (match &self.manager().custom_app_origin {
+      Some(origin) => current_url.origin() == origin.origin(),
+      None => {
+        let protocol_url = self.manager().tauri_protocol_url(uses_https);
+        current_url.scheme() == protocol_url.scheme()
+        && current_url.domain() == protocol_url.domain()
+      }
     }) ||
 
     // or if relative to `devUrl` or `frontendDist`
@@ -1988,11 +1995,12 @@ tauri::Builder::default()
         #[cfg(any(windows, target_os = "android"))]
         let local = {
           let scheme = scheme == self.manager().tauri_protocol_url(uses_https).scheme();
-          let protocol = current_url
-            .domain()
-            .and_then(|d| d.strip_suffix(".localhost"))
-            .map(|protocol| protocols.contains_key(protocol))
-            .unwrap_or_default();
+          let protocol = crate::protocol::localhost_protocol(
+            current_url,
+            self.manager().custom_app_origin.is_some(),
+          )
+          .map(|protocol| protocols.contains_key(protocol))
+          .unwrap_or_default();
 
           scheme && protocol
         };
@@ -2830,6 +2838,129 @@ mod tests {
       assert!(
         !msg.contains("not allowed from remote context"),
         "local origin should not be blocked by the remote-origin guard, got: {msg}"
+      );
+    }
+  }
+
+  fn android_hostname_app(
+    builder: crate::Builder<crate::test::MockRuntime>,
+  ) -> crate::App<crate::test::MockRuntime> {
+    let mut context = crate::test::mock_context(crate::test::noop_assets());
+    context.config_mut().app.android_hostname = Some("app.example.com".parse().unwrap());
+    builder.build(context).unwrap()
+  }
+
+  #[test]
+  fn android_hostname_serves_app_from_custom_origin() {
+    let app = android_hostname_app(crate::test::mock_builder());
+
+    let main = crate::WebviewWindowBuilder::new(&app, "main", crate::WebviewUrl::default())
+      .build()
+      .unwrap();
+    assert_eq!(main.url().unwrap().as_str(), "https://app.example.com/");
+    assert!(main.webview.use_https_scheme());
+
+    let page = crate::WebviewWindowBuilder::new(
+      &app,
+      "page",
+      crate::WebviewUrl::App("nested/page.html".into()),
+    )
+    .build()
+    .unwrap();
+    assert_eq!(
+      page.url().unwrap().as_str(),
+      "https://app.example.com/nested/page.html"
+    );
+
+    let custom_protocol = crate::WebviewWindowBuilder::new(
+      &app,
+      "custom-protocol",
+      crate::WebviewUrl::CustomProtocol(Url::parse("tauri://localhost/page.html?q=1#top").unwrap()),
+    )
+    .build()
+    .unwrap();
+    assert_eq!(
+      custom_protocol.url().unwrap().as_str(),
+      "https://app.example.com/page.html?q=1#top"
+    );
+  }
+
+  #[test]
+  fn android_hostname_is_local_only_for_exact_origin() {
+    // a user `tauri` protocol must not make `tauri.localhost` local again
+    let app = android_hostname_app(
+      crate::test::mock_builder()
+        .register_uri_scheme_protocol("tauri", |_, _| http::Response::new(Vec::new())),
+    );
+    let webview = crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
+      .build()
+      .unwrap()
+      .webview;
+
+    let url = |s| Url::parse(s).unwrap();
+
+    assert!(webview.is_local_url(&url("https://app.example.com/")));
+    assert!(webview.is_local_url(&url("https://APP.example.com:443/index.html?q=1#top")));
+    // userinfo is not part of the origin, wry answers such requests with 403 Forbidden
+    assert!(webview.is_local_url(&url("https://user@app.example.com/")));
+
+    for remote in [
+      "http://app.example.com/",
+      "https://app.example.com:8443/",
+      "wss://app.example.com/",
+      "https://sub.app.example.com/",
+      "https://app.example.com.evil.net/",
+      "https://app.example.company/",
+      "https://evil-app.example.com/",
+      "https://tauri.localhost/",
+      "https://tauri.localhost:8443/",
+      "http://tauri.localhost/",
+    ] {
+      assert!(
+        !webview.is_local_url(&url(remote)),
+        "{remote} must be remote"
+      );
+    }
+  }
+
+  #[test]
+  fn android_hostname_remote_origin_blocked_for_custom_commands() {
+    use crate::test::INVOKE_KEY;
+    use crate::webview::InvokeRequest;
+
+    let app = android_hostname_app(crate::test::mock_builder());
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    let invoke = |url: &str| {
+      crate::test::get_ipc_response(
+        &webview,
+        InvokeRequest {
+          cmd: "any_custom_command".into(),
+          callback: crate::ipc::CallbackFn(0),
+          error: crate::ipc::CallbackFn(1),
+          url: url.parse().unwrap(),
+          body: crate::ipc::InvokeBody::default(),
+          headers: Default::default(),
+          invoke_key: INVOKE_KEY.to_string(),
+        },
+      )
+    };
+
+    for remote in ["http://app.example.com", "https://app.example.com:8443"] {
+      let err = invoke(remote).expect_err("custom command must be rejected from a remote origin");
+      assert!(
+        err.to_string().contains("not allowed"),
+        "{remote} must be rejected by the ACL, got: {err}"
+      );
+    }
+
+    if let Err(e) = invoke("https://app.example.com") {
+      let msg = e.to_string();
+      assert!(
+        !msg.contains("not allowed"),
+        "the app origin must not be rejected by the ACL, got: {msg}"
       );
     }
   }

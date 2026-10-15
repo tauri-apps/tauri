@@ -1555,6 +1555,18 @@ pub(crate) enum Message<T: UserEvent> {
     window_id: WindowId,
     message: WindowMessage,
   },
+  /// A page entered or left HTML fullscreen (`DisplayHandler::on_fullscreen_mode_change`).
+  /// Keyed by the webview alone: the window id its handlers were built with is stale once
+  /// it is reparented.
+  PageFullscreen {
+    webview_id: u32,
+    fullscreen: bool,
+  },
+  /// F11 (`IDC_FULLSCREEN`) in a webview whose page is not in HTML fullscreen, sent to
+  /// whichever window holds the webview now.
+  ToggleFullscreen {
+    webview_id: u32,
+  },
   Webview {
     window_id: WindowId,
     webview_id: u32,
@@ -1842,6 +1854,8 @@ impl<T: UserEvent> WinitCefApp<T> {
             .iter()
             .position(|child| child.webview_id == webview_id)
             .map(|index| {
+              // A page that took the window fullscreen gives it back as it goes.
+              appwindow.set_page_fullscreen(webview_id, false);
               let child = appwindow.children.remove(index);
               if let Some(view) = &child.offscreen {
                 view.visible.store(false, Ordering::Relaxed);
@@ -1937,6 +1951,31 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       Message::Window { window_id, message } => {
         self.handle_window_message(event_loop, window_id, message)
+      }
+      Message::PageFullscreen {
+        webview_id,
+        fullscreen,
+      } => {
+        if let Some(appwindow) = self.state.windows.values_mut().find(|appwindow| {
+          appwindow
+            .children
+            .iter()
+            .any(|child| child.webview_id == webview_id)
+        }) {
+          appwindow.set_page_fullscreen(webview_id, fullscreen);
+        }
+      }
+      Message::ToggleFullscreen { webview_id } => {
+        let window_id = self.state.windows.iter().find_map(|(id, appwindow)| {
+          appwindow
+            .children
+            .iter()
+            .any(|child| child.webview_id == webview_id)
+            .then_some(*id)
+        });
+        if let Some(window_id) = window_id {
+          self.handle_window_message(event_loop, window_id, WindowMessage::ToggleFullscreen);
+        }
       }
       Message::Webview {
         window_id,

@@ -1056,9 +1056,13 @@ pub struct WindowsConfig {
   /// The installation mode for the Webview2 runtime.
   #[serde(default, alias = "webview-install-mode")]
   pub webview_install_mode: WebviewInstallMode,
-  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  /// Whether an older version can be installed when a newer one is already installed.
   ///
-  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  /// For instance, if `1.2.1` is installed and this is set to `false`:
+  ///
+  /// - The MSI installer won't install version `1.2.0` or `1.1.5`.
+  /// - The NSIS installer won't install them over `1.2.1` in silent, passive or update mode.
+  ///   The interactive installer only lets the user install them after uninstalling `1.2.1` first.
   ///
   /// The default value of this flag is `true`.
   #[serde(default = "default_true", alias = "allow-downgrades")]
@@ -1956,7 +1960,7 @@ pub struct WindowConfig {
   ///
   /// ## Example:
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
@@ -3353,7 +3357,7 @@ pub struct AppConfig {
   ///
   /// and use it like this
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
@@ -3451,11 +3455,12 @@ pub struct AppConfig {
   /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
   /// before building the app:
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// use tauri::utils::config::AppDirectoriesOverride;
   ///
   /// fn main() {
-  ///   let mut context = tauri::generate_context!();
+  ///   // on an actual app, remove the string argument
+  ///   let mut context = tauri::generate_context!("../tauri/test/fixture/src-tauri/tauri.conf.json");
   ///
   ///   if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
   ///     context.config_mut().app.app_directories_override =

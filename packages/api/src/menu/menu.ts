@@ -17,7 +17,7 @@ import { itemFromKind, Submenu } from './submenu'
 import { type LogicalPosition, PhysicalPosition, Position } from '../dpi'
 import { type Window } from '../window'
 import { invoke } from '../core'
-import { type ItemKind, MenuItemBase, newMenu } from './base'
+import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base'
 
 /** Options for creating a new menu. */
 export interface MenuOptions {
@@ -56,18 +56,18 @@ export class Menu extends MenuItemBase {
    *
    * @example
    * ```typescript
-   * import { Menu, Submenu } from '@tauri-apps/api/menu';
+   * import { Menu } from '@tauri-apps/api/menu';
    *
    * const menu = await Menu.new({
    *   items: [
-   *     await Submenu.new({
+   *     {
    *       text: 'File',
    *       items: [
    *         { id: 'open', text: 'Open', accelerator: 'CmdOrCtrl+O', action: () => console.log('open') },
    *         { item: 'Separator' },
    *         { item: 'Quit' }
    *       ]
-   *     })
+   *     }
    *   ]
    * });
    * ```
@@ -94,10 +94,10 @@ export class Menu extends MenuItemBase {
    *
    * @example
    * ```typescript
-   * import { Menu, Submenu } from '@tauri-apps/api/menu';
+   * import { Menu } from '@tauri-apps/api/menu';
    *
-   * const menu = await Menu.default();
-   * await menu.append(await Submenu.new({ text: 'Tools', items: [{ id: 'fmt', text: 'Format' }] }));
+   * await using menu = await Menu.default();
+   * await menu.append({ text: 'Tools', items: [{ id: 'fmt', text: 'Format' }] });
    * await menu.setAsAppMenu();
    * ```
    */
@@ -130,9 +130,7 @@ export class Menu extends MenuItemBase {
     return invoke('plugin:menu|append', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      )
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem)
     })
   }
 
@@ -159,9 +157,7 @@ export class Menu extends MenuItemBase {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      )
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem)
     })
   }
 
@@ -188,9 +184,7 @@ export class Menu extends MenuItemBase {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      ),
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem),
       position
     })
   }
@@ -307,7 +301,7 @@ export class Menu extends MenuItemBase {
    * ```typescript
    * import { Menu } from '@tauri-apps/api/menu';
    *
-   * const menu = await Menu.default();
+   * await using menu = await Menu.default();
    * const previous = await menu.setAsAppMenu();
    * await previous?.close();
    * ```
@@ -333,7 +327,7 @@ export class Menu extends MenuItemBase {
    * import { Menu } from '@tauri-apps/api/menu';
    * import { getCurrentWindow } from '@tauri-apps/api/window';
    *
-   * const menu = await Menu.default();
+   * await using menu = await Menu.default();
    * await menu.setAsWindowMenu(getCurrentWindow());
    * ```
    *

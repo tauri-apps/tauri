@@ -2457,11 +2457,13 @@ class Window {
       }
     )
 
-    return () => {
-      unlistenDrag()
-      unlistenDrop()
-      unlistenDragOver()
-      unlistenCancel()
+    return async () => {
+      await Promise.all([
+        unlistenDrag(),
+        unlistenDrop(),
+        unlistenDragOver(),
+        unlistenCancel()
+      ])
     }
   }
 
@@ -2499,9 +2501,8 @@ class Window {
         handler({ ...event, payload: false })
       }
     )
-    return () => {
-      unlistenFocus()
-      unlistenBlur()
+    return async () => {
+      await Promise.all([unlistenFocus(), unlistenBlur()])
     }
   }
 

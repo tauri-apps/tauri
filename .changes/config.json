@@ -199,6 +199,7 @@
       ],
       "postversion": [
         "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "node ../../.scripts/ci/sync-publiccode.js",
         "cargo build --manifest-path ../tauri-schema-generator/Cargo.toml"
       ]
     },

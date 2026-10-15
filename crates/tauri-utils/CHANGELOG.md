@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.10.2]
+
+### Bug Fixes
+
+- [`141d1c0d6`](https://www.github.com/tauri-apps/tauri/commit/141d1c0d6f3a746f7f34618d00c2676c902dca67) ([#16199](https://www.github.com/tauri-apps/tauri/pull/16199)) Fix the `failed to read plugin permissions` build error when the Cargo target directory is moved after the first build, for example when it is restored from a CI cache at a different path. Permission files generated inside `OUT_DIR` are now listed relative to it.
+
 ## [2.10.1]
 
 ### Bug Fixes

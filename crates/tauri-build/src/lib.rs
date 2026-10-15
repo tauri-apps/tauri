@@ -114,7 +114,6 @@ mod acl;
 mod codegen;
 mod manifest;
 mod mobile;
-mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
@@ -912,7 +911,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         }
       }
       "msvc" if static_vc_runtime => {
-        static_vcruntime::build();
+        static_vcruntime::metabuild();
       }
       _ => (),
     }

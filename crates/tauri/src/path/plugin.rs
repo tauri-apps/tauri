@@ -95,6 +95,17 @@ pub fn resolve_directory<R: Runtime>(
 }
 
 #[command(root = "crate")]
+pub fn resolve_external_bin<R: Runtime>(
+  _app: AppHandle<R>,
+  resolver: State<'_, PathResolver<R>>,
+  name: PathBuf,
+) -> Result<PathBuf> {
+  resolver
+    .sidecar_path(name)
+    .map(|p| dunce::simplified(&p).to_path_buf())
+}
+
+#[command(root = "crate")]
 pub fn resolve(paths: Vec<String>) -> Result<PathBuf> {
   // Start with current directory then start adding paths from the vector one by one using `PathBuf.push()` which
   // will ensure that if an absolute path is encountered in the iteration, it will be used as the current full path.
@@ -219,6 +230,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     .invoke_handler(crate::generate_handler![
       #![plugin(path)]
       resolve_directory,
+      resolve_external_bin,
       resolve,
       normalize,
       join,

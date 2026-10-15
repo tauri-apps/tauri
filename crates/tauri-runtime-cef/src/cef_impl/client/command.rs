@@ -7,12 +7,11 @@ use std::os::raw::c_int;
 use std::sync::OnceLock;
 
 use cef::*;
-use tauri_runtime::{UserEvent, window::WindowId};
+use tauri_runtime::UserEvent;
 
 use crate::ChromeCommandGroup;
 use crate::macros::wrap_with_args;
 use crate::runtime::{Message, RuntimeContext};
-use crate::window::WindowMessage;
 
 /// Commands that open a second browser window or drive a tab strip.
 ///
@@ -207,7 +206,7 @@ wrap_with_args! {
   wrap_command_handler => TauriCefCommandHandlerArgs;
 
   pub struct TauriCefCommandHandler<T: UserEvent> {
-    window_id: WindowId,
+    webview_id: u32,
     context: RuntimeContext<T>,
     devtools_enabled: bool,
     zoom_hotkeys_enabled: bool,
@@ -237,13 +236,12 @@ wrap_with_args! {
       }
 
       if Some(command_id) == fullscreen_command() {
-        // Popup clients retain the opener's window id despite owning a separate browser.
+        // Popup clients carry the opener's webview id despite owning a separate browser.
         if popup {
           return 0;
         }
-        let _ = self.context.sender.send(Message::Window {
-          window_id: self.window_id,
-          message: WindowMessage::ToggleFullscreen,
+        let _ = self.context.sender.send(Message::ToggleFullscreen {
+          webview_id: self.webview_id,
         });
         self.context.wake_event_loop();
         return 1;

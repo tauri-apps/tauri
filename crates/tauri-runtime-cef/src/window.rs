@@ -55,7 +55,7 @@ use crate::{
     AfterWindowCreationCallback, CefRuntime, Message, RuntimeContext, WinitCefApp,
     WinitDragDropState,
   },
-  webview::{AppWebview, CefWebviewDispatcher, create_webview_detached},
+  webview::{AppWebview, CefWebviewDispatcher, PageFullscreen, create_webview_detached},
   window_builder::WindowBuilderWrapper,
   window_handle::SendRawWindowHandle,
 };
@@ -390,8 +390,8 @@ pub(crate) enum WindowMessage {
   SetPosition(Position),
   SetFullscreen(bool),
   SetFullscreenOnMonitor(PhysicalPosition<f64>),
+  /// F11 (`IDC_FULLSCREEN`) outside page fullscreen.
   ToggleFullscreen,
-  ElementFullscreen(bool),
   /// Applies the fullscreen request held back during a transition, now that it ended. See
   /// [`AppWindow::request_fullscreen`].
   #[cfg(target_os = "macos")]
@@ -473,7 +473,6 @@ const PENDING_ACTIVATION_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub(crate) struct AppWindow {
   pub(crate) lifetime: NativeWindowToken,
-  pub(crate) fullscreen_for_element: bool,
   #[allow(unused)]
   pub(crate) id: WindowId,
   pub(crate) label: String,
@@ -628,6 +627,93 @@ impl AppWindow {
     self.window.set_fullscreen(fullscreen);
   }
 
+  /// A fullscreen request from the app or the user rather than a page: the window's
+  /// fullscreen state is theirs from now on. Leaving fullscreen also takes every page out of
+  /// HTML fullscreen, which would otherwise keep its fullscreen layout in a normal window.
+  pub(crate) fn request_window_fullscreen(&mut self, target: Option<FullscreenTarget>) {
+    for webview in &mut self.children {
+      if webview.page_fullscreen == PageFullscreen::Off {
+        continue;
+      }
+      if target.is_some() {
+        webview.page_fullscreen = PageFullscreen::On { owns_window: false };
+      } else {
+        webview.page_fullscreen = PageFullscreen::Off;
+        webview.host.exit_fullscreen(1);
+      }
+    }
+    self.request_fullscreen(target);
+  }
+
+  /// F11: leaves fullscreen when the window is fullscreen (or about to be) or a page shows an
+  /// element in HTML fullscreen, and enters it otherwise.
+  pub(crate) fn toggle_fullscreen(&mut self) {
+    let fullscreen = self.fullscreen_requested()
+      || self
+        .children
+        .iter()
+        .any(|webview| webview.page_fullscreen != PageFullscreen::Off);
+    self.request_window_fullscreen((!fullscreen).then_some(FullscreenTarget::CurrentMonitor));
+  }
+
+  /// Whether the window is in fullscreen once the requests made so far are applied.
+  ///
+  /// On macOS a request made during a transition is held rather than handed to winit, so
+  /// `Window::fullscreen` does not reflect it yet.
+  fn fullscreen_requested(&self) -> bool {
+    #[cfg(target_os = "macos")]
+    if self.fullscreen_transition.in_progress()
+      && let Some(pending) = self.fullscreen_transition.pending()
+    {
+      return pending.is_some();
+    }
+    self.window.fullscreen().is_some()
+  }
+
+  /// A page of `webview_id` entered or left HTML fullscreen.
+  ///
+  /// The window enters fullscreen with the first page that needs it and leaves once no page
+  /// that put it there is still fullscreen; a window the app or the user made fullscreen
+  /// stays that way.
+  pub(crate) fn set_page_fullscreen(&mut self, webview_id: u32, fullscreen: bool) {
+    let window_fullscreen = self.fullscreen_requested();
+    let Some(webview) = self
+      .children
+      .iter_mut()
+      .find(|webview| webview.webview_id == webview_id)
+    else {
+      return;
+    };
+
+    if fullscreen {
+      if webview.page_fullscreen != PageFullscreen::Off {
+        return;
+      }
+      webview.page_fullscreen = PageFullscreen::On {
+        owns_window: !window_fullscreen,
+      };
+      if !window_fullscreen {
+        self.request_fullscreen(Some(FullscreenTarget::CurrentMonitor));
+      }
+      return;
+    }
+
+    let previous = std::mem::take(&mut webview.page_fullscreen);
+    if previous != (PageFullscreen::On { owns_window: true }) {
+      return;
+    }
+    // Another page still in fullscreen keeps the window there, and restores it when it leaves.
+    if let Some(other) = self
+      .children
+      .iter_mut()
+      .find(|webview| webview.page_fullscreen != PageFullscreen::Off)
+    {
+      other.page_fullscreen = PageFullscreen::On { owns_window: true };
+    } else {
+      self.request_fullscreen(None);
+    }
+  }
+
   pub(crate) fn preferred_theme(&self) -> Option<Theme> {
     self
       .attrs
@@ -739,7 +825,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       children: Vec::new(),
       listeners: Default::default(),
       native_drag_drop: None,
-      fullscreen_for_element: false,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -1072,34 +1157,12 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetSize(size) => _ = window.request_surface_size(size),
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
       WindowMessage::SetFullscreen(value) => {
-        appwindow.fullscreen_for_element = false;
-        appwindow.request_fullscreen(value.then_some(FullscreenTarget::CurrentMonitor))
+        appwindow.request_window_fullscreen(value.then_some(FullscreenTarget::CurrentMonitor))
       }
       WindowMessage::SetFullscreenOnMonitor(position) => {
-        appwindow.fullscreen_for_element = false;
-        appwindow.request_fullscreen(Some(FullscreenTarget::MonitorAt(position)))
+        appwindow.request_window_fullscreen(Some(FullscreenTarget::MonitorAt(position)))
       }
-      WindowMessage::ToggleFullscreen => {
-        appwindow.fullscreen_for_element = false;
-        appwindow.request_fullscreen(
-          window
-            .fullscreen()
-            .is_none()
-            .then_some(FullscreenTarget::CurrentMonitor),
-        );
-      }
-      WindowMessage::ElementFullscreen(true) => {
-        if window.fullscreen().is_none() {
-          appwindow.fullscreen_for_element = true;
-          appwindow.request_fullscreen(Some(FullscreenTarget::CurrentMonitor));
-        }
-      }
-      WindowMessage::ElementFullscreen(false) => {
-        if appwindow.fullscreen_for_element {
-          appwindow.fullscreen_for_element = false;
-          appwindow.request_fullscreen(None);
-        }
-      }
+      WindowMessage::ToggleFullscreen => appwindow.toggle_fullscreen(),
       #[cfg(target_os = "macos")]
       WindowMessage::ApplyPendingFullscreen => {
         if let Some(target) = appwindow.fullscreen_transition.take_pending() {

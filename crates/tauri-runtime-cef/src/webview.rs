@@ -524,6 +524,18 @@ pub(crate) struct AppWebview {
   pub(crate) listeners: WebviewEventListeners,
   pub(crate) bounds_rate: Option<BoundsRate>,
   pub(crate) offscreen: Option<crate::OffscreenView>,
+  pub(crate) page_fullscreen: PageFullscreen,
+}
+
+/// Whether the page shows an element through the HTML Fullscreen API, as CEF reports it to
+/// `DisplayHandler::on_fullscreen_mode_change`.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PageFullscreen {
+  #[default]
+  Off,
+  /// `owns_window` when the window was put in fullscreen for this page, so leaving it
+  /// restores the window; a window already fullscreen by the app or the user stays that way.
+  On { owns_window: bool },
 }
 
 impl AppWebview {
@@ -977,6 +989,7 @@ impl<T: UserEvent> WinitCefApp<T> {
             listeners: Default::default(),
             bounds_rate,
             offscreen,
+            page_fullscreen: Default::default(),
           })
           .expect("failed to send initialized CEF browser");
       }
@@ -1147,11 +1160,19 @@ impl<T: UserEvent> WinitCefApp<T> {
           .windows
           .get_mut(&window_id)
           .and_then(|appwindow| {
-            appwindow
+            let index = appwindow
               .children
               .iter()
-              .position(|child| child.webview_id == webview_id)
-              .map(|index| appwindow.children.remove(index))
+              .position(|child| child.webview_id == webview_id)?;
+            // The page leaves HTML fullscreen with the window it was shown in fullscreen on,
+            // and that window goes back to how it was before the page took it fullscreen.
+            let page_fullscreen = appwindow.children[index].page_fullscreen;
+            appwindow.set_page_fullscreen(webview_id, false);
+            let child = appwindow.children.remove(index);
+            if page_fullscreen != PageFullscreen::Off {
+              child.host.exit_fullscreen(1);
+            }
+            Some(child)
           })
         else {
           let _ = tx.send(Err(Error::WindowNotFound));

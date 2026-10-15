@@ -3,7 +3,7 @@ Categories={{categories}}
 {{#if comment}}
 Comment={{comment}}
 {{/if}}
-Exec={{exec}}
+Exec={{exec}}{{#if exec_arg}} {{exec_arg}}{{/if}}
 StartupWMClass={{exec}}
 Icon={{icon}}
 Name={{name}}

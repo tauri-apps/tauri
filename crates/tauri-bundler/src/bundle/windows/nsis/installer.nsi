@@ -32,6 +32,15 @@ ManifestDPIAwareness PerMonitorV2
 ${StrCase}
 ${StrLoc}
 
+; The project directory, i.e. the one holding `tauri.conf.json`. Defined here
+; rather than with the other defines below because the installer hooks are
+; included on the next line and a hook can only use what is already defined,
+; and pointing at a file kept next to the config is what a hook needs it for:
+;   !define MUI_UNICON "${SRCTAURIDIR}\nsis\uninstall.ico"
+{{#if src_tauri_dir}}
+!define SRCTAURIDIR "{{src_tauri_dir}}"
+{{/if}}
+
 {{#if installer_hooks}}
 !include "{{installer_hooks}}"
 {{/if}}

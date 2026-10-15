@@ -57,7 +57,7 @@ impl CommandExt for Command {
     let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
     let stdout_lines = Arc::new(Mutex::new(Vec::new()));
     let stdout_lines_ = stdout_lines.clone();
-    std::thread::spawn(move || {
+    let stdout_thread = std::thread::spawn(move || {
       let mut line = String::new();
       let mut lines = stdout_lines_.lock().unwrap();
       loop {
@@ -76,7 +76,7 @@ impl CommandExt for Command {
     let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
     let stderr_lines = Arc::new(Mutex::new(Vec::new()));
     let stderr_lines_ = stderr_lines.clone();
-    std::thread::spawn(move || {
+    let stderr_thread = std::thread::spawn(move || {
       let mut line = String::new();
       let mut lines = stderr_lines_.lock().unwrap();
       loop {
@@ -93,6 +93,8 @@ impl CommandExt for Command {
     });
 
     let status = child.wait()?;
+    let _ = stdout_thread.join();
+    let _ = stderr_thread.join();
     let output = Output {
       status,
       stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
@@ -102,9 +104,15 @@ impl CommandExt for Command {
     if output.status.success() {
       Ok(output)
     } else {
+      // some tools (WiX, signtool) report their errors on stdout
+      let diagnosis = if output.stderr.iter().all(u8::is_ascii_whitespace) {
+        &output.stdout
+      } else {
+        &output.stderr
+      };
       Err(crate::Error::CommandFailed {
         command: program,
-        error: std::io::Error::other(String::from_utf8_lossy(&output.stderr).to_string()),
+        error: std::io::Error::other(String::from_utf8_lossy(diagnosis).trim_end().to_string()),
       })
     }
   }
@@ -116,7 +124,25 @@ mod tests {
 
   use tauri_utils::resources::resource_relpath;
 
-  use super::is_retina;
+  use super::{CommandExt, is_retina};
+
+  #[test]
+  fn output_ok_keeps_stderr_in_the_error() {
+    let err = std::process::Command::new("sh")
+      .args(["-c", "echo the-diagnosis >&2; exit 1"])
+      .output_ok()
+      .unwrap_err();
+    assert!(err.to_string().contains("the-diagnosis"));
+  }
+
+  #[test]
+  fn output_ok_falls_back_to_stdout_without_stderr() {
+    let err = std::process::Command::new("sh")
+      .args(["-c", "echo the-diagnosis; exit 1"])
+      .output_ok()
+      .unwrap_err();
+    assert!(err.to_string().contains("the-diagnosis"));
+  }
 
   #[test]
   fn retina_icon_paths() {

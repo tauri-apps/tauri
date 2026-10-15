@@ -23,6 +23,7 @@ use objc2_foundation::{
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri_runtime::dpi::Position;
 use tauri_utils::{TitleBarStyle, config::Color};
+use winit::platform::macos::WindowExtMacOS;
 
 use crate::window::AppWindow;
 
@@ -144,27 +145,31 @@ impl AppWindow {
       return;
     };
 
-    match style {
-      TitleBarStyle::Visible => {
-        nswindow.setTitlebarAppearsTransparent(false);
-        let mut mask = nswindow.styleMask();
-        mask.remove(NSWindowStyleMask::FullSizeContentView);
-        nswindow.setStyleMask(mask);
-      }
-      TitleBarStyle::Transparent => {
-        nswindow.setTitlebarAppearsTransparent(true);
-        let mut mask = nswindow.styleMask();
-        mask.remove(NSWindowStyleMask::FullSizeContentView);
-        nswindow.setStyleMask(mask);
-      }
-      TitleBarStyle::Overlay => {
-        nswindow.setTitlebarAppearsTransparent(true);
-        let mut mask = nswindow.styleMask();
-        mask.insert(NSWindowStyleMask::FullSizeContentView);
-        nswindow.setStyleMask(mask);
-      }
-      _ => {}
-    }
+    let (transparent, overlay) = match style {
+      TitleBarStyle::Visible => (false, false),
+      TitleBarStyle::Transparent => (true, false),
+      TitleBarStyle::Overlay => (true, true),
+      _ => return,
+    };
+
+    nswindow.setTitlebarAppearsTransparent(transparent);
+    let mut mask = nswindow.styleMask();
+    mask.set(NSWindowStyleMask::FullSizeContentView, overlay);
+    nswindow.setStyleMask(mask);
+    self.apply_movability();
+  }
+
+  pub(crate) fn apply_movability(&self) {
+    let nsview = self.nsview();
+    let Some(nswindow) = nsview.window() else {
+      return;
+    };
+
+    let overlay = nswindow.titlebarAppearsTransparent()
+      && nswindow
+        .styleMask()
+        .contains(NSWindowStyleMask::FullSizeContentView);
+    nswindow.setMovable(!overlay && !self.window.simple_fullscreen());
   }
 
   pub(crate) fn set_visible_on_all_workspaces(&self, visible: bool) {

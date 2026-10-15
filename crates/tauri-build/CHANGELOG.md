@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0-alpha.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.4`
+- Upgraded to `tauri-codegen@3.0.0-alpha.4`
+
 ## [3.0.0-alpha.3]
 
 ### Dependencies
@@ -70,6 +77,22 @@
 ### Breaking Changes
 
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The CEF runtime is now detected through the `tauri-runtime-cef` dependency of the application (the `DEP_TAURI_RUNTIME_CEF_RUNTIME` env var it exports to the app's build script) instead of the removed `cef` feature of `tauri`.
+
+## [2.7.3]
+
+### Enhancements
+
+- [`e140a1c8f`](https://www.github.com/tauri-apps/tauri/commit/e140a1c8f958ecb820c43effd99468ccb25b63c3) ([#16280](https://www.github.com/tauri-apps/tauri/pull/16280)) Build-time ACL validation now suggests the closest known identifier when a capability references an unknown permission that looks like a typo of an existing one, for example `Permission fs:allow-read-text-fil not found (did you mean "fs:allow-read-text-file"?), expected one of ...`. Typos in the plugin namespace and a missing `allow-` prefix are also covered; unrelated identifiers keep the previous message.
+
+### Bug Fixes
+
+- [`225fb205a`](https://www.github.com/tauri-apps/tauri/commit/225fb205a9b13e87bb71b599d896cdd9dbe7a672) ([#16247](https://www.github.com/tauri-apps/tauri/pull/16247)) Switch back to `static_vcruntime` crate, this fixes a linking error when the crate using `tauri_build::build` is used as library.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-codegen@2.7.3`
+
 ## [2.7.2]
 
 ### Dependencies

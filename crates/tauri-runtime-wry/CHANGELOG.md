@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.4`
+- Upgraded to `tauri-runtime@3.0.0-alpha.4`
+- Upgraded to `tauri@3.0.0-alpha.5`
+
 ## [3.0.0-alpha.4]
 
 ### Dependencies
@@ -98,6 +106,13 @@
     The new `tauri_runtime::gtk` module carries the GTK version a runtime binds to: runtimes call `gtk::declare_version` before creating windows so `tauri`, which picks its bindings at compile time, can detect a mismatch instead of reinterpreting a GTK object of the other version.
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `Wry<T>` runtime type was renamed to `WryRuntime<T>` (defaulting to `tauri::EventLoopMessage`), and `Wry` is now the unit-like attributes type that selects the runtime, e.g. `tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default())`. `WryHandle::plugin` now takes `&self`.
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `WebviewAttribute` enum was replaced by the `WryWebviewAttributes` struct, with the `environment` (Windows), `related_view` (Linux) and `webview_configuration` (macOS) fields. The `AsWryWebviewAttributes` trait gives the `WebviewWindowBuilderWryExt` and `WebviewBuilderWryExt` extension traits access to it on both `WryRuntime` and `tauri::DynRuntime`.
+
+## [2.12.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-runtime@2.12.2`
 
 ## [2.12.1]
 

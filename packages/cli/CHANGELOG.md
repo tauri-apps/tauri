@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### New Features
+
+- [`7cf5d9032`](https://www.github.com/tauri-apps/tauri/commit/7cf5d903221d1400c0d256cbbff3a46d2d55781e) ([#16198](https://www.github.com/tauri-apps/tauri/pull/16198) by [@Vishal-770](https://www.github.com/tauri-apps/tauri/../../Vishal-770)) Add `bundle > linux > deb > compression` config option to control Debian bundle compression type and level.
+- [`0e849336a`](https://www.github.com/tauri-apps/tauri/commit/0e849336a7f2b406d2d508cbdd01a25bcb02f8b9) ([#16261](https://www.github.com/tauri-apps/tauri/pull/16261) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) zstd compression for deb and rpm bundles accepts negative levels (down to -131072) for zstd's fast modes. `DebCompression::Zstd`'s `level` is now an `i32`, and `DebCompression::{default_level, min_level, max_level, level}` return `Option<i32>`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@3.0.0-alpha.5`
+
+### Breaking Changes
+
+- [`0e849336a`](https://www.github.com/tauri-apps/tauri/commit/0e849336a7f2b406d2d508cbdd01a25bcb02f8b9) ([#16261](https://www.github.com/tauri-apps/tauri/pull/16261) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) RPM bundles are compressed with zstd level 19 instead of gzip level 6 when `bundle > linux > rpm > compression` is not set, which matches rpm's own default. zstd payloads need rpm 4.14 or newer, so set the option to gzip to keep installing on older distributions.
+
 ## [3.0.0-alpha.4]
 
 ### New Features
@@ -79,6 +94,19 @@
     - The CEF files, code signing entitlements and macOS dev flow are only used when the app uses CEF.
     - Nothing runtime-specific is done for other runtimes.
     - The app and plugin templates add the `tauri-runtime-wry` dependency and select it with `tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default())`.
+
+## [2.12.3]
+
+### Bug Fixes
+
+- [`c95be4615`](https://www.github.com/tauri-apps/tauri/commit/c95be4615a432b1d12409d3684c960e8aa718ada) ([#16287](https://www.github.com/tauri-apps/tauri/pull/16287)) Fix `tauri ios xcode-script` failing to find the Tauri project when Xcode inherits package manager environment variables from `tauri ios dev --open`, or when pnpm runs the CLI directly from the `gen/apple` folder.
+- [`d62e5d9c0`](https://www.github.com/tauri-apps/tauri/commit/d62e5d9c0878b6fb327543cc9be50aa1696ee23c) ([#16184](https://www.github.com/tauri-apps/tauri/pull/16184)) Fix NSIS installer leaving `uninstall.exe` and the installation directory behind when uninstalling an existing installation from the installer.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.12.3`
+- [`5a2953e55`](https://www.github.com/tauri-apps/tauri/commit/5a2953e555b4444bed68bd5324ea13ad85a6c06e) ([#16237](https://www.github.com/tauri-apps/tauri/pull/16237)) Updated NSIS to 3.13
+
 ## [2.12.2]
 
 ### Bug Fixes

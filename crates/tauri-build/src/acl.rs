@@ -410,8 +410,12 @@ fn validate_capabilities(
           }
         }
 
+        let hint = suggest_identifier(permission_id.get(), &available_permissions)
+          .map(|suggestion| format!(" (did you mean \"{suggestion}\"?)"))
+          .unwrap_or_default();
+
         anyhow::bail!(
-          "Permission {} not found, expected one of {}",
+          "Permission {} not found{hint}, expected one of {}",
           permission_id.get(),
           available_permissions.join(", ")
         );
@@ -494,4 +498,295 @@ pub fn build(
   tauri_utils::acl::build::generate_allowed_commands(out_dir, Some(capabilities), permissions_map)?;
 
   Ok(())
+}
+
+/// Minimum [`strsim::jaro_winkler`] similarity for a candidate to be suggested as a
+/// "did you mean" hint.
+///
+/// Matches the threshold used by the application-category parser in `tauri-bundler`,
+/// so the two suggestion surfaces behave consistently.
+const SUGGESTION_CONFIDENCE_THRESHOLD: f64 = 0.8;
+
+/// Returns whether two components match exactly or with one edit or adjacent transposition.
+fn components_match(input: &str, candidate: &str) -> bool {
+  input == candidate
+    || (input.chars().count().max(candidate.chars().count()) >= 4
+      && strsim::osa_distance(input, candidate) <= 1)
+}
+
+/// Splits an identifier into its namespace (everything before the last `:`) and its base.
+fn split_identifier(identifier: &str) -> (Option<&str>, &str) {
+  match identifier.rsplit_once(':') {
+    Some((namespace, base)) => (Some(namespace), base),
+    None => (None, identifier),
+  }
+}
+
+/// Checks the `-` separated components of two identifier bases.
+fn base_components_match(input_parts: &[&str], candidate_base: &str) -> bool {
+  candidate_base.split('-').count() == input_parts.len()
+    && input_parts
+      .iter()
+      .zip(candidate_base.split('-'))
+      .all(|(a, b)| components_match(a, b))
+}
+
+/// Checks whether a candidate namespace is acceptable for the rejected identifier's namespace.
+///
+/// The namespace must match exactly, unless no candidate uses it (an unknown plugin or a typo in
+/// its name), in which case each `:` separated component may contain a single typo.
+fn namespaces_match(
+  input_namespace: Option<&str>,
+  candidate_namespace: Option<&str>,
+  input_namespace_known: bool,
+) -> bool {
+  match (input_namespace, candidate_namespace) {
+    (input, candidate) if input == candidate => true,
+    (Some(input), Some(candidate)) if !input_namespace_known => {
+      input.split(':').count() == candidate.split(':').count()
+        && input
+          .split(':')
+          .zip(candidate.split(':'))
+          .all(|(a, b)| components_match(a, b))
+    }
+    _ => false,
+  }
+}
+
+/// Returns the identifier from `candidates` that most closely resembles `input`, if any
+/// is similar enough to be worth suggesting.
+///
+/// Used to turn a rejected permission identifier into an actionable build error. Returns
+/// `None` when no candidate clears [`SUGGESTION_CONFIDENCE_THRESHOLD`], so unrelated typos
+/// do not get a misleading hint.
+fn suggest_identifier(input: &str, candidates: &[String]) -> Option<String> {
+  let (input_namespace, input_base) = split_identifier(input);
+  let input_namespace_known = candidates
+    .iter()
+    .any(|candidate| split_identifier(candidate).0 == input_namespace);
+
+  // Also try the input with the `allow-` prefix, which is easy to forget.
+  let mut queries = vec![(input.to_string(), input_base.to_string())];
+  if !input_base.starts_with("allow-") && !input_base.starts_with("deny-") {
+    let base = format!("allow-{input_base}");
+    let query = match input_namespace {
+      Some(namespace) => format!("{namespace}:{base}"),
+      None => base.clone(),
+    };
+    queries.push((query, base));
+  }
+
+  let mut best_confidence = 0.0;
+  let mut best_match: Option<&String> = None;
+
+  for (query, query_base) in &queries {
+    let query_parts: Vec<&str> = query_base.split('-').collect();
+
+    for candidate in candidates {
+      if candidate == input {
+        continue;
+      }
+
+      let (candidate_namespace, candidate_base) = split_identifier(candidate);
+
+      if !namespaces_match(input_namespace, candidate_namespace, input_namespace_known) {
+        continue;
+      }
+
+      if !base_components_match(&query_parts, candidate_base) {
+        continue;
+      }
+
+      let confidence = strsim::jaro_winkler(query, candidate);
+      let edit_similarity = strsim::normalized_levenshtein(query, candidate);
+
+      // Jaro-Winkler alone overvalues shared prefixes.
+      if confidence >= SUGGESTION_CONFIDENCE_THRESHOLD
+        && edit_similarity >= SUGGESTION_CONFIDENCE_THRESHOLD
+        && confidence > best_confidence
+      {
+        best_confidence = confidence;
+        best_match = Some(candidate);
+      }
+    }
+  }
+
+  best_match.cloned()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::suggest_identifier;
+
+  fn candidates() -> Vec<String> {
+    [
+      "fs:allow-read-text-file",
+      "fs:allow-write-text-file",
+      "fs:default",
+      "core:default",
+      "core:event:allow-listen",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect()
+  }
+
+  #[test]
+  fn suggests_on_missing_trailing_character() {
+    assert_eq!(
+      suggest_identifier("fs:allow-read-text-fil", &candidates()).as_deref(),
+      Some("fs:allow-read-text-file")
+    );
+  }
+
+  #[test]
+  fn suggests_nearest_candidate_for_typo() {
+    assert_eq!(
+      suggest_identifier("fs:allow-read-text-fiel", &candidates()).as_deref(),
+      Some("fs:allow-read-text-file")
+    );
+  }
+
+  #[test]
+  fn picks_the_closest_candidate() {
+    let candidates: Vec<String> = ["core:event:allow-listen", "core:event:allow-unlisten"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(
+      suggest_identifier("core:event:allow-listenx", &candidates).as_deref(),
+      Some("core:event:allow-listen")
+    );
+  }
+
+  #[test]
+  fn no_suggestion_for_read_write_mismatch() {
+    let c: Vec<String> = ["fs:allow-write-text-file"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("fs:allow-read-text-file", &c), None);
+  }
+
+  #[test]
+  fn no_suggestion_for_listen_unlisten_mismatch() {
+    let c: Vec<String> = ["core:event:allow-unlisten"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("core:event:allow-listen", &c), None);
+  }
+
+  #[test]
+  fn suggests_transposed_letters_in_action() {
+    let c: Vec<String> = ["core:event:allow-listen"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(
+      suggest_identifier("core:event:allow-lisetn", &c).as_deref(),
+      Some("core:event:allow-listen")
+    );
+  }
+
+  #[test]
+  fn no_suggestion_for_different_hyphenation() {
+    let c: Vec<String> = ["fs:allow-read-text-file"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("fs:allow-readtext-file", &c), None);
+  }
+
+  #[test]
+  fn short_action_components_must_match_exactly() {
+    let c: Vec<String> = ["core:window:allow-in"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("core:window:allow-on", &c), None);
+  }
+
+  #[test]
+  fn no_suggestion_for_totally_different_identifier() {
+    assert_eq!(suggest_identifier("totally-unrelated", &candidates()), None);
+    assert_eq!(suggest_identifier("", &candidates()), None);
+  }
+
+  #[test]
+  fn no_suggestion_for_incomplete_permission() {
+    assert_eq!(suggest_identifier("fs:allow", &candidates()), None);
+    assert_eq!(suggest_identifier("fs:allow-foo", &candidates()), None);
+  }
+
+  #[test]
+  fn no_suggestion_for_different_namespace() {
+    assert_eq!(
+      suggest_identifier("xx:allow-read-text-file", &candidates()),
+      None
+    );
+  }
+
+  #[test]
+  fn suggests_for_namespace_typo() {
+    let c: Vec<String> = ["core:window:allow-set-title", "dialog:default"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(
+      suggest_identifier("core:windw:allow-set-title", &c).as_deref(),
+      Some("core:window:allow-set-title")
+    );
+    assert_eq!(
+      suggest_identifier("dialgo:default", &c).as_deref(),
+      Some("dialog:default")
+    );
+  }
+
+  #[test]
+  fn no_namespace_typo_suggestion_when_namespace_exists() {
+    let c: Vec<String> = ["core:window:allow-close", "core:webview:allow-print"]
+      .into_iter()
+      .map(String::from)
+      .collect();
+    assert_eq!(suggest_identifier("core:window:allow-print", &c), None);
+  }
+
+  #[test]
+  fn suggests_missing_allow_prefix() {
+    let c: Vec<String> = [
+      "core:window:allow-set-title",
+      "core:window:deny-set-title",
+      "allow-echo",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    assert_eq!(
+      suggest_identifier("core:window:set-title", &c).as_deref(),
+      Some("core:window:allow-set-title")
+    );
+    assert_eq!(
+      suggest_identifier("core:window:set-titel", &c).as_deref(),
+      Some("core:window:allow-set-title")
+    );
+    assert_eq!(
+      suggest_identifier("echo", &c).as_deref(),
+      Some("allow-echo")
+    );
+  }
+
+  #[test]
+  fn no_suggestion_without_candidates() {
+    assert_eq!(suggest_identifier("fs:allow-read", &[]), None);
+  }
+
+  #[test]
+  fn exact_match_is_never_suggested() {
+    assert_eq!(
+      suggest_identifier("fs:default", &candidates()),
+      None,
+      "an exact match is not a misspelling, so nothing should be suggested"
+    );
+  }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-cef"
-version = "3.0.0-alpha.5"
+version = "3.0.0-alpha.6"
 description = "Tauri runtime interface for Chromium Embedded Framework"
 # lets `tauri-build` detect the CEF runtime through the `DEP_TAURI_RUNTIME_CEF_RUNTIME` env var
 links = "tauri_runtime_cef"
@@ -30,9 +30,9 @@ harness = false
 tauri = { workspace = true, features = ["gtk4"] }
 tauri-macros = { workspace = true }
 base64 = "0.22"
-cef = { version = "=152.3.0", features = ["build-util", "linux-x11"] }
+cef = { version = "=154.5.0", features = ["build-util", "linux-x11"] }
 # Not actually used directly, just locking it.
-cef-dll-sys = { version = "=152.3.0", default-features = false }
+cef-dll-sys = { version = "=154.5.0", default-features = false }
 dirs = "6"
 dioxus-debug-cell = "0.1"
 http = "1"

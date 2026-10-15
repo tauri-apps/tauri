@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>off-screen</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* The page paints no background of its own, so what shows between the
+         cards is the browser's: opaque white, or the native scene when the
+         webview is transparent. */
+      html,
+      body {
+        background: transparent;
+      }
+      main {
+        max-width: 480px;
+      }
+      section {
+        background: var(--card);
+      }
+      /* A fixed color at a fixed place, for the e2e suite to find in the
+         painted pixels. */
+      #marker {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        background: rgb(255, 0, 0);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="marker"></div>
+    <header>
+      <h1>Off-screen rendering</h1>
+      <p id="mode"></p>
+    </header>
+    <main>
+      <section class="wide">
+        <h2>Input</h2>
+        <p class="desc">
+          Pointer, wheel, keyboard and focus reach this page only because the
+          application forwards the native window's events to the browser host.
+        </p>
+        <div class="row">
+          <button id="clicker">Clicked <span id="clicks">0</span> times</button>
+          <input id="text" placeholder="type here" />
+          <select id="choice">
+            <option>painted as PET_POPUP</option>
+            <option>second</option>
+            <option>third</option>
+          </select>
+        </div>
+      </section>
+      <section class="wide">
+        <h2>Popups</h2>
+        <p class="desc">
+          A popup of an off-screen browser is an ordinary windowed one.
+        </p>
+        <div class="row">
+          <button data-popup="popup.html">Tauri window</button>
+          <button data-popup="popup.html#cef-owned">CEF-owned</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const transparent = new URLSearchParams(location.search).has(
+        'transparent'
+      )
+      document.getElementById('mode').textContent = transparent
+        ? 'A transparent webview: the native scene shows through.'
+        : 'An opaque webview: the browser paints white behind the page.'
+
+      let clicks = 0
+      document.getElementById('clicker').addEventListener('click', () => {
+        document.getElementById('clicks').textContent = String(++clicks)
+      })
+      document.querySelectorAll('[data-popup]').forEach((button) => {
+        button.addEventListener('click', () => {
+          window.open(button.dataset.popup, '_blank', 'width=520,height=360')
+        })
+      })
+    </script>
+  </body>
+</html>

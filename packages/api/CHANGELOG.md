@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0-alpha.3]
+
+### What's Changed
+
+- [``](https://www.github.com/tauri-apps/tauri/commit/undefined) Ported changes from v2.
+
 ## [3.0.0-alpha.2]
 
 ### What's Changed
@@ -17,6 +23,13 @@
 ### What's Changed
 
 - [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
+## [2.12.4]
+
+### What's Changed
+
+- [`dc637db65`](https://www.github.com/tauri-apps/tauri/commit/dc637db6573443cc668b06deed1f014c4ac01033) ([#16260](https://www.github.com/tauri-apps/tauri/pull/16260)) Improve menu documentation.
+
 ## [2.12.3]
 
 ### Bug Fixes

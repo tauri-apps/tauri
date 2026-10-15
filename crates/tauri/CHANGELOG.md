@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.4`
+- Upgraded to `tauri-runtime@3.0.0-alpha.4`
+- Upgraded to `tauri-macros@3.0.0-alpha.4`
+- Upgraded to `tauri-build@3.0.0-alpha.4`
+
 ## [3.0.0-alpha.4]
 
 ### Dependencies
@@ -138,6 +147,26 @@
     - Enabling both selects GTK 4, the same precedence `muda` and `tray-icon` use. Cargo does that whenever the dependency graph contains runtime crates that disagree on the GTK version, and such a binary can only ever run one of them, because GTK 3 and GTK 4 cannot be initialized in the same process. The GTK APIs and the Linux menu integration now fail with the new `Error::GtkVersionMismatch` under a runtime whose GTK version is not the one that was selected, instead of reinterpreting its window objects.
     - The `test` feature no longer implies GTK 3, so it can be combined with `gtk4`.
 - [`c8c75b1f7`](https://www.github.com/tauri-apps/tauri/commit/c8c75b1f7f43e7cb1e7d773ed2f6f96fad2fe975) ([#15787](https://www.github.com/tauri-apps/tauri/pull/15787)) The Linux tray icon now uses the ksni (StatusNotifierItem over D-Bus) backend by default instead of libappindicator, dropping the libayatana-appindicator system dependency. The `tray-icon` feature no longer needs a GTK version to be selected. Enable the new `linux-libappindicator` feature to go back to the libappindicator backend.
+
+## [2.12.4]
+
+### Enhancements
+
+- [`5d1e8777a`](https://www.github.com/tauri-apps/tauri/commit/5d1e8777a04dfee9eb4e5ef4eb4664c8914ef79c) ([#16286](https://www.github.com/tauri-apps/tauri/pull/16286)) Improve the error message on iOS when the development server cannot be reached through a `localhost` URL, suggesting `tauri ios dev --host`.
+
+### Bug Fixes
+
+- [`9c3fb8865`](https://www.github.com/tauri-apps/tauri/commit/9c3fb8865fcc33982dff31c821d988a9a038ff8c) ([#16197](https://www.github.com/tauri-apps/tauri/pull/16197)) Fix a panic in the IPC and asset protocol handlers when the request URI has an empty path (for example `ipc:foo`).
+- [`7b673ddaa`](https://www.github.com/tauri-apps/tauri/commit/7b673ddaaf885ecaecfe79dfeb4cac1c6880fce6) ([#16146](https://www.github.com/tauri-apps/tauri/pull/16146)) `PluginHandle::run_mobile_plugin_async` and `PluginHandle::run_mobile_plugin` no longer panic (which aborts the process on iOS and Android) when a mobile plugin command resolves after its caller stopped waiting, for example when the async call was cancelled by a timeout. The late response is dropped instead.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.7.3`
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-runtime@2.12.2`
+- Upgraded to `tauri-runtime-wry@2.12.2`
+- Upgraded to `tauri-macros@2.7.3`
+
 ## [2.12.3]
 
 ### Bug Fixes

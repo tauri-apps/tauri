@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0-alpha.4]
+
+### New Features
+
+- [`7cf5d9032`](https://www.github.com/tauri-apps/tauri/commit/7cf5d903221d1400c0d256cbbff3a46d2d55781e) ([#16198](https://www.github.com/tauri-apps/tauri/pull/16198) by [@Vishal-770](https://www.github.com/tauri-apps/tauri/../../Vishal-770)) Add `bundle > linux > deb > compression` config option to control Debian bundle compression type and level.
+- [`0e849336a`](https://www.github.com/tauri-apps/tauri/commit/0e849336a7f2b406d2d508cbdd01a25bcb02f8b9) ([#16261](https://www.github.com/tauri-apps/tauri/pull/16261) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) zstd compression for deb and rpm bundles accepts negative levels (down to -131072) for zstd's fast modes. `DebCompression::Zstd`'s `level` is now an `i32`, and `DebCompression::{default_level, min_level, max_level, level}` return `Option<i32>`.
+
 ## [3.0.0-alpha.3]
 
 ### Breaking Changes
@@ -49,6 +56,12 @@
 
 - [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
 - [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
+## [2.10.2]
+
+### Bug Fixes
+
+- [`141d1c0d6`](https://www.github.com/tauri-apps/tauri/commit/141d1c0d6f3a746f7f34618d00c2676c902dca67) ([#16199](https://www.github.com/tauri-apps/tauri/pull/16199)) Fix the `failed to read plugin permissions` build error when the Cargo target directory is moved after the first build, for example when it is restored from a CI cache at a different path. Permission files generated inside `OUT_DIR` are now listed relative to it.
 
 ## [2.10.1]
 

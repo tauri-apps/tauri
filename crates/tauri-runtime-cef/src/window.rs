@@ -479,7 +479,7 @@ pub(crate) struct AppWindow {
   pub(crate) label: String,
   #[cfg(windows)]
   pub(crate) background_surface: Option<SoftbufferSurface>,
-  pub(crate) window: Box<dyn WinitWindow>,
+  pub(crate) window: Arc<dyn WinitWindow>,
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: WindowEventListeners,
@@ -734,7 +734,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       label: pending.label.clone(),
       #[cfg(windows)]
       background_surface: None,
-      window,
+      window: Arc::from(window),
       attrs,
       children: Vec::new(),
       listeners: Default::default(),
@@ -755,6 +755,7 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     #[cfg(target_os = "macos")]
     {
+      appwindow.apply_movability();
       appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
       if let Some(position) = &appwindow.attrs.traffic_light_position {
         appwindow.set_traffic_light_position(position);
@@ -1063,7 +1064,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::Unminimize => window.set_minimized(false),
       WindowMessage::Show => window.set_visible(true),
       WindowMessage::Hide => window.set_visible(false),
-      WindowMessage::SetDecorations(value) => window.set_decorations(value),
+      WindowMessage::SetDecorations(value) => {
+        window.set_decorations(value);
+        #[cfg(target_os = "macos")]
+        appwindow.apply_movability();
+      }
       WindowMessage::SetSize(size) => _ = window.request_surface_size(size),
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
       WindowMessage::SetFullscreen(value) => {
@@ -1103,7 +1108,10 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       #[cfg(target_os = "macos")]
       WindowMessage::SetSimpleFullscreen(value) => {
-        window.set_simple_fullscreen(value);
+        let changed = window.set_simple_fullscreen(value);
+        if changed && !value {
+          appwindow.apply_movability();
+        }
       }
       WindowMessage::SetFocus => appwindow.activate(),
       WindowMessage::SetMinSize(min_size) => window.set_min_surface_size(min_size),
@@ -1811,11 +1819,9 @@ where
     after_window_creation: after_window_creation.map(|f| Box::new(f) as _),
     result_tx,
   })?;
-  // Block until the event loop has created the window so a creation failure is
+  // Wait until the event loop has created the window so a creation failure is
   // surfaced to the caller instead of leaving a detached, dead window.
-  result_rx
-    .recv()
-    .map_err(|_| Error::FailedToReceiveMessage)??;
+  context.wait_for_creation(result_rx)?;
 
   let webview = webview_id.map(|webview_id| DetachedWindowWebview {
     webview: DetachedWebview {

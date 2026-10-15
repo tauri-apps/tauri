@@ -23,6 +23,17 @@ pub struct Bundled {
   pub app: Vec<PathBuf>,
 }
 
+// bundle_dmg.sh drives Finder through osascript, and macOS denies that unless
+// the terminal has Finder automation permission (#3055). Match the error code
+// (errAEEventNotPermitted), since the message itself is localized.
+fn finder_permission_hint(stderr: &str) -> Option<&'static str> {
+  stderr
+    .contains("(-1743)")
+    .then_some(
+      "the terminal needs permission to control Finder: System Settings > Privacy & Security > Automation",
+    )
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Bundled> {
@@ -181,11 +192,18 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   log::info!(action = "Running"; "bundle_dmg.sh");
 
   // execute the bundle script
-  bundle_dmg_cmd
+  let result = bundle_dmg_cmd
     .current_dir(bundle_dir.clone())
     .args(vec![dmg_name.as_str(), bundle_file_name.as_str()])
-    .output_ok()
-    .context("error running bundle_dmg.sh")?;
+    .output_ok();
+  let hint = result
+    .as_ref()
+    .err()
+    .and_then(|err| finder_permission_hint(&err.to_string()));
+  result.with_context(|| match hint {
+    Some(hint) => format!("error running bundle_dmg.sh ({hint})"),
+    None => "error running bundle_dmg.sh".to_string(),
+  })?;
 
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
 
@@ -210,4 +228,17 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     dmg: vec![dmg_path],
     app: app_bundle_paths,
   })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::finder_permission_hint;
+
+  #[test]
+  fn names_the_finder_permission_fix() {
+    let stderr = "bundle_dmg.sh: Failed running AppleScript\nexecution error: Not authorized to send Apple events to Finder. (-1743)\n";
+    assert!(finder_permission_hint(stderr).is_some_and(|hint| hint.contains("Automation")));
+    assert!(finder_permission_hint("execution error: Finder n'a pas autorisé (-1743)").is_some());
+    assert!(finder_permission_hint("some other failure").is_none());
+  }
 }

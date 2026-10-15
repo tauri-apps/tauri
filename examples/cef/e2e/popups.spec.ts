@@ -22,14 +22,7 @@ const cefOwnedPopupLoaded = `window.__TAURI__.core
   )`
 
 test.describe('Popups: AsCefWindowOpener', () => {
-  // Answering `NewWindowResponse::Create` from `on_new_window` wedges the
-  // browser process on macOS as of this writing: the handler builds the Tauri
-  // window from inside CEF's `on_before_popup`, on the UI thread, while the
-  // opener's renderer sits in its synchronous new-window request. It reproduces
-  // with no DevTools client attached at all (the window is opened from a
-  // `setTimeout` after the only client disconnected), so it is not the suite's
-  // doing. The CEF-owned path below is unaffected.
-  test.fixme('window.open becomes a Tauri window, with the opener CEF reported', async ({
+  test('window.open becomes a Tauri window, with the opener CEF reported', async ({
     app,
     main
   }) => {

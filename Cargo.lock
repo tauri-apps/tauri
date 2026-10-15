@@ -8477,7 +8477,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.10.3"
+version = "2.10.4"
 dependencies = [
  "anyhow",
  "ar",
@@ -8524,7 +8524,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.12.3"
+version = "2.12.4"
 dependencies = [
  "ar",
  "axum",
@@ -8684,7 +8684,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macos-sign"
-version = "2.4.2"
+version = "2.4.3"
 dependencies = [
  "base64 0.23.1",
  "bcder",

@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.12.4]
+
+### Bug Fixes
+
+- [`136a28eaa`](https://www.github.com/tauri-apps/tauri/commit/136a28eaa879e8aa706f9b2e05a050c46dcc1f4f) ([#16305](https://www.github.com/tauri-apps/tauri/pull/16305) by [@Chaosnico9000](https://www.github.com/tauri-apps/tauri/../../Chaosnico9000)) Skip the `--target` validation when `rustup target list` fails, e.g. when `rustup` is on `PATH` but has no toolchain installed, instead of rejecting every target as missing.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.4.3`
+- Upgraded to `tauri-bundler@2.10.4`
+
 ## [2.12.3]
 
 ### Enhancements

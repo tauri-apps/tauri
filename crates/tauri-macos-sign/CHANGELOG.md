@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.4.3]
+
+### Bug Fixes
+
+- [`152d293dd`](https://www.github.com/tauri-apps/tauri/commit/152d293ddf5680b968dc4853e52d87c12a2deaeb) ([#16298](https://www.github.com/tauri-apps/tauri/pull/16298) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Delete the temporary signing keychain when importing the certificate or resolving the signing identity fails, instead of leaving it behind in `~/Library/Keychains`.
+
 ## [2.4.2]
 
 ### Bug Fixes

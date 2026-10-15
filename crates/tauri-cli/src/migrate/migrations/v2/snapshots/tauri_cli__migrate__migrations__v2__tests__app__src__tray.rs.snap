@@ -1,0 +1,20 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+use tauri::{
+  menu::{Menu, MenuItem},
+  tray::{TrayIcon, TrayIconBuilder},
+  AppHandle,
+};
+
+pub fn create(app: &AppHandle<tauri::DynRuntime>) -> tauri::Result<TrayIcon<tauri::DynRuntime>> {
+  let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+  let menu = Menu::with_items(app, &[&quit])?;
+  let tray = TrayIconBuilder::new().menu(&menu).build(app)?;
+  tray.with_inner_blocking(|tray| {
+    let _ = tray.id();
+  })?;
+  let _size = tauri_runtime_wry::tao::dpi::PhysicalSize::new(32, 32);
+  Ok(tray)
+}

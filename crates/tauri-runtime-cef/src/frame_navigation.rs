@@ -82,19 +82,31 @@ impl FrameNavigationState {
   }
 
   pub(crate) fn observe_document(&self, browser: &cef::Browser) -> Option<NativeDocumentToken> {
-    use cef::ImplBrowser;
+    use cef::{ImplBrowser, ImplFrame};
     let generation = self.ready_generation()?;
     if browser.is_valid() == 0 || browser.frame_count() > MAX_NATIVE_FRAMES {
       return None;
     }
     let mut identifiers = cef::CefStringList::new();
     browser.frame_identifiers(Some(&mut identifiers));
+    // CEF keeps listing a frame parked in the back/forward cache, detached from
+    // any renderer - Chrome style parks the internal initial document there on
+    // the first navigation. Tracking drops a frame on detach, so only attached
+    // frames are compared; a restored frame reattaches, advancing the generation.
+    let attached = identifiers
+      .into_iter()
+      .filter(|id| {
+        browser
+          .frame_by_identifier(Some(&cef::CefString::from(id.as_str())))
+          .is_some_and(|frame| frame.is_valid() != 0)
+      })
+      .collect();
     self
       .admits_native_frames(
         generation,
         browser.identifier(),
         browser.is_loading() != 0,
-        &identifiers.into_iter().collect(),
+        &attached,
       )
       .then(|| NativeDocumentToken {
         state: Arc::clone(&self.state),

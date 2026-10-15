@@ -1,0 +1,33 @@
+[package]
+name = "app"
+version = "0.1.0"
+description = "A Tauri App"
+edition = "2021"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# the core crate
+tauri = { version = "2.8", features = ["macos-private-api", "tray-icon", "devtools", "tracing"] }
+tauri-plugin-opener = "2"
+tauri-plugin-log = { version = "2.4.0", features = ["colored"] }
+tauri-plugin-community = "0.3" # not an official plugin
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
+tauri-plugin-window-state = "2"
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test", "objc-exception"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+debug-tools = ["tauri/devtools", "tauri/macos-private-api", "log/std"]

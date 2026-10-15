@@ -2,19 +2,71 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: covector version or publish
+name: covector version or publish (v3)
 
 on:
   push:
     branches:
-      - dev
+      - v3
 
 permissions:
   contents: read
 
 jobs:
+  # covector publishes once no pending change files are left (the version update PR consumed them)
+  # and otherwise opens that PR, which does not need the tests below. In pre-release mode the
+  # change files stay in `.changes` and `pre.json` lists the ones already released.
+  check-publish:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        run: |
+          released=$(if [ -f .changes/pre.json ]; then jq -r '.changes[]' .changes/pre.json; fi)
+          # grep exits 1 when every change file was released; any other failure fails the step
+          pending=$(find .changes -maxdepth 1 -name '*.md' ! -iname 'readme.md' \
+            | { grep -vxF -e "$released" || [ $? -eq 1 ]; })
+          if [ -n "$pending" ]; then
+            printf 'pending change files:\n%s\n' "$pending"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # covector audits again in its prepublish step, but only after every test job above finished;
+  # this fails the run within minutes instead.
+  audit:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit $CARGO_AUDIT_OPTIONS
+        env:
+          CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
+
+      - name: pnpm audit
+        run: pnpm audit
+
   run-integration-tests:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
     runs-on: ${{ matrix.platform }}
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0 # no debuginfo: faster builds and a much smaller target dir
 
     strategy:
       fail-fast: false
@@ -38,10 +90,11 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
+          sudo apt-get install -y webkit2gtk-4.1 libgtk-4-dev libayatana-appindicator3-dev libfuse2 librsvg2-dev
 
-      - uses: Swatinem/rust-cache@v2
-
+      # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
+      # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
+      # evicted before the next push only costs upload time.
       - name: build CLI
         run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 
@@ -56,6 +109,17 @@ jobs:
           pnpm build
           pnpm test
 
+  test-api-e2e:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    uses: ./.github/workflows/test-api-e2e.yml
+    secrets: inherit
+
+  test-api-e2e-mobile:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    uses: ./.github/workflows/test-api-e2e-mobile.yml
+
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65
@@ -69,7 +133,12 @@ jobs:
       commandRan: ${{ steps.covector.outputs.commandRan }}
       successfulPublish: ${{ steps.covector.outputs.successfulPublish }}
     needs:
+      - audit
       - run-integration-tests
+      - test-api-e2e
+      - test-api-e2e-mobile
+    # the tests are skipped when covector only versions
+    if: ${{ !cancelled() && !failure() }}
 
     steps:
       - uses: actions/checkout@v7
@@ -90,7 +159,7 @@ jobs:
       - name: install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y webkit2gtk-4.1 libgtk-4-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
@@ -113,8 +182,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: release/version-updates
-          title: Apply Version Updates From Current Changes
+          branch: release/version-updates-v3
+          title: Apply Version Updates From Current Changes (v3)
           commit-message: 'apply version updates'
           labels: 'version updates'
           body: ${{ steps.covector.outputs.change }}
@@ -134,7 +203,7 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        run: gh workflow run 31554138 -r dev -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
+        run: gh workflow run 31554138 -r v3 -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -142,6 +211,6 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
-        run: gh workflow run 31554139 -r dev
+        run: gh workflow run 31554139 -r v3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

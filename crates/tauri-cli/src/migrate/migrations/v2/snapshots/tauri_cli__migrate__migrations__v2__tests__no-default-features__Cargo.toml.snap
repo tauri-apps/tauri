@@ -1,0 +1,21 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies.tauri-build]
+version = "[version]"
+
+[dependencies.tauri]
+version = "[version]"
+default-features = false
+features = [
+  "compression",
+]
+
+[dependencies]
+tauri-runtime-wry = { version = "[version]", features = ["x11", "unstable"] }

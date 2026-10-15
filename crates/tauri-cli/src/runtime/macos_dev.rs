@@ -72,7 +72,7 @@ pub fn run_dev_in_app_bundle<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'sta
   };
 
   // Merge features
-  let mut merged_features = config_features.clone();
+  let mut merged_features = config_features;
   merged_features.extend(options.features.clone());
 
   // Get minimal config for dev mode (we'll use defaults for most things)
@@ -110,7 +110,7 @@ pub fn run_dev_in_app_bundle<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'sta
     .package_settings(app_settings.get_package_settings())
     .bundle_settings(bundle_settings)
     .binaries(app_settings.get_binaries(&options, dirs.tauri)?)
-    .project_out_directory(out_dir.clone())
+    .project_out_directory(out_dir)
     .target(target)
     .package_types(vec![tauri_bundler::bundle::PackageType::MacOsBundle])
     .build()

@@ -10,7 +10,6 @@ use tauri_runtime::{
   dpi::{LogicalPosition, LogicalSize},
   window::WindowId,
 };
-use winit::event_loop::EventLoopProxy as WinitEventLoopProxy;
 
 use crate::{
   macros::wrap_with_args,
@@ -83,7 +82,6 @@ wrap_with_args! {
 
   pub struct TauriCefChildLifeSpanHandler<T: UserEvent> {
     sender: Sender<Message<T>>,
-    proxy: WinitEventLoopProxy,
     window_id: WindowId,
     webview_id: u32,
     context: RuntimeContext<T>,
@@ -100,7 +98,7 @@ wrap_with_args! {
       if let (Some(browser), Some(opener)) = (browser.as_deref(), self.opener.as_ref()) {
         if let Some(family) = self.popup_family.upgrade() {
           let _ = self.sender.send(Message::PopupCreated(opener.clone(), browser.identifier(), family.clone()));
-          self.proxy.wake_up();
+          self.context.wake_event_loop();
           family.created(browser, opener, &self.frame_navigation_state);
         } else if let Some(host) = browser.host() {
           host.close_browser(1);
@@ -125,12 +123,17 @@ wrap_with_args! {
       _target_disposition: WindowOpenDisposition,
       _user_gesture: std::os::raw::c_int,
       popup_features: Option<&PopupFeatures>,
-      _window_info: Option<&mut WindowInfo>,
+      window_info: Option<&mut WindowInfo>,
       client: Option<&mut Option<Client>>,
       _settings: Option<&mut BrowserSettings>,
       _extra_info: Option<&mut Option<DictionaryValue>>,
       _no_javascript_access: Option<&mut i32>,
     ) -> std::os::raw::c_int {
+      if let Some(window_info) = window_info {
+        window_info.windowless_rendering_enabled = 0;
+        window_info.shared_texture_enabled = 0;
+        window_info.external_begin_frame_enabled = 0;
+      }
       let url_str = target_url.map(ToString::to_string).unwrap_or_default();
       let response = if let Some(handler) = &self.new_window_handler {
         let Ok(url) = url::Url::parse(&url_str) else { return 1; };
@@ -157,7 +160,7 @@ wrap_with_args! {
             family.abort(&self.frame_navigation_state, popup_id);
             return 1;
           }
-          self.proxy.wake_up();
+          self.context.wake_event_loop();
           // Keep CEF's popup creation and JavaScript opener relationship. Only
           // its client changes: root IPC, load/title callbacks and close handling
           // cannot be inherited by a different native browser lifetime.
@@ -186,7 +189,7 @@ wrap_with_args! {
       if let Some(family) = self.popup_family.upgrade()
         && let Some(request) = family.abort(&self.frame_navigation_state, popup_id) {
         let _ = self.sender.send(Message::PopupAborted(request));
-        self.proxy.wake_up();
+        self.context.wake_event_loop();
       }
     }
 
@@ -206,17 +209,26 @@ wrap_with_args! {
     ///
     /// On Linux the default only closes the browser's own X11 child window (and
     /// calls `WindowDestroyed` itself), so the default is already correct there.
+    ///
+    /// An offscreen browser has no native window or view of its own, so there is
+    /// nothing to destroy and no top-level window the default could close: CEF
+    /// completes the close itself.
     fn do_close(&self, browser: Option<&mut Browser>) -> std::os::raw::c_int {
       if browser.as_ref().is_none_or(|browser| browser.is_popup() != 0) {
         return 0;
       }
-
+      if browser
+        .and_then(|browser| browser.host())
+        .is_some_and(|host| host.is_window_rendering_disabled() != 0)
+      {
+        return 0;
+      }
       #[cfg(any(target_os = "macos", windows))]
       {
         let _ = self
           .sender
           .send(Message::DestroyWebviewHostWindow(self.webview_id));
-        self.proxy.wake_up();
+        self.context.wake_event_loop();
         return 1;
       }
 
@@ -232,14 +244,14 @@ wrap_with_args! {
       if browser.is_popup() != 0 {
         if self.opener.is_some() {
           let _ = self.sender.send(Message::PopupClosed(browser.identifier()));
-          self.proxy.wake_up();
+          self.context.wake_event_loop();
         }
         return;
       }
       let _ = self
         .sender
         .send(Message::BrowserClosed(self.window_id, self.webview_id));
-      self.proxy.wake_up();
+      self.context.wake_event_loop();
     }
   }
 }

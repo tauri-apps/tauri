@@ -149,7 +149,7 @@ struct ResourceDirectory {
   /// the files of the described resource directory.
   files: Vec<ResourceFile>,
   /// the directories that are children of the described resource directory.
-  directories: HashMap<String, ResourceDirectory>,
+  directories: BTreeMap<String, ResourceDirectory>,
 }
 
 impl ResourceDirectory {
@@ -1221,7 +1221,7 @@ mod tests {
     let resource_id = resource.id.clone();
     let directory = ResourceDirectory {
       files: vec![resource],
-      directories: HashMap::new(),
+      directories: BTreeMap::new(),
     };
 
     let (wix_data, file_ids) = directory.render_wix(None).unwrap();

@@ -43,15 +43,18 @@ pnpm tauri build
 Everything `Cef` configures before the application is built. Each one is driven
 by an environment variable so its effect can be seen without editing the file:
 
-| Variable                       | Values                                           | What it changes                                                                                                      |
-| ------------------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `CEF_EXAMPLE_SANDBOX`          | `auto` (default), `required`, `disabled`         | Chromium's process sandbox. `auto` drops it only for an AppImage on a system that cannot sandbox at all.             |
-| `CEF_EXAMPLE_SECRET_STORAGE`   | `auto` (default), `mock`, `system`               | Which key the cookie jar is encrypted with. Switching makes cookies stored under the previous key unreadable.        |
-| `CEF_EXAMPLE_SAFE_BROWSING`    | `on` (default), `off`                            | The `safebrowsing.enabled` profile preference, which the runtime leaves on.                                          |
-| `CEF_EXAMPLE_PASSWORD_MANAGER` | `off` (default), `on`                            | The `credentials_enable_service` preference, which the runtime turns off so the "Save password?" bubble stays away.  |
-| `CEF_EXAMPLE_LOG_SEVERITY`     | `verbose`, `info`, `warning`, `error`, `disable` | What CEF writes to the log file. Unset keeps the runtime's default: INFO in development, WARNING in release.         |
-| `CEF_EXAMPLE_CHROMIUM_ARGS`    | `off` (default), `on`                            | Whether a release build honours Chromium switches on its own command line. Development builds always honour them.    |
-| `CEF_EXAMPLE_AUTOPLAY`         | `on` (default), `off`                            | Whether `--autoplay-policy=no-user-gesture-required` is set, which the page reads back as an `AudioContext`'s state. |
+| Variable                            | Values                                           | What it changes                                                                                                                                                                                                                                                                            |
+| ----------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CEF_EXAMPLE_SANDBOX`               | `auto` (default), `required`, `disabled`         | Chromium's process sandbox. `auto` drops it only for an AppImage on a system that cannot sandbox at all.                                                                                                                                                                                   |
+| `CEF_EXAMPLE_SECRET_STORAGE`        | `auto` (default), `mock`, `system`               | Which key the cookie jar is encrypted with. Switching makes cookies stored under the previous key unreadable.                                                                                                                                                                              |
+| `CEF_EXAMPLE_SAFE_BROWSING`         | `on` (default), `off`                            | The `safebrowsing.enabled` profile preference, which the runtime leaves on.                                                                                                                                                                                                                |
+| `CEF_EXAMPLE_PASSWORD_MANAGER`      | `off` (default), `on`                            | The `credentials_enable_service` preference, which the runtime turns off so the "Save password?" bubble stays away.                                                                                                                                                                        |
+| `CEF_EXAMPLE_LOG_SEVERITY`          | `verbose`, `info`, `warning`, `error`, `disable` | What CEF writes to the log file. Unset keeps the runtime's default: INFO in development, WARNING in release.                                                                                                                                                                               |
+| `CEF_EXAMPLE_CHROMIUM_ARGS`         | `off` (default), `on`                            | Whether a release build honours Chromium switches on its own command line. Development builds always honour them.                                                                                                                                                                          |
+| `CEF_EXAMPLE_AUTOPLAY`              | `on` (default), `off`                            | Whether `--autoplay-policy=no-user-gesture-required` is set, which the page reads back as an `AudioContext`'s state.                                                                                                                                                                       |
+| `CEF_EXAMPLE_REMOTE_DEBUGGING_PORT` | a port from 1024 up, unset by default            | `Cef::remote_debugging`: Chromium's DevTools protocol server, the one behind `chrome://inspect`. Off unless named — anything that can reach the port can drive the app — and the only way to get it in a release build, which ignores a `--remote-debugging-port` on its own command line. |
+| `CEF_EXAMPLE_CACHE_DIR`             | a directory                                      | `root_cache_path`: where the Chromium profile lives, cookie jar and persisted permission decisions included. Defaults to `{user cache}/com.tauri.cef-example/cef`.                                                                                                                         |
+| `CEF_EXAMPLE_OFFSCREEN`             | `off` (default), `on`                            | `settings.windowless_rendering_enabled`, which the off-screen windows of [`offscreen.rs`](./src-tauri/src/offscreen.rs) need. A process-wide setting CEF advises against when nothing renders off-screen.                                                                                  |
 
 The app also sets raw Chromium switches — one through `command_line_arg` and two
 through `command_line_args` — an `Accept-Language` list, a cache directory and a
@@ -119,6 +122,31 @@ another locale leaves Chromium unable to load the strings of its own UI.
   under `plugins > deep-link > desktop` in the config are picked up automatically,
   so an app using the deep link plugin does not name them twice.
 
+### Off-screen rendering — [`offscreen.rs`](./src-tauri/src/offscreen.rs)
+
+With `CEF_EXAMPLE_OFFSCREEN=on`, the main page's off-screen rendering panel
+(`open_offscreen_window`) opens a window whose webview is a windowless
+browser: it has no native view, CEF paints it into the application's
+`cef::RenderHandler`, and the application puts the pixels on screen and feeds
+the browser its input. Three pieces, all in `offscreen.rs`:
+
+- **`Offscreen`** on the webview's runtime attributes, whose factory builds the
+  render handler for each webview. It reads the bounds, visibility and host
+  window from the `OffscreenView` the runtime keeps up to date, and keeps the
+  latest painted image of the page and of its popup widget (an open
+  `<select>`, painted as `PET_POPUP`).
+- **`Cef::on_window_event`**, which sees every native window event before the
+  runtime handles it. Redraws present the images with `softbuffer` over a
+  striped native scene; pointer, wheel, keyboard, IME and focus events are
+  forwarded to the `cef::BrowserHost`. The native window and event types are
+  `tauri-winit`'s, which this example depends on directly.
+- **`windowless_rendering_enabled`** in the CEF settings.
+
+The webview is inset from the window's edges, so the native scene shows around
+it, and the page paints no background of its own: an opaque webview shows the
+browser's white behind it, a transparent one (`transparent: true`) the native
+scene. A popup it opens is an ordinary windowed browser.
+
 ### The entry point
 
 `#[tauri_runtime_cef::cef_entry_point]` on `main` handles the other side of a CEF
@@ -140,3 +168,69 @@ application singleton has to be the CEF-compatible one, and whoever creates
 extension methods above are written against — they are what lets one call work
 on both `CefRuntime` and the type-erased `tauri::DynRuntime` — and an
 application only names them itself when it writes an extension of its own.
+
+## End-to-end tests
+
+[`e2e/`](./e2e) is a [Playwright](https://playwright.dev) suite with one spec
+per panel above, and it is also the last thing the runtime shows: a CEF app is a
+Chromium, so it can be tested the way a Chromium is tested. There is no
+WebDriver, no driver binary and no test plugin compiled into the app.
+
+- [`e2e/app.ts`](./e2e/app.ts) launches the built app with
+  `CEF_EXAMPLE_REMOTE_DEBUGGING_PORT` set to a free port and
+  `CEF_EXAMPLE_CACHE_DIR` set to a fresh temporary profile, then attaches
+  Playwright to that port with `chromium.connectOverCDP`. Every CEF browser the
+  app creates — the main window, a Tauri window it opens, each child webview of
+  a multiwebview window and a popup CEF opened on its own — is a page on that
+  connection, so the whole Playwright API works on each: locators, clicks,
+  `page.evaluate`, `page.on('console')`, dialogs, screenshots, and a raw
+  `CDPSession` for the protocol itself.
+- [`e2e/fixtures.ts`](./e2e/fixtures.ts) gives each test its own instance
+  (`app`, and `main` for its main page), attaches a screenshot of every page and
+  the app's output to a failed test, and has the helpers the specs read the
+  panels with: `entries` for the log panels, `sample` for the native state one.
+  `test.use({ appEnv: { CEF_EXAMPLE_AUTOPLAY: 'off' } })` launches a group of
+  tests with different configuration.
+- Most specs assert the same fact from both sides. The console spec waits for a
+  `console` event from Playwright _and_ for the entry `on_console_message`
+  reported; the DevTools protocol spec sends `Browser.getVersion` from Rust and
+  from a Playwright session and compares the answers; the popups spec opens a
+  CEF-owned popup, reads it off the opener's native snapshot, closes it through
+  the DevTools server and watches the snapshot let go of it.
+- Two things the launcher has to know about CEF. A new browser reaches the
+  protocol as a target of type `other` and only becomes a `page` once the
+  runtime's placeholder document is in, and Playwright ignores a target that was
+  `other` when it attached — so `waitForPage` makes one more connection when
+  the DevTools server lists a page Playwright has not got. And a popup CEF opens
+  on its own never finishes being created while a client is attached to it that
+  early, so `evaluateDetached` drops every connection around the `window.open`
+  and reconnects afterwards.
+- A `test.fixme` is a claim of the panel above that the runtime does not hold
+  up yet, kept as the spec of what it should do; the comment on each says what
+  happens instead.
+
+Run it from the root of the repository, after `pnpm build:cli`:
+
+```bash
+pnpm test:cef-e2e
+
+# from this directory, and without rebuilding the app every time
+pnpm e2e
+CEF_E2E_SKIP_BUILD=1 pnpm e2e
+pnpm e2e -- --grep popups
+```
+
+The first run builds the app with `pnpm tauri build --debug` — bundled on
+macOS, `--no-bundle` elsewhere — and every run needs a display: on a headless
+Linux machine, `xvfb-run` with a window manager, as in
+[`test-cef-e2e.yml`](../../.github/workflows/test-cef-e2e.yml), and the
+sandbox note under "Running the example" of
+[`packages/api-e2e`](../../packages/api-e2e/README.md) applies to the bare
+binary there too.
+
+| Variable             | Purpose                                                                          |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `CEF_E2E_SKIP_BUILD` | Skip the `tauri build` step and launch the existing build.                       |
+| `CEF_E2E_APP_PATH`   | The `.app` bundle or executable to test instead of the one under `target/debug`. |
+| `CARGO_TARGET_DIR`   | Where that build is looked for.                                                  |
+| `CEF_PATH`           | Where the `cef` crate keeps (and downloads) the CEF binary distribution.         |

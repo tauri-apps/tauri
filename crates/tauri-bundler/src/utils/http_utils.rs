@@ -67,7 +67,7 @@ fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
-  generate_github_alternative_url(url).unwrap_or((base_ureq_agent(), url.to_owned()))
+  generate_github_alternative_url(url).unwrap_or_else(|| (base_ureq_agent(), url.to_owned()))
 }
 
 pub(crate) fn base_ureq_agent() -> ureq::Agent {
@@ -201,11 +201,13 @@ mod tests {
   const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_no_env_var() {
     assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL, None).is_none());
   }
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_non_github_url() {
     assert!(
       generate_github_mirror_url_from_template(
@@ -222,6 +224,7 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_correctly() {
     let test_cases = vec![
       TestCase {

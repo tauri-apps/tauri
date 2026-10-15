@@ -151,13 +151,11 @@ mod desktop_commands {
     let width = options.width;
     let height = options.height;
 
-    let builder = crate::webview::WebviewBuilder::from_config(&options);
+    let builder = crate::webview::WebviewBuilder::from_config(&options)
+      .position(tauri_runtime::dpi::LogicalPosition::new(x, y))
+      .size(tauri_runtime::dpi::LogicalSize::new(width, height));
 
-    window.add_child(
-      builder,
-      tauri_runtime::dpi::LogicalPosition::new(x, y),
-      tauri_runtime::dpi::LogicalSize::new(width, height),
-    )?;
+    window.add_child(builder)?;
 
     Ok(())
   }
@@ -213,7 +211,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
   let mut builder = Builder::new("webview");
   if !init_script.is_empty() {
-    builder = builder.js_init_script(init_script);
+    builder = builder.initialization_script(init_script);
   }
 
   builder

@@ -88,11 +88,17 @@ pub struct BrowserInfo {
   /// `browser.main_frame().url()`, straight from CEF rather than from Tauri's
   /// bookkeeping.
   main_frame_url: Option<String>,
+  /// Frames attached to a renderer. `browser.frame_count()` also counts frames
+  /// parked in the back/forward cache, which a Chrome style browser fills with
+  /// the runtime's internal initial document on its first navigation.
   frame_count: usize,
   is_loading: bool,
   /// The browser host's zoom level: 0.0 at 100%, one step per notch.
   zoom_level: f64,
   dev_tools_open: bool,
+  /// Whether the browser renders off-screen, into an application's render
+  /// handler, rather than into a native view of its own.
+  windowless: bool,
 }
 
 impl BrowserInfo {
@@ -104,10 +110,22 @@ impl BrowserInfo {
       main_frame_url: browser
         .main_frame()
         .map(|frame| tauri_runtime_cef::cef::CefString::from(&frame.url()).to_string()),
-      frame_count: browser.frame_count(),
+      frame_count: {
+        let mut identifiers = tauri_runtime_cef::cef::CefStringList::new();
+        browser.frame_identifiers(Some(&mut identifiers));
+        identifiers
+          .into_iter()
+          .filter(|id| {
+            browser
+              .frame_by_identifier(Some(&tauri_runtime_cef::cef::CefString::from(id.as_str())))
+              .is_some_and(|frame| frame.is_valid() != 0)
+          })
+          .count()
+      },
       is_loading: browser.is_loading() != 0,
       zoom_level: host.as_ref().map(ImplBrowserHost::zoom_level).unwrap_or(0.),
-      dev_tools_open: host.is_some_and(|host| host.has_dev_tools() != 0),
+      dev_tools_open: host.as_ref().is_some_and(|host| host.has_dev_tools() != 0),
+      windowless: host.is_some_and(|host| host.is_window_rendering_disabled() != 0),
     }
   }
 }
@@ -419,17 +437,18 @@ pub fn open_child_webviews_window(
     let builder = WebviewBuilder::new(child_label, WebviewUrl::App(url.into()))
       .auto_resize()
       // Every method of `WebviewWindowBuilderCefExt` has a counterpart here.
+      .position(LogicalPosition::new(
+        if side == "chrome" { 0. } else { width / 2. },
+        0.,
+      ))
+      .size(LogicalSize::new(width / 2., height))
       .browser_runtime_style(style)
       .allow_chrome_commands([ChromeCommandGroup::History])
       .on_console_message(move |message| console_sink.console(&console_label, message))
       .on_frame_event(move |event| frame_sink.frame(&frame_label, event));
 
     window
-      .add_child(
-        builder,
-        LogicalPosition::new(if side == "chrome" { 0. } else { width / 2. }, 0.),
-        LogicalSize::new(width / 2., height),
-      )
+      .add_child(builder)
       .map_err(|error| error.to_string())?;
   }
 

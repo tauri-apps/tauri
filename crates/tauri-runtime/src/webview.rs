@@ -135,11 +135,11 @@ pub struct CreationContext<'a, 'b> {
 #[derive(Debug, Clone, Copy)]
 pub struct IosWebviewHandle {
   /// The [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview) pointer.
-  pub webview: *mut std::ffi::c_void,
+  pub webview: *const std::ffi::c_void,
   /// The [WKUserContentController](https://developer.apple.com/documentation/webkit/wkusercontentcontroller) pointer.
-  pub manager: *mut std::ffi::c_void,
+  pub manager: *const std::ffi::c_void,
   /// The [UIViewController](https://developer.apple.com/documentation/uikit/uiviewcontroller) hosting the webview.
-  pub view_controller: *mut std::ffi::c_void,
+  pub view_controller: *const std::ffi::c_void,
 }
 
 // SAFETY: the pointers are only dereferenced on the main thread by the consumer.
@@ -485,6 +485,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       .browser_extensions_enabled(config.browser_extensions_enabled)
       .background_throttling(config.background_throttling.clone())
       .devtools(config.devtools)
+      .transparent(config.transparent)
       .scroll_bar_style(match config.scroll_bar_style {
         ConfigScrollBarStyle::Default => ScrollBarStyle::Default,
         #[cfg(windows)]
@@ -494,10 +495,6 @@ impl From<&WindowConfig> for WebviewAttributes {
       .limit_navigations_to_app_bound_domains(config.limit_navigations_to_app_bound_domains)
       .general_autofill_enabled(config.general_autofill_enabled);
 
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    {
-      builder = builder.transparent(config.transparent);
-    }
     #[cfg(target_os = "macos")]
     {
       if let Some(position) = &config.traffic_light_position {
@@ -661,13 +658,25 @@ impl WebviewAttributes {
   }
 
   /// Sets whether clicking an inactive window also clicks through to the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime:** Unsupported. Chromium decides on its own whether the click that activates
+  ///   the window reaches the page: it is swallowed on regular windows and only clicks through on
+  ///   always-on-top windows or while a DevTools debugger is attached.
   #[must_use]
   pub fn accept_first_mouse(mut self, accept: bool) -> Self {
     self.accept_first_mouse = accept;
     self
   }
 
-  /// Sets additional browser arguments. **Windows Only**
+  /// Sets additional browser arguments.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Wry runtime:** Windows only.
+  /// - **CEF runtime:** Unsupported. Chromium's command line is per process, not per webview;
+  ///   pass switches through `Cef::command_line_arg` instead.
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.additional_browser_args = Some(additional_args.to_string());
@@ -689,7 +698,6 @@ impl WebviewAttributes {
   }
 
   /// Enable or disable transparency for the WebView.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.transparent = transparent;

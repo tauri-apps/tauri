@@ -29,6 +29,11 @@ streaming_example_test_video.mp4
 
 # examples /gen directory
 /examples/**/src-tauri/gen/
+
+# playwright output of the examples/cef e2e suite
+/examples/cef/test-results/
+/examples/cef/playwright-report/
+/crates/tauri/test/cef-rollback/gen/
 /bench/**/src-tauri/gen/
 
 # logs

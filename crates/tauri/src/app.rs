@@ -11,7 +11,7 @@ use crate::{
     channel::ChannelDataIpcQueue,
   },
   manager::{AppManager, Asset, webview::UriSchemeProtocol},
-  plugin::{Plugin, PluginStore},
+  plugin::Plugin,
   resources::ResourceTable,
   runtime::{
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
@@ -280,6 +280,7 @@ pub enum RunEvent {
   /// Scenes created by [`Window::new`] are not emitted with this event.
   /// It is also not emitted for the main scene.
   #[cfg(target_os = "ios")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "ios")))]
   SceneRequested {
     /// Scene that was requested by the system.
     scene: objc2::rc::Retained<objc2_ui_kit::UIScene>,
@@ -467,14 +468,6 @@ impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
 }
 
 impl<R: Runtime> AppHandle<R> {
-  /// Runs the given closure on the main thread.
-  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
-    self
-      .runtime_handle
-      .run_on_main_thread(f)
-      .map_err(Into::into)
-  }
-
   /// Adds a Tauri application plugin.
   /// This function can be used to register a plugin that is loaded dynamically e.g. after login.
   /// For plugins that are created when the app is started, prefer [`Builder::plugin`].
@@ -509,12 +502,11 @@ impl<R: Runtime> AppHandle<R> {
   /// This method is similar to [`Self::plugin`],
   /// but accepts a boxed trait object instead of a generic type.
   #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name())))]
-  pub fn plugin_boxed(&self, mut plugin: Box<dyn Plugin<R>>) -> crate::Result<()> {
-    let mut store = self.manager().plugins.lock().unwrap();
-    store.initialize(&mut plugin, self, &self.config().plugins)?;
-    store.register(plugin);
-
-    Ok(())
+  pub fn plugin_boxed(&self, plugin: Box<dyn Plugin<R>>) -> crate::Result<()> {
+    self
+      .manager()
+      .plugins
+      .initialize_all(vec![plugin], self, &self.config().plugins)
   }
 
   /// Removes the plugin with the given name.
@@ -543,16 +535,33 @@ impl<R: Runtime> AppHandle<R> {
   ///   });
   /// ```
   pub fn remove_plugin(&self, plugin: &str) -> bool {
-    self.manager().plugins.lock().unwrap().unregister(plugin)
+    self.manager().plugins.unregister(plugin)
   }
 
   /// Exits the app by triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`].
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unless the exit is prevented, the activity is finished instead of the process being exited directly,
+  ///   so the app closes with the system transition and the activity lifecycle callbacks run.
+  ///   [`RunEvent::Exit`] is triggered once the activity is destroyed, and `exit_code` is not used as the process exit code.
   pub fn exit(&self, exit_code: i32) {
     if let Err(e) = self.runtime_handle.request_exit(exit_code) {
       log::error!("failed to exit: {}", e);
       self.cleanup_before_exit();
       std::process::exit(exit_code);
     }
+  }
+
+  /// Finishes the Android activity, and any other activity of its task, so the app closes gracefully.
+  #[cfg(target_os = "android")]
+  pub(crate) fn finish_activity(&self) -> crate::Result<()> {
+    // the app plugin is a core plugin, so its Android handle is always managed
+    self
+      .state::<crate::app::plugin::AppPlugin<R>>()
+      .0
+      .run_mobile_plugin::<()>("exit", ())?;
+    Ok(())
   }
 
   /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`](crate::RESTART_EXIT_CODE) and [`RunEvent::Exit`].
@@ -1072,6 +1081,10 @@ macro_rules! shared_app_impl {
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
+        // run plugin cleanup hooks first so plugins can still use the app resources (e.g. stop sidecars)
+        // cleanup is best-effort, so a plugin store poisoned by an earlier panic must not abort it
+        self.manager.plugins.cleanup_before_exit(self.app_handle());
+
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
@@ -1214,11 +1227,6 @@ impl<R: Runtime> App<R> {
     #[cfg(all(desktop, feature = "tray-icon"))]
     self.handle.plugin(crate::tray::plugin::init())?;
     Ok(())
-  }
-
-  /// Runs the given closure on the main thread.
-  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
-    self.app_handle().run_on_main_thread(f)
   }
 
   /// Gets a handle to the application instance.
@@ -1383,7 +1391,11 @@ impl<R: Runtime> App<R> {
     let _app_handle = self.handle().clone();
     let _manager = self.manager.clone();
 
-    move |event| match &event {
+    // whether the activity is being finished to fulfill an exit request the app accepted
+    #[cfg(target_os = "android")]
+    let mut finishing_activity = false;
+
+    move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
@@ -1398,6 +1410,43 @@ impl<R: Runtime> App<R> {
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
+      }
+      // On Android, exiting the process while the activity is still on screen skips the close transition
+      // and flashes a blank screen, so a programmatic exit finishes the activity instead and the event loop
+      // exits through the regular window destroyed path.
+      #[cfg(target_os = "android")]
+      RuntimeRunEvent::ExitRequested {
+        code: Some(code),
+        tx,
+      } if code != RESTART_EXIT_CODE && !self.manager.windows().is_empty() => {
+        let (app_tx, app_rx) = std::sync::mpsc::channel();
+        let event = on_event_loop_event(
+          self.handle(),
+          RuntimeRunEvent::ExitRequested {
+            code: Some(code),
+            tx: app_tx,
+          },
+          self.manager(),
+        );
+        callback(self.handle(), event);
+
+        if matches!(app_rx.try_recv(), Ok(ExitRequestedEventAction::Prevent)) {
+          let _ = tx.send(ExitRequestedEventAction::Prevent);
+        } else {
+          match self.handle().finish_activity() {
+            Ok(()) => {
+              finishing_activity = true;
+              // keep the event loop running until the activity is destroyed
+              let _ = tx.send(ExitRequestedEventAction::Prevent);
+            }
+            // fall back to exiting the process directly
+            Err(e) => log::error!("failed to finish the activity: {e}"),
+          }
+        }
+      }
+      #[cfg(target_os = "android")]
+      RuntimeRunEvent::ExitRequested { code: None, .. } if finishing_activity => {
+        // the app already accepted this exit when it was requested
       }
       _ => {
         let event = on_event_loop_event(self.handle(), event, self.manager());
@@ -1488,8 +1537,8 @@ pub struct Builder<R: Runtime = crate::DynRuntime> {
   /// Web content process termination hook.
   on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
 
-  /// All passed plugins
-  plugins: PluginStore<R>,
+  /// All passed plugins, initialized in order when the app is built.
+  plugins: Vec<Box<dyn Plugin<R>>>,
 
   /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<UriSchemeProtocol<R>>>,
@@ -1512,6 +1561,10 @@ pub struct Builder<R: Runtime = crate::DynRuntime> {
   /// Enable macOS default menu creation.
   #[allow(unused)]
   enable_macos_default_menu: bool,
+
+  /// Whether to activate the application when launched while another application is active.
+  #[cfg(target_os = "macos")]
+  activate_ignoring_other_apps: bool,
 
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
@@ -1571,7 +1624,7 @@ impl<R: Runtime> Builder<R> {
       on_page_load: None,
       on_permission_request: None,
       on_web_content_process_terminate: None,
-      plugins: PluginStore::default(),
+      plugins: Vec::new(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       #[cfg(desktop)]
@@ -1581,6 +1634,8 @@ impl<R: Runtime> Builder<R> {
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray_icon_event_listeners: Vec::new(),
       enable_macos_default_menu: true,
+      #[cfg(target_os = "macos")]
+      activate_ignoring_other_apps: true,
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
@@ -1924,7 +1979,8 @@ tauri::Builder::default()
   /// but accepts a boxed trait object instead of a generic type.
   #[must_use]
   pub fn plugin_boxed(mut self, plugin: Box<dyn Plugin<R>>) -> Self {
-    self.plugins.register(plugin);
+    self.plugins.retain(|p| p.name() != plugin.name());
+    self.plugins.push(plugin);
     self
   }
 
@@ -2105,6 +2161,31 @@ tauri::Builder::default()
   #[must_use]
   pub fn enable_macos_default_menu(mut self, enable: bool) -> Self {
     self.enable_macos_default_menu = enable;
+    self
+  }
+
+  /// Configures whether the application should activate when launched while another application
+  /// is active.
+  ///
+  /// By default, the application ignores other applications and activates when launched.
+  ///
+  /// If `false`, the application activates only if no other application is currently active.
+  /// If `true`, the application activates regardless.
+  ///
+  /// This only affects the initial activation at launch. Explicitly focusing a window later
+  /// (e.g. via [`Window::set_focus`](crate::window::Window::set_focus)) still activates the
+  /// application regardless of this setting.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .activate_ignoring_other_apps(false);
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  #[must_use]
+  pub fn activate_ignoring_other_apps(mut self, ignore: bool) -> Self {
+    self.activate_ignoring_other_apps = ignore;
     self
   }
 
@@ -2302,6 +2383,34 @@ tauri::Builder::default()
   }
 
   /// Builds the application.
+  ///
+  /// This creates the underlying webview runtime (the event loop), registers the core plugins and
+  /// initializes everything defined on the builder, but it does not start the application:
+  /// call [`App::run`] or [`App::run_return`] on the returned value to do so, or use [`Self::run`]
+  /// to do both at once.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error if the application cannot be initialized, in particular when:
+  ///
+  /// - the webview runtime (event loop) cannot be created, for instance when it is created outside
+  ///   the main thread, when the display server cannot be reached or when the WebView2 runtime is
+  ///   missing on Windows;
+  /// - the `app > security > assetProtocol > scope` patterns in the configuration are invalid;
+  /// - the app menu defined with [`Self::menu`] cannot be created;
+  /// - the tray icon defined in the configuration cannot be created;
+  /// - a plugin fails to initialize, i.e. its [`Plugin::initialize`](crate::plugin::Plugin::initialize)
+  ///   hook returns an error, which is also the case when a plugin is registered twice.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application")
+  ///   .run(|_app_handle, _event| {});
+  /// ```
   #[allow(clippy::type_complexity, unused_mut)]
   #[cfg_attr(
     feature = "tracing",
@@ -2323,7 +2432,6 @@ tauri::Builder::default()
 
     let manager = Arc::new(AppManager::with_handlers(
       context,
-      self.plugins,
       self.invoke_handler,
       self.on_page_load,
       self.on_permission_request,
@@ -2444,6 +2552,8 @@ tauri::Builder::default()
     // macOS's default malloc zone): an allocation racing the swap corrupts the heap and crashes
     // at startup. See `RuntimeAuthority::new_async` / `begin_build`.
     manager.runtime_authority.lock().unwrap().begin_build();
+    #[cfg(target_os = "macos")]
+    runtime.set_activate_ignoring_other_apps(self.activate_ignoring_other_apps);
 
     #[cfg(desktop)]
     {
@@ -2537,7 +2647,7 @@ tauri::Builder::default()
       }
     }
 
-    app.manager.initialize_plugins(handle)?;
+    app.manager.initialize_plugins(handle, self.plugins)?;
 
     Ok(app)
   }
@@ -2741,11 +2851,7 @@ fn on_event_loop_event<R: Runtime>(
     _ => unimplemented!(),
   };
 
-  manager
-    .plugins
-    .lock()
-    .expect("poisoned plugin store")
-    .on_event(app_handle, &event);
+  manager.plugins.on_event(app_handle, &event);
 
   event
 }

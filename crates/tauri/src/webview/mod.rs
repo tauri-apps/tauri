@@ -7,6 +7,8 @@
 pub(crate) mod plugin;
 mod webview_window;
 
+#[cfg(desktop)]
+use tauri_runtime::dpi::Rect;
 pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 
 /// Cookie crate used for [`Webview::set_cookie`] and [`Webview::delete_cookie`].
@@ -19,14 +21,14 @@ use http::HeaderMap;
 use serde::Serialize;
 
 pub use tauri_runtime::webview::{
-  NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse, ScrollBarStyle,
-  WebContentProcessTermination, WebContentProcessTerminationReason,
+  InitializationScript, NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse,
+  ScrollBarStyle, WebContentProcessTermination, WebContentProcessTerminationReason,
 };
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
 use tauri_runtime::{
   WebviewDispatch,
-  webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
 };
 #[cfg(desktop)]
 use tauri_runtime::{
@@ -270,8 +272,10 @@ impl<R: Runtime> WebviewBuilder<R> {
 tauri::Builder::default()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-    let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+    let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
+    let webview = window.add_child(webview_builder);
     Ok(())
   });
 ```
@@ -289,8 +293,10 @@ tauri::Builder::default()
     let handle = app.handle().clone();
     std::thread::spawn(move || {
       let window = tauri::window::WindowBuilder::new(&handle, "label").build().unwrap();
-      let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
-      window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+      let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
+        .position(tauri::LogicalPosition::new(0, 0))
+        .size(window.inner_size().unwrap());
+      window.add_child(webview_builder);
     });
     Ok(())
   });
@@ -307,8 +313,10 @@ tauri::Builder::default()
 #[tauri::command]
 async fn create_window(app: tauri::AppHandle) {
   let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
-  let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()));
-  window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+  let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()))
+    .position(tauri::LogicalPosition::new(0, 0))
+    .size(window.inner_size().unwrap());
+  window.add_child(webview_builder);
 }
 ```
   "####
@@ -351,8 +359,10 @@ async fn create_window(app: tauri::AppHandle) {
 #[tauri::command]
 async fn create_window(app: tauri::AppHandle) {
   let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
-  let webview_builder = tauri::webview::WebviewBuilder::from_config(&app.config().app.windows.get(0).unwrap().clone());
-  window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+  let webview_builder = tauri::webview::WebviewBuilder::from_config(&app.config().app.windows.get(0).unwrap().clone())
+    .position(tauri::LogicalPosition::new(0, 0))
+    .size(window.inner_size().unwrap());
+  window.add_child(webview_builder);
 }
 ```
   "####
@@ -363,12 +373,12 @@ async fn create_window(app: tauri::AppHandle) {
     let mut config = config.to_owned();
 
     if let Some(data_directory) = &config.data_directory {
-      let resolve_data_dir_res = dirs::data_local_dir()
-        .or({
-          #[cfg(feature = "tracing")]
-          tracing::error!("failed to resolve data directory");
-          None
-        })
+      let local_dir = dirs::data_local_dir();
+      if local_dir.is_none() {
+        #[cfg(feature = "tracing")]
+        tracing::error!("failed to resolve data directory");
+      }
+      let resolve_data_dir_res = local_dir
         .and_then(|local_dir| {
           SafePathBuf::new(data_directory.clone())
             .inspect_err(|_err| {
@@ -413,6 +423,14 @@ async fn create_window(app: tauri::AppHandle) {
     }
   }
 
+  #[cfg(desktop)]
+  fn default_bounds() -> Rect {
+    Rect {
+      position: Position::Logical((0, 0).into()),
+      size: Size::Logical((200., 200.).into()),
+    }
+  }
+
   /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
   ///
   /// Currently only implemented for the `tauri` URI protocol.
@@ -451,9 +469,11 @@ tauri::Builder::default()
             *csp = HeaderValue::from_str(&csp_string).unwrap();
           }
         }
-      });
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
 
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
 
     Ok(())
   });
@@ -493,9 +513,11 @@ tauri::Builder::default()
       .on_navigation(|url| {
         // allow the production URL or localhost on dev
         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
-      });
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
 
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -544,9 +566,11 @@ tauri::Builder::default()
 
         let window = builder.build().unwrap();
         tauri::webview::NewWindowResponse::Create { window }
-      });
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
 
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -616,9 +640,11 @@ tauri::Builder::default()
         }
         // let the download start
         true
-      });
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
 
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -662,8 +688,10 @@ tauri::Builder::default()
             println!("{} finished loading", payload.url());
           }
         }
-      });
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -701,23 +729,30 @@ tauri::Builder::default()
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
-  /// use tauri::webview::{WebviewBuilder, PermissionKind, PermissionResponse};
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-  ///     let webview_builder = WebviewBuilder::new("core", tauri::WebviewUrl::App("index.html".into()))
-  ///       .on_permission_request(|webview, kind| {
-  ///         match kind {
-  ///           PermissionKind::Geolocation => PermissionResponse::Allow,
-  ///           PermissionKind::Notifications => PermissionResponse::Allow,
-  ///           _ => PermissionResponse::Default,
-  ///         }
-  ///       });
-  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
-  ///     Ok(())
-  ///   });
-  /// ```
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::webview::{WebviewBuilder, PermissionKind, PermissionResponse};
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+    let webview_builder = WebviewBuilder::new("core", tauri::WebviewUrl::App("index.html".into()))
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap())
+      .on_permission_request(|webview, kind| {
+        match kind {
+          PermissionKind::Geolocation => PermissionResponse::Allow,
+          PermissionKind::Notifications => PermissionResponse::Allow,
+          _ => PermissionResponse::Default,
+        }
+      });
+    let webview = window.add_child(webview_builder)?;
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn on_permission_request<
     F: Fn(Webview<R>, PermissionKind) -> PermissionResponse + Send + Sync + 'static,
   >(
@@ -846,17 +881,10 @@ tauri::Builder::default()
 
   /// Creates a new webview on the given window.
   #[cfg(desktop)]
-  pub(crate) fn build(
-    self,
-    window: Window<R>,
-    position: Position,
-    size: Size,
-  ) -> crate::Result<Webview<R>> {
+  pub(crate) fn build(self, window: Window<R>) -> crate::Result<Webview<R>> {
     let app_manager = window.manager();
 
-    let mut pending = self.into_pending_webview(&window, window.label())?;
-
-    pending.webview_attributes.bounds = Some(tauri_runtime::dpi::Rect { size, position });
+    let pending = self.into_pending_webview(&window, window.label())?;
 
     let use_https_scheme = pending.webview_attributes.use_https_scheme;
     let devtools = pending.webview_attributes.devtools;
@@ -876,8 +904,15 @@ tauri::Builder::default()
 }
 
 /// Webview attributes.
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
   /// Sets whether clicking an inactive window also clicks through to the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime:** Unsupported. Chromium decides on its own whether the click that activates
+  ///   the window reaches the page: it is swallowed on regular windows and only clicks through on
+  ///   always-on-top windows or while a DevTools debugger is attached.
   #[must_use]
   pub fn accept_first_mouse(mut self, accept: bool) -> Self {
     self.webview_attributes.accept_first_mouse = accept;
@@ -921,8 +956,10 @@ fn main() {
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
-        .initialization_script(INIT_SCRIPT);
-      let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+        .initialization_script(INIT_SCRIPT)
+        .position(tauri::LogicalPosition::new(0, 0))
+        .size(window.inner_size().unwrap());
+      let webview = window.add_child(webview_builder)?;
       Ok(())
     });
 }
@@ -980,8 +1017,10 @@ fn main() {
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
-        .initialization_script_for_all_frames(INIT_SCRIPT);
-      let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+        .initialization_script_for_all_frames(INIT_SCRIPT)
+        .position(tauri::LogicalPosition::new(0, 0))
+        .size(window.inner_size().unwrap());
+      let webview = window.add_child(webview_builder)?;
       Ok(())
     });
 }
@@ -1015,6 +1054,9 @@ fn main() {
   /// ## Platform-specific
   ///
   /// - **macOS / Linux / Android / iOS**: Unsupported.
+  /// - **CEF runtime**: Unsupported. Chromium's command line is per process, not per webview,
+  ///   so pass switches through `Cef::command_line_arg` instead; the runtime logs a warning
+  ///   when a webview sets this.
   ///
   /// ## Warning
   ///
@@ -1085,11 +1127,6 @@ fn main() {
   }
 
   /// Enable or disable transparency for the WebView.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.webview_attributes.transparent = transparent;
@@ -1100,6 +1137,40 @@ fn main() {
   #[must_use]
   pub fn focused(mut self, focus: bool) -> Self {
     self.webview_attributes.focus = focus;
+    self
+  }
+
+  /// Sets the webview bounds relative to its parent window.
+  #[cfg(desktop)]
+  #[must_use]
+  pub fn bounds(mut self, bounds: Rect) -> Self {
+    self.webview_attributes.bounds = Some(bounds);
+    self
+  }
+
+  /// Sets the webview size while preserving its configured position.
+  /// The position defaults to `(0, 0)`.
+  #[cfg(desktop)]
+  #[must_use]
+  pub fn size<S: Into<Size>>(mut self, size: S) -> Self {
+    self
+      .webview_attributes
+      .bounds
+      .get_or_insert_with(Self::default_bounds)
+      .size = size.into();
+    self
+  }
+
+  /// Sets the webview position relative to its parent window while preserving its configured size.
+  /// The size defaults to `200 x 200`.
+  #[cfg(desktop)]
+  #[must_use]
+  pub fn position<P: Into<Position>>(mut self, position: P) -> Self {
+    self
+      .webview_attributes
+      .bounds
+      .get_or_insert_with(Self::default_bounds)
+      .position = position.into();
     self
   }
 
@@ -1131,6 +1202,7 @@ fn main() {
   ///
   /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes.browser_extensions_enabled = enabled;
@@ -1143,6 +1215,7 @@ fn main() {
   ///
   /// - **Windows**: Browser extensions must first be enabled. See [`browser_extensions_enabled`](Self::browser_extensions_enabled)
   /// - **MacOS / iOS / Android** - Unsupported.
+  /// - **CEF runtime**: Unsupported. CEF removed its extension loading API; the runtime logs a warning.
   #[must_use]
   pub fn extensions_path(mut self, path: impl AsRef<Path>) -> Self {
     self.webview_attributes.extensions_path = Some(path.as_ref().to_path_buf());
@@ -1154,6 +1227,7 @@ fn main() {
   ///
   /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17
   /// - **Windows / Linux / Android**: Unsupported.
+  /// - **CEF runtime**: Supported. The identifier names a profile directory under the runtime's cache path, the same isolation [`data_directory`](Self::data_directory) gives; `data_directory` wins when both are set.
   ///
   /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
@@ -1217,6 +1291,7 @@ fn main() {
   /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
+  /// - **CEF runtime**: Unsupported per webview. Chromium throttles hidden pages process-wide; pass `--disable-background-timer-throttling` through `Cef::command_line_arg` to turn that off for every webview.
   ///
   /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
@@ -1245,6 +1320,7 @@ fn main() {
   ///   - This option must be given the same value for all webviews that target the same data directory. Use
   ///     [`WebviewBuilder::data_directory`] to change data directories if needed.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  /// - **CEF runtime**: Unsupported per webview. Overlay scrollbars are a process-wide Chromium feature; enable them for every webview with `Cef::enable_features(["OverlayScrollbar"])`.
   #[must_use]
   pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
     self.webview_attributes = self.webview_attributes.scroll_bar_style(style);
@@ -1268,6 +1344,7 @@ fn main() {
   ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
+  /// - **CEF runtime**: Autofill is already off on this runtime (it disables `autofill.profile_enabled` on every profile), so `false` is the state you get; turn it on with `Cef::profile_preference("autofill.profile_enabled", true)`.
   #[must_use]
   pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes = self.webview_attributes.general_autofill_enabled(enabled);
@@ -1283,6 +1360,7 @@ fn main() {
   /// ## Platform-specific
   ///
   /// - **Linux / Windows / Android:** Unsupported.
+  /// - **CEF runtime:** Not applicable, Chromium has no link previews.
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
@@ -1445,6 +1523,17 @@ impl<R: Runtime> PartialEq for Webview<R> {
 
 /// Base webview functions.
 impl<R: Runtime> Webview<R> {
+  /// Whether this webview instance is still registered on the manager.
+  ///
+  /// Returns false once the webview is closed, even if a new webview with the same label exists.
+  pub(crate) fn is_registered(&self) -> bool {
+    self
+      .manager
+      .get_webview(self.label())
+      // clones share the resources table, so it identifies the webview instance
+      .is_some_and(|w| Arc::ptr_eq(&w.resources_table, &self.resources_table))
+  }
+
   /// Create a new webview that is attached to the window.
   pub(crate) fn new(
     window: Window<R>,
@@ -1470,15 +1559,6 @@ impl<R: Runtime> Webview<R> {
   #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   pub fn builder<L: Into<String>>(label: L, url: WebviewUrl) -> WebviewBuilder<R> {
     WebviewBuilder::new(label.into(), url)
-  }
-
-  /// Runs the given closure on the main thread.
-  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
-    self
-      .webview
-      .dispatcher
-      .run_on_main_thread(f)
-      .map_err(Into::into)
   }
 
   /// The webview label.
@@ -1649,6 +1729,46 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Move the webview to the given window.
+  ///
+  /// The webview keeps its size and its position relative to the window client area,
+  /// so you usually want to call [`Self::set_position`] and [`Self::set_size`] afterwards
+  /// (or [`Self::set_auto_resize`] to let it follow the new parent window size).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::CannotReparentWebviewWindow`](crate::Error::CannotReparentWebviewWindow)
+  /// when the `unstable` Cargo feature is disabled and either this webview or the target window
+  /// belongs to a [`WebviewWindow`] - without that feature a window and its webview are a single
+  /// object that cannot be split apart. With the `unstable` feature enabled any webview can be
+  /// moved to any window.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let first = tauri::Window::builder(app, "first").build()?;
+    let second = tauri::Window::builder(app, "second").build()?;
+
+    let webview = first.add_child(
+      tauri::webview::WebviewBuilder::new("child", WebviewUrl::App(Default::default()))
+        .position(LogicalPosition::new(0., 0.))
+        .size(LogicalSize::new(800., 600.)),
+    )?;
+
+    // move the webview to the second window
+    webview.reparent(&second)?;
+
+    Ok(())
+  });
+```
+  "####
+  )]
   pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
     #[cfg(not(feature = "unstable"))]
     {
@@ -1663,6 +1783,14 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
+  ///
+  /// Child webviews created with `Window::add_child` (`unstable` feature) have a fixed position and size
+  /// by default: resizing the window leaves them where they are. When auto resize is enabled, the webview bounds
+  /// are scaled with the window client area, keeping the same proportions it had when auto resize was enabled.
+  ///
+  /// The same can be set when creating the webview with `WebviewBuilder::auto_resize`.
+  ///
+  /// This is a no-op for [`WebviewWindow`] webviews, which always fill their window.
   pub fn set_auto_resize(&self, auto_resize: bool) -> crate::Result<()> {
     self
       .webview
@@ -1791,11 +1919,31 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Navigates the webview to the defined url.
+  ///
+  /// This is the Rust equivalent of setting `window.location` on the frontend and behaves like any other
+  /// top-level navigation:
+  ///
+  /// - the navigation handler defined with `WebviewBuilder::on_navigation` and the
+  ///   [`Plugin::on_navigation`](crate::plugin::Plugin::on_navigation) hooks are called and can cancel it;
+  /// - the initialization scripts registered when the webview was created
+  ///   (including Tauri's own IPC bridge) run again on the new document, so `window.__TAURI__` and the scripts
+  ///   added with `WebviewBuilder::initialization_script` keep working after the navigation;
+  /// - [`Builder::on_page_load`](crate::Builder::on_page_load) is triggered for the new document;
+  /// - the ACL origin of the IPC changes with the URL: after navigating to a remote URL the webview can only
+  ///   execute commands allowed by a capability whose `remote` context matches it.
+  ///
+  /// The navigation is asynchronous: this function returns as soon as the request is sent to the webview,
+  /// the page is not loaded yet when it returns.
   pub fn navigate(&self, url: Url) -> crate::Result<()> {
     self.webview.dispatcher.navigate(url).map_err(Into::into)
   }
 
   /// Reloads the current page.
+  ///
+  /// Reloading re-runs the initialization scripts and triggers the navigation and page load hooks
+  /// for the same URL, exactly like [`Self::navigate`] to [`Self::url`] would.
+  /// In-memory state of the page (JavaScript variables, unsaved form data, channels created by the frontend)
+  /// is lost, but cookies and other browsing data are kept - use [`Self::clear_all_browsing_data`] to clear those.
   pub fn reload(&self) -> crate::Result<()> {
     self.webview.dispatcher.reload().map_err(Into::into)
   }
@@ -1818,6 +1966,63 @@ impl<R: Runtime> Webview<R> {
   /// Checks whether the webview can navigate forward.
   pub fn can_go_forward(&self) -> crate::Result<bool> {
     self.webview.dispatcher.can_go_forward().map_err(Into::into)
+  }
+
+  /// Converts a file path to a URL that can be loaded by this webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  ///
+  /// The `protocol-asset` Cargo feature must be enabled and the file must be included in the
+  /// [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+  /// scope. The protocol origin must also be allowed by the relevant
+  /// [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) directive,
+  /// e.g. `img-src 'self' asset: http://asset.localhost`.
+  ///
+  /// The URL origin is defined by the runtime (see [`tauri_runtime::RuntimeHandle::custom_scheme_url`]).
+  /// With `tauri-runtime-wry`, on Windows and Android the URL is `http://{protocol}.localhost/{path}`
+  /// (or `https://` if the webview was built with [`WebviewBuilder::use_https_scheme`]);
+  /// on macOS, Linux and iOS it is `{protocol}://localhost/{path}`.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert.
+  /// * `protocol` - The custom protocol to use. Defaults to `asset`; you only need to set this
+  ///   when using a protocol registered with [`Builder::register_uri_scheme_protocol`](crate::Builder::register_uri_scheme_protocol).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::NonUtf8Path`](crate::Error::NonUtf8Path) if the path is not valid UTF-8,
+  /// since the asset protocol could not resolve such a URL back to the file.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview_window("main").unwrap();
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = webview.convert_file_src(&video_path, None)?;
+  ///     webview.eval(format!("document.querySelector('video').src = '{url}'"))?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(
+    &self,
+    path: P,
+    protocol: Option<&str>,
+  ) -> crate::Result<String> {
+    let path = dunce::simplified(path.as_ref());
+    let path = path
+      .to_str()
+      .ok_or_else(|| crate::Error::NonUtf8Path(path.to_path_buf()))?;
+    Ok(format!(
+      "{}/{}",
+      self
+        .manager()
+        .custom_scheme_url(protocol.unwrap_or("asset"), self.use_https_scheme),
+      percent_encoding::utf8_percent_encode(path, crate::protocol::ENCODE_URI_COMPONENT)
+    ))
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
@@ -1887,13 +2092,7 @@ impl<R: Runtime> Webview<R> {
     #[cfg(mobile)]
     let app_handle = self.app_handle.clone();
 
-    let message = InvokeMessage::new(
-      self,
-      manager.state(),
-      request.cmd.to_string(),
-      request.body,
-      request.headers,
-    );
+    let message = InvokeMessage::new(self, request.cmd.to_string(), request.body, request.headers);
 
     let acl_origin = if is_local {
       Origin::Local
@@ -2230,6 +2429,24 @@ tauri::Builder::default()
   }
 
   /// Clear all browsing data for this webview.
+  ///
+  /// This deletes every website data type the underlying webview knows about: cookies, local storage,
+  /// session storage, IndexedDB databases, the HTTP cache and service workers. It does not reload the
+  /// current page, so the document that is currently loaded keeps its in-memory state until it navigates
+  /// or you call [`Self::reload`].
+  ///
+  /// The deletion is asynchronous on every platform: the data is not necessarily gone when this function returns.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux**: the data is cleared for the whole WebKit web context, which is shared by every webview
+  ///   using the same data directory, not only this one.
+  /// - **macOS / iOS**: clears the [`WKWebsiteDataStore`] of this webview. Webviews created with a custom
+  ///   `WebviewBuilder::data_store_identifier` have their own store, so only that store is affected.
+  /// - **Windows**: implemented with `ICoreWebView2Profile2::ClearBrowsingDataAll`, so an error is returned
+  ///   if the installed WebView2 runtime is too old to provide it.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore
   pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
     self
       .webview
@@ -2503,6 +2720,62 @@ mod tests {
   fn webview_is_send_sync() {
     crate::test_utils::assert_send::<super::Webview>();
     crate::test_utils::assert_sync::<super::Webview>();
+  }
+
+  #[test]
+  fn convert_file_src_matches_js() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let http = crate::WebviewWindowBuilder::new(&app, "http", crate::WebviewUrl::default())
+      .build()
+      .unwrap();
+    let https = crate::WebviewWindowBuilder::new(&app, "https", crate::WebviewUrl::default())
+      .use_https_scheme(true)
+      .build()
+      .unwrap();
+    assert!(!http.webview.use_https_scheme());
+    assert!(https.webview.use_https_scheme());
+
+    // `encoded` is what `encodeURIComponent(path)` returns in JS
+    #[cfg(windows)]
+    let (path, encoded) = (
+      r"C:\Users\me\my-file (1).mp4",
+      "C%3A%5CUsers%5Cme%5Cmy-file%20(1).mp4",
+    );
+    #[cfg(not(windows))]
+    let (path, encoded) = (
+      "/home/me/my-file (1).mp4",
+      "%2Fhome%2Fme%2Fmy-file%20(1).mp4",
+    );
+
+    let convert =
+      |w: &crate::WebviewWindow<_>, protocol| w.convert_file_src(path, protocol).unwrap();
+
+    // the origin comes from the runtime; the mock runtime serves every custom scheme
+    // as `{scheme}://localhost` on all platforms and ignores `use_https_scheme`
+    assert_eq!(convert(&http, None), format!("asset://localhost/{encoded}"));
+    assert_eq!(
+      convert(&https, None),
+      format!("asset://localhost/{encoded}")
+    );
+    assert_eq!(
+      convert(&http, Some("custom")),
+      format!("custom://localhost/{encoded}")
+    );
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn convert_file_src_rejects_non_utf8_path() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let webview = test_webview_window();
+    let path = std::path::Path::new(std::ffi::OsStr::from_bytes(b"/tmp/\xff.mp4"));
+    assert!(matches!(
+      webview.convert_file_src(path, None),
+      Err(crate::Error::NonUtf8Path(_))
+    ));
   }
 
   #[test]

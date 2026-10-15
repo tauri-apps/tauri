@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.9.4"
+version = "3.0.0-alpha.4"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -29,7 +29,7 @@ bytesize = "2"
 handlebars = "6"
 tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }
-dirs = "6"
+dirs = "7"
 os_pipe = "1"
 ureq = { version = "3", default-features = false, features = ["socks-proxy"] }
 native-tls = { version = "0.2", optional = true }
@@ -64,13 +64,16 @@ ar = "0.9"
 md5 = "0.8"
 # TODO: xz-compression's `lzma` conflicts with apple-codesign's `xz`
 # Sequoia preserves OpenPGP signing without rPGP's vulnerable draft ML-DSA dependency.
-rpm = { version = "0.28.0", default-features = false, features = [
+rpm = { version = "0.30", default-features = false, features = [
   "gzip-compression",
   "payload",
   "signature-sequoia",
   "zstd-compression",
   "bzip2-compression",
 ] }
+xz2 = "0.1"
+zstd = "0.13"
+bzip2 = "0.4"
 
 [target."cfg(unix)".dependencies]
 which = "8"
@@ -85,3 +88,9 @@ native-tls = ["ureq/native-tls"]
 native-tls-vendored = ["native-tls", "native-tls/vendored"]
 rustls = ["ureq/rustls"]
 platform-certs = ["ureq/platform-verifier"]
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+serial_test = "3.5"

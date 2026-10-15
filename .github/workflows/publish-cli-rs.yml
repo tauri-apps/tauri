@@ -46,6 +46,16 @@ jobs:
             ext: ''
             args: ''
             cross: true
+          - os: ubuntu-22.04
+            rust_target: aarch64-unknown-linux-gnu
+            ext: ''
+            args: ''
+            cross: true
+          - os: ubuntu-22.04
+            rust_target: aarch64-unknown-linux-musl
+            ext: ''
+            args: ''
+            cross: true
 
     steps:
       - uses: actions/checkout@v7
@@ -55,11 +65,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
-
-      - uses: Swatinem/rust-cache@v2
-        if: ${{ !matrix.config.cross }}
-        with:
-          key: ${{ matrix.config.rust_target }}
 
       - name: install Linux dependencies
         if: ${{ !matrix.config.cross && startsWith(matrix.config.os, 'ubuntu') }}
@@ -119,6 +124,7 @@ jobs:
         uses: softprops/action-gh-release@50195ba7f6f93d1ac97ba8332a178e008ad176aa
         with:
           tag_name: tauri-cli-v${{ env.CLI_VERSION }}
+          prerelease: ${{ contains(env.CLI_VERSION, '-') }}
           files: |
             outputs/cargo-tauri-*.zip
             outputs/cargo-tauri-*.tgz

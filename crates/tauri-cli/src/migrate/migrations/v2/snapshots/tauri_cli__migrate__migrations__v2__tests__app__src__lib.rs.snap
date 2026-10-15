@@ -1,0 +1,34 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+mod plugin;
+mod tray;
+
+use tauri::{AppHandle, Manager, DynRuntime};
+
+#[tauri::command]
+fn greet(name: &str) -> String {
+  format!("Hello, {name}! You've been greeted from Rust!")
+}
+
+fn main_window(app: &AppHandle<DynRuntime>) -> tauri::WebviewWindow<DynRuntime> {
+  app.get_webview_window("main").unwrap()
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+  tauri::Builder::default()
+    .runtime(tauri_runtime_wry::Wry::default())
+    .plugin(tauri_plugin_opener::init())
+    .plugin(plugin::init())
+    .setup(|app| {
+      tray::create(app.handle())?;
+      let window = main_window(app.handle());
+      log::info!("{} webview {:?}", window.label(), tauri_runtime_wry::webview_version());
+      Ok(())
+    })
+    .invoke_handler(tauri::generate_handler![greet])
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
+}

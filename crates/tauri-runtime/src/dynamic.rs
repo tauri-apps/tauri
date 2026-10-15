@@ -231,7 +231,6 @@ enum WindowBuilderOp {
   Focusable(bool),
   Maximized(bool),
   Visible(bool),
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   Transparent(bool),
   Decorations(bool),
   AlwaysOnBottom(bool),
@@ -301,7 +300,6 @@ impl fmt::Debug for WindowBuilderOp {
       Self::Focusable(v) => f.debug_tuple("Focusable").field(v).finish(),
       Self::Maximized(v) => f.debug_tuple("Maximized").field(v).finish(),
       Self::Visible(v) => f.debug_tuple("Visible").field(v).finish(),
-      #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
       Self::Transparent(v) => f.debug_tuple("Transparent").field(v).finish(),
       Self::Decorations(v) => f.debug_tuple("Decorations").field(v).finish(),
       Self::AlwaysOnBottom(v) => f.debug_tuple("AlwaysOnBottom").field(v).finish(),
@@ -409,7 +407,6 @@ impl DynWindowBuilder {
         WindowBuilderOp::Focusable(v) => builder.focusable(v),
         WindowBuilderOp::Maximized(v) => builder.maximized(v),
         WindowBuilderOp::Visible(v) => builder.visible(v),
-        #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
         WindowBuilderOp::Transparent(v) => builder.transparent(v),
         WindowBuilderOp::Decorations(v) => builder.decorations(v),
         WindowBuilderOp::AlwaysOnBottom(v) => builder.always_on_bottom(v),
@@ -552,7 +549,6 @@ impl WindowBuilder for DynWindowBuilder {
     self.push(WindowBuilderOp::Visible(visible))
   }
 
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   fn transparent(self, transparent: bool) -> Self {
     self.push(WindowBuilderOp::Transparent(transparent))
   }
@@ -1283,6 +1279,7 @@ trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
   fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()>;
   fn set_position(&self, position: Position) -> Result<()>;
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()>;
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()>;
   fn set_focus(&self) -> Result<()>;
@@ -1579,6 +1576,10 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
     WindowDispatch::set_fullscreen(self, fullscreen)
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    WindowDispatch::set_fullscreen_on_monitor(self, position)
   }
 
   #[cfg(target_os = "macos")]
@@ -1970,6 +1971,10 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
     self.inner.set_fullscreen(fullscreen)
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    self.inner.set_fullscreen_on_monitor(position)
   }
 
   #[cfg(target_os = "macos")]
@@ -2589,6 +2594,8 @@ trait ErasedRuntime<T: UserEvent>: fmt::Debug + Any {
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool);
   #[cfg(target_os = "macos")]
   fn show(&self);
@@ -2653,6 +2660,11 @@ impl<T: UserEvent, R: Runtime<T>> ErasedRuntime<T> for R {
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     Runtime::set_activation_policy(self, activation_policy)
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    Runtime::set_activate_ignoring_other_apps(self, ignore)
   }
 
   #[cfg(target_os = "macos")]
@@ -2816,6 +2828,11 @@ impl<T: UserEvent> Runtime<T> for DynRuntime<T> {
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     self.inner.set_activation_policy(activation_policy)
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    self.inner.set_activate_ignoring_other_apps(ignore)
   }
 
   #[cfg(target_os = "macos")]

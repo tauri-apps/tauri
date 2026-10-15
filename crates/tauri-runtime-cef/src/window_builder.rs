@@ -91,10 +91,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     } else if config.always_on_top {
       builder = builder.always_on_top(true);
     }
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    {
-      builder = builder.transparent(config.transparent);
-    }
+    builder = builder.transparent(config.transparent);
     let mut constraints = WindowSizeConstraints::default();
     if let Some(min_width) = config.min_width {
       constraints.min_width = Some(tauri_runtime::dpi::LogicalUnit::new(min_width).into());
@@ -126,13 +123,6 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(identifier) = &config.tabbing_identifier {
         builder = builder.tabbing_identifier(identifier);
       }
-      let pl_attrs = (*platform_attrs(&mut builder.attrs.inner))
-        .with_accepts_first_mouse(config.accept_first_mouse);
-
-      builder.attrs.inner = builder
-        .attrs
-        .inner
-        .with_platform_attributes(Box::new(pl_attrs));
     }
     if config.center {
       builder = builder.center();
@@ -270,7 +260,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   fn transparent(mut self, transparent: bool) -> Self {
     self.attrs.inner = self.attrs.inner.with_transparent(transparent);
     self

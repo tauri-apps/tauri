@@ -1,0 +1,10 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "windows": ["main"],
+  "permissions": ["core:default", "opener:default"]
+}

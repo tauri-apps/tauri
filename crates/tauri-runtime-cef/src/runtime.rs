@@ -70,6 +70,12 @@ use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(windows)]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 
+/// Native events for application rendering and input forwarding, on the event-loop thread.
+/// `Destroyed` is delivered before the runtime releases the window, including on exit.
+pub type NativeWindowEventHandler = dyn Fn(&str, &dyn ActiveEventLoop, Arc<dyn winit::window::Window>, &WinitWindowEvent)
+  + Send
+  + Sync;
+
 /// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
 type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
 
@@ -408,6 +414,51 @@ impl WebRtcIpHandling {
   }
 }
 
+/// What to do with the profile on disk when a newer Chromium milestone than the one this
+/// binary embeds last used it: the application was rolled back to a release on an older
+/// CEF.
+///
+/// Defaults to [`DowngradePolicy::KeepProfile`].
+///
+/// # What a rollback does to the profile
+///
+/// Chromium migrates its profile forward only, and Chrome calls a launch on a profile from
+/// a higher milestone an unsupported downgrade (`chrome/browser/downgrade/`). In practice a
+/// rollback to the previous milestone usually just works; what can go wrong is bounded by
+/// the stores whose format changed in between. A SQLite database whose schema is newer
+/// than the older Chromium can read — cookies, autofill, history — is left on disk and
+/// unused, so cookies stop persisting until the application is upgraded again, and for
+/// some of them Chromium shows its own "profile is from a newer version" dialog; an
+/// IndexedDB store whose data format is newer may be discarded as corrupt.
+///
+/// Chrome keeps a `Last Version` breadcrumb in its user data directory to recognize a
+/// downgrade. CEF does not write it, so the runtime does, in [`Cef::root_cache_path`], and
+/// applies this policy when the breadcrumb names a higher milestone. A downgrade within a
+/// milestone, `152.0.7977.83` to `152.0.7977.50`, is left alone either way, as Chrome
+/// leaves it, and a profile another running instance of the application holds is never
+/// touched.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum DowngradePolicy {
+  /// Keep the profile and let Chromium open it, logging a warning that names both
+  /// versions.
+  ///
+  /// Nothing is deleted: whatever the older Chromium cannot read stays on disk and is back
+  /// once the application is upgraded again. This is what Chrome does for a downgrade
+  /// nobody administered.
+  #[default]
+  KeepProfile,
+  /// Move the root cache path aside and start on an empty profile, deleting the old one in
+  /// the background.
+  ///
+  /// The application starts as if freshly installed, on every platform and whatever
+  /// changed between the two versions: cookies and sessions, local storage, IndexedDB,
+  /// caches and granted permissions are gone, and a warning naming both versions is
+  /// logged. For an application whose state lives on a server, or that would rather have
+  /// every user start clean than some run on a half-readable profile.
+  ResetProfile,
+}
+
 /// Selects and configures the CEF runtime.
 ///
 /// Pass it to `tauri::Builder::runtime` to run the application with CEF:
@@ -448,7 +499,9 @@ pub struct Cef {
   debug_environment: DebugEnvironment,
   certificate_errors: CertificateErrorPolicy,
   sandbox: SandboxPolicy,
+  downgrade: DowngradePolicy,
   settings_callback: Option<Box<SettingsCallback>>,
+  window_event_handler: Option<Arc<NativeWindowEventHandler>>,
 }
 
 impl fmt::Debug for Cef {
@@ -489,12 +542,32 @@ impl fmt::Debug for Cef {
       .field("debug_environment", &self.debug_environment)
       .field("certificate_errors", &self.certificate_errors)
       .field("sandbox", &self.sandbox)
+      .field("downgrade", &self.downgrade)
       .field("settings_callback", &self.settings_callback.is_some())
+      .field("window_event_handler", &self.window_event_handler.is_some())
       .finish()
   }
 }
 
 impl Cef {
+  /// Observes native input, resize and redraw events without replacing Tauri's handling.
+  ///
+  /// Runs before Tauri handles the event. Offscreen embedders forward input, focus and IME
+  /// to CEF and present their own GPU surface here.
+  /// Release GPU resources and retained native window references on `Destroyed`.
+  /// Registering this callback does not enable OSR or forward input automatically.
+  #[must_use]
+  pub fn on_window_event<F>(mut self, handler: F) -> Self
+  where
+    F: Fn(&str, &dyn ActiveEventLoop, Arc<dyn winit::window::Window>, &WinitWindowEvent)
+      + Send
+      + Sync
+      + 'static,
+  {
+    self.window_event_handler = Some(Arc::new(handler));
+    self
+  }
+
   /// Sets a callback to customize the settings passed to [`cef::initialize`].
   ///
   /// If called more than once, only the last callback is used.
@@ -594,17 +667,38 @@ impl Cef {
     self
   }
 
-  /// Directory used for CEF disk cache (`Settings::cache_path`).
+  /// Directory used for CEF disk cache (`Settings::cache_path`): Chromium's user data
+  /// directory, holding `Local State`, every profile and the caches.
   ///
   /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
+  ///
+  /// Give CEF a directory of its own. The runtime keeps a `Last Version` file in it naming
+  /// the Chromium that ran last, and [`DowngradePolicy::ResetProfile`] moves the whole
+  /// directory aside when a newer Chromium milestone last used it — see [`Self::downgrade`].
   #[must_use]
   pub fn root_cache_path<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
     self.cache_path = Some(path.as_ref().to_path_buf());
     self
   }
 
+  /// What to do with the profile on disk when a newer Chromium milestone last used it,
+  /// which is what a release rolled back to an older CEF finds.
+  ///
+  /// Defaults to [`DowngradePolicy::KeepProfile`]: the profile is opened as is and a
+  /// warning is logged, as Chrome does. [`DowngradePolicy::ResetProfile`] moves it aside
+  /// and starts clean instead. See [`DowngradePolicy`] for what each one costs.
+  #[must_use]
+  pub fn downgrade(mut self, policy: DowngradePolicy) -> Self {
+    self.downgrade = policy;
+    self
+  }
+
   /// CEF API version this process declares (`cef_api_hash`), defaulting to
-  /// `cef::sys::CEF_API_VERSION_LAST`.
+  /// `cef::sys::CEF_API_VERSION_LAST`. Child processes declare the same one.
+  ///
+  /// The Rust bindings are compiled for `CEF_API_VERSION_LAST` whatever is declared
+  /// here. Declaring another version is only sound if the API the application uses is
+  /// the same in both.
   #[must_use]
   pub fn cef_api_version(mut self, version: i32) -> Self {
     self.api_version = Some(version);
@@ -1175,13 +1269,20 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 #[derive(Clone)]
 pub(crate) struct RuntimeContext<T: UserEvent> {
   pub(crate) sender: Sender<Message<T>>,
-  pub(crate) proxy: WinitEventLoopProxy,
-  pub(crate) main_thread_id: std::thread::ThreadId,
-  pub(crate) next_window_id: Arc<AtomicU32>,
-  pub(crate) next_webview_id: Arc<AtomicU32>,
-  pub(crate) next_window_event_id: Arc<AtomicU32>,
-  pub(crate) next_webview_event_id: Arc<AtomicU32>,
-  pub(crate) current_dispatch: Arc<MainThreadDispatchSlot<T>>,
+  /// Only ever woken through [`Self::wake_event_loop`].
+  #[cfg(not(target_os = "macos"))]
+  proxy: WinitEventLoopProxy,
+  /// Pokes the main run loop, which then delivers pending wake-ups at the start of its next
+  /// pass through [`MainThreadDispatchSlot::deliver_wake`], the only place the proxy is
+  /// woken on macOS. See [`Self::wake_event_loop`].
+  #[cfg(target_os = "macos")]
+  wake: crate::platform::macos::MainThreadWake,
+  main_thread_id: std::thread::ThreadId,
+  next_window_id: Arc<AtomicU32>,
+  next_webview_id: Arc<AtomicU32>,
+  next_window_event_id: Arc<AtomicU32>,
+  next_webview_event_id: Arc<AtomicU32>,
+  current_dispatch: Arc<MainThreadDispatchSlot<T>>,
   pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
   pub(crate) cef_pump: CefExternalPump,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
@@ -1201,6 +1302,7 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   /// Whether [`Cef::devtools`] lets this application open DevTools at all. Combined with
   /// the per-webview `WebviewAttributes::devtools`, which can only narrow it further.
   pub(crate) devtools_allowed: bool,
+  window_event_handler: Option<Arc<NativeWindowEventHandler>>,
 }
 
 /// Scoped access to the current winit callback state.
@@ -1220,11 +1322,35 @@ struct MainThreadDispatch<T: UserEvent> {
 
 pub(crate) struct MainThreadDispatchSlot<T: UserEvent> {
   current: AtomicPtr<MainThreadDispatch<T>>,
+  /// Whether winit's proxy still has to be signalled, see [`Self::deliver_wake`].
+  #[cfg(target_os = "macos")]
+  wake_pending: AtomicBool,
 }
 
 impl<T: UserEvent> MainThreadDispatchSlot<T> {
   fn install(&self, dispatch: &mut MainThreadDispatch<T>) -> *mut MainThreadDispatch<T> {
     self.current.swap(dispatch, Ordering::AcqRel)
+  }
+
+  /// Whether a winit callback is running on the main thread right now.
+  #[cfg(target_os = "macos")]
+  fn is_active(&self) -> bool {
+    !self.current.load(Ordering::Acquire).is_null()
+  }
+
+  /// Signals winit's `proxy` if a wake-up is pending and no callback is running; the wake-up
+  /// stays pending otherwise. Runs on the main thread at the start of every run-loop pass,
+  /// see [`RuntimeContext::wake_event_loop`] for why it must happen there.
+  #[cfg(target_os = "macos")]
+  fn deliver_wake(&self, proxy: &WinitEventLoopProxy) {
+    if self.is_active() || !self.wake_pending.load(Ordering::Acquire) {
+      return;
+    }
+    // A read-modify-write rather than a store: a request racing with this pass is either
+    // consumed here, and its message is then visible to the drain that follows, or stays
+    // pending for the next pass.
+    self.wake_pending.swap(false, Ordering::AcqRel);
+    proxy.wake_up();
   }
 
   fn restore(&self, current: *mut MainThreadDispatch<T>, previous: *mut MainThreadDispatch<T>) {
@@ -1251,6 +1377,8 @@ impl<T: UserEvent> Default for MainThreadDispatchSlot<T> {
   fn default() -> Self {
     Self {
       current: AtomicPtr::new(std::ptr::null_mut()),
+      #[cfg(target_os = "macos")]
+      wake_pending: AtomicBool::new(false),
     }
   }
 }
@@ -1338,12 +1466,63 @@ impl<T: UserEvent> RuntimeContext<T> {
       .sender
       .send(message)
       .map_err(|_| Error::FailedToSendMessage)?;
-    self.proxy.wake_up();
+    self.wake_event_loop();
     Ok(())
+  }
+
+  /// Has winit call [`WinitCefApp::proxy_wake_up`], which drains the message queue.
+  ///
+  /// Every wake-up of the event loop goes through here; on macOS the context does not even
+  /// hold the proxy, only [`MainThreadDispatchSlot::deliver_wake`] signals it (see below).
+  pub(crate) fn wake_event_loop(&self) {
+    #[cfg(not(target_os = "macos"))]
+    self.proxy.wake_up();
+
+    // winit's proxy is a run-loop source in the common modes, so it also fires while AppKit
+    // tracks a menu or runs a modal panel. If that nested loop was started from a winit
+    // callback — a `run_on_main_thread` closure showing a context menu, say — winit finds its
+    // handler still borrowed and panics ("tried to handle event while another event is
+    // currently being handled"). So the proxy is not signalled here. The request is recorded
+    // and the main run loop poked; at the start of its next pass, `deliver_wake` signals the
+    // proxy if no callback is running, or keeps the request pending until the callback
+    // returns. A proxy signalled at that point of a pass is performed in the same pass, before
+    // any AppKit event can reach a callback (see `platform::macos::MainThreadWake`).
+    //
+    // Consequently, messages from other threads wait while a nested loop started from a
+    // callback runs: a blocking getter called from a worker returns once the menu or panel
+    // closes, and a task meant to close it from a worker cannot run before it does.
+    #[cfg(target_os = "macos")]
+    {
+      self
+        .current_dispatch
+        .wake_pending
+        .store(true, Ordering::Release);
+      self.wake.wake_up();
+    }
   }
 
   pub(crate) fn is_main_thread(&self) -> bool {
     std::thread::current().id() == self.main_thread_id
+  }
+
+  /// Waits for the result of a `CreateWindow` or `CreateWebview` message just sent.
+  ///
+  /// On the main thread outside a winit callback the message is queued, not handled
+  /// inline, and blocking on it would deadlock the loop that has to handle it. CEF calls
+  /// back from its external message pump that way: a new-window handler building a window
+  /// from `on_before_popup` would freeze the app. The creation then completes on the
+  /// loop's next pass and a failure is only logged (see `Message::CreateWindow`).
+  pub(crate) fn wait_for_creation(&self, result_rx: Receiver<Result<()>>) -> Result<()> {
+    if self.is_main_thread() {
+      return match result_rx.try_recv() {
+        Ok(result) => result,
+        Err(mpsc::TryRecvError::Empty) => Ok(()),
+        Err(mpsc::TryRecvError::Disconnected) => Err(Error::FailedToReceiveMessage),
+      };
+    }
+    result_rx
+      .recv()
+      .map_err(|_| Error::FailedToReceiveMessage)?
   }
 
   /// Run `f` on the main (event-loop) thread.
@@ -1712,6 +1891,10 @@ impl<T: UserEvent> WinitCefApp<T> {
             .position(|child| child.webview_id == webview_id)
             .map(|index| {
               let child = appwindow.children.remove(index);
+              if let Some(view) = &child.offscreen {
+                view.visible.store(false, Ordering::Relaxed);
+                view.request_redraw();
+              }
               (*id, child, appwindow.children.is_empty())
             })
         });
@@ -1784,7 +1967,10 @@ impl<T: UserEvent> WinitCefApp<T> {
           pending,
           after_window_creation,
         );
-        let _ = result_tx.send(result);
+        // The caller stopped waiting: see `RuntimeContext::wait_for_creation`.
+        if let Err(mpsc::SendError(Err(error))) = result_tx.send(result) {
+          log::error!("failed to create window: {error}");
+        }
       }
       Message::CreateWebview {
         window_id,
@@ -1792,7 +1978,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         pending,
         result_tx,
       } => {
-        let _ = result_tx.send(self.create_webview(window_id, webview_id, *pending));
+        let result = self.create_webview(window_id, webview_id, *pending);
+        if let Err(mpsc::SendError(Err(error))) = result_tx.send(result) {
+          log::error!("failed to create webview: {error}");
+        }
       }
       Message::Window { window_id, message } => {
         self.handle_window_message(event_loop, window_id, message)
@@ -1998,6 +2187,19 @@ impl<T: UserEvent> WinitCefApp<T> {
     let Some(appwindow) = self.state.windows.remove(&window_id) else {
       return;
     };
+    for child in &appwindow.children {
+      if let Some(view) = &child.offscreen {
+        view.visible.store(false, Ordering::Relaxed);
+      }
+    }
+    if let Some(handler) = self.context.window_event_handler.clone() {
+      handler(
+        &appwindow.label,
+        event_loop,
+        appwindow.window.clone(),
+        &WinitWindowEvent::Destroyed,
+      );
+    }
     self
       .state
       .winid_id_to_window_id_map
@@ -2145,6 +2347,9 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 }
 
+// Every overridden method installs the dispatch guard before anything else: besides enabling
+// inline dispatch, the guard is how `MainThreadDispatchSlot::is_active` knows that winit's
+// handler is borrowed, which the macOS wake-up deferral relies on.
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
@@ -2193,6 +2398,18 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     let Some(window_id) = self.state.winid_id_to_window_id_map.get(&winit_id).copied() else {
       return;
     };
+    if !matches!(event, WinitWindowEvent::Destroyed)
+      && let (Some(handler), Some((label, window))) = (
+        self.context.window_event_handler.clone(),
+        self
+          .state
+          .windows
+          .get(&window_id)
+          .map(|window| (window.label.clone(), window.window.clone())),
+      )
+    {
+      handler(&label, event_loop, window, &event);
+    }
     let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
@@ -2216,6 +2433,12 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
           .surface_size()
           .unwrap_or_else(|_| appwindow.window.surface_size());
         webview::layout_app_window(appwindow);
+        // A windowed browser follows its native view to the new display; an
+        // offscreen one only re-reads `screen_info` when told to.
+        for child in appwindow.children.iter().filter(|c| c.offscreen.is_some()) {
+          child.host.notify_screen_info_changed();
+          child.host.was_resized();
+        }
         self.emit_window_event(
           window_id,
           WindowEvent::ScaleFactorChanged {
@@ -2445,6 +2668,9 @@ wrap_with_args! {
     // supplied through `Cef::command_line_arg` - goes here. The application's own
     // switches are appended last so they win over the runtime's defaults.
     browser_command_line_args: Vec<(String, Option<String>)>,
+    // The `Cef::cef_api_version` override, passed on to child processes. See
+    // `API_VERSION_SWITCH`.
+    api_version: Option<i32>,
     // Names merged into `--disable-features` and `--enable-features` rather than
     // appended over them.
     //
@@ -2472,6 +2698,7 @@ wrap_with_args! {
         self.context_initialized.clone(),
         self.deep_link_schemes.clone(),
         self.child_process_command_line_args.clone(),
+        self.api_version,
       ))
     }
 
@@ -2522,6 +2749,55 @@ wrap_with_args! {
   }
 }
 
+/// Switch that passes the browser process's CEF API version to its child processes.
+///
+/// A child must declare its version before any other CEF call, and it never sees the
+/// `Cef` builder, so it reads the version from its own command line. The browser
+/// process appends the switch in
+/// `BrowserProcessHandler::on_before_child_process_launch`.
+///
+/// Not an environment variable: that would also be inherited by anything else the
+/// application spawns, including other CEF applications.
+///
+/// Only appended when [`Cef::cef_api_version`] was called.
+///
+/// Only children launched through `on_before_child_process_launch` get it: the
+/// processes Chromium starts itself (renderer, GPU, utility and, on Linux, the
+/// zygote). A process CEF starts another way, such as the crashpad handler if crash
+/// reporting is enabled, falls back to `CEF_API_VERSION_LAST`.
+///
+/// On macOS, child processes run the `tauri-cef-helper` binary the bundler compiles
+/// (`crates/tauri-bundler/cef-helper/main.rs`), which parses this switch itself. Keep
+/// both in sync.
+pub(crate) const API_VERSION_SWITCH: &str = "tauri-cef-api-version";
+
+/// The CEF API version the browser process passed to this child process.
+///
+/// `None` if this is not a child process (no `--type=` switch), if no version was
+/// passed, or if the value is not a number. The last occurrence wins.
+///
+/// Must not call CEF: nothing may be called before the version is declared.
+fn child_process_api_version<I>(args: I) -> Option<i32>
+where
+  I: IntoIterator<Item = std::ffi::OsString>,
+{
+  let prefix = format!("--{API_VERSION_SWITCH}=");
+  let mut is_child_process = false;
+  let mut version = None;
+  // Non-Unicode arguments are skipped; `std::env::args` would panic on them.
+  for arg in args {
+    let Some(arg) = arg.to_str() else {
+      continue;
+    };
+    if arg.starts_with("--type=") {
+      is_child_process = true;
+    } else if let Some(value) = arg.strip_prefix(&prefix) {
+      version = value.parse().ok();
+    }
+  }
+  version.filter(|_| is_child_process)
+}
+
 pub fn run_cef_helper_process() {
   let args = cef::args::Args::new();
 
@@ -2542,7 +2818,13 @@ pub fn run_cef_helper_process() {
     loader
   };
 
-  let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+  // Declare the version the browser process passed, if any.
+  let version = child_process_api_version(std::env::args_os()).unwrap_or(sys::CEF_API_VERSION_LAST);
+  // `cef_api_hash` returns NULL if the loaded libcef does not support the version, and
+  // the next CEF call would crash.
+  if cef::api_hash(version, 0).is_null() {
+    panic!("the loaded CEF library does not support CEF API version {version}");
+  }
   let mut app = TauriCefHelperApp::new();
   let _ = cef::execute_process(
     Some(args.as_main_args()),
@@ -2829,11 +3111,21 @@ impl<T: UserEvent> CefRuntime<T> {
     // The CEF API version table must be initialized before any other CEF call
     // (e.g. `args.as_cmd_line()` below), otherwise the process crashes with no
     // diagnostics.
-    let version = runtime_args
-      .runtime_init_attrs
-      .api_version
+    //
+    // Child processes normally never get here: `#[cef_entry_point]` sends them to
+    // `run_cef_helper_process` first. An app that does not use the macro runs its
+    // children through this path, and they use the version the browser process
+    // passed.
+    let api_version = runtime_args.runtime_init_attrs.api_version;
+    let version = child_process_api_version(std::env::args_os())
+      .or(api_version)
       .unwrap_or(sys::CEF_API_VERSION_LAST);
-    let _ = cef::api_hash(version, 0);
+    // `cef_api_hash` returns NULL if the loaded libcef does not support the version.
+    // Log the details and return the same error as for a missing runtime.
+    if cef::api_hash(version, 0).is_null() {
+      log::error!("the loaded CEF library does not support CEF API version {version}");
+      return Err(Error::WebviewRuntimeNotInstalled);
+    }
 
     // Handle CEF subprocesses (renderer/GPU/utility) before any browser-only
     // setup such as building the event loop, creating cache directories, or the
@@ -2883,7 +3175,9 @@ impl<T: UserEvent> CefRuntime<T> {
       debug_environment,
       certificate_errors,
       sandbox: sandbox_policy,
+      downgrade: downgrade_policy,
       settings_callback,
+      window_event_handler,
       // Already applied, above, before the first CEF call.
       api_version: _,
     } = runtime_args.runtime_init_attrs;
@@ -3071,6 +3365,11 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_base.join(&runtime_args.identifier).join("cef")
     });
     let _ = create_dir_all(&cache_path);
+    // Chromium migrates its profile forward only, so a release rolled back to an older CEF
+    // milestone finds a profile a newer Chromium wrote. Recording which one ran, and what
+    // becomes of such a profile, is the `downgrade` module; it must run before the first
+    // CEF call that opens anything in the directory, which is `cef::initialize` below.
+    crate::downgrade::prepare_root_cache_path(&cache_path, downgrade_policy);
 
     // Force X11 usage on Linux.
     //
@@ -3115,20 +3414,30 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let event_loop = event_loop_builder
       .build()
-      .map_err(|_| Error::CreateWindow)?;
+      .map_err(|e| Error::CreateWindow(Box::new(e)))?;
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
     let cef_pump = CefExternalPump::new();
+    let current_dispatch: Arc<MainThreadDispatchSlot<T>> = Default::default();
+    #[cfg(target_os = "macos")]
+    let wake = {
+      let slot = current_dispatch.clone();
+      crate::platform::macos::MainThreadWake::new(move || slot.deliver_wake(&proxy))
+    };
     let context = RuntimeContext {
+      window_event_handler,
       sender: sender.clone(),
-      proxy: proxy.clone(),
+      #[cfg(not(target_os = "macos"))]
+      proxy,
+      #[cfg(target_os = "macos")]
+      wake,
       main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
-      current_dispatch: Default::default(),
+      current_dispatch,
       app_wide_theme: Default::default(),
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),
@@ -3163,6 +3472,7 @@ impl<T: UserEvent> CefRuntime<T> {
       restore_deep_link_arguments: command_line_args_disabled,
       internal_command_line_args,
       browser_command_line_args,
+      api_version,
       disabled_features,
       enabled_features,
       child_process_command_line_args,
@@ -3420,6 +3730,18 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    // TODO: honor this flag. The winit event loop is already built by the time tauri calls this
+    // (see `Self::init`), and launch-time activation is driven by the CEF application delegate
+    // rather than winit's `with_activate_ignoring_other_apps`.
+    if !ignore {
+      log::warn!(
+        "`Builder::activate_ignoring_other_apps(false)` is not supported by the CEF runtime yet"
+      );
+    }
+  }
+
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool) {
     let message = Message::EventLoop(EventLoopMessage::SetDockVisibility(visible));
     let _ = self.context.send_message(message);
@@ -3560,6 +3882,11 @@ mod configuration_tests {
     assert_eq!(cef.devtools, DevToolsPolicy::Auto);
     assert_eq!(cef.debug_environment, DebugEnvironment::Auto);
     assert_eq!(cef.sandbox, SandboxPolicy::Auto);
+    assert_eq!(
+      cef.downgrade,
+      DowngradePolicy::KeepProfile,
+      "a rollback keeps the user's data on disk, as Chrome does; wiping it is opted into"
+    );
     assert!(
       !cef.allow_chromium_command_line_args,
       "a shipped application must ignore Chromium switches on its command line"
@@ -3611,6 +3938,110 @@ mod configuration_tests {
       [serde_json::json!(false), serde_json::json!(true)],
       "both are kept, in call order, so the application's last word wins"
     );
+  }
+}
+
+#[cfg(test)]
+mod child_process_api_version_tests {
+  use super::{API_VERSION_SWITCH, child_process_api_version};
+
+  fn version(args: &[&str]) -> Option<i32> {
+    child_process_api_version(args.iter().map(std::ffi::OsString::from))
+  }
+
+  #[test]
+  fn reads_the_version_the_browser_process_passed() {
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15101",
+        "--lang=en-US"
+      ]),
+      Some(15101)
+    );
+    // Order relative to `--type` must not matter.
+    assert_eq!(
+      version(&["app", "--tauri-cef-api-version=15101", "--type=zygote"]),
+      Some(15101)
+    );
+  }
+
+  #[test]
+  fn the_switch_is_spelled_the_way_it_is_appended() {
+    let arg = format!("--{API_VERSION_SWITCH}=15101");
+    assert_eq!(version(&["app", "--type=gpu-process", &arg]), Some(15101));
+  }
+
+  #[test]
+  fn absent_means_the_default() {
+    assert_eq!(version(&[]), None);
+    assert_eq!(version(&["app", "--type=renderer"]), None);
+    // A switch with a longer name is a different switch.
+    assert_eq!(
+      version(&["app", "--type=renderer", "--tauri-cef-api-version-x=15101"]),
+      None
+    );
+  }
+
+  #[test]
+  fn garbage_means_the_default() {
+    for value in ["", "latest", "15101x", "1.5", "99999999999", " 15101"] {
+      let arg = format!("--tauri-cef-api-version={value}");
+      assert_eq!(
+        version(&["app", "--type=renderer", &arg]),
+        None,
+        "{value:?}"
+      );
+    }
+    // A bare switch has no value.
+    assert_eq!(
+      version(&["app", "--type=renderer", "--tauri-cef-api-version"]),
+      None
+    );
+  }
+
+  #[test]
+  fn the_last_occurrence_wins() {
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15000",
+        "--tauri-cef-api-version=15101"
+      ]),
+      Some(15101)
+    );
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15101",
+        "--tauri-cef-api-version=latest"
+      ]),
+      None
+    );
+  }
+
+  #[test]
+  fn a_browser_process_ignores_the_switch() {
+    // Not a child process, so the switch is ignored. Users must not be able to set
+    // the version from the command line.
+    assert_eq!(version(&["app", "--tauri-cef-api-version=15101"]), None);
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn an_argument_that_is_not_unicode_is_skipped() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let args = vec![
+      std::ffi::OsString::from("app"),
+      std::ffi::OsString::from_vec(vec![0xff, 0xfe]),
+      std::ffi::OsString::from("--type=renderer"),
+      std::ffi::OsString::from("--tauri-cef-api-version=15101"),
+    ];
+    assert_eq!(child_process_api_version(args), Some(15101));
   }
 }
 

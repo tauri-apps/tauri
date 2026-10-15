@@ -13,33 +13,15 @@ mod normal;
 pub(crate) mod plugin;
 mod predefined;
 mod submenu;
-use std::{mem::ManuallyDrop, sync::Arc};
+use std::mem::ManuallyDrop;
 
 pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
 use crate::menu::plugin::remove_menu_channel;
-use crate::{AppHandle, Runtime, image::Image};
+use crate::{AppHandle, Manager, Runtime, image::Image};
 pub use muda::MenuId;
-
-macro_rules! run_item_main_thread {
-  ($self:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-    let self_ = $self.clone();
-    let task = move || {
-      let f = $ex;
-      let _ = tx.send(f(self_));
-    };
-    $self
-      .app_handle()
-      .run_on_main_thread(task)
-      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
-  }};
-}
-
-pub(crate) use run_item_main_thread;
 
 /// Describes a menu event emitted when a menu item is activated
 #[derive(Debug, Clone, Serialize)]
@@ -66,6 +48,7 @@ macro_rules! gen_wrappers {
     $(
       $(#[$attr:meta])*
       $type:ident($inner:ident$(, $kind:ident)?)
+      $({ $($(#[$field_attr:meta])* $field:ident: $field_type:ty),* })?
     ),*
   ) => {
     $(
@@ -73,6 +56,7 @@ macro_rules! gen_wrappers {
         // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
+        $($( $(#[$field_attr])* $field: $field_type,)*)?
       }
 
       impl<R: $crate::Runtime> $inner<R> {
@@ -80,6 +64,7 @@ macro_rules! gen_wrappers {
           Self {
             inner: ManuallyDrop::new(menu),
             app_handle,
+            $($($field: Default::default(),)*)?
           }
         }
       }
@@ -120,6 +105,45 @@ macro_rules! gen_wrappers {
         }
       }
 
+      impl<R: $crate::Runtime> $type<R> {
+        /// Returns a unique identifier associated with this menu item.
+        pub fn id(&self) -> &MenuId {
+          self.0.inner.id()
+        }
+
+
+        /// The application handle associated with this type.
+        pub fn app_handle(&self) -> &$crate::AppHandle<R> {
+          &self.0.app_handle
+        }
+
+        /// Do something with the inner [`muda::$type`] on main thread.
+        ///
+        /// Note that `muda` crate may be updated in minor releases of Tauri.
+        /// Therefore, it’s recommended to pin Tauri to at least a minor version when you’re using `with_inner_blocking`.
+        ///
+        /// # Example
+        ///
+        /// ```rust,no_run
+        /// # use tauri::menu::Menu;
+        /// # use tauri::test::MockRuntime;
+        /// # fn main() {
+        /// # let menu: Menu<MockRuntime> = todo!();
+        /// menu.with_inner_blocking(|inner| {
+        ///   // interact with the inner menu here
+        /// });
+        /// # }
+        /// ```
+        pub fn with_inner_blocking<F, T>(&self, f: F) -> crate::Result<T>
+        where
+          F: FnOnce(&::muda::$type) -> T + Send + 'static,
+          T: Send + 'static,
+        {
+          let self_ = self.clone();
+          self.app_handle().run_on_main_thread_blocking(move || f((&*self_.0).as_ref()))
+        }
+      }
+
       $(
         impl<R: $crate::Runtime> $crate::menu::sealed::IsMenuItemBase for $type<R> {
           fn inner_muda(&self) -> &dyn muda::IsMenuItem {
@@ -148,11 +172,17 @@ gen_wrappers!(
   /// ## Platform-specific:
   ///
   /// - **macOS**: if using [`Menu`] for the global menubar, it can only contain [`Submenu`]s
-  Menu(MenuInner),
+  Menu(MenuInner) {
+    /// **SAFTY:** Must only be modified in sync with the inner [`muda::Menu::items`]
+    items: std::sync::Mutex<Vec<MenuItemKind<R>>>
+  },
   /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
   MenuItem(MenuItemInner, MenuItem),
   /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
-  Submenu(SubmenuInner, Submenu),
+  Submenu(SubmenuInner, Submenu) {
+    /// **SAFTY:** Must only be modified in sync with the inner [`muda::Submenu::items`]
+    items: std::sync::Mutex<Vec<MenuItemKind<R>>>
+  },
   /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
   PredefinedMenuItem(PredefinedMenuItemInner, Predefined),
   /// A menu item inside a [`Menu`] or [`Submenu`]
@@ -570,26 +600,6 @@ impl<R: Runtime> MenuItemKind<R> {
       MenuItemKind::Predefined(i) => i,
       MenuItemKind::Check(i) => i,
       MenuItemKind::Icon(i) => i,
-    }
-  }
-
-  pub(crate) fn from_muda(app_handle: AppHandle<R>, i: muda::MenuItemKind) -> Self {
-    match i {
-      muda::MenuItemKind::MenuItem(i) => {
-        Self::MenuItem(MenuItem(Arc::new(MenuItemInner::new(app_handle, i))))
-      }
-      muda::MenuItemKind::Submenu(i) => {
-        Self::Submenu(Submenu(Arc::new(SubmenuInner::new(app_handle, i))))
-      }
-      muda::MenuItemKind::Predefined(i) => Self::Predefined(PredefinedMenuItem(Arc::new(
-        PredefinedMenuItemInner::new(app_handle, i),
-      ))),
-      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(
-        CheckMenuItemInner::new(app_handle, i),
-      ))),
-      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner::new(
-        app_handle, i,
-      )))),
     }
   }
 

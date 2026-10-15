@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-  Runtime,
+  Manager, Runtime,
   ipc::{CommandArg, CommandItem, InvokeError},
 };
 
@@ -56,10 +56,10 @@ impl<T: std::fmt::Debug> std::fmt::Debug for State<'_, T> {
   }
 }
 
-impl<'r, 'de: 'r, T: 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
+impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    command.message.state_ref().try_get().ok_or_else(|| {
+    command.message.webview_ref().try_state().ok_or_else(|| {
       InvokeError::from_anyhow(anyhow::anyhow!(
         "state not managed for field `{}` on command `{}`. You must call `.manage()` before using this command",
         command.key, command.name
@@ -103,7 +103,7 @@ type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<
 
 /// The Tauri state manager.
 #[derive(Debug)]
-pub struct StateManager {
+pub(crate) struct StateManager {
   map: Mutex<TypeIdMap>,
 }
 
@@ -138,14 +138,21 @@ impl StateManager {
   }
 
   /// Gets the state associated with the specified type.
-  pub fn get<T: 'static>(&self) -> State<'_, T> {
-    self
-      .try_get()
-      .unwrap_or_else(|| panic!("state not found for type {}", std::any::type_name::<T>()))
+  ///
+  /// # Panics
+  ///
+  /// Panics if the state for the type `T` has not been previously [set](Self::set).
+  pub(crate) fn get<T: 'static>(&self) -> State<'_, T> {
+    self.try_get().unwrap_or_else(|| {
+      panic!(
+        "state() called before manage() for {}",
+        std::any::type_name::<T>()
+      )
+    })
   }
 
   /// Gets the state associated with the specified type.
-  pub fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
+  pub(crate) fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
     let state = map.get(&type_id)?;
@@ -177,7 +184,9 @@ mod tests {
   }
 
   #[test]
-  #[should_panic(expected = "state not found for type core::option::Option<alloc::string::String>")]
+  #[should_panic(
+    expected = "state() called before manage() for core::option::Option<alloc::string::String>"
+  )]
   fn get_panics() {
     let state = StateManager::new();
     state.get::<Option<String>>();

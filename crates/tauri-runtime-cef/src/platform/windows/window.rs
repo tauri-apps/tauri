@@ -110,6 +110,9 @@ impl AppWindow {
   /// the webview's window invalidates the area it covered, so painting on every
   /// redraw is what clears it.
   pub(crate) fn draw_background_surface(&mut self) {
+    if self.children.iter().any(|child| child.offscreen.is_some()) {
+      return;
+    }
     let size = self.window.surface_size();
     let (Some(width), Some(height)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
     else {

@@ -138,6 +138,39 @@ fn cef_framework_from_env() -> Option<std::path::PathBuf> {
   })
 }
 
+/// Switch the browser process uses to pass its CEF API version to child processes.
+///
+/// Mirrors `API_VERSION_SWITCH` in `tauri-runtime-cef`, which appends it. This crate
+/// is built from standalone source and cannot depend on that one, so keep both in sync.
+const API_VERSION_SWITCH: &str = "tauri-cef-api-version";
+
+/// The CEF API version the browser process passed to this child process.
+///
+/// `None` if this is not a child process (no `--type=` switch), if no version was
+/// passed, or if the value is not a number. The last occurrence wins.
+///
+/// Must not call CEF: nothing may be called before the version is declared.
+fn child_process_api_version<I>(args: I) -> Option<i32>
+where
+  I: IntoIterator<Item = std::ffi::OsString>,
+{
+  let prefix = format!("--{API_VERSION_SWITCH}=");
+  let mut is_child_process = false;
+  let mut version = None;
+  // Non-Unicode arguments are skipped; `std::env::args` would panic on them.
+  for arg in args {
+    let Some(arg) = arg.to_str() else {
+      continue;
+    };
+    if arg.starts_with("--type=") {
+      is_child_process = true;
+    } else if let Some(value) = arg.strip_prefix(&prefix) {
+      version = value.parse().ok();
+    }
+  }
+  version.filter(|_| is_child_process)
+}
+
 fn main() {
   let args = Args::new();
 
@@ -177,11 +210,47 @@ fn main() {
     }
   }
 
-  let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
+  // Declare the version the browser process passed, if any.
+  let version = child_process_api_version(std::env::args_os()).unwrap_or(sys::CEF_API_VERSION_LAST);
+  // `cef_api_hash` returns NULL if the loaded libcef does not support the version, and
+  // the next CEF call would crash.
+  if api_hash(version, 0).is_null() {
+    panic!("the loaded CEF library does not support CEF API version {version}");
+  }
   let mut app = TauriRenderApp::new();
   execute_process(
     Some(args.as_main_args()),
     Some(&mut app),
     std::ptr::null_mut(),
   );
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{API_VERSION_SWITCH, child_process_api_version};
+
+  fn version(args: &[&str]) -> Option<i32> {
+    child_process_api_version(args.iter().map(std::ffi::OsString::from))
+  }
+
+  #[test]
+  fn reads_the_version_the_browser_process_passed() {
+    let arg = format!("--{API_VERSION_SWITCH}=15101");
+    assert_eq!(version(&["app", "--type=renderer", &arg]), Some(15101));
+    assert_eq!(version(&["app", &arg, "--type=gpu-process"]), Some(15101));
+  }
+
+  #[test]
+  fn absent_or_garbage_means_the_default() {
+    assert_eq!(version(&["app", "--type=renderer"]), None);
+    assert_eq!(
+      version(&["app", "--type=renderer", "--tauri-cef-api-version=latest"]),
+      None
+    );
+  }
+
+  #[test]
+  fn a_browser_process_ignores_the_switch() {
+    assert_eq!(version(&["app", "--tauri-cef-api-version=15101"]), None);
+  }
 }

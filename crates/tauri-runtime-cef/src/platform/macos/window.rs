@@ -23,10 +23,30 @@ use objc2_foundation::{
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri_runtime::dpi::Position;
 use tauri_utils::{TitleBarStyle, config::Color};
+use winit::platform::macos::WindowExtMacOS;
 
 use crate::window::AppWindow;
 
 use super::utils;
+
+/// The content view winit created for `window`.
+fn nsview(window: &dyn winit::window::Window) -> Retained<NSView> {
+  let handle = window.window_handle().expect("failed to get window handle");
+  match handle.as_raw() {
+    RawWindowHandle::AppKit(handle) => unsafe {
+      Retained::<NSView>::retain(handle.ns_view.as_ptr().cast::<NSView>())
+        .expect("failed to retain NSView")
+    },
+    other => panic!("expected AppKit window handle, got {other:?}"),
+  }
+}
+
+/// The `NSWindow` behind a winit window.
+pub(crate) fn nswindow(window: &dyn winit::window::Window) -> Retained<NSWindow> {
+  nsview(window)
+    .window()
+    .expect("winit's content view is always inside its window")
+}
 
 impl AppWindow {
   pub(crate) fn cef_host_handle(&self) -> cef::sys::cef_window_handle_t {
@@ -35,17 +55,7 @@ impl AppWindow {
   }
 
   pub(crate) fn nsview(&self) -> Retained<NSView> {
-    let handle = self
-      .window
-      .window_handle()
-      .expect("failed to get window handle");
-    match handle.as_raw() {
-      RawWindowHandle::AppKit(handle) => unsafe {
-        Retained::<NSView>::retain(handle.ns_view.as_ptr().cast::<NSView>())
-          .expect("failed to retain NSView")
-      },
-      other => panic!("expected AppKit window handle, got {other:?}"),
-    }
+    nsview(self.window.as_ref())
   }
 
   pub(crate) fn set_enabled(&self, enabled: bool) {
@@ -135,27 +145,31 @@ impl AppWindow {
       return;
     };
 
-    match style {
-      TitleBarStyle::Visible => {
-        nswindow.setTitlebarAppearsTransparent(false);
-        let mut mask = nswindow.styleMask();
-        mask.remove(NSWindowStyleMask::FullSizeContentView);
-        nswindow.setStyleMask(mask);
-      }
-      TitleBarStyle::Transparent => {
-        nswindow.setTitlebarAppearsTransparent(true);
-        let mut mask = nswindow.styleMask();
-        mask.remove(NSWindowStyleMask::FullSizeContentView);
-        nswindow.setStyleMask(mask);
-      }
-      TitleBarStyle::Overlay => {
-        nswindow.setTitlebarAppearsTransparent(true);
-        let mut mask = nswindow.styleMask();
-        mask.insert(NSWindowStyleMask::FullSizeContentView);
-        nswindow.setStyleMask(mask);
-      }
-      _ => {}
-    }
+    let (transparent, overlay) = match style {
+      TitleBarStyle::Visible => (false, false),
+      TitleBarStyle::Transparent => (true, false),
+      TitleBarStyle::Overlay => (true, true),
+      _ => return,
+    };
+
+    nswindow.setTitlebarAppearsTransparent(transparent);
+    let mut mask = nswindow.styleMask();
+    mask.set(NSWindowStyleMask::FullSizeContentView, overlay);
+    nswindow.setStyleMask(mask);
+    self.apply_movability();
+  }
+
+  pub(crate) fn apply_movability(&self) {
+    let nsview = self.nsview();
+    let Some(nswindow) = nsview.window() else {
+      return;
+    };
+
+    let overlay = nswindow.titlebarAppearsTransparent()
+      && nswindow
+        .styleMask()
+        .contains(NSWindowStyleMask::FullSizeContentView);
+    nswindow.setMovable(!overlay && !self.window.simple_fullscreen());
   }
 
   pub(crate) fn set_visible_on_all_workspaces(&self, visible: bool) {

@@ -88,6 +88,23 @@ fn resolve_request_context_cache_path(global_cache_path: &Path, data_directory: 
   path
 }
 
+/// The profile directory a [`WebviewAttributes::data_store_identifier`] maps to, named by
+/// the identifier spelled as the UUID WKWebView would show for it.
+fn data_store_directory_name(identifier: &[u8; 16]) -> String {
+  let hex: String = identifier
+    .iter()
+    .map(|byte| format!("{byte:02x}"))
+    .collect();
+  format!(
+    "DataStore-{}-{}-{}-{}-{}",
+    &hex[0..8],
+    &hex[8..12],
+    &hex[12..16],
+    &hex[16..20],
+    &hex[20..32]
+  )
+}
+
 /// Continuation invoked on the CEF UI thread once the request context's
 /// underlying browser context has finished asynchronous initialization.
 ///
@@ -296,12 +313,10 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
   custom_schemes: impl IntoIterator<Item = &'a String>,
   custom_protocol_scheme: &str,
   scheme_registry: request_handler::SchemeRegistry,
+  main_thread: request_handler::MainThreadDispatcher,
   on_initialized: RequestContextInitContinuation,
 ) -> Option<RequestContext> {
-  let cache_path = if webview_attributes.incognito {
-    CefStringUtf16::from("")
-  } else if let Some(data_directory) = &webview_attributes.data_directory {
-    let cache_path = resolve_request_context_cache_path(global_cache_path, data_directory);
+  let own_cache_path = |cache_path: PathBuf| {
     if let Err(error) = create_dir_all(&cache_path) {
       log::error!(
         "failed to create request context cache directory {}: {error}",
@@ -309,6 +324,22 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
       );
     }
     CefStringUtf16::from(cache_path.to_string_lossy().as_ref())
+  };
+
+  let cache_path = if webview_attributes.incognito {
+    CefStringUtf16::from("")
+  } else if let Some(data_directory) = &webview_attributes.data_directory {
+    own_cache_path(resolve_request_context_cache_path(
+      global_cache_path,
+      data_directory,
+    ))
+  } else if let Some(identifier) = &webview_attributes.data_store_identifier {
+    // WKWebView's `WKWebsiteDataStore(forIdentifier:)` names a persistent store by UUID.
+    // CEF's separate store is a separate request context cache path, so the identifier
+    // names a profile directory under the root the way a relative `data_directory` does.
+    // `data_directory` wins when both are set: an application sets both to cover the
+    // platforms each one is for, and either gives it the same isolation here.
+    own_cache_path(global_cache_path.join(data_store_directory_name(identifier)))
   } else {
     let global_context =
       request_context_get_global_context().expect("Failed to get global request context");
@@ -358,10 +389,36 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
           scheme_registry.clone(),
           scheme.clone(),
+          main_thread.clone(),
         )),
       );
     }
   }
 
   request_context
+}
+
+#[cfg(test)]
+mod data_store_tests {
+  use super::data_store_directory_name;
+
+  #[test]
+  fn a_data_store_identifier_names_a_uuid_shaped_directory() {
+    let identifier = [
+      0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd,
+      0xef,
+    ];
+    assert_eq!(
+      data_store_directory_name(&identifier),
+      "DataStore-12345678-9abc-def0-0123-456789abcdef"
+    );
+  }
+
+  #[test]
+  fn distinct_identifiers_name_distinct_directories() {
+    assert_ne!(
+      data_store_directory_name(&[0; 16]),
+      data_store_directory_name(&[1; 16])
+    );
+  }
 }

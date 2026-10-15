@@ -101,6 +101,13 @@ impl<R: Runtime> WindowManager<R> {
       for handler in window_event_listeners.iter() {
         handler(&window_, event);
       }
+      // purge the window's Rust listeners only after `tauri://destroyed` was delivered to them
+      if matches!(event, WindowEvent::Destroyed) {
+        window_
+          .manager()
+          .listeners()
+          .remove_window_listeners(window_.label());
+      }
     });
 
     // insert the window into our manager
@@ -113,13 +120,9 @@ impl<R: Runtime> WindowManager<R> {
     // let plugins know that a new window has been added to the manager
     let manager = window.manager.clone();
     let window_ = window.clone();
-    // run on main thread so the plugin store doesn't dead lock with the event loop handler in App
+    // plugins receive the created hooks on the main thread
     let _ = window.run_on_main_thread(move || {
-      manager
-        .plugins
-        .lock()
-        .expect("poisoned plugin store")
-        .window_created(window_);
+      manager.plugins.window_created(window_);
     });
 
     window

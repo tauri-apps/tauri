@@ -190,9 +190,9 @@ pub struct AppManager<R: Runtime = crate::DynRuntime> {
   #[cfg(desktop)]
   pub menu: menu::MenuManager<R>,
 
-  pub(crate) plugins: Mutex<PluginStore<R>>,
+  pub(crate) plugins: PluginStore<R>,
   pub listeners: Listeners,
-  pub state: Arc<StateManager>,
+  pub(crate) state: Arc<StateManager>,
   pub config: Config,
   #[cfg(dev)]
   pub config_parent: Option<std::path::PathBuf>,
@@ -256,7 +256,6 @@ impl<R: Runtime> AppManager<R> {
   #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
     #[allow(unused_mut)] mut context: Context<R>,
-    plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
     on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
@@ -315,7 +314,7 @@ impl<R: Runtime> AppManager<R> {
         global_event_listeners: Mutex::new(menu_event_listener),
         event_listeners: Mutex::new(window_menu_event_listeners),
       },
-      plugins: Mutex::new(plugins),
+      plugins: PluginStore::default(),
       listeners: Listeners::default(),
       state: Arc::new(state),
       config: context.config,
@@ -333,11 +332,6 @@ impl<R: Runtime> AppManager<R> {
       channel_interceptor,
       restart_on_exit: AtomicBool::new(false),
     }
-  }
-
-  /// State managed by the application.
-  pub(crate) fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
   }
 
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
@@ -393,12 +387,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  // TODO: Change to return `crate::Result` here in v3
-  pub fn get_asset(
-    &self,
-    mut path: String,
-    _use_https_schema: bool,
-  ) -> Result<Asset, Box<dyn std::error::Error>> {
+  pub fn get_asset(&self, mut path: String, _use_https_schema: bool) -> crate::Result<Asset> {
     let assets = &self.assets;
     if path.ends_with('/') {
       path.pop();
@@ -442,7 +431,7 @@ impl<R: Runtime> AppManager<R> {
       .ok_or_else(|| {
         let error = crate::Error::AssetNotFound(path.clone());
         log::error!("{error}");
-        Box::new(error)
+        error
       })?;
 
     let mut csp_header = None;
@@ -482,23 +471,21 @@ impl<R: Runtime> AppManager<R> {
     (self.webview.invoke_handler)(invoke)
   }
 
-  /// Runs the plugin [`crate::plugin::Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`crate::plugin::Plugin::run_invoke_handler`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
   pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
-    self
-      .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .run_invoke_handler(plugin, invoke)
+    self.plugins.run_invoke_handler(plugin, invoke)
   }
 
-  pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
+  pub fn initialize_plugins(
+    &self,
+    app: &AppHandle<R>,
+    plugins: Vec<Box<dyn crate::plugin::Plugin<R>>>,
+  ) -> crate::Result<()> {
     self
       .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .initialize_all(app, &self.config.plugins)
+      .initialize_all(plugins, app, &self.config.plugins)
   }
 
   pub fn config(&self) -> &Config {
@@ -669,15 +656,24 @@ impl<R: Runtime> AppManager<R> {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
         self.listeners().remove_webview_listeners(webview.label());
+        self
+          .state
+          .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+          .remove_webview_entries(webview.label());
       }
     }
-    self.listeners().remove_window_listeners(label);
+    // window listeners are removed by the window's own event handler after it emits `tauri://destroyed`,
+    // since the run callback (which calls this function) runs before the window event handlers
   }
 
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_listeners(label);
+    self
+      .state
+      .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+      .remove_webview_entries(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
@@ -754,7 +750,6 @@ mod test {
     Window,
     event::EventTarget,
     generate_context,
-    plugin::PluginStore,
     test::{MockRuntime, mock_app},
     webview::WebviewBuilder,
     window::WindowBuilder,
@@ -777,7 +772,6 @@ mod test {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
     let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
-      PluginStore::default(),
       Box::new(|_| false),
       None,                // on_page_load
       None,                // on_permission_request
@@ -831,9 +825,9 @@ mod test {
 
     let webview = window
       .add_child(
-        WebviewBuilder::new("main-webview", Default::default()),
-        crate::LogicalPosition::new(0, 0),
-        window.inner_size().unwrap(),
+        WebviewBuilder::new("main-webview", Default::default())
+          .position(crate::LogicalPosition::new(0, 0))
+          .size(window.inner_size().unwrap()),
       )
       .unwrap();
 

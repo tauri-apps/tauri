@@ -1,5 +1,134 @@
 # Changelog
 
+## [3.0.0-alpha.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.4`
+
+## [3.0.0-alpha.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.3`
+
+### Breaking Changes
+
+- [`b9a77ebb8`](https://www.github.com/tauri-apps/tauri/commit/b9a77ebb8ab57480a354ec47aa45c6898ec9bfda) Removed the `macos-private-api` Cargo feature and the `app > macOSPrivateApi` configuration option. Window transparency and the `fullScreenEnabled` preference no longer rely on macOS private APIs, so they are always available.
+
+## [3.0.0-alpha.2]
+
+### Bug Fixes
+
+- [`c39bba557`](https://www.github.com/tauri-apps/tauri/commit/c39bba55772b497873c397cd8e8061c28e39d242) Fix runtime crates failing to compile when feature unification enables `tauri-runtime/macos-private-api` but not the runtime crate's own `macos-private-api` feature. `WindowBuilder::transparent` is no longer gated on the feature; on macOS, runtimes implement it as a no-op unless their own `macos-private-api` feature is enabled, so the private API is never referenced without it.
+
+### What's Changed
+
+- [`d29d9054e`](https://www.github.com/tauri-apps/tauri/commit/d29d9054e09416bc1c05a39d71b53c3de67a1d40) Pull changes from Tauri 2.12 release.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.2`
+
+## [3.0.0-alpha.1]
+
+### What's Changed
+
+- [`d42c0d62b`](https://www.github.com/tauri-apps/tauri/commit/d42c0d62ba18e741a449bfb507dc8dcd2a8ca4ee) Pull latest v2 changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.1`
+
+### Breaking Changes
+
+- [`a540c11f0`](https://www.github.com/tauri-apps/tauri/commit/a540c11f01eb461d8da5af7c658b45238cd42695) ([#16040](https://www.github.com/tauri-apps/tauri/pull/16040)) The macOS and iOS platform webview accessors (`Webview::inner`, `Webview::controller`, `Webview::ns_window`, `Webview::view_controller`) and the fields of `IosWebviewHandle` are now `*const c_void` instead of `*mut c_void`, since the pointers are borrowed from ObjC `Retained` handles and must not be mutated through.
+- [`4e03a1bb2`](https://www.github.com/tauri-apps/tauri/commit/4e03a1bb298d95526b4c97fde0a367cde9b544c2) ([#16043](https://www.github.com/tauri-apps/tauri/pull/16043)) `tauri_runtime::Error::CreateWindow` now carries the underlying error (`CreateWindow(Box<dyn std::error::Error + Send + Sync>)`), like `CreateWebview`.
+
+## [3.0.0-alpha.0]
+
+### New Features
+
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Added the `tauri_runtime::dynamic` module with `DynRuntime`, a type-erased `Runtime` that wraps any concrete runtime selected at build time through `DynRuntimeInitAttrs`, along with `DynWebview`, `DynWindowOpener` and `DynWebviewAttributes` wrappers that can be downcast to the runtime's types.
+
+### What's Changed
+
+- [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
+- [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.0`
+
+### Breaking Changes
+
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) `WebviewDispatch::open_devtools`, `close_devtools` and `is_devtools_open` are now required regardless of the `devtools` feature, so the type-erased runtime can forward them. Runtimes should keep their implementation behind the feature and no-op without it.
+- [`c8c75b1f7`](https://www.github.com/tauri-apps/tauri/commit/c8c75b1f7f43e7cb1e7d773ed2f6f96fad2fe975) ([#15787](https://www.github.com/tauri-apps/tauri/pull/15787)) The GTK types crossing the runtime boundary are now version-agnostic raw pointers, so a runtime can use a GTK version different from the one the `tauri` crate was built with:
+    
+    - `WindowDispatch::gtk_window` and `WindowDispatch::default_vbox` return `*mut c_void` (`GtkApplicationWindow*` / `GtkBox*`) instead of `gtk::ApplicationWindow` / `gtk::Box`. Both are *transfer full*: the implementation hands out a strong reference (glib's `to_glib_full`) and the caller releases it (`from_glib_full`).
+    - `WindowBuilder::transient_for` takes the parent as `*mut c_void` (`GtkWindow*`), also *transfer full*: the implementation must release the reference, including when it does not support transient windows.
+    - `RawWindow::gtk_window` and `RawWindow::default_vbox` are `*mut c_void` as well, but *transfer none*: they are borrowed for the duration of the callback and must be wrapped with `from_glib_none`.
+    - `tauri_runtime_wry::GtkWindow` and `tauri_runtime_wry::GtkBox` are newtypes over `*mut c_void`.
+    
+    `tauri-runtime` no longer depends on the `gtk` crate.
+    
+    The new `tauri_runtime::gtk` module carries the GTK version a runtime binds to: runtimes call `gtk::declare_version` before creating windows so `tauri`, which picks its bindings at compile time, can detect a mismatch instead of reinterpreting a GTK object of the other version.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The custom scheme URL format (`tauri://localhost` or `http://tauri.localhost`) is now defined by the runtime instead of the platform: `Runtime::custom_scheme_url` moved to `RuntimeHandle::custom_scheme_url(&self, scheme, https)`, and the `convertFileSrc` JavaScript API takes the format from the runtime.
+    
+    `tauri::test::MockRuntime` uses `tauri://localhost` on every platform, so tests that sent IPC requests from `http://tauri.localhost` on Windows and Android must use `tauri://localhost` instead.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Added the required `RuntimeHandle::webview_version` method, exposed as `App::webview_version` and `AppHandle::webview_version`. The `tauri::webview_version` function was removed since the version depends on the runtime in use.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Added the required `WebviewDispatch::with_ios_webview` method on iOS, which gives access to the platform webview, plugin manager and view controller pointers through the new `webview::IosWebviewHandle`, so `tauri` no longer downcasts to the wry webview.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) `RuntimeSpecificInitAttrs` was renamed to `RuntimeInitAttrs` and now selects the runtime it belongs to:
+    
+    - The trait is generic over the user event type and has a `type Runtime: Runtime<T, RuntimeInitAttrs = Self>` associated type, so the attributes alone identify the runtime.
+    - The implementation for `()` was removed, every runtime must define its own attributes type.
+    - Runtime crates must implement `From<Self>` for `dynamic::DynRuntimeInitAttrs` so their attributes can be passed to the type-erased builder.
+    - `Runtime::WindowOpener` and `window::WindowBuilderBase` now require `'static`, so they can be type-erased.
+
+## [2.12.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+
+## [2.12.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+
+## [2.12.0]
+
+### New Features
+
+- [`3f62c70d6`](https://www.github.com/tauri-apps/tauri/commit/3f62c70d6b9a9eeeb7c302b010c858405a1bb761) ([#13848](https://www.github.com/tauri-apps/tauri/pull/13848)) Add `WebviewBuilder::limit_navigations_to_app_bound_domains`, `WebviewWindowBuilder::limit_navigations_to_app_bound_domains`, and limitNavigationsToAppBoundDomains to tauri.config.json.
+- [`21ec647cf`](https://www.github.com/tauri-apps/tauri/commit/21ec647cf945284716696ce2388b5ae381ae5e14) ([#15223](https://www.github.com/tauri-apps/tauri/pull/15223)) Add `Builder::activate_ignoring_other_apps` on macOS to control whether the app activates at launch when another app is already active.
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410)) Added `WindowBuilder/WebviewWindowBuilder::no_redirection_bitmap` method to disable the window redirection bitmap on Windows.
+- [`382dd6ccc`](https://www.github.com/tauri-apps/tauri/commit/382dd6ccc022277d5620fde90a39b4c5e896310e) ([#14865](https://www.github.com/tauri-apps/tauri/pull/14865)) Expose the `wry` permission handler API through Tauri.
+    This includes support for permission types such as `DisplayCapture`, `Midi`, `Sensors`, `MediaKeySystemAccess`, `LocalFonts`, `WindowManagement`, `PointerLock`, `AutomaticDownloads`, `FileSystemAccess`, and `Autoplay`.
+    Added `PermissionResponse::{Allow, Deny, Default}` for runtime permission decisions.
+- [`6edc2f4d4`](https://www.github.com/tauri-apps/tauri/commit/6edc2f4d49d2477649bf170aa2867276c25573da) ([#14926](https://www.github.com/tauri-apps/tauri/pull/14926)) Added `Window::set_fullscreen_on_monitor`, `WebviewWindow::set_fullscreen_on_monitor` and the `setFullscreenOnMonitor` JavaScript API to make a window fullscreen on the monitor containing a given physical position, along with the `core:window:allow-set-fullscreen-on-monitor` permission.
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`ce3f13b91`](https://www.github.com/tauri-apps/tauri/commit/ce3f13b91a75cb723f229f56a3e82eb5f2d3f644) ([#15887](https://www.github.com/tauri-apps/tauri/pull/15887)) Lock unstable tauri crates to minor versions.
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+- [`872428fe9`](https://www.github.com/tauri-apps/tauri/commit/872428fe910efe25eeaa959b56adcd9d9a9a2157) ([#15790](https://www.github.com/tauri-apps/tauri/pull/15790)) On macOS, updated `objc2-*` dependencies to 0.3.2
+- [`51433d740`](https://www.github.com/tauri-apps/tauri/commit/51433d740fbac79247aad82764e53f13abcbb01a) ([#15996](https://www.github.com/tauri-apps/tauri/pull/15996)) Updated `windows` to `0.62` and `webview2-com` to `0.39`, this drops Windows 7 support, see https://github.com/microsoft/windows-rs/issues/3808.
+
+### Breaking Changes
+
+- [`d727d6316`](https://www.github.com/tauri-apps/tauri/commit/d727d631659f07a597cc86cf808f505858dee878) ([#15630](https://www.github.com/tauri-apps/tauri/pull/15630)) Changed `RuntimeHandle::primary_monitor`, `RuntimeHandle::monitor_from_point`, `RuntimeHandle::available_monitors` to return `Result`s
+
 ## \[2.11.3]
 
 ### Dependencies

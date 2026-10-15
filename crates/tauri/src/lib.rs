@@ -34,9 +34,17 @@
 //!
 //! - **common-controls-v6** *(enabled by default)*: Enables [Common Controls v6](https://learn.microsoft.com/en-us/windows/win32/controls/common-control-versions) support on Windows, mainly for the predefined `about` menu item.
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
+//!   It unlocks the multiwebview APIs, where a [`Window`] (the native window) and a [`Webview`] (the web content it hosts)
+//!   are separate objects instead of the single [`WebviewWindow`] you get by default:
+//!   - `window::WindowBuilder` and `Window::builder` to create a window that has no webview attached to it;
+//!   - `webview::WebviewBuilder` and `Window::add_child` to attach one or more webviews to an existing window;
+//!   - [`Webview::reparent`] to move a webview to another window (it always fails on a [`WebviewWindow`] webview
+//!     when this feature is disabled) and [`Webview::set_auto_resize`] to make a child webview follow the window size;
+//!   - the [`Manager`] getters for these objects: `get_window`, `get_focused_window`, `windows`, `get_webview` and `webviews`.
+//!
+//!   See the [multiwebview example](https://github.com/tauri-apps/tauri/tree/dev/examples/multiwebview).
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
-//! - **objc-exception**: This feature flag is no-op since 2.3.0.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **linux-libappindicator**: Uses libappindicator instead of the default ksni (StatusNotifierItem) backend for the tray icon on Linux, adding a runtime dependency on libayatana-appindicator.
 //! - **gtk3**: Selects GTK 3 for the Linux GTK APIs (`Window::gtk_window`, `Window::default_vbox` and the menu integration). Enabled by GTK3 runtime crates such as `tauri-runtime-wry`.
@@ -52,10 +60,8 @@
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
-//! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
-//!   Enable it on the runtime crate (e.g. `tauri-runtime-wry`) instead, which also enables it here.
 //! - **webview-data-url**: Enables usage of data URLs on the webview.
-//! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
+//! - **compression** *(enabled by default)*: Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
 //! - **image-ico**: Adds support to parse `.ico` image, see [`image::Image`].
@@ -138,7 +144,7 @@ mod resources;
 mod vibrancy;
 pub mod webview;
 pub mod window;
-use tauri_runtime as runtime;
+use tauri_runtime::{self as runtime};
 pub mod image;
 #[cfg(target_os = "ios")]
 mod ios;
@@ -200,6 +206,7 @@ pub use self::utils::TitleBarStyle;
 use self::event::EventName;
 pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
+pub(crate) use self::state::StateManager;
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
@@ -214,7 +221,7 @@ pub use {
     },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
   },
-  self::state::{State, StateManager},
+  self::state::State,
   self::utils::{
     Env, PackageInfo, Theme,
     config::{Config, WebviewUrl},
@@ -398,6 +405,24 @@ impl<R: Runtime> Context<R> {
   }
 
   /// A mutable reference to the config the application was prepared with.
+  ///
+  /// This allows changing the configuration at runtime before the app is built,
+  /// for instance to set the `app > appDirectoriesOverride` config from an environment variable:
+  ///
+  /// ```rust,no_run
+  /// use tauri::utils::config::AppDirectoriesOverride;
+  ///
+  /// let mut context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
+  ///
+  /// if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
+  ///   context.config_mut().app.app_directories_override =
+  ///     Some(AppDirectoriesOverride::Root(data_dir.into()));
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .run(context)
+  ///   .expect("error while running tauri application");
+  /// ```
   #[inline(always)]
   pub fn config_mut(&mut self) -> &mut Config {
     &mut self.config
@@ -680,7 +705,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().set(state)
+    self.manager().state.set(state)
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
@@ -708,7 +733,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     T: Send + Sync + 'static,
   {
     // The caller decides to break the safety here, then OK, just let it go.
-    unsafe { self.manager().state().unmanage() }
+    unsafe { self.manager().state.unmanage() }
   }
 
   /// Retrieves the managed state for the type `T`.
@@ -721,12 +746,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state.try_get().unwrap_or_else(|| {
-      panic!(
-        "state() called before manage() for {}",
-        std::any::type_name::<T>()
-      )
-    })
+    self.manager().state.get()
   }
 
   /// Attempts to retrieve the managed state for the type `T`.
@@ -809,6 +829,36 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .lock()
       .unwrap()
       .add_capability(capability)
+  }
+
+  /// Runs the given closure on the main thread.
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+    use tauri_runtime::RuntimeHandle;
+
+    self
+      .app_handle()
+      .runtime_handle
+      .run_on_main_thread(f)
+      .map_err(Into::into)
+  }
+
+  /// Runs the given closure on the main thread and returns the result.
+  ///
+  /// Uses an [`mpsc::sync_channel`](std::sync::mpsc::sync_channel) to communicate the result back to the caller.
+  fn run_on_main_thread_blocking<Ret, F>(&self, f: F) -> crate::Result<Ret>
+  where
+    F: FnOnce() -> Ret + Send + 'static,
+    Ret: Send + 'static,
+  {
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    self.app_handle().run_on_main_thread(move || {
+      let res = f();
+      if let Err(_e) = tx.send(res) {
+        #[cfg(feature = "tracing")]
+        tracing::error!("failed to send result back: {:?}", _e);
+      }
+    })?;
+    rx.recv().map_err(|_| Error::FailedToReceiveMessage)
   }
 }
 
@@ -1071,24 +1121,6 @@ impl<T> UnsafeSend<T> {
     self.0
   }
 }
-
-#[cfg(desktop)]
-macro_rules! run_main_thread {
-  ($handle:ident, $ex:expr) => {{
-    use std::sync::mpsc::channel;
-    let (tx, rx) = channel();
-    let task = move || {
-      let f = $ex;
-      let _ = tx.send(f());
-    };
-    $handle
-      .run_on_main_thread(task)
-      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))
-  }};
-}
-
-#[cfg(desktop)]
-pub(crate) use run_main_thread;
 
 #[cfg(any(test, feature = "test"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "test")))]

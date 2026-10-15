@@ -20,7 +20,7 @@ use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_utils::acl::resolved::ResolvedCommand;
 
-use crate::{Runtime, StateManager, webview::Webview};
+use crate::{Runtime, webview::Webview};
 
 mod authority;
 #[cfg(feature = "dynamic-acl")]
@@ -494,8 +494,6 @@ impl<R: Runtime> InvokeResolver<R> {
 pub struct InvokeMessage<R: Runtime = crate::DynRuntime> {
   /// The webview that received the invoke message.
   pub(crate) webview: Webview<R>,
-  /// Application managed state.
-  pub(crate) state: Arc<StateManager>,
   /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
@@ -508,7 +506,6 @@ impl<R: Runtime> Clone for InvokeMessage<R> {
   fn clone(&self) -> Self {
     Self {
       webview: self.webview.clone(),
-      state: self.state.clone(),
       command: self.command.clone(),
       payload: self.payload.clone(),
       headers: self.headers.clone(),
@@ -520,14 +517,12 @@ impl<R: Runtime> InvokeMessage<R> {
   /// Create an new [`InvokeMessage`] from a payload send by a webview.
   pub(crate) fn new(
     webview: Webview<R>,
-    state: Arc<StateManager>,
     command: String,
     payload: InvokeBody,
     headers: HeaderMap,
   ) -> Self {
     Self {
       webview,
-      state,
       command,
       payload,
       headers,
@@ -556,18 +551,6 @@ impl<R: Runtime> InvokeMessage<R> {
   #[inline(always)]
   pub fn payload(&self) -> &InvokeBody {
     &self.payload
-  }
-
-  /// The state manager associated with the application
-  #[inline(always)]
-  pub fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
-  }
-
-  /// A reference to the state manager associated with application.
-  #[inline(always)]
-  pub fn state_ref(&self) -> &StateManager {
-    &self.state
   }
 
   /// The request headers.

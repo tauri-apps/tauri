@@ -1,0 +1,15 @@
+---
+source: crates/tauri-cli/src/migrate/migrations/v2/mod.rs
+expression: contents
+---
+use tauri::{
+  plugin::{Builder, TauriPlugin},
+  Runtime,
+};
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("app-internals")
+    .initialization_script("window.__APP__ = true".into())
+    .initialization_script_on_all_frames("window.__FRAME__ = true".into())
+    .build()
+}

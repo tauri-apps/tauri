@@ -78,8 +78,9 @@ jobs:
       - name: Install hyperfine
         run: cargo binstall hyperfine@1.20 --no-confirm
 
-      - uses: Swatinem/rust-cache@v2
-
+      # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
+      # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
+      # evicted before the next push only costs upload time.
       - name: build benchmark binaries
         env:
           RUSTFLAGS: '-Zunstable-options -Cpanic=immediate-abort'

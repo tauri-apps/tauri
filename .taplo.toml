@@ -1,0 +1,2 @@
+# migration fixtures keep their original formatting, the migration output is snapshot tested
+exclude = ["crates/tauri-cli/src/migrate/migrations/*/fixtures/**"]

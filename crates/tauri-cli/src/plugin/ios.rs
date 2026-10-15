@@ -6,6 +6,7 @@ use super::PluginIosFramework;
 use crate::{Result, error::Context, helpers::template};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
+use heck::{ToKebabCase, ToSnakeCase};
 
 use std::{
   collections::BTreeMap,
@@ -87,7 +88,8 @@ pub fn command(cli: Cli) -> Result<()> {
             && component == ios_folder_name
           {
             let folder_name = components.next().unwrap().as_os_str().to_string_lossy();
-            let new_folder_name = folder_name.replace("{{ plugin_name }}", &plugin_name);
+            let new_folder_name =
+              folder_name.replace("{{ plugin_name }}", &plugin_name.to_kebab_case());
             let new_folder_name = OsString::from(&new_folder_name);
 
             let path = [
@@ -125,16 +127,18 @@ tauri-build = "{}"
         .unwrap()
         .contents_utf8()
         .unwrap();
+      let builder_name = plugin_name.to_kebab_case();
+      let binding_name = plugin_name.to_snake_case();
       let init_fn = format!(
         r#"
 #[cfg(target_os = "ios")]
-tauri::ios_plugin_binding!(init_plugin_{plugin_name});
+tauri::ios_plugin_binding!(init_plugin_{binding_name});
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
-  Builder::new("{plugin_name}")
-    .setup(|app| {{
+  Builder::new("{builder_name}")
+    .setup(|app, api| {{
       #[cfg(target_os = "ios")]
-      app.register_ios_plugin(init_plugin_{plugin_name})?;
+      api.register_ios_plugin(init_plugin_{binding_name})?;
       Ok(())
     }})
     .build()

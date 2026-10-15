@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.12.4]
+
+### Bug Fixes
+
+- [`136a28eaa`](https://www.github.com/tauri-apps/tauri/commit/136a28eaa879e8aa706f9b2e05a050c46dcc1f4f) ([#16305](https://www.github.com/tauri-apps/tauri/pull/16305) by [@Chaosnico9000](https://www.github.com/tauri-apps/tauri/../../Chaosnico9000)) Skip the `--target` validation when `rustup target list` fails, e.g. when `rustup` is on `PATH` but has no toolchain installed, instead of rejecting every target as missing.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.12.4`
+
 ## [2.12.3]
 
 ### Bug Fixes

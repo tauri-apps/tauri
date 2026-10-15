@@ -244,3 +244,50 @@ export function itWm(title: string, fn: () => void | Promise<void>): void {
     it(title, fn)
   }
 }
+
+/** `identifier` in examples/api's tauri.conf.json, the Android package. */
+const androidPackage = 'com.tauri.api'
+
+/**
+ * The activity that hosts the webviews the multiwebview specs add to a window
+ * on Android, declared in examples/api's committed Android project.
+ */
+export const EMBEDDED_ACTIVITY = 'EmbeddedWebviewActivity'
+
+/** An activity of the app under test on Android and the task it belongs to. */
+export interface AndroidActivity {
+  /** Class name relative to the package, e.g. `.MainActivity`. */
+  activity: string
+  /** ID of the task: each window has a task of its own. */
+  task: number
+}
+
+/**
+ * The live (not finishing) activities of the app under test, read from
+ * `dumpsys activity activities` through Appium's `mobile: shell`, which the
+ * Android config allows (`uiautomator2:adb_shell`).
+ */
+export async function androidActivities(): Promise<AndroidActivity[]> {
+  const output = (await browser.execute('mobile: shell', {
+    command: 'dumpsys',
+    args: ['activity', 'activities']
+  })) as string
+  // `ActivityRecord{<id> u0 <package>/<class> t<task>[ f]}`, where ` f` marks a
+  // finishing activity. Each record shows up in several sections.
+  const records = new Map<string, AndroidActivity>()
+  const pattern = new RegExp(
+    `ActivityRecord\\{(\\w+) u\\d+ ${androidPackage.replace(/\./g, '\\.')}/([\\w.$]+) t(\\d+)([^}]*)\\}`,
+    'g'
+  )
+  for (const [, id, activity, task, flags] of output.matchAll(pattern)) {
+    if (!flags.includes('f')) {
+      records.set(id, { activity, task: Number(task) })
+    }
+  }
+  return [...records.values()]
+}
+
+/** Presses the Android back button, which goes to the foreground activity. */
+export async function pressAndroidBack(): Promise<void> {
+  await browser.execute('mobile: pressKey', { keycode: 4 })
+}

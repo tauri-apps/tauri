@@ -14,6 +14,7 @@
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
   import Window from './views/Window.svelte'
+  import MobileWindow from './views/MobileWindow.svelte'
   import WebRTC from './views/WebRTC.svelte'
   import App from './views/App.svelte'
   import Menu from './views/Menu.svelte'
@@ -58,6 +59,15 @@
     }
   ]
 
+  // the window APIs that work on mobile: multiple windows and webviews
+  const mobileViews = [
+    {
+      label: 'Window',
+      component: MobileWindow,
+      icon: 'i-codicon-window'
+    }
+  ]
+
   const views = [
     {
       label: 'Welcome',
@@ -69,7 +79,7 @@
       component: Communication,
       icon: 'i-codicon-radio-tower'
     },
-    ...(isMobile ? [] : desktopViews),
+    ...(isMobile ? mobileViews : desktopViews),
     {
       label: 'WebRTC',
       component: WebRTC,

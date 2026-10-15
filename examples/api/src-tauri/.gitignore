@@ -3,4 +3,5 @@
 /target/
 
 # cargo-mobile
-/gen
+/gen/*
+!/gen/android/

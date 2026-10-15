@@ -3051,13 +3051,21 @@ interface WindowOptions {
    */
   scrollBarStyle?: ScrollBarStyle
   /**
-   * The name of the Android activity to create for this window.
+   * The name of the Android activity class to create for this window.
+   *
+   * Each window is an activity in a task of its own, which the system shows as a separate window:
+   * its own entry in Recents, its own split-screen pane and its own desktop window. On phones it covers
+   * the window that opened it, and the back button closes it.
+   *
+   * Defaults to `TauriWindowActivity`, which Tauri generates and declares in `AndroidManifest.xml`.
+   * A custom activity must extend `TauriActivity` and allow an instance in each task
+   * (`android:launchMode="standard"` or `"singleInstancePerTask"`).
    */
   activityName?: string
   /**
-   * The name of the Android activity that is creating this webview window.
+   * The name of the Android activity that is opening this window.
    *
-   * This is important to determine which stack the activity will belong to.
+   * The new window's task is started from that activity.
    */
   createdByActivityName?: string
   /**

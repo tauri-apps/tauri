@@ -704,6 +704,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
     mobile::generate_gradle_files(project_dir)?;
+    mobile::update_android_manifest_window_activity()?;
 
     // Update Android manifest with file associations
     if let Some(associations) = config.bundle.file_associations.as_ref() {

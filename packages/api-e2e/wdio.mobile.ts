@@ -72,8 +72,11 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
             address: '127.0.0.1',
             // Appium 3 requires insecure features to be scoped to a driver.
             // chromedriver_autodownload lets the UiAutomator2 driver fetch a
-            // chromedriver matching the device's WebView (see E2E_CHROMEDRIVER).
-            allowInsecure: 'uiautomator2:chromedriver_autodownload'
+            // chromedriver matching the device's WebView (see E2E_CHROMEDRIVER);
+            // adb_shell lets the multiwindow specs read the activity tasks
+            // (`mobile: shell`, see `androidTasks` in test/helpers).
+            allowInsecure:
+              'uiautomator2:chromedriver_autodownload,uiautomator2:adb_shell'
           },
           // First-session setup (chromedriver download, WebDriverAgent build)
           // can be slow, hence the generous timeout.
@@ -114,9 +117,10 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
         // `examples/api`'s `tauri` script is `node ../../packages/cli/tauri.js`,
         // which requires the native CLI to be built (`pnpm build:cli`).
         //
-        // The generated Android Studio / Xcode project lives in `src-tauri/gen`
-        // (gitignored), so it is initialized on a fresh checkout. The build
-        // installs the Rust target it needs itself, so init skips that.
+        // The Xcode project lives in `src-tauri/gen/apple` (gitignored), so it is
+        // initialized on a fresh checkout; the Android project is committed, as it
+        // hosts the multiwebview activities. The build installs the Rust target it
+        // needs itself, so init skips that.
         if (
           !fs.existsSync(path.join(tauriDir, 'gen', ios ? 'apple' : 'android'))
         ) {
@@ -144,7 +148,10 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
                 '--debug',
                 '--apk',
                 '--target',
-                androidTarget()
+                androidTarget(),
+                // the multiwebview API, for the specs adding webviews to a window
+                '--features',
+                'unstable'
               ]
         )
       }

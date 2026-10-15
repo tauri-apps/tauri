@@ -24,6 +24,27 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     Ok(Self(Arc::new(item)))
   }
 
+  /// Non-interactive section header menu item.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Uses the native section header appearance on macOS 14 and later,
+  ///   and is rendered as a disabled menu item on older versions.
+  /// - **Windows / Linux:** Rendered as a disabled menu item.
+  pub fn section_header<M: Manager<R>>(manager: &M, text: &str) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.to_owned();
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::section_header(&text);
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
   /// Copy menu item
   pub fn copy<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
     let handle = manager.app_handle();
@@ -63,6 +84,47 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::paste(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Paste and Match Style menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Unsupported.
+  pub fn paste_and_match_style<M: Manager<R>>(
+    manager: &M,
+    text: Option<&str>,
+  ) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::paste_and_match_style(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Delete menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Unsupported.
+  pub fn delete<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::delete(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
@@ -153,6 +215,88 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::maximize(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Zoom window menu item
+  ///
+  /// This is an alias for [`PredefinedMenuItem::maximize`]. On macOS, the native maximize
+  /// window action is conventionally named "Zoom".
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported.
+  pub fn zoom<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::zoom(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Actual Size menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Sent to the focused responder, which has to implement the action.
+  /// - **Windows / Linux:** Unsupported.
+  pub fn actual_size<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::actual_size(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Zoom In menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Sent to the focused responder, which has to implement the action.
+  /// - **Windows / Linux:** Unsupported.
+  pub fn zoom_in<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::zoom_in(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Zoom Out menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Sent to the focused responder, which has to implement the action.
+  /// - **Windows / Linux:** Unsupported.
+  pub fn zoom_out<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::zoom_out(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
@@ -329,6 +473,82 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::bring_all_to_front(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Start Speaking menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Unsupported.
+  pub fn start_speaking<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::start_speaking(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Stop Speaking menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Unsupported.
+  pub fn stop_speaking<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::stop_speaking(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Start Dictation menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Unsupported.
+  pub fn start_dictation<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::start_dictation(text.as_deref());
+      PredefinedMenuItemInner::new(app_handle, item)
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
+  /// Emoji & Symbols menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Unsupported.
+  pub fn emoji_and_symbols<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::emoji_and_symbols(text.as_deref());
       PredefinedMenuItemInner::new(app_handle, item)
     })?;
 

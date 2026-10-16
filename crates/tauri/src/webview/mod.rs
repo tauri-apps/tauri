@@ -1176,7 +1176,7 @@ fn main() {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android**: Always `true` when `app > androidHostname` is set.
+  /// - **Android**: Always `true` when `app > androidTauriProtocolHostname` is set.
   #[must_use]
   pub fn use_https_scheme(mut self, enabled: bool) -> Self {
     self.webview_attributes.use_https_scheme = enabled;
@@ -2842,17 +2842,18 @@ mod tests {
     }
   }
 
-  fn android_hostname_app(
+  fn android_tauri_protocol_hostname_app(
     builder: crate::Builder<crate::test::MockRuntime>,
   ) -> crate::App<crate::test::MockRuntime> {
     let mut context = crate::test::mock_context(crate::test::noop_assets());
-    context.config_mut().app.android_hostname = Some("app.example.com".parse().unwrap());
+    context.config_mut().app.android_tauri_protocol_hostname =
+      Some("app.example.com".parse().unwrap());
     builder.build(context).unwrap()
   }
 
   #[test]
-  fn android_hostname_serves_app_from_custom_origin() {
-    let app = android_hostname_app(crate::test::mock_builder());
+  fn android_tauri_protocol_hostname_serves_app_from_custom_origin() {
+    let app = android_tauri_protocol_hostname_app(crate::test::mock_builder());
 
     let main = crate::WebviewWindowBuilder::new(&app, "main", crate::WebviewUrl::default())
       .build()
@@ -2886,9 +2887,9 @@ mod tests {
   }
 
   #[test]
-  fn android_hostname_is_local_only_for_exact_origin() {
+  fn android_tauri_protocol_hostname_is_local_only_for_exact_origin() {
     // a user `tauri` protocol must not make `tauri.localhost` local again
-    let app = android_hostname_app(
+    let app = android_tauri_protocol_hostname_app(
       crate::test::mock_builder()
         .register_uri_scheme_protocol("tauri", |_, _| http::Response::new(Vec::new())),
     );
@@ -2924,11 +2925,11 @@ mod tests {
   }
 
   #[test]
-  fn android_hostname_remote_origin_blocked_for_custom_commands() {
+  fn android_tauri_protocol_hostname_remote_origin_blocked_for_custom_commands() {
     use crate::test::INVOKE_KEY;
     use crate::webview::InvokeRequest;
 
-    let app = android_hostname_app(crate::test::mock_builder());
+    let app = android_tauri_protocol_hostname_app(crate::test::mock_builder());
     let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
       .build()
       .unwrap();

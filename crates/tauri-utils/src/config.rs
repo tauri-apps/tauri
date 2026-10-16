@@ -2212,7 +2212,7 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android**: Always `true` when `app > androidHostname` is set.
+  /// - **Android**: Always `true` when `app > androidTauriProtocolHostname` is set.
   #[serde(default, alias = "use-https-scheme")]
   pub use_https_scheme: bool,
   /// Enable web inspector which is usually called browser devtools. Enabled by default.
@@ -3307,7 +3307,7 @@ const ANDROID_HOSTNAME_SPECIAL_USE_TLDS: &[&str] = &[
   "alt", "arpa", "example", "internal", "invalid", "local", "onion", "test",
 ];
 
-/// The host the Android app is served from, see `app > androidHostname`.
+/// The host the Android app is served from, see `app > androidTauriProtocolHostname`.
 ///
 /// A lowercase domain name with at least two labels, such as `app.example.com`, without a scheme, port or path.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
@@ -3343,13 +3343,15 @@ impl FromStr for AndroidHostname {
   type Err = String;
 
   fn from_str(hostname: &str) -> Result<Self, Self::Err> {
-    validate_android_hostname(hostname)
+    validate_android_tauri_protocol_hostname(hostname)
       .map(|()| Self(hostname.to_owned()))
       .map_err(|reason| {
-        let suggestion = suggest_android_hostname(hostname)
+        let suggestion = suggest_android_tauri_protocol_hostname(hostname)
           .map(|suggestion| format!(". Use `{suggestion}` instead"))
           .unwrap_or_default();
-        format!("invalid `app > androidHostname` `{hostname}`: it {reason}{suggestion}")
+        format!(
+          "invalid `app > androidTauriProtocolHostname` `{hostname}`: it {reason}{suggestion}"
+        )
       })
   }
 }
@@ -3363,7 +3365,7 @@ impl TryFrom<String> for AndroidHostname {
 }
 
 /// Applies the host rules of wry's `with_custom_protocol_host` and rejects special-use top-level domains.
-fn validate_android_hostname(hostname: &str) -> Result<(), String> {
+fn validate_android_tauri_protocol_hostname(hostname: &str) -> Result<(), String> {
   if hostname.len() > 253 {
     return Err("must not be longer than 253 characters".into());
   }
@@ -3416,7 +3418,7 @@ fn validate_android_hostname(hostname: &str) -> Result<(), String> {
 }
 
 /// Extracts a valid hostname from inputs like `https://App.example.com/`.
-fn suggest_android_hostname(input: &str) -> Option<String> {
+fn suggest_android_tauri_protocol_hostname(input: &str) -> Option<String> {
   let url = if input.contains("://") {
     Url::parse(input)
   } else {
@@ -3424,7 +3426,7 @@ fn suggest_android_hostname(input: &str) -> Option<String> {
   }
   .ok()?;
   let hostname = url.host_str()?.trim_end_matches('.');
-  validate_android_hostname(hostname)
+  validate_android_tauri_protocol_hostname(hostname)
     .is_ok()
     .then(|| hostname.to_owned())
 }
@@ -3637,7 +3639,7 @@ pub struct AppConfig {
   ///   Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.
   #[serde(alias = "app-directories-override")]
   pub app_directories_override: Option<AppDirectoriesOverride>,
-  /// Serves the app from `https://<androidHostname>` instead of `http(s)://tauri.localhost` on Android, so autofill
+  /// Serves the app from `https://<androidTauriProtocolHostname>` instead of `http(s)://tauri.localhost` on Android, so autofill
   /// services can link webview credentials to the app through [Digital Asset Links](https://developers.google.com/digital-asset-links).
   ///
   /// The value is a lowercase domain name such as `app.example.com`, without a scheme, port or path.
@@ -3652,8 +3654,8 @@ pub struct AppConfig {
   ///
   /// Setting or changing this value changes the app origin, so the app can't access its old IndexedDB, cookies
   /// and localStorage. Backend CORS rules and Content Security Policy sources must allow the new origin.
-  #[serde(alias = "android-hostname")]
-  pub android_hostname: Option<AndroidHostname>,
+  #[serde(alias = "android-tauri-protocol-hostname")]
+  pub android_tauri_protocol_hostname: Option<AndroidHostname>,
 }
 
 impl AppConfig {
@@ -5086,7 +5088,7 @@ mod build {
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
       let app_directories_override = opt_lit(self.app_directories_override.as_ref());
-      let android_hostname = opt_lit(self.android_hostname.as_ref());
+      let android_tauri_protocol_hostname = opt_lit(self.android_tauri_protocol_hostname.as_ref());
 
       literal_struct!(
         tokens,
@@ -5098,7 +5100,7 @@ mod build {
         with_global_tauri,
         enable_gtk_app_id,
         app_directories_override,
-        android_hostname
+        android_tauri_protocol_hostname
       );
     }
   }
@@ -5194,7 +5196,7 @@ mod test {
       with_global_tauri: false,
       enable_gtk_app_id: false,
       app_directories_override: None,
-      android_hostname: None,
+      android_tauri_protocol_hostname: None,
     };
 
     // create a build config
@@ -5388,7 +5390,7 @@ mod test {
   }
 
   #[test]
-  fn android_hostname_accepts_domain_names() {
+  fn android_tauri_protocol_hostname_accepts_domain_names() {
     let longest = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(61));
     let longest_label = format!("{}.com", "a".repeat(63));
     for hostname in [
@@ -5409,7 +5411,7 @@ mod test {
   }
 
   #[test]
-  fn android_hostname_rejects_invalid_hosts() {
+  fn android_tauri_protocol_hostname_rejects_invalid_hosts() {
     let too_long = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(62));
     let too_long_label = format!("{}.com", "a".repeat(64));
     for hostname in [
@@ -5457,7 +5459,7 @@ mod test {
   }
 
   #[test]
-  fn android_hostname_error_suggests_hostname() {
+  fn android_tauri_protocol_hostname_error_suggests_hostname() {
     for (input, suggestion) in [
       ("https://app.example.com/", "app.example.com"),
       ("https://app.example.com:8443/login", "app.example.com"),
@@ -5480,24 +5482,28 @@ mod test {
   }
 
   #[test]
-  fn android_hostname_serde_round_trip() {
-    let config: AppConfig =
-      serde_json::from_value(serde_json::json!({ "androidHostname": "app.example.com" })).unwrap();
+  fn android_tauri_protocol_hostname_serde_round_trip() {
+    let config: AppConfig = serde_json::from_value(
+      serde_json::json!({ "androidTauriProtocolHostname": "app.example.com" }),
+    )
+    .unwrap();
     assert_eq!(
-      config.android_hostname,
+      config.android_tauri_protocol_hostname,
       Some("app.example.com".parse().unwrap())
     );
 
     let value = serde_json::to_value(&config).unwrap();
-    assert_eq!(value["androidHostname"], "app.example.com");
+    assert_eq!(value["androidTauriProtocolHostname"], "app.example.com");
     assert_eq!(serde_json::from_value::<AppConfig>(value).unwrap(), config);
 
-    let kebab_case: AppConfig =
-      serde_json::from_value(serde_json::json!({ "android-hostname": "app.example.com" })).unwrap();
+    let kebab_case: AppConfig = serde_json::from_value(
+      serde_json::json!({ "android-tauri-protocol-hostname": "app.example.com" }),
+    )
+    .unwrap();
     assert_eq!(kebab_case, config);
 
     let err = serde_json::from_value::<AppConfig>(
-      serde_json::json!({ "androidHostname": "https://app.example.com/" }),
+      serde_json::json!({ "androidTauriProtocolHostname": "https://app.example.com/" }),
     )
     .unwrap_err();
     assert!(
@@ -5508,7 +5514,7 @@ mod test {
 
   #[cfg(feature = "schema")]
   #[test]
-  fn android_hostname_schema_pattern() {
+  fn android_tauri_protocol_hostname_schema_pattern() {
     let schema = schemars::schema_for!(AndroidHostname).schema;
     let pattern = schema.string.unwrap().pattern.unwrap();
     let pattern = regex::Regex::new(&pattern).unwrap();
@@ -5537,7 +5543,7 @@ mod test {
 
   #[cfg(feature = "build")]
   #[test]
-  fn android_hostname_to_tokens() {
+  fn android_tauri_protocol_hostname_to_tokens() {
     use quote::ToTokens;
 
     let tokens = "app.example.com"

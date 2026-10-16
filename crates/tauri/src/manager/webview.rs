@@ -500,7 +500,8 @@ impl<R: Runtime> WebviewManager<R> {
 
     if let Some(origin) = &app_manager.custom_app_origin {
       pending.webview_attributes.use_https_scheme = true;
-      pending.webview_attributes.android_hostname = origin.host_str().map(ToOwned::to_owned);
+      pending.webview_attributes.android_tauri_protocol_hostname =
+        origin.host_str().map(ToOwned::to_owned);
       url = crate::protocol::with_custom_app_origin(url, origin);
     }
 

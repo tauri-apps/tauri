@@ -220,7 +220,7 @@ pub struct AppManager<R: Runtime> {
   /// and we will call `restart` on the next `RuntimeRunEvent::Exit` event
   pub(crate) restart_on_exit: AtomicBool,
 
-  /// The origin the `tauri` protocol is served from when `app > androidHostname` is set on Android.
+  /// The origin the `tauri` protocol is served from when `app > androidTauriProtocolHostname` is set on Android.
   pub(crate) custom_app_origin: Option<Url>,
 }
 
@@ -283,11 +283,11 @@ impl<R: Runtime> AppManager<R> {
       *key = uuid::Uuid::new_v4().to_string();
     }
 
-    // unit tests exercise the Android-only `app > androidHostname` on every platform
+    // unit tests exercise the Android-only `app > androidTauriProtocolHostname` on every platform
     let custom_app_origin = context
       .config
       .app
-      .android_hostname
+      .android_tauri_protocol_hostname
       .as_ref()
       .filter(|_| cfg!(any(target_os = "android", test)))
       .map(|hostname| {
@@ -348,7 +348,7 @@ impl<R: Runtime> AppManager<R> {
 
   /// The `tauri` custom protocol URL we use to serve the embedded assets.
   /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`,
-  /// or `https://<androidHostname>` on Android when `app > androidHostname` is set.
+  /// or `https://<androidTauriProtocolHostname>` on Android when `app > androidTauriProtocolHostname` is set.
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
     match &self.custom_app_origin {
       Some(origin) => Cow::Borrowed(origin),

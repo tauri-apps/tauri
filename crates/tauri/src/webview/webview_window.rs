@@ -1216,7 +1216,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android**: Always `true` when `app > androidHostname` is set.
+  /// - **Android**: Always `true` when `app > androidTauriProtocolHostname` is set.
   #[must_use]
   pub fn use_https_scheme(mut self, enabled: bool) -> Self {
     self.webview_builder = self.webview_builder.use_https_scheme(enabled);

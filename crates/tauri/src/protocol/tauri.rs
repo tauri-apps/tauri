@@ -177,7 +177,7 @@ async fn get_response<R: Runtime>(
     {
       return Err(
         format!(
-          "`app > androidHostname` requires `build > devUrl` in development, refusing to fetch {origin} from the network"
+          "`app > androidTauriProtocolHostname` requires `build > devUrl` in development, refusing to fetch {origin} from the network"
         )
         .into(),
       );

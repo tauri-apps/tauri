@@ -4759,7 +4759,7 @@ You may have it installed on another user account, but it is not available for t
   }
 
   #[cfg(target_os = "android")]
-  if let Some(hostname) = &webview_attributes.android_hostname {
+  if let Some(hostname) = &webview_attributes.android_tauri_protocol_hostname {
     webview_builder = webview_builder.with_custom_protocol_host("tauri".into(), hostname.clone());
   }
 

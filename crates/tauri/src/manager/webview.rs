@@ -499,6 +499,12 @@ impl<R: Runtime> WebviewManager<R> {
     };
 
     if let Some(origin) = &app_manager.custom_app_origin {
+      // the dev server proxy would fetch the app from the real host
+      if PROXY_DEV_SERVER && app_manager.get_app_url(true).origin() == origin.origin() {
+        return Err(crate::Error::InvalidWebviewUrl(
+          "`app > androidTauriProtocolHostname` requires `build > devUrl` in development",
+        ));
+      }
       pending.webview_attributes.use_https_scheme = true;
       pending.webview_attributes.android_tauri_protocol_hostname =
         origin.host_str().map(ToOwned::to_owned);

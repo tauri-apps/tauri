@@ -122,6 +122,9 @@ pub enum Error {
   /// Path does not have a basename.
   #[error("path does not have a basename")]
   NoBasename,
+  /// Path is not valid UTF-8 and cannot be represented in a URL.
+  #[error("path is not valid UTF-8: {}", .0.display())]
+  NonUtf8Path(std::path::PathBuf),
   /// Cannot resolve current directory.
   #[error("failed to read current dir: {0}")]
   CurrentDir(std::io::Error),
@@ -129,6 +132,9 @@ pub enum Error {
   #[cfg(not(target_os = "android"))]
   #[error("unknown path")]
   UnknownPath,
+  /// The `app > appDirectoriesOverride` config contains a path that cannot be resolved.
+  #[error("invalid `app > appDirectoriesOverride` path `{path}`: {reason}", path = .0.display(), reason = .1)]
+  InvalidAppDirectoriesOverride(std::path::PathBuf, String),
   /// Failed to invoke mobile plugin.
   #[cfg(target_os = "android")]
   #[error(transparent)]
@@ -166,6 +172,14 @@ pub enum Error {
   /// tokio oneshot channel failed to receive message
   #[error(transparent)]
   TokioOneshotRecv(#[from] tokio::sync::oneshot::error::RecvError),
+  /// Unexpected menu kind passed to menu/tray plugin command
+  #[error("Unexpected menu kind")]
+  UnexpectedMenuKind,
+  /// [`crate::image::Image::from_icon_resource`] failed
+  #[cfg(windows)]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
+  #[error("Can not load Image from icon resources: {0}")]
+  ImageFromResource(windows::core::Error),
 }
 
 impl From<getrandom::Error> for Error {

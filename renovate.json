@@ -36,9 +36,29 @@
       "matchSourceUrls": ["https://github.com/cloudflare/workers-rs"]
     },
     {
+      "description": "Group jsonrpsee crates",
+      "groupName": "jsonrpsee crates",
+      "matchSourceUrls": ["https://github.com/paritytech/jsonrpsee"]
+    },
+    {
+      "description": "Bump CLI packages",
+      "matchFileNames": [
+        "crates/tauri-cli/Cargo.toml",
+        "packages/cli/Cargo.toml",
+        "packages/cli/package.json"
+      ],
+      "rangeStrategy": "auto"
+    },
+    {
       "description": "Group napi-rs packages",
       "groupName": "napi-rs packages",
-      "matchPackageNames": ["napi", "napi-build", "napi-derive", "@napi-rs/cli"]
+      "matchPackageNames": [
+        "napi",
+        "napi-build",
+        "napi-derive",
+        "@napi-rs/cli"
+      ],
+      "rangeStrategy": "bump"
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

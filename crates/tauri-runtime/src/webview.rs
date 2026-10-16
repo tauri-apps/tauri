@@ -4,9 +4,10 @@
 
 //! A layer between raw [`Runtime`] webviews and Tauri.
 //!
+pub use crate::webview_permissions::{PermissionKind, PermissionResponse};
 #[cfg(not(any(target_os = "android", target_os = "ios", target_env = "ohos")))]
 use crate::window::WindowId;
-use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
+use crate::{Rect, Runtime, UserEvent, window::is_label_valid};
 
 use http::Request;
 use tauri_utils::config::{
@@ -40,6 +41,8 @@ type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
+
+type PermissionRequestHandler = dyn Fn(PermissionKind) -> PermissionResponse + Send + Sync;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 type OnWebContentProcessTerminateHandler = dyn Fn() + Send;
@@ -232,6 +235,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
 
   pub download_handler: Option<Arc<DownloadHandler>>,
 
+  pub permission_request_handler: Option<Box<PermissionRequestHandler>>,
+
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub on_web_content_process_terminate_handler: Option<Box<OnWebContentProcessTerminateHandler>>,
 }
@@ -260,6 +265,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         web_resource_request_handler: None,
         on_page_load_handler: None,
         download_handler: None,
+        permission_request_handler: None,
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         on_web_content_process_terminate_handler: None,
       })
@@ -462,6 +468,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       .browser_extensions_enabled(config.browser_extensions_enabled)
       .background_throttling(config.background_throttling.clone())
       .devtools(config.devtools)
+      .transparent(config.transparent)
       .scroll_bar_style(match config.scroll_bar_style {
         ConfigScrollBarStyle::Default => ScrollBarStyle::Default,
         #[cfg(windows)]
@@ -471,10 +478,6 @@ impl From<&WindowConfig> for WebviewAttributes {
       .limit_navigations_to_app_bound_domains(config.limit_navigations_to_app_bound_domains)
       .general_autofill_enabled(config.general_autofill_enabled);
 
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    {
-      builder = builder.transparent(config.transparent);
-    }
     #[cfg(target_os = "macos")]
     {
       if let Some(position) = &config.traffic_light_position {
@@ -681,7 +684,6 @@ impl WebviewAttributes {
   }
 
   /// Enable or disable transparency for the WebView.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.transparent = transparent;

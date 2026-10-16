@@ -85,7 +85,7 @@
     (localStorage.getItem('theme') as Theme | null) || 'auto'
   )
 
-  async function switchTheme() {
+  function switchTheme() {
     switch (theme) {
       case 'dark':
         theme = 'light'
@@ -97,24 +97,21 @@
         theme = 'dark'
         break
     }
-    applyTheme()
   }
 
-  function applyTheme() {
+  // Follows the selection, or the system when it is `auto`.
+  $effect(() => {
     const isDark = theme === 'auto' ? preferDark.current : theme === 'dark'
-    if (isDark) {
-      document.documentElement.classList.add('dark')
-      document.documentElement.classList.remove('light')
-    } else {
-      document.documentElement.classList.remove('dark')
-      document.documentElement.classList.add('light')
-    }
+    document.documentElement.classList.toggle('dark', isDark)
+    document.documentElement.classList.toggle('light', !isDark)
+  })
+
+  // Only the selection drives the app-wide theme. Reading `preferDark` here would
+  // make a system (or externally applied) theme change run this again and reset the
+  // app back to `auto`, undoing whatever just set it.
+  $effect(() => {
     setTheme(theme === 'auto' ? null : theme)
     localStorage.setItem('theme', theme)
-  }
-
-  $effect(() => {
-    applyTheme()
   })
 
   // Console

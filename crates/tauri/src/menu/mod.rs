@@ -13,14 +13,14 @@ mod normal;
 pub(crate) mod plugin;
 mod predefined;
 mod submenu;
-use std::{mem::ManuallyDrop, sync::Arc};
+use std::mem::ManuallyDrop;
 
 pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
 use crate::menu::plugin::remove_menu_channel;
-use crate::{image::Image, AppHandle, Runtime};
+use crate::{AppHandle, Runtime, image::Image};
 pub use muda::MenuId;
 
 macro_rules! run_item_main_thread {
@@ -66,6 +66,7 @@ macro_rules! gen_wrappers {
     $(
       $(#[$attr:meta])*
       $type:ident($inner:ident$(, $kind:ident)?)
+      $({ $($(#[$field_attr:meta])* $field:ident: $field_type:ty),* })?
     ),*
   ) => {
     $(
@@ -74,6 +75,7 @@ macro_rules! gen_wrappers {
         // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
+        $($( $(#[$field_attr])* $field: $field_type,)*)?
       }
 
       impl<R: $crate::Runtime> $inner<R> {
@@ -81,6 +83,7 @@ macro_rules! gen_wrappers {
           Self {
             inner: ManuallyDrop::new(menu),
             app_handle,
+            $($($field: Default::default(),)*)?
           }
         }
       }
@@ -149,11 +152,17 @@ gen_wrappers!(
   /// ## Platform-specific:
   ///
   /// - **macOS**: if using [`Menu`] for the global menubar, it can only contain [`Submenu`]s
-  Menu(MenuInner),
+  Menu(MenuInner) {
+    /// **SAFTY:** Must only be modified in sync with the inner [`muda::Menu::items`]
+    items: std::sync::Mutex<Vec<MenuItemKind<R>>>
+  },
   /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
   MenuItem(MenuItemInner, MenuItem),
   /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
-  Submenu(SubmenuInner, Submenu),
+  Submenu(SubmenuInner, Submenu) {
+    /// **SAFTY:** Must only be modified in sync with the inner [`muda::Submenu::items`]
+    items: std::sync::Mutex<Vec<MenuItemKind<R>>>
+  },
   /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
   PredefinedMenuItem(PredefinedMenuItemInner, Predefined),
   /// A menu item inside a [`Menu`] or [`Submenu`]
@@ -571,26 +580,6 @@ impl<R: Runtime> MenuItemKind<R> {
       MenuItemKind::Predefined(i) => i,
       MenuItemKind::Check(i) => i,
       MenuItemKind::Icon(i) => i,
-    }
-  }
-
-  pub(crate) fn from_muda(app_handle: AppHandle<R>, i: muda::MenuItemKind) -> Self {
-    match i {
-      muda::MenuItemKind::MenuItem(i) => {
-        Self::MenuItem(MenuItem(Arc::new(MenuItemInner::new(app_handle, i))))
-      }
-      muda::MenuItemKind::Submenu(i) => {
-        Self::Submenu(Submenu(Arc::new(SubmenuInner::new(app_handle, i))))
-      }
-      muda::MenuItemKind::Predefined(i) => Self::Predefined(PredefinedMenuItem(Arc::new(
-        PredefinedMenuItemInner::new(app_handle, i),
-      ))),
-      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(
-        CheckMenuItemInner::new(app_handle, i),
-      ))),
-      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner::new(
-        app_handle, i,
-      )))),
     }
   }
 

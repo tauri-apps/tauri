@@ -14,6 +14,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   eslint:
     runs-on: ubuntu-latest
@@ -37,4 +40,6 @@ jobs:
           node-version: 'lts/*'
           cache: 'pnpm'
       - run: pnpm i --frozen-lockfile
+      - run: pnpm build
+        working-directory: packages/api
       - run: pnpm ts:check

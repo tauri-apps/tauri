@@ -9,13 +9,12 @@ use tauri_runtime::dpi::Position;
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{
-  command,
+  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window, command,
   image::JsImage,
-  ipc::{channel::JavaScriptChannelId, Channel},
+  ipc::{Channel, channel::JavaScriptChannelId},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   sealed::ManagerBase,
-  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window,
 };
 use tauri_macros::do_menu_item;
 
@@ -418,7 +417,9 @@ fn new<R: Runtime>(
 
     ItemKind::Predefined => {
       let item = PredefinedMenuItemPayload {
-        item: options.predefined_item.unwrap(),
+        item: options.predefined_item.ok_or_else(|| {
+          anyhow::anyhow!("the `item` option is required for a `Predefined` menu item")
+        })?,
         text: options.text,
       }
       .create_item(&webview, &resources_table)?;
@@ -486,7 +487,7 @@ fn append<R: Runtime>(
         item.with_item(&webview, &resources_table, |i| submenu.append(i))?;
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -513,7 +514,7 @@ fn prepend<R: Runtime>(
         item.with_item(&webview, &resources_table, |i| submenu.prepend(i))?;
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -543,7 +544,7 @@ fn insert<R: Runtime>(
         position += 1
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -568,7 +569,7 @@ fn remove<R: Runtime>(
       do_menu_item!(resources_table, item_rid, item_kind, |i| submenu
         .remove(&*i))?;
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -609,7 +610,7 @@ fn remove_at<R: Runtime>(
         return Ok(Some(make_item_resource!(resources_table, item)));
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(None)
@@ -625,7 +626,7 @@ fn items<R: Runtime>(
   let items = match kind {
     ItemKind::Menu => resources_table.get::<Menu<R>>(rid)?.items()?,
     ItemKind::Submenu => resources_table.get::<Submenu<R>>(rid)?.items()?,
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(
@@ -657,7 +658,7 @@ fn get<R: Runtime>(
         return Ok(Some(make_item_resource!(resources_table, item)));
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(None)
@@ -687,7 +688,7 @@ async fn popup<R: Runtime>(
         let submenu = resources_table.get::<Submenu<R>>(rid)?;
         submenu.popup_inner(window, at)?;
       }
-      _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+      _ => return Err(crate::Error::UnexpectedMenuKind),
     };
   }
 
@@ -939,4 +940,59 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_icon,
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{ItemKind, NewOptions};
+  use crate::{Manager, ipc::Channel, test::mock_app};
+
+  fn new_item(
+    webview: &crate::WebviewWindow<crate::test::MockRuntime>,
+    kind: ItemKind,
+    options: serde_json::Value,
+  ) -> crate::Result<()> {
+    let options: NewOptions = serde_json::from_value(options).unwrap();
+    super::new(
+      webview.as_ref().clone(),
+      kind,
+      Some(options),
+      webview.state(),
+      Channel::new(|_| Ok(())),
+    )
+    .map(|_| ())
+  }
+
+  #[test]
+  fn new_rejects_invalid_input_without_panicking() {
+    let app = mock_app();
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    // predefined item without the `item` option
+    let err = new_item(&webview, ItemKind::Predefined, serde_json::json!({}))
+      .unwrap_err()
+      .to_string();
+    assert!(err.contains("`item` option"), "unexpected error: {err}");
+
+    // submenu icon whose buffer does not match its dimensions
+    let res = new_item(
+      &webview,
+      ItemKind::Submenu,
+      serde_json::json!({ "icon": { "rgba": [1, 2, 3], "width": 100, "height": 100 } }),
+    );
+    assert!(res.is_err(), "invalid submenu icon should return an error");
+
+    // icon menu item with the same invalid icon
+    let res = new_item(
+      &webview,
+      ItemKind::Icon,
+      serde_json::json!({ "icon": { "rgba": [1, 2, 3], "width": 100, "height": 100 } }),
+    );
+    assert!(
+      res.is_err(),
+      "invalid menu item icon should return an error"
+    );
+  }
 }

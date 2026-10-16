@@ -3,27 +3,27 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Error, Settings,
   bundle::{
     settings::Arch,
     windows::{
       sign::{should_sign, sign_command, try_sign},
       util::{
-        download_webview2_bootstrapper, download_webview2_offline_installer, vc_runtime_dlls,
-        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
+        download_webview2_offline_installer, vc_runtime_dlls,
       },
     },
   },
-  error::{bail, ErrorExt},
+  error::{ErrorExt, bail},
   utils::{
-    http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
     CommandExt,
+    http_utils::{HashAlgorithm, download_and_verify, verify_file_hash},
   },
-  Error, Settings,
 };
 use tauri_utils::display_path;
 
 use crate::error::Context;
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
@@ -36,11 +36,11 @@ use std::{
 // URLS for the NSIS toolchain.
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
-  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip";
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.13/nsis-3.13.zip";
 #[cfg(target_os = "windows")]
-const NSIS_SHA1: &str = "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D";
-const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
+const NSIS_SHA1: &str = "DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E";
+const NSIS_EXE_SHA1: &str = "6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2";
+const NSIS_TAURI_UTILS_URL: &str = "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
 #[cfg(target_os = "windows")]
@@ -95,6 +95,21 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     log::warn!("NSIS directory is missing some files. Recreating it.");
     std::fs::remove_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
+  } else if let Err(e) = verify_file_hash(
+    nsis_toolset_path.join("NSIS.exe"),
+    NSIS_EXE_SHA1,
+    HashAlgorithm::Sha1,
+  ) {
+    log::warn!(
+      "NSIS.exe is {}. Recreating it.",
+      if matches!(e, Error::HashError) {
+        "outdated"
+      } else {
+        "missing"
+      }
+    );
+    std::fs::remove_dir_all(&nsis_toolset_path)?;
+    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else {
     let mismatched = NSIS_REQUIRED_FILES_HASH
       .iter()
@@ -128,7 +143,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
     crate::utils::http_utils::extract_zip(&data, _tauri_tools_path)?;
-    fs::rename(_tauri_tools_path.join("nsis-3.11"), nsis_toolset_path)?;
+    fs::rename(_tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
   }
 
   // download additional plugins
@@ -184,7 +199,7 @@ fn build_nsis_app_installer(
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported architecture: {target:?}"
-      )))
+      )));
     }
   };
 
@@ -409,7 +424,7 @@ fn build_nsis_app_installer(
     if let Some(minimum_webview2_version) = nsis
       .minimum_webview2_version
       .as_ref()
-      .or(settings.windows().minimum_webview2_version.as_ref())
+      .or_else(|| settings.windows().minimum_webview2_version.as_ref())
     {
       data.insert(
         "minimum_webview2_version",
@@ -479,7 +494,9 @@ fn build_nsis_app_installer(
         write_utf8_with_bom(&path, content)?;
         language_files_paths.push(path);
       } else {
-        log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`");
+        log::warn!(
+          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`"
+        );
       }
     }
   }
@@ -717,7 +734,9 @@ fn build_nsis_app_installer(
     try_sign(&nsis_installer_path, settings)?;
   } else {
     #[cfg(not(target_os = "windows"))]
-    log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+    log::warn!(
+      "Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer..."
+    );
   }
 
   Ok(vec![nsis_installer_path])

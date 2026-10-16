@@ -37,6 +37,9 @@ export default defineConfig({
           port: 1430
         }
       : undefined,
+    watch: {
+      ignored: ['**/src-tauri/**']
+    },
     fs: {
       allow: ['.', '../../packages/api/dist']
     }

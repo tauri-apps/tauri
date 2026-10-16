@@ -143,13 +143,17 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
-    std::env::set_var(
-      "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).fs_context(
-        "failed to read certificate file",
-        root_certificate_path.clone(),
-      )?,
-    );
+    // SAFETY: runs during CLI startup, before any thread that could read the
+    // environment is spawned.
+    unsafe {
+      std::env::set_var(
+        "TAURI_DEV_ROOT_CERTIFICATE",
+        std::fs::read_to_string(root_certificate_path).fs_context(
+          "failed to read certificate file",
+          root_certificate_path.clone(),
+        )?,
+      );
+    }
   }
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::OpenHarmony,
@@ -313,7 +317,7 @@ fn run_dev(
         }),
       };
 
-      let _handle = write_options(tauri_config, cli_options)?;
+      let _handle = write_options(MobileTarget::OpenHarmony, dirs.tauri, cli_options)?;
 
       inject_resources(config, tauri_config)?;
 

@@ -17,7 +17,7 @@ use std::path::Path;
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile/open-harmony");
 
-pub fn gen(
+pub fn generate(
   app: &App,
   config: &Config,
   (handlebars, mut map): (Handlebars, template::JsonMap),

@@ -216,7 +216,7 @@ fn run_build(
     config: build_options.config,
     target_device: None,
   };
-  let handle = write_options(tauri_config, cli_options)?;
+  let handle = write_options(MobileTarget::OpenHarmony, tauri_dir, cli_options)?;
 
   inject_resources(config, tauri_config)?;
 

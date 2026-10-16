@@ -153,13 +153,17 @@ pub fn get_config(
     ..Default::default()
   };
 
-  set_var(
-    "WRY_OHOS_PACKAGE",
-    app.android_identifier_escape_kotlin_keyword(),
-  );
-  set_var("TAURI_OHOS_PACKAGE_UNESCAPED", app.identifier());
-  set_var("WRY_OHOS_LIBRARY", app.lib_name());
-  set_var("TAURI_OHOS_PROJECT_PATH", config.project_dir());
+  // SAFETY: these variables are only consumed by the build scripts spawned for this
+  // project, and this runs before those are started.
+  unsafe {
+    set_var(
+      "WRY_OHOS_PACKAGE",
+      app.android_identifier_escape_kotlin_keyword(),
+    );
+    set_var("TAURI_OHOS_PACKAGE_UNESCAPED", app.identifier());
+    set_var("WRY_OHOS_LIBRARY", app.lib_name());
+    set_var("TAURI_OHOS_PROJECT_PATH", config.project_dir());
+  }
 
   (config, metadata)
 }
@@ -173,7 +177,9 @@ pub fn env() -> Result<Env> {
 fn delete_codegen_vars() {
   for (k, _) in std::env::vars() {
     if k.starts_with("WRY_") && (k.ends_with("CLASS_EXTENSION") || k.ends_with("CLASS_INIT")) {
-      std::env::remove_var(k);
+      // SAFETY: called during CLI startup, before any thread that could read the
+      // environment is spawned.
+      unsafe { std::env::remove_var(k) };
     }
   }
 }

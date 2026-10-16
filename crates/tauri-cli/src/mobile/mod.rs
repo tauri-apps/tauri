@@ -397,6 +397,7 @@ fn options_server_file(target: Target, tauri_dir: &Path) -> PathBuf {
     Target::Android => "android",
     #[cfg(target_os = "macos")]
     Target::Ios => "apple",
+    Target::OpenHarmony => "ohos",
   };
   tauri_dir
     .join("gen")

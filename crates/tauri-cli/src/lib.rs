@@ -29,7 +29,7 @@ mod plugin;
 mod remove;
 mod signer;
 
-use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
 use env_logger::Builder;
 use env_logger::fmt::style::{AnsiColor, Style};
 pub use error::{Error, ErrorExt, Result};
@@ -38,8 +38,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
 use std::process::{Command, ExitStatus, Output, Stdio, exit};
 use std::{
-  ffi::OsString, fmt::Display, fs::read_to_string, io::BufRead, path::PathBuf, str::FromStr,
-  sync::{Arc, Mutex},
+  ffi::OsString, fs::read_to_string, io::BufRead, path::PathBuf, str::FromStr,
 };
 
 use crate::error::Context;

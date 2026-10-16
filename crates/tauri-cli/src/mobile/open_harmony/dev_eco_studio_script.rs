@@ -48,7 +48,7 @@ pub fn command(options: Options) -> Result<()> {
 
   let mut tauri_config =
     get_tauri_config(tauri_utils::platform::Target::OpenHarmony, &[], dirs.tauri)?;
-  let cli_options = read_options(&tauri_config);
+  let cli_options = read_options(MobileTarget::OpenHarmony, dirs.tauri)?;
 
   if !cli_options.config.is_empty() {
     // reload config with merges from the ohos dev|build script

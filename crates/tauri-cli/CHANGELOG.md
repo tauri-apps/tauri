@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.12.3]
+
+### Enhancements
+
+- [`107f93ae0`](https://www.github.com/tauri-apps/tauri/commit/107f93ae0b8bbcd3eec4f8af848034272a67b849) ([#16259](https://www.github.com/tauri-apps/tauri/pull/16259)) Standalone Linux ARM64 GNU and musl CLI archives are now included in releases.
+
+### Bug Fixes
+
+- [`c95be4615`](https://www.github.com/tauri-apps/tauri/commit/c95be4615a432b1d12409d3684c960e8aa718ada) ([#16287](https://www.github.com/tauri-apps/tauri/pull/16287)) Fix `tauri ios xcode-script` failing to find the Tauri project when Xcode inherits package manager environment variables from `tauri ios dev --open`, or when pnpm runs the CLI directly from the `gen/apple` folder.
+- [`d62e5d9c0`](https://www.github.com/tauri-apps/tauri/commit/d62e5d9c0878b6fb327543cc9be50aa1696ee23c) ([#16184](https://www.github.com/tauri-apps/tauri/pull/16184)) Fix NSIS installer leaving `uninstall.exe` and the installation directory behind when uninstalling an existing installation from the installer.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-macos-sign@2.4.2`
+- Upgraded to `tauri-bundler@2.10.3`
+- [`5a2953e55`](https://www.github.com/tauri-apps/tauri/commit/5a2953e555b4444bed68bd5324ea13ad85a6c06e) ([#16237](https://www.github.com/tauri-apps/tauri/pull/16237)) Updated NSIS to 3.13
+
 ## [2.12.2]
 
 ### Bug Fixes

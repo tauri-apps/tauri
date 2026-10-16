@@ -3658,6 +3658,9 @@ pub struct AppConfig {
   /// Since `useHttpsScheme` is forced, the other custom protocols (`asset`, `ipc` and plugin protocols) and
   /// `convertFileSrc` also move from `http://<protocol>.localhost` to `https://<protocol>.localhost`,
   /// so Content Security Policy sources such as `http://asset.localhost` must use `https://` instead.
+  ///
+  /// `http(s)://tauri.localhost` no longer serves the app, so hardcoded URLs such as navigation targets
+  /// or OAuth redirect URIs must use `https://<androidTauriProtocolHostname>` instead.
   #[serde(alias = "android-tauri-protocol-hostname")]
   pub android_tauri_protocol_hostname: Option<AndroidHostname>,
 }

@@ -3654,6 +3654,10 @@ pub struct AppConfig {
   ///
   /// Setting or changing this value changes the app origin, so the app can't access its old IndexedDB, cookies
   /// and localStorage. Backend CORS rules and Content Security Policy sources must allow the new origin.
+  ///
+  /// Since `useHttpsScheme` is forced, the other custom protocols (`asset`, `ipc` and plugin protocols) and
+  /// `convertFileSrc` also move from `http://<protocol>.localhost` to `https://<protocol>.localhost`,
+  /// so Content Security Policy sources such as `http://asset.localhost` must use `https://` instead.
   #[serde(alias = "android-tauri-protocol-hostname")]
   pub android_tauri_protocol_hostname: Option<AndroidHostname>,
 }

@@ -1320,7 +1320,7 @@ struct MainThreadDispatch<T: UserEvent> {
   event_loop: *const dyn ActiveEventLoop,
 }
 
-pub(crate) struct MainThreadDispatchSlot<T: UserEvent> {
+struct MainThreadDispatchSlot<T: UserEvent> {
   current: AtomicPtr<MainThreadDispatch<T>>,
   /// Whether winit's proxy still has to be signalled, see [`Self::deliver_wake`].
   #[cfg(target_os = "macos")]

@@ -2957,13 +2957,14 @@ mod tests {
       );
     }
 
-    if let Err(e) = invoke("https://app.example.com") {
-      let msg = e.to_string();
-      assert!(
-        !msg.contains("not allowed"),
-        "the app origin must not be rejected by the ACL, got: {msg}"
-      );
-    }
+    // the ACL lets the app origin through, so the unregistered command is looked up and not found
+    let err = invoke("https://app.example.com")
+      .expect_err("unregistered command must fail")
+      .to_string();
+    assert!(
+      err.contains("Command any_custom_command not found"),
+      "the app origin must reach command lookup, got: {err}"
+    );
   }
 
   #[cfg(target_os = "macos")]

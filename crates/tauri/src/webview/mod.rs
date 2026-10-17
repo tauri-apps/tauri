@@ -1964,7 +1964,9 @@ tauri::Builder::default()
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
-    let uses_https = current_url.scheme() == "https";
+    // webview serves `http(s)://<protocol>.localhost` on the configured scheme only,
+    // the other scheme goes to the network where `*.localhost` resolves to loopback
+    let uses_https = self.use_https_scheme;
 
     // if from `tauri://` custom protocol
     (match &self.manager().custom_app_origin {
@@ -1996,7 +1998,7 @@ tauri::Builder::default()
         #[cfg(any(windows, target_os = "android"))]
         let local = {
           // the custom app origin is always https, but other protocols follow `use_https_scheme`
-          let scheme = matches!(scheme, "http" | "https");
+          let scheme = scheme == if uses_https { "https" } else { "http" };
           let protocol = crate::protocol::localhost_protocol(
             current_url,
             self.manager().custom_app_origin.is_some(),
@@ -2750,7 +2752,23 @@ mod tests {
     assert!(webview.is_local_url(&Url::parse("tauri://localhost/").unwrap()));
 
     #[cfg(any(windows, target_os = "android"))]
-    assert!(webview.is_local_url(&Url::parse("https://tauri.localhost/").unwrap()));
+    {
+      assert!(webview.is_local_url(&Url::parse("http://tauri.localhost/").unwrap()));
+      // wry doesn't serve the other scheme, it reaches whatever listens on loopback
+      assert!(!webview.is_local_url(&Url::parse("https://tauri.localhost/").unwrap()));
+
+      let https = crate::WebviewWindowBuilder::new(
+        &webview.app_handle,
+        "https",
+        crate::WebviewUrl::default(),
+      )
+      .use_https_scheme(true)
+      .build()
+      .unwrap()
+      .webview;
+      assert!(https.is_local_url(&Url::parse("https://tauri.localhost/").unwrap()));
+      assert!(!https.is_local_url(&Url::parse("http://tauri.localhost/").unwrap()));
+    }
   }
 
   // On Windows/Android, custom protocols are served as `https://<name>.localhost/`.
@@ -2775,13 +2793,16 @@ mod tests {
     let url = |s| Url::parse(s).unwrap();
 
     // Legitimate Windows custom protocol URL
-    assert!(webview.is_local_url(&url("https://myproto.localhost/")));
+    assert!(webview.is_local_url(&url("http://myproto.localhost/")));
+
+    // The scheme the webview doesn't use is not served by wry — must NOT be local.
+    assert!(!webview.is_local_url(&url("https://myproto.localhost/")));
 
     // Attacker domain that starts with a registered protocol name — must NOT be local.
-    assert!(!webview.is_local_url(&url("https://myproto.evil.com/")));
+    assert!(!webview.is_local_url(&url("http://myproto.evil.com/")));
 
     // Subdomain of .localhost with unregistered name — must NOT be local
-    assert!(!webview.is_local_url(&url("https://notregistered.localhost/")));
+    assert!(!webview.is_local_url(&url("http://notregistered.localhost/")));
   }
 
   /// Custom (non-plugin) commands must be rejected when the IPC request
@@ -2919,7 +2940,7 @@ mod tests {
     #[cfg(any(windows, target_os = "android"))]
     {
       assert!(webview.is_local_url(&url("http://custom.localhost/")));
-      assert!(webview.is_local_url(&url("https://custom.localhost/")));
+      assert!(!webview.is_local_url(&url("https://custom.localhost/")));
     }
 
     for remote in [

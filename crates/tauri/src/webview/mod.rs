@@ -1994,7 +1994,8 @@ tauri::Builder::default()
         // so we check using the first part of the domain
         #[cfg(any(windows, target_os = "android"))]
         let local = {
-          let scheme = scheme == self.manager().tauri_protocol_url(uses_https).scheme();
+          // the custom app origin is always https, but other protocols follow `use_https_scheme`
+          let scheme = matches!(scheme, "http" | "https");
           let protocol = crate::protocol::localhost_protocol(
             current_url,
             self.manager().custom_app_origin.is_some(),
@@ -2891,7 +2892,8 @@ mod tests {
     // a user `tauri` protocol must not make `tauri.localhost` local again
     let app = android_tauri_protocol_hostname_app(
       crate::test::mock_builder()
-        .register_uri_scheme_protocol("tauri", |_, _| http::Response::new(Vec::new())),
+        .register_uri_scheme_protocol("tauri", |_, _| http::Response::new(Vec::new()))
+        .register_uri_scheme_protocol("custom", |_, _| http::Response::new(Vec::new())),
     );
     let webview = crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
       .build()
@@ -2904,6 +2906,12 @@ mod tests {
     assert!(webview.is_local_url(&url("https://APP.example.com:443/index.html?q=1#top")));
     // userinfo is not part of the origin, wry answers such requests with 403 Forbidden
     assert!(webview.is_local_url(&url("https://user@app.example.com/")));
+    // other protocols keep their `http(s)://<protocol>.localhost` URLs
+    #[cfg(any(windows, target_os = "android"))]
+    {
+      assert!(webview.is_local_url(&url("http://custom.localhost/")));
+      assert!(webview.is_local_url(&url("https://custom.localhost/")));
+    }
 
     for remote in [
       "http://app.example.com/",

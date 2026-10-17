@@ -3313,7 +3313,7 @@ const ANDROID_HOSTNAME_SPECIAL_USE_TLDS: &[&str] = &[
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(try_from = "String")]
-pub struct AndroidHostname(
+pub struct Hostname(
   #[cfg_attr(
     feature = "schema",
     validate(
@@ -3326,20 +3326,20 @@ pub struct AndroidHostname(
   String,
 );
 
-impl AndroidHostname {
+impl Hostname {
   /// The hostname, e.g. `app.example.com`.
   pub fn as_str(&self) -> &str {
     &self.0
   }
 }
 
-impl fmt::Display for AndroidHostname {
+impl fmt::Display for Hostname {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.write_str(&self.0)
   }
 }
 
-impl FromStr for AndroidHostname {
+impl FromStr for Hostname {
   type Err = String;
 
   fn from_str(hostname: &str) -> Result<Self, Self::Err> {
@@ -3356,7 +3356,7 @@ impl FromStr for AndroidHostname {
   }
 }
 
-impl TryFrom<String> for AndroidHostname {
+impl TryFrom<String> for Hostname {
   type Error = String;
 
   fn try_from(hostname: String) -> Result<Self, Self::Error> {
@@ -3662,7 +3662,7 @@ pub struct AppConfig {
   /// `http(s)://tauri.localhost` no longer serves the app, so hardcoded URLs such as navigation targets
   /// or OAuth redirect URIs must use `https://<androidTauriProtocolHostname>` instead.
   #[serde(alias = "android-tauri-protocol-hostname")]
-  pub android_tauri_protocol_hostname: Option<AndroidHostname>,
+  pub android_tauri_protocol_hostname: Option<Hostname>,
 }
 
 impl AppConfig {
@@ -5112,11 +5112,11 @@ mod build {
     }
   }
 
-  impl ToTokens for AndroidHostname {
+  impl ToTokens for Hostname {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let hostname = self.as_str();
       tokens.append_all(
-        quote! { ::tauri::utils::config::AndroidHostname::try_from(#hostname.to_string()).unwrap() },
+        quote! { ::tauri::utils::config::Hostname::try_from(#hostname.to_string()).unwrap() },
       )
     }
   }
@@ -5411,7 +5411,7 @@ mod test {
       &longest_label,
       &longest,
     ] {
-      let parsed: AndroidHostname = serde_json::from_str(&format!(r#""{hostname}""#))
+      let parsed: Hostname = serde_json::from_str(&format!(r#""{hostname}""#))
         .unwrap_or_else(|e| panic!("{hostname}: {e}"));
       assert_eq!(parsed.as_str(), hostname);
     }
@@ -5459,7 +5459,7 @@ mod test {
       &too_long,
     ] {
       assert!(
-        hostname.parse::<AndroidHostname>().is_err(),
+        hostname.parse::<Hostname>().is_err(),
         "`{hostname}` must be rejected"
       );
     }
@@ -5475,7 +5475,7 @@ mod test {
       ("app.example.com.", "app.example.com"),
       ("bücher.de", "xn--bcher-kva.de"),
     ] {
-      let err = input.parse::<AndroidHostname>().unwrap_err();
+      let err = input.parse::<Hostname>().unwrap_err();
       assert!(
         err.ends_with(&format!(". Use `{suggestion}` instead")),
         "{input}: {err}"
@@ -5483,7 +5483,7 @@ mod test {
     }
 
     for input in ["app.local", "http://localhost/", "127.0.0.1", "app"] {
-      let err = input.parse::<AndroidHostname>().unwrap_err();
+      let err = input.parse::<Hostname>().unwrap_err();
       assert!(!err.contains("Use `"), "{input}: {err}");
     }
   }
@@ -5522,7 +5522,7 @@ mod test {
   #[cfg(feature = "schema")]
   #[test]
   fn android_tauri_protocol_hostname_schema_pattern() {
-    let schema = schemars::schema_for!(AndroidHostname).schema;
+    let schema = schemars::schema_for!(Hostname).schema;
     let pattern = schema.string.unwrap().pattern.unwrap();
     let pattern = regex::Regex::new(&pattern).unwrap();
 
@@ -5533,7 +5533,7 @@ mod test {
       "123.example.com",
       &longest,
     ] {
-      assert!(valid.parse::<AndroidHostname>().is_ok(), "{valid}");
+      assert!(valid.parse::<Hostname>().is_ok(), "{valid}");
       assert!(pattern.is_match(valid), "{valid}");
     }
     for invalid in [
@@ -5554,14 +5554,14 @@ mod test {
     use quote::ToTokens;
 
     let tokens = "app.example.com"
-      .parse::<AndroidHostname>()
+      .parse::<Hostname>()
       .unwrap()
       .to_token_stream()
       .to_string()
       .replace(' ', "");
     assert_eq!(
       tokens,
-      r#"::tauri::utils::config::AndroidHostname::try_from("app.example.com".to_string()).unwrap()"#
+      r#"::tauri::utils::config::Hostname::try_from("app.example.com".to_string()).unwrap()"#
     );
   }
 

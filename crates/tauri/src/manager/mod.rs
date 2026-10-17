@@ -291,7 +291,7 @@ impl<R: Runtime> AppManager<R> {
       .as_ref()
       .filter(|_| cfg!(any(target_os = "android", test)))
       .map(|hostname| {
-        Url::parse(&format!("https://{hostname}")).expect("`AndroidHostname` is a valid URL host")
+        Url::parse(&format!("https://{hostname}")).expect("`Hostname` is a valid URL host")
       });
 
     Self {

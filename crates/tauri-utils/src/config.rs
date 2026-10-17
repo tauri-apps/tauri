@@ -2212,7 +2212,8 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android**: Always `true` when `app > androidTauriProtocolHostname` is set.
+  /// - **Android**: When `app > androidTauriProtocolHostname` is set, the app itself is always served from
+  ///   `https://<androidTauriProtocolHostname>`; this setting only applies to the other custom protocols.
   #[serde(default, alias = "use-https-scheme")]
   pub use_https_scheme: bool,
   /// Enable web inspector which is usually called browser devtools. Enabled by default.
@@ -3643,7 +3644,8 @@ pub struct AppConfig {
   /// services can link webview credentials to the app through [Digital Asset Links](https://developers.google.com/digital-asset-links).
   ///
   /// The value is a lowercase domain name such as `app.example.com`, without a scheme, port or path.
-  /// Tauri forces `useHttpsScheme` to `true` and trusts only this exact origin for IPC.
+  /// Tauri trusts only this exact origin for IPC. The other custom protocols (`asset`, `ipc` and plugin protocols)
+  /// keep their `http(s)://<protocol>.localhost` URLs, following `useHttpsScheme`.
   ///
   /// ## Security
   ///
@@ -3654,10 +3656,6 @@ pub struct AppConfig {
   ///
   /// Setting or changing this value changes the app origin, so the app can't access its old IndexedDB, cookies
   /// and localStorage. Backend CORS rules and Content Security Policy sources must allow the new origin.
-  ///
-  /// Since `useHttpsScheme` is forced, the other custom protocols (`asset`, `ipc` and plugin protocols) and
-  /// `convertFileSrc` also move from `http://<protocol>.localhost` to `https://<protocol>.localhost`,
-  /// so Content Security Policy sources such as `http://asset.localhost` must use `https://` instead.
   ///
   /// `http(s)://tauri.localhost` no longer serves the app, so hardcoded URLs such as navigation targets
   /// or OAuth redirect URIs must use `https://<androidTauriProtocolHostname>` instead.

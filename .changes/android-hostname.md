@@ -5,4 +5,4 @@
 "tauri-runtime-wry": minor:feat
 ---
 
-Added `app > androidTauriProtocolHostname` config to serve the Android app from `https://<androidTauriProtocolHostname>` instead of `http(s)://tauri.localhost`, so autofill services can link webview credentials to the app through Digital Asset Links. Setting it forces `useHttpsScheme` to `true`.
+Added `app > androidTauriProtocolHostname` config to serve the Android app from `https://<androidTauriProtocolHostname>` instead of `http(s)://tauri.localhost`, so autofill services can link webview credentials to the app through Digital Asset Links. The other custom protocols keep following `useHttpsScheme`.

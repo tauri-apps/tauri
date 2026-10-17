@@ -1176,7 +1176,8 @@ fn main() {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android**: Always `true` when `app > androidTauriProtocolHostname` is set.
+  /// - **Android**: When `app > androidTauriProtocolHostname` is set, the app itself is always served from
+  ///   `https://<androidTauriProtocolHostname>`; this setting only applies to the other custom protocols.
   #[must_use]
   pub fn use_https_scheme(mut self, enabled: bool) -> Self {
     self.webview_attributes.use_https_scheme = enabled;
@@ -2860,7 +2861,15 @@ mod tests {
       .build()
       .unwrap();
     assert_eq!(main.url().unwrap().as_str(), "https://app.example.com/");
-    assert!(main.webview.use_https_scheme());
+    // the custom app origin doesn't force https on the other protocols
+    assert!(!main.webview.use_https_scheme());
+
+    let https = crate::WebviewWindowBuilder::new(&app, "https", crate::WebviewUrl::default())
+      .use_https_scheme(true)
+      .build()
+      .unwrap();
+    assert_eq!(https.url().unwrap().as_str(), "https://app.example.com/");
+    assert!(https.webview.use_https_scheme());
 
     let page = crate::WebviewWindowBuilder::new(
       &app,

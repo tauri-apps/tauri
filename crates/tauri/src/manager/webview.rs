@@ -486,11 +486,10 @@ impl<R: Runtime> WebviewManager<R> {
       WebviewUrl::External(url) => {
         let config_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let is_app_url = config_url.make_relative(url).is_some();
-        let url = url.clone();
-        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
+        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(url) {
           Url::parse("tauri://localhost").unwrap()
         } else {
-          url
+          url.clone()
         }
       }
 
@@ -505,8 +504,10 @@ impl<R: Runtime> WebviewManager<R> {
           "`app > androidTauriProtocolHostname` requires `build > devUrl` in development",
         ));
       }
-      pending.webview_attributes.android_tauri_protocol_hostname =
-        origin.host_str().map(ToOwned::to_owned);
+      pending
+        .webview_attributes
+        .android_tauri_protocol_hostname
+        .clone_from(&app_manager.config.app.android_tauri_protocol_hostname);
       url = crate::protocol::with_custom_app_origin(url, origin);
     }
 

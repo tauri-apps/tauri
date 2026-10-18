@@ -52,21 +52,11 @@ pub(crate) fn with_custom_app_origin(url: Url, custom_app_origin: &Url) -> Url {
   app_url
 }
 
-/// The protocol of an `http(s)://<protocol>.localhost` URL on Windows and Android,
-/// skipping `tauri` when wry serves it from the custom app origin.
-#[cfg(any(windows, target_os = "android", test))]
-pub(crate) fn localhost_protocol(url: &Url, has_custom_app_origin: bool) -> Option<&str> {
-  url
-    .domain()
-    .and_then(|domain| domain.strip_suffix(".localhost"))
-    .filter(|protocol| !(has_custom_app_origin && *protocol == "tauri"))
-}
-
 #[cfg(test)]
 mod tests {
   use url::Url;
 
-  use super::{localhost_protocol, with_custom_app_origin};
+  use super::with_custom_app_origin;
 
   fn url(url: &str) -> Url {
     Url::parse(url).unwrap()
@@ -101,21 +91,6 @@ mod tests {
         with_custom_app_origin(url(unchanged), &origin).as_str(),
         unchanged
       );
-    }
-  }
-
-  #[test]
-  fn tauri_localhost_is_not_a_protocol_with_custom_app_origin() {
-    for (input, unmapped, mapped) in [
-      ("https://tauri.localhost/", Some("tauri"), None),
-      ("http://tauri.localhost/", Some("tauri"), None),
-      ("https://TAURI.localhost:8443/", Some("tauri"), None),
-      ("https://custom.localhost/", Some("custom"), Some("custom")),
-      ("https://app.example.com/", None, None),
-    ] {
-      let url = url(input);
-      assert_eq!(localhost_protocol(&url, false), unmapped, "{input}");
-      assert_eq!(localhost_protocol(&url, true), mapped, "{input}");
     }
   }
 

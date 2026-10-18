@@ -1999,12 +1999,12 @@ tauri::Builder::default()
         let local = {
           // the custom app origin is always https, but other protocols follow `use_https_scheme`
           let scheme = scheme == if uses_https { "https" } else { "http" };
-          let protocol = crate::protocol::localhost_protocol(
-            current_url,
-            self.manager().custom_app_origin.is_some(),
-          )
-          .map(|protocol| protocols.contains_key(protocol))
-          .unwrap_or_default();
+          // `tauri` is checked above, and is not served from `tauri.localhost` with a custom app origin
+          let protocol = current_url
+            .domain()
+            .and_then(|d| d.strip_suffix(".localhost"))
+            .filter(|protocol| *protocol != "tauri")
+            .is_some_and(|protocol| protocols.contains_key(protocol));
 
           scheme && protocol
         };
@@ -2805,14 +2805,32 @@ mod tests {
     assert!(!webview.is_local_url(&url("http://notregistered.localhost/")));
   }
 
+  /// Invokes the unregistered `any_custom_command` from `url`.
+  fn invoke_custom_command(
+    webview: &crate::WebviewWindow<crate::test::MockRuntime>,
+    url: &str,
+  ) -> Result<crate::ipc::InvokeResponseBody, serde_json::Value> {
+    crate::test::get_ipc_response(
+      webview,
+      crate::webview::InvokeRequest {
+        cmd: "any_custom_command".into(),
+        callback: crate::ipc::CallbackFn(0),
+        error: crate::ipc::CallbackFn(1),
+        url: url.parse().unwrap(),
+        body: crate::ipc::InvokeBody::default(),
+        headers: Default::default(),
+        invoke_key: crate::test::INVOKE_KEY.to_string(),
+      },
+    )
+  }
+
   /// Custom (non-plugin) commands must be rejected when the IPC request
   /// originates from a remote URL, even when no `AppManifest` has been
   /// configured.  Only local (bundled) origins should be able to reach
   /// custom commands.
   #[test]
   fn remote_origin_blocked_for_custom_commands_without_app_manifest() {
-    use crate::test::{INVOKE_KEY, mock_builder, mock_context, noop_assets};
-    use crate::webview::InvokeRequest;
+    use crate::test::{mock_builder, mock_context, noop_assets};
 
     let app = mock_builder().build(mock_context(noop_assets())).unwrap();
 
@@ -2822,18 +2840,7 @@ mod tests {
 
     // Request from a remote origin for a custom (non-plugin) command
     // - should be rejected even without an AppManifest.
-    let remote_result = crate::test::get_ipc_response(
-      &webview,
-      InvokeRequest {
-        cmd: "any_custom_command".into(),
-        callback: crate::ipc::CallbackFn(0),
-        error: crate::ipc::CallbackFn(1),
-        url: "https://evil.com".parse().unwrap(),
-        body: crate::ipc::InvokeBody::default(),
-        headers: Default::default(),
-        invoke_key: INVOKE_KEY.to_string(),
-      },
-    );
+    let remote_result = invoke_custom_command(&webview, "https://evil.com");
     assert!(
       remote_result.is_err(),
       "custom command should be rejected from a remote origin"
@@ -2842,18 +2849,7 @@ mod tests {
     // Same command from the local origin - should NOT be rejected by the
     // remote-origin guard (it may still fail because the command doesn't
     // exist, but the error message will be different).
-    let local_result = crate::test::get_ipc_response(
-      &webview,
-      InvokeRequest {
-        cmd: "any_custom_command".into(),
-        callback: crate::ipc::CallbackFn(0),
-        error: crate::ipc::CallbackFn(1),
-        url: "tauri://localhost".parse().unwrap(),
-        body: crate::ipc::InvokeBody::default(),
-        headers: Default::default(),
-        invoke_key: INVOKE_KEY.to_string(),
-      },
-    );
+    let local_result = invoke_custom_command(&webview, "tauri://localhost");
     // The local request should either succeed or fail for a reason OTHER
     // than "not allowed from remote context".
     if let Err(e) = &local_result {
@@ -2878,43 +2874,42 @@ mod tests {
   fn android_tauri_protocol_hostname_serves_app_from_custom_origin() {
     let app = android_tauri_protocol_hostname_app(crate::test::mock_builder());
 
-    let main = crate::WebviewWindowBuilder::new(&app, "main", crate::WebviewUrl::default())
-      .build()
-      .unwrap();
-    assert_eq!(main.url().unwrap().as_str(), "https://app.example.com/");
-    // the custom app origin doesn't force https on the other protocols
-    assert!(!main.webview.use_https_scheme());
-
-    let https = crate::WebviewWindowBuilder::new(&app, "https", crate::WebviewUrl::default())
-      .use_https_scheme(true)
-      .build()
-      .unwrap();
-    assert_eq!(https.url().unwrap().as_str(), "https://app.example.com/");
-    assert!(https.webview.use_https_scheme());
-
-    let page = crate::WebviewWindowBuilder::new(
-      &app,
-      "page",
-      crate::WebviewUrl::App("nested/page.html".into()),
-    )
-    .build()
-    .unwrap();
-    assert_eq!(
-      page.url().unwrap().as_str(),
-      "https://app.example.com/nested/page.html"
-    );
-
-    let custom_protocol = crate::WebviewWindowBuilder::new(
-      &app,
-      "custom-protocol",
-      crate::WebviewUrl::CustomProtocol(Url::parse("tauri://localhost/page.html?q=1#top").unwrap()),
-    )
-    .build()
-    .unwrap();
-    assert_eq!(
-      custom_protocol.url().unwrap().as_str(),
-      "https://app.example.com/page.html?q=1#top"
-    );
+    for (label, url, https, expected) in [
+      (
+        "main",
+        crate::WebviewUrl::default(),
+        false,
+        "https://app.example.com/",
+      ),
+      (
+        "https",
+        crate::WebviewUrl::default(),
+        true,
+        "https://app.example.com/",
+      ),
+      (
+        "page",
+        crate::WebviewUrl::App("nested/page.html".into()),
+        false,
+        "https://app.example.com/nested/page.html",
+      ),
+      (
+        "custom-protocol",
+        crate::WebviewUrl::CustomProtocol(
+          Url::parse("tauri://localhost/page.html?q=1#top").unwrap(),
+        ),
+        false,
+        "https://app.example.com/page.html?q=1#top",
+      ),
+    ] {
+      let window = crate::WebviewWindowBuilder::new(&app, label, url)
+        .use_https_scheme(https)
+        .build()
+        .unwrap();
+      assert_eq!(window.url().unwrap().as_str(), expected, "{label}");
+      // the custom app origin doesn't force https on the other protocols
+      assert_eq!(window.webview.use_https_scheme(), https, "{label}");
+    }
   }
 
   #[test]
@@ -2964,28 +2959,11 @@ mod tests {
 
   #[test]
   fn android_tauri_protocol_hostname_remote_origin_blocked_for_custom_commands() {
-    use crate::test::INVOKE_KEY;
-    use crate::webview::InvokeRequest;
-
     let app = android_tauri_protocol_hostname_app(crate::test::mock_builder());
     let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
       .build()
       .unwrap();
-
-    let invoke = |url: &str| {
-      crate::test::get_ipc_response(
-        &webview,
-        InvokeRequest {
-          cmd: "any_custom_command".into(),
-          callback: crate::ipc::CallbackFn(0),
-          error: crate::ipc::CallbackFn(1),
-          url: url.parse().unwrap(),
-          body: crate::ipc::InvokeBody::default(),
-          headers: Default::default(),
-          invoke_key: INVOKE_KEY.to_string(),
-        },
-      )
-    };
+    let invoke = |url| invoke_custom_command(&webview, url);
 
     for remote in ["http://app.example.com", "https://app.example.com:8443"] {
       let err = invoke(remote).expect_err("custom command must be rejected from a remote origin");

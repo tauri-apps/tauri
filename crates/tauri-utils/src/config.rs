@@ -3344,16 +3344,7 @@ impl FromStr for Hostname {
   type Err = String;
 
   fn from_str(hostname: &str) -> Result<Self, Self::Err> {
-    validate_android_tauri_protocol_hostname(hostname)
-      .map(|()| Self(hostname.to_owned()))
-      .map_err(|reason| {
-        let suggestion = suggest_android_tauri_protocol_hostname(hostname)
-          .map(|suggestion| format!(". Use `{suggestion}` instead"))
-          .unwrap_or_default();
-        format!(
-          "invalid `app > androidTauriProtocolHostname` `{hostname}`: it {reason}{suggestion}"
-        )
-      })
+    hostname.to_owned().try_into()
   }
 }
 
@@ -3361,7 +3352,17 @@ impl TryFrom<String> for Hostname {
   type Error = String;
 
   fn try_from(hostname: String) -> Result<Self, Self::Error> {
-    hostname.parse()
+    match validate_android_tauri_protocol_hostname(&hostname) {
+      Ok(()) => Ok(Self(hostname)),
+      Err(reason) => {
+        let suggestion = suggest_android_tauri_protocol_hostname(&hostname)
+          .map(|suggestion| format!(". Use `{suggestion}` instead"))
+          .unwrap_or_default();
+        Err(format!(
+          "invalid `app > androidTauriProtocolHostname` `{hostname}`: it {reason}{suggestion}"
+        ))
+      }
+    }
   }
 }
 
@@ -5394,11 +5395,10 @@ mod test {
     );
   }
 
-  #[test]
-  fn android_tauri_protocol_hostname_accepts_domain_names() {
+  fn valid_android_tauri_protocol_hostnames() -> Vec<String> {
     let longest = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(61));
     let longest_label = format!("{}.com", "a".repeat(63));
-    for hostname in [
+    [
       "app.example.com",
       "example.com",
       "my-app.example.co.uk",
@@ -5408,7 +5408,14 @@ mod test {
       "xn--bcher-kva.de",
       &longest_label,
       &longest,
-    ] {
+    ]
+    .map(ToOwned::to_owned)
+    .to_vec()
+  }
+
+  #[test]
+  fn android_tauri_protocol_hostname_accepts_domain_names() {
+    for hostname in valid_android_tauri_protocol_hostnames() {
       let parsed: Hostname = serde_json::from_str(&format!(r#""{hostname}""#))
         .unwrap_or_else(|e| panic!("{hostname}: {e}"));
       assert_eq!(parsed.as_str(), hostname);
@@ -5524,15 +5531,8 @@ mod test {
     let pattern = schema.string.unwrap().pattern.unwrap();
     let pattern = regex::Regex::new(&pattern).unwrap();
 
-    let longest = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(61));
-    for valid in [
-      "app.example.com",
-      "my-app.example.co.uk",
-      "123.example.com",
-      &longest,
-    ] {
-      assert!(valid.parse::<Hostname>().is_ok(), "{valid}");
-      assert!(pattern.is_match(valid), "{valid}");
+    for valid in valid_android_tauri_protocol_hostnames() {
+      assert!(pattern.is_match(&valid), "{valid}");
     }
     for invalid in [
       "com",

@@ -11,7 +11,7 @@ use crate::{Rect, Runtime, UserEvent, window::is_label_valid};
 
 use http::Request;
 use tauri_utils::config::{
-  BackgroundThrottlingPolicy, Color, ScrollBarStyle as ConfigScrollBarStyle, WebviewUrl,
+  BackgroundThrottlingPolicy, Color, Hostname, ScrollBarStyle as ConfigScrollBarStyle, WebviewUrl,
   WindowConfig, WindowEffectsConfig,
 };
 use url::Url;
@@ -411,7 +411,7 @@ pub struct WebviewAttributes {
   #[cfg(target_os = "ios")]
   pub limit_navigations_to_app_bound_domains: bool,
   /// Serves the `tauri` protocol from `https://<android_tauri_protocol_hostname>` instead of `http(s)://tauri.localhost` on Android.
-  pub android_tauri_protocol_hostname: Option<String>,
+  pub android_tauri_protocol_hostname: Option<Hostname>,
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].

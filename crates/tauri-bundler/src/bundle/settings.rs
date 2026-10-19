@@ -331,7 +331,7 @@ pub struct IosSettings {
 pub struct PacmanSettings {
   /// List of softwares that must be installed for the app to build and run.
   ///
-  /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>
   pub depends: Option<Vec<String>>,
   /// Additional packages that are provided by this app.
   ///
@@ -349,6 +349,14 @@ pub struct PacmanSettings {
   pub replaces: Option<Vec<String>>,
   /// Source of the package to be stored at PKGBUILD.
   /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  ///
+  /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
+  /// first entry to its download URL, for instance
+  /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
+  /// `${pkgver}` has `-` replaced with `_`, `${_pkgver}` is the app version as is.
+  /// The first entry is saved under the archive name and its checksum is written to
+  /// `sha512sums`. Additional entries are not verified (`SKIP`).
+  /// Defaults to the local archive file name.
   pub source: Option<Vec<String>>,
 }
 

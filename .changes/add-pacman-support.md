@@ -6,4 +6,4 @@
 "@tauri-apps/api": minor:feat
 ---
 
-Add Arch Linux package manager, `pacman` support for Tauri Bundler.
+Add the `pacman` bundle target for Arch Linux. It produces a `.tar.gz` archive with a `PKGBUILD` and `.SRCINFO` ready to be published to the AUR; see `bundle > linux > pacman`.

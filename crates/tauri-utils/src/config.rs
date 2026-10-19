@@ -413,6 +413,9 @@ pub struct LinuxConfig {
 /// Configuration for Pacman bundles.
 ///
 /// See <https://wiki.archlinux.org/title/PKGBUILD>
+///
+/// The package contents are shared with the Debian bundle, so [`DebConfig`]'s `files`,
+/// `desktopTemplate` and `changelog` also apply to it.
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -438,6 +441,14 @@ pub struct PacmanConfig {
   pub replaces: Option<Vec<String>>,
   /// Source of the package to be stored at PKGBUILD.
   /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  ///
+  /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
+  /// first entry to its download URL, for instance
+  /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
+  /// `${pkgver}` has `-` replaced with `_`, `${_pkgver}` is the app version as is.
+  /// The first entry is saved under the archive name and its checksum is written to
+  /// `sha512sums`. Additional entries are not verified (`SKIP`).
+  /// Defaults to the local archive file name.
   pub source: Option<Vec<String>>,
 }
 

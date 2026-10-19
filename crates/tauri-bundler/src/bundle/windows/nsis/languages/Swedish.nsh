@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_SWEDISH}} "${PRODUCTNAME} ${VERSION} är 
 LangString appRunning ${LANG_SWEDISH} "{{product_name}} körs! Stäng det först och försök igen."
 LangString appRunningOkKill ${LANG_SWEDISH} "{{product_name}} körs!$\nKlicka på OK för att avsluta det."
 LangString chooseMaintenanceOption ${LANG_SWEDISH} "Välj underhållsåtgärd."
-LangString choowHowToInstall ${LANG_SWEDISH} "Välj hur du vill installera ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_SWEDISH} "Välj hur du vill installera ${PRODUCTNAME}."
 LangString createDesktop ${LANG_SWEDISH} "Skapa genväg på skrivbordet"
 LangString dontUninstall ${LANG_SWEDISH} "Avinstallera inte"
 LangString dontUninstallDowngrade ${LANG_SWEDISH} "Avinstallera inte (nedgradering utan avinstallation är inaktiverad för den här installationsprogrammet)"

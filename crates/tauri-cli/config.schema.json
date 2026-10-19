@@ -3789,6 +3789,22 @@
             "null"
           ]
         },
+        "pkgrel": {
+          "description": "The package release number, to be incremented when the package changes but the app\n version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.\n Defaults to `1`.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "epoch": {
+          "description": "Forces the package to be seen as newer than any previous version with a lower epoch,\n used when the versioning scheme changes. Must not be decreased.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
         "depends": {
           "description": "List of softwares that must be installed for the app to build and run.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#depends>",
           "type": [

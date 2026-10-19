@@ -430,6 +430,17 @@ pub struct PacmanConfig {
   ///
   /// See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>
   pub pkgname: Option<String>,
+  /// The package release number, to be incremented when the package changes but the app
+  /// version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.
+  /// Defaults to `1`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>
+  pub pkgrel: Option<String>,
+  /// Forces the package to be seen as newer than any previous version with a lower epoch,
+  /// used when the versioning scheme changes. Must not be decreased.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>
+  pub epoch: Option<u32>,
   /// List of softwares that must be installed for the app to build and run.
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>

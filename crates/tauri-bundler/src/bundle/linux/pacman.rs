@@ -103,6 +103,8 @@ struct Package {
   /// The app version, as is, available to `source` as `${_pkgver}`.
   version: String,
   pkgver: String,
+  pkgrel: String,
+  epoch: Option<u32>,
   pkgdesc: String,
   arch: String,
   url: String,
@@ -141,6 +143,13 @@ impl Package {
       })?,
     };
 
+    let pkgrel = pacman.pkgrel.clone().unwrap_or_else(|| "1".into());
+    if !is_valid_pkgrel(&pkgrel) {
+      return Err(crate::Error::GenericError(format!(
+        "invalid `bundle > linux > pacman > pkgrel` `{pkgrel}`: it must be a positive integer, optionally followed by a period and another integer, e.g. `1` or `2.1`"
+      )));
+    }
+
     let mut provides = pacman.provides.clone().unwrap_or_default();
     let mut conflicts = pacman.conflicts.clone().unwrap_or_default();
     // a prebuilt `-bin` package stands in for the package built from source
@@ -175,6 +184,8 @@ impl Package {
       pkgname,
       version: settings.version_string().to_string(),
       pkgver: pkgver(settings.version_string()),
+      pkgrel,
+      epoch: pacman.epoch,
       pkgdesc: settings
         .short_description()
         .trim()
@@ -215,8 +226,8 @@ impl Package {
       "pkgname={}
 _pkgver={}
 pkgver={}
-pkgrel=1
-pkgdesc={}
+pkgrel={}
+{}pkgdesc={}
 arch=({})
 url={}
 license=({})
@@ -236,6 +247,11 @@ package() {{
       quote(&self.pkgname),
       quote(&self.version),
       quote(&self.pkgver),
+      quote(&self.pkgrel),
+      self
+        .epoch
+        .map(|epoch| format!("epoch={epoch}\n"))
+        .unwrap_or_default(),
       quote(&self.pkgdesc),
       quote(&self.arch),
       quote(&self.url),
@@ -259,7 +275,10 @@ package() {{
     };
     field("pkgdesc", &self.pkgdesc);
     field("pkgver", &self.pkgver);
-    field("pkgrel", "1");
+    field("pkgrel", &self.pkgrel);
+    if let Some(epoch) = self.epoch {
+      field("epoch", &epoch.to_string());
+    }
     field("url", &self.url);
     field("arch", &self.arch);
     field("license", &self.license);
@@ -292,7 +311,7 @@ package() {{
       ("_pkgver", &self.version),
       ("pkgname", &self.pkgname),
       ("pkgver", &self.pkgver),
-      ("pkgrel", &"1".to_string()),
+      ("pkgrel", &self.pkgrel),
       ("CARCH", &self.arch),
     ] {
       value = value
@@ -328,6 +347,14 @@ fn is_valid_pkgname(name: &str) -> bool {
     && name
       .chars()
       .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "@._+-".contains(c))
+}
+
+/// Whether the value is a valid `pkgrel`: a positive integer, optionally followed by a
+/// period and another integer.
+fn is_valid_pkgrel(pkgrel: &str) -> bool {
+  let (major, minor) = pkgrel.split_once('.').unwrap_or((pkgrel, "1"));
+  let is_number = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit());
+  is_number(major) && is_number(minor) && !major.starts_with('0')
 }
 
 /// The kebab-cased product name, without the characters `pkgname` does not allow,
@@ -369,6 +396,8 @@ mod tests {
       pkgname: "my-app".into(),
       version: "1.0.0-beta.1".into(),
       pkgver: "1.0.0_beta.1".into(),
+      pkgrel: "2".into(),
+      epoch: Some(1),
       pkgdesc: "My app".into(),
       arch: "x86_64".into(),
       url: String::new(),
@@ -389,7 +418,8 @@ mod tests {
       "pkgbase = my-app
 \tpkgdesc = My app
 \tpkgver = 1.0.0_beta.1
-\tpkgrel = 1
+\tpkgrel = 2
+\tepoch = 1
 \tarch = x86_64
 \tlicense = MIT
 \tdepends = gtk3
@@ -412,6 +442,11 @@ pkgname = my-app
     assert!(is_valid_pkgname("my-app-bin"));
     assert!(!is_valid_pkgname("My-App"));
     assert!(!is_valid_pkgname("-app"));
+    assert!(is_valid_pkgrel("1"));
+    assert!(is_valid_pkgrel("2.1"));
+    assert!(!is_valid_pkgrel("0"));
+    assert!(!is_valid_pkgrel("1-1"));
+    assert!(!is_valid_pkgrel("1."));
   }
 
   #[test]

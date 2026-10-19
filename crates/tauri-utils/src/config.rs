@@ -445,6 +445,12 @@ pub struct PacmanConfig {
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>
   pub depends: Option<Vec<String>>,
+  /// Optional packages that enable additional features of the app, but are not required to run it.
+  /// Each entry is the package name, optionally followed by `: ` and the reason,
+  /// for instance `libappindicator-gtk3: tray icon support`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#optdepends>
+  pub optdepends: Option<Vec<String>>,
   /// Additional packages that are provided by this app.
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>

@@ -110,6 +110,7 @@ struct Package {
   url: String,
   license: String,
   depends: Vec<String>,
+  optdepends: Vec<String>,
   provides: Vec<String>,
   conflicts: Vec<String>,
   replaces: Vec<String>,
@@ -194,6 +195,7 @@ impl Package {
       url: settings.homepage_url().unwrap_or_default().to_string(),
       license: settings.license().unwrap_or_else(|| "unknown".into()),
       depends: pacman.depends.clone().unwrap_or_default(),
+      optdepends: pacman.optdepends.clone().unwrap_or_default(),
       provides,
       conflicts,
       replaces: pacman.replaces.clone().unwrap_or_default(),
@@ -232,6 +234,7 @@ arch=({})
 url={}
 license=({})
 depends=({})
+optdepends=({})
 provides=({})
 conflicts=({})
 replaces=({})
@@ -257,6 +260,7 @@ package() {{
       quote(&self.url),
       quote(&self.license),
       array(&self.depends),
+      array(&self.optdepends),
       array(&self.provides),
       array(&self.conflicts),
       array(&self.replaces),
@@ -284,6 +288,7 @@ package() {{
     field("license", &self.license);
     for (key, values) in [
       ("depends", &self.depends),
+      ("optdepends", &self.optdepends),
       ("provides", &self.provides),
       ("conflicts", &self.conflicts),
       ("replaces", &self.replaces),
@@ -403,6 +408,7 @@ mod tests {
       url: String::new(),
       license: "MIT".into(),
       depends: vec!["gtk3".into(), "webkit2gtk-4.1>=2.40".into()],
+      optdepends: vec!["libappindicator-gtk3: tray icon support".into()],
       provides: vec![],
       conflicts: vec![],
       replaces: vec![],
@@ -424,6 +430,7 @@ mod tests {
 \tlicense = MIT
 \tdepends = gtk3
 \tdepends = webkit2gtk-4.1>=2.40
+\toptdepends = libappindicator-gtk3: tray icon support
 \toptions = !strip
 \toptions = !debug
 \tsource = a.tar.gz::https://x/v1.0.0-beta.1/a_x86_64.tar.gz

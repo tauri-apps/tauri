@@ -1602,6 +1602,7 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_pacman)
       },
+      optdepends: config.linux.pacman.optdepends,
       provides: config.linux.pacman.provides,
       conflicts: config.linux.pacman.conflicts,
       replaces: config.linux.pacman.replaces,

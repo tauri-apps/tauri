@@ -377,19 +377,40 @@ package() {{
 
   /// Expands the PKGBUILD variables a `source` entry may use, as makepkg does.
   fn expand(&self, value: &str) -> String {
-    let mut value = value.to_string();
-    for (name, v) in [
-      ("_pkgver", &self.version),
-      ("pkgname", &self.pkgname),
-      ("pkgver", &self.pkgver),
-      ("pkgrel", &self.pkgrel),
-      ("CARCH", &self.arch),
-    ] {
-      value = value
-        .replace(&format!("${{{name}}}"), v)
-        .replace(&format!("${name}"), v);
+    let lookup = |name: &str| match name {
+      "_pkgver" => Some(&self.version),
+      "pkgname" => Some(&self.pkgname),
+      "pkgver" => Some(&self.pkgver),
+      "pkgrel" => Some(&self.pkgrel),
+      "CARCH" => Some(&self.arch),
+      _ => None,
+    };
+    let is_name_char = |c: char| c.is_ascii_alphanumeric() || c == '_';
+
+    let mut out = String::with_capacity(value.len());
+    let mut rest = value;
+    while let Some(index) = rest.find('$') {
+      out.push_str(&rest[..index]);
+      rest = &rest[index + 1..];
+      // `${name}` or `$name`, where the name spans all the identifier characters
+      let (name, len) = match rest.strip_prefix('{').and_then(|r| r.split_once('}')) {
+        Some((name, _)) => (name, name.len() + 2),
+        None => {
+          let len = rest.find(|c| !is_name_char(c)).unwrap_or(rest.len());
+          (&rest[..len], len)
+        }
+      };
+      match lookup(name) {
+        Some(v) => out.push_str(v),
+        None => {
+          out.push('$');
+          out.push_str(&rest[..len]);
+        }
+      }
+      rest = &rest[len..];
     }
-    value
+    out.push_str(rest);
+    out
   }
 }
 
@@ -540,6 +561,19 @@ pkgname = my-app
     assert!(!is_valid_pkgrel("0"));
     assert!(!is_valid_pkgrel("1-1"));
     assert!(!is_valid_pkgrel("1."));
+  }
+
+  #[test]
+  fn expands_variables() {
+    let package = package();
+    assert_eq!(
+      package.expand("$pkgname/${pkgver}/$_pkgver-$CARCH.tar.gz"),
+      "my-app/1.0.0_beta.1/1.0.0-beta.1-x86_64.tar.gz"
+    );
+    assert_eq!(
+      package.expand("$pkgver_x/${unknown}/$ $"),
+      "$pkgver_x/${unknown}/$ $"
+    );
   }
 
   #[test]

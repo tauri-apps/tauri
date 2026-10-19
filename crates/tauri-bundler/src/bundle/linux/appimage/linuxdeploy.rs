@@ -8,15 +8,8 @@ use crate::{
   Settings,
   bundle::settings::Arch,
   error::Context,
-  utils::{
-    CommandExt, fs_utils,
-    http_utils::{HashAlgorithm, download, download_and_verify},
-  },
+  utils::{CommandExt, fs_utils, http_utils::download},
 };
-
-/// Tag suffix of the `linuxdeploy-<commit>` release in tauri-apps/binary-releases,
-/// the linuxdeploy commit the binaries were built from.
-const LINUXDEPLOY_COMMIT_HASH: &str = "07333c6";
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -225,19 +218,10 @@ fn excluded_libraries_env(exclude_libraries: &[String]) -> Option<String> {
   }
 }
 
-/// SHA256 of the linuxdeploy AppImage for the given arch, as published in [`LINUXDEPLOY_COMMIT_HASH`].
-fn linuxdeploy_sha256(linuxdeploy_arch: &str) -> Option<&'static str> {
-  match linuxdeploy_arch {
-    "x86_64" => Some("36a2d7e274d12e1050d0e9ecfe11d339ed54720b2bec464c286d53f8b07f5c62"),
-    "i386" => Some("fab919e3f88ec4460631f744ed5205bb7965ab4bc2c276227e12db81543afe9a"),
-    "aarch64" => Some("556ab80baa98e600aa80f0dcedfb70bca0e1ce7e9f147fb345be3fcc3e91b2b1"),
-    "armhf" => Some("2dad604a3b8110ff81f6f754d6fe1ba50b92bb75303385ab080966edddee28dd"),
-    _ => None,
-  }
-}
-
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
 fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<PathBuf> {
+  const LINUXDEPLOY_COMMIT_HASH: &str = "07333c6";
+
   let apprun = tools_path.join(format!("AppRun-{arch}"));
   if !apprun.exists() {
     let data = download(&format!(
@@ -247,20 +231,13 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
   }
 
   let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
-  // The commit is part of the file name so bumping it downloads the new binary instead of
-  // reusing an older cached one (which is kept for older tauri-cli versions sharing the cache).
-  // We can't verify the hash of the cached file because we patch its magic bytes below.
   let linuxdeploy = tools_path.join(format!(
     "linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}-{linuxdeploy_arch}.AppImage"
   ));
   if !linuxdeploy.exists() {
-    let url = format!(
+    let data = download(&format!(
       "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}/linuxdeploy-{linuxdeploy_arch}.AppImage"
-    );
-    let data = match linuxdeploy_sha256(linuxdeploy_arch) {
-      Some(hash) => download_and_verify(&url, hash, HashAlgorithm::Sha256)?,
-      None => download(&url)?,
-    };
+    ))?;
     write_and_make_executable(&linuxdeploy, &data)?;
   }
 

@@ -149,7 +149,7 @@ struct Package {
   install: Option<String>,
   /// The changelog file name.
   changelog: Option<String>,
-  license: Vec<String>,
+  license: String,
   depends: Vec<String>,
   optdepends: Vec<String>,
   provides: Vec<String>,
@@ -235,11 +235,7 @@ impl Package {
       url: settings.homepage_url().unwrap_or_default().to_string(),
       install,
       changelog,
-      license: pacman
-        .license
-        .clone()
-        .filter(|l| !l.is_empty())
-        .unwrap_or_else(|| vec![settings.license().unwrap_or_else(|| "unknown".into())]),
+      license: settings.license().unwrap_or_else(|| "unknown".into()),
       depends: pacman.depends.clone().unwrap_or_default(),
       optdepends: pacman.optdepends.clone().unwrap_or_default(),
       provides,
@@ -317,7 +313,7 @@ package() {{
       quote(&self.pkgdesc),
       quote(&self.arch),
       quote(&self.url),
-      array(&self.license),
+      quote(&self.license),
       array(&self.depends),
       array(&self.optdepends),
       array(&self.provides),
@@ -350,8 +346,8 @@ package() {{
       field("changelog", changelog);
     }
     field("arch", &self.arch);
+    field("license", &self.license);
     for (key, values) in [
-      ("license", &self.license),
       ("depends", &self.depends),
       ("optdepends", &self.optdepends),
       ("provides", &self.provides),
@@ -514,7 +510,7 @@ mod tests {
       url: String::new(),
       install: Some("my-app.install".into()),
       changelog: None,
-      license: vec!["MIT".into(), "Apache-2.0".into()],
+      license: "MIT".into(),
       depends: vec!["gtk3".into(), "webkit2gtk-4.1>=2.40".into()],
       optdepends: vec!["libappindicator-gtk3: tray icon support".into()],
       provides: vec![],
@@ -537,7 +533,6 @@ mod tests {
 \tinstall = my-app.install
 \tarch = x86_64
 \tlicense = MIT
-\tlicense = Apache-2.0
 \tdepends = gtk3
 \tdepends = webkit2gtk-4.1>=2.40
 \toptdepends = libappindicator-gtk3: tray icon support

@@ -3785,7 +3785,7 @@
       ]
     },
     "PacmanConfig": {
-      "description": "Configuration for Pacman bundles.\n\n See <https://wiki.archlinux.org/title/PKGBUILD>",
+      "description": "Configuration for Pacman bundles.\n\n See <https://wiki.archlinux.org/title/PKGBUILD>\n\n The package license is `bundle > license` (`unknown` when it is not set),\n and `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.",
       "type": "object",
       "properties": {
         "pkgname": {
@@ -3817,16 +3817,6 @@
             "string",
             "null"
           ]
-        },
-        "license": {
-          "description": "The package licenses, as SPDX identifiers. Use `LicenseRef-<name>` for licenses that\n have no SPDX identifier.\n Defaults to `bundle > license`, or `unknown` when it is not set.\n\n `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#license>",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
         },
         "depends": {
           "description": "List of softwares that must be installed for the app to build and run.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#depends>",

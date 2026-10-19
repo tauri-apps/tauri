@@ -186,18 +186,20 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ;    only if a previous installation was detected
 Var ReinstallPageCheck
 Page custom PageReinstall PageLeaveReinstall
-Function PageReinstall
-  ; Uninstall previous WiX installation if exists.
-  ;
-  ; A WiX installer stores the installation info in registry
-  ; using a UUID and so we have to loop through all keys under
-  ; `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`
-  ; and check if `DisplayName` and `Publisher` keys match ${PRODUCTNAME} and ${MANUFACTURER}
-  ;
-  ; This has a potential issue that there maybe another installation that matches
-  ; our ${PRODUCTNAME} and ${MANUFACTURER} but wasn't installed by our WiX installer,
-  ; however, this should be fine since the user will have to confirm the uninstallation
-  ; and they can chose to abort it if doesn't make sense.
+
+; Find a previous WiX installation and set $R6 to its uninstall registry key, or to "" if none.
+;
+; A WiX installer stores the installation info in registry
+; using a UUID and so we have to loop through all keys under
+; `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`
+; and check if `DisplayName` and `Publisher` keys match ${PRODUCTNAME} and ${MANUFACTURER}
+;
+; This has a potential issue that there maybe another installation that matches
+; our ${PRODUCTNAME} and ${MANUFACTURER} but wasn't installed by our WiX installer,
+; however, this should be fine since the user will have to confirm the uninstallation
+; and they can chose to abort it if doesn't make sense.
+Function FindWixInstall
+  StrCpy $R6 ""
   StrCpy $0 0
   wix_loop:
     EnumRegKey $1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" $0
@@ -210,10 +212,17 @@ Function PageReinstall
     ${StrCase} $R1 $R0 "L"
     ${StrLoc} $R0 $R1 "msiexec" ">"
     StrCmp $R0 0 0 wix_loop_done
-    StrCpy $WixMode 1
     StrCpy $R6 "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1"
-    Goto compare_version
   wix_loop_done:
+FunctionEnd
+
+Function PageReinstall
+  ; Uninstall previous WiX installation if exists.
+  Call FindWixInstall
+  ${If} $R6 != ""
+    StrCpy $WixMode 1
+    Goto compare_version
+  ${EndIf}
 
   ; Check if there is an existing installation, if not, abort the reinstall page
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" ""
@@ -538,7 +547,13 @@ Function .onInit
   ${If} ${Silent}
   ${OrIf} $PassiveMode = 1
   ${OrIf} $UpdateMode = 1
-    ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
+    ; Compare with the same installation the reinstall page would: a WiX one first
+    Call FindWixInstall
+    ${If} $R6 != ""
+      ReadRegStr $R0 HKLM "$R6" "DisplayVersion"
+    ${Else}
+      ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
+    ${EndIf}
     nsis_tauri_utils::SemverCompare "${VERSION}" $R0
     Pop $R0
     ; If downgrading

@@ -14,6 +14,34 @@ use tauri_utils::config::RpmCompression;
 
 use super::freedesktop;
 
+/// Converts a SemVer version string to the RPM `Version` tag format.
+///
+/// RPM reserves `-` as the separator between `Version` and `Release`, and the
+/// `rpm` crate (since 0.30) refuses a `Version` that contains it. SemVer
+/// separates the pre-release with `-`, so `1.0.0-alpha` becomes `1.0.0~alpha`:
+/// `~` is RPM's "sorts before" marker, which keeps the ordering SemVer
+/// defines (`1.0.0~alpha < 1.0.0`). A `-` inside the pre-release or the build
+/// metadata is rewritten to `.`, so `1.0.0-rc-1` and `1.0.0-rc.1` produce the
+/// same output. Inputs that don't parse as SemVer, or carry neither a
+/// pre-release nor build metadata, are returned unchanged.
+fn to_rpm_version(version: &str) -> String {
+  match semver::Version::parse(version) {
+    Ok(v) if !v.pre.is_empty() || !v.build.is_empty() => {
+      let mut rpm = format!("{}.{}.{}", v.major, v.minor, v.patch);
+      if !v.pre.is_empty() {
+        rpm.push('~');
+        rpm.push_str(&v.pre.as_str().replace('-', "."));
+      }
+      if !v.build.is_empty() {
+        rpm.push('+');
+        rpm.push_str(&v.build.as_str().replace('-', "."));
+      }
+      rpm
+    }
+    _ => version.to_string(),
+  }
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -74,7 +102,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let build_config = rpm::BuildConfig::default().compression(compression);
 
-  let mut builder = rpm::PackageBuilder::new(&name, version, &license, arch, summary);
+  let mut builder =
+    rpm::PackageBuilder::new(&name, &to_rpm_version(version), &license, arch, summary);
   builder
     .using_config(build_config)
     .epoch(epoch)
@@ -231,4 +260,49 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut f = fs::File::create(&package_path)?;
   pkg.write(&mut f)?;
   Ok(vec![package_path])
+}
+
+#[cfg(test)]
+mod tests {
+  use super::to_rpm_version;
+
+  #[test]
+  fn plain_release_unchanged() {
+    assert_eq!(to_rpm_version("1.0.0"), "1.0.0");
+    assert_eq!(to_rpm_version("2.4.1"), "2.4.1");
+  }
+
+  #[test]
+  fn semver_prerelease_uses_tilde() {
+    assert_eq!(to_rpm_version("1.0.0-alpha"), "1.0.0~alpha");
+    assert_eq!(to_rpm_version("1.0.0-beta.11"), "1.0.0~beta.11");
+    assert_eq!(to_rpm_version("1.0.0-rc.1"), "1.0.0~rc.1");
+    assert_eq!(
+      to_rpm_version("0.1.11-nightly.20261019.2"),
+      "0.1.11~nightly.20261019.2"
+    );
+  }
+
+  #[test]
+  fn hyphens_in_prerelease_are_normalized_to_dots() {
+    assert_eq!(to_rpm_version("1.0.0-rc-1"), "1.0.0~rc.1");
+    assert_eq!(
+      to_rpm_version("1.0.0-alpha-beta-1"),
+      to_rpm_version("1.0.0-alpha.beta.1")
+    );
+  }
+
+  #[test]
+  fn build_metadata_preserved() {
+    assert_eq!(to_rpm_version("1.0.0+build.1"), "1.0.0+build.1");
+    assert_eq!(to_rpm_version("1.0.0+build-1"), "1.0.0+build.1");
+    assert_eq!(to_rpm_version("1.0.0-alpha+build.1"), "1.0.0~alpha+build.1");
+  }
+
+  #[test]
+  fn non_semver_input_passes_through() {
+    assert_eq!(to_rpm_version("1.0.0.0"), "1.0.0.0");
+    assert_eq!(to_rpm_version("1.0"), "1.0");
+    assert_eq!(to_rpm_version("1.0.0~beta"), "1.0.0~beta");
+  }
 }

@@ -441,6 +441,10 @@ pub struct PacmanConfig {
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>
   pub epoch: Option<u32>,
+  /// The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top
+  /// of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.
+  /// Defaults to the app authors.
+  pub maintainer: Option<String>,
   /// List of softwares that must be installed for the app to build and run.
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>

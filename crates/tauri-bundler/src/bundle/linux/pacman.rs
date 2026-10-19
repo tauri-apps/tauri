@@ -178,8 +178,10 @@ impl Package {
 
     Ok(Self {
       // a newline would end the comment and turn the rest of the value into code
-      maintainer: settings
-        .authors_comma_separated()
+      maintainer: pacman
+        .maintainer
+        .clone()
+        .or_else(|| settings.authors_comma_separated())
         .unwrap_or_default()
         .replace(['\r', '\n'], " "),
       pkgname,

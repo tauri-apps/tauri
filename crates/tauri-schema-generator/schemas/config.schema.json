@@ -3805,6 +3805,13 @@
           "format": "uint32",
           "minimum": 0.0
         },
+        "maintainer": {
+          "description": "The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top\n of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.\n Defaults to the app authors.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "depends": {
           "description": "List of softwares that must be installed for the app to build and run.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#depends>",
           "type": [

@@ -1597,6 +1597,7 @@ fn tauri_config_to_bundle_settings(
       pkgname: config.linux.pacman.pkgname,
       pkgrel: config.linux.pacman.pkgrel,
       epoch: config.linux.pacman.epoch,
+      maintainer: config.linux.pacman.maintainer,
       depends: if depends_pacman.is_empty() {
         None
       } else {

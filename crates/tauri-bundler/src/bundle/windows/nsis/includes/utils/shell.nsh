@@ -1,78 +1,9 @@
-; Change shell and registry context based on running
-; architecture and chosen install mode.
-!macro SetContext
-  !if "${INSTALLMODE}" == "currentUser"
-    SetShellVarContext current
-  !else if "${INSTALLMODE}" == "perMachine"
-    SetShellVarContext all
-  !endif
-
-  ${If} ${RunningX64}
-    !if "${ARCH}" == "x64"
-      SetRegView 64
-    !else if "${ARCH}" == "arm64"
-      SetRegView 64
-    !else
-      SetRegView 32
-    !endif
-  ${EndIf}
-!macroend
-
-!define /ifndef ERROR_MORE_DATA 234
-
-; Checks whether app is running or not and prompts to kill it.
-!macro CheckIfAppIsRunning executablePath productName
-  !define UniqueID ${__LINE__}
-
-  ; Replace {{product_name}} placeholder in the messages with the passed product name
-  nsis_tauri_utils::StrReplace "$(appRunning)" "{{product_name}}" "${productName}"
-  Pop $R1
-  nsis_tauri_utils::StrReplace "$(appRunningOkKill)" "{{product_name}}" "${productName}"
-  Pop $R2
-  nsis_tauri_utils::StrReplace "$(failedToKillApp)" "{{product_name}}" "${productName}"
-  Pop $R3
-
-  !insertmacro RestartManager_StartSession $R0
-  ${If} $R0 != ""
-    !insertmacro RestartManager_RegisterFile $R0 "${executablePath}"
-    ${If} $0 = 0
-      System::Call 'RSTRTMGR::RmGetList(p R0, *i .r1, *i .r2, p 0, *i .r3) i .r0'
-      ; ERROR_SUCCESS means no running processes, ERROR_MORE_DATA means there're some
-      ${If} $0 = ${ERROR_MORE_DATA}
-        IfSilent kill_${UniqueID} 0
-        ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL $R2 IDOK kill_${UniqueID} IDCANCEL cancel_${UniqueID} ${|}
-        kill_${UniqueID}:
-          ; Call manually here to get the result
-          ; !insertmacro RestartManager_Shutdown $R0
-          System::Call 'RSTRTMGR::RmShutdown(p R0, i ${RmForceShutdown}, p 0) i .r0'
-          ${If} $0 = 0
-            Goto app_check_done_${UniqueID}
-          ${Else}
-            IfSilent silent_${UniqueID} ui_${UniqueID}
-            silent_${UniqueID}:
-              System::Call 'kernel32::AttachConsole(i -1)i.r0'
-              ${If} $0 != 0
-                System::Call 'kernel32::GetStdHandle(i -11)i.r0'
-                System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-                FileWrite $0 "$R1$\n"
-              ${EndIf}
-              !insertmacro RestartManager_EndSession $R0
-              Abort
-            ui_${UniqueID}:
-              !insertmacro RestartManager_EndSession $R0
-              Abort $R3
-          ${EndIf}
-        cancel_${UniqueID}:
-          !insertmacro RestartManager_EndSession $R0
-          Abort $R1
-        app_check_done_${UniqueID}:
-      ${EndIf}
-    ${EndIf}
-    !insertmacro RestartManager_EndSession $R0
-  ${EndIf}
-
-  !undef UniqueID
-!macroend
+; Windows shell helpers for shortcuts and jump lists.
+;
+; These macros talk to COM through the System plugin, which can only
+; write its output into the `$0`-`$9`/`$R0`-`$R9` registers (`.r0` syntax),
+; so unlike the rest of the installer they can't use named variables.
+; Each macro documents which registers it uses and clobbers.
 
 ; Sets AppUserModelId on a shortcut
 !macro SetLnkAppUserModelId shortcut

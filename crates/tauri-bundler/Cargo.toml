@@ -27,6 +27,7 @@ tar = "0.4"
 walkdir = "2"
 bytesize = "2"
 handlebars = "6"
+include_dir = "0.7"
 tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }
 dirs = "7"

@@ -377,6 +377,13 @@ pub struct PacmanSettings {
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
   pub replaces: Option<Vec<String>>,
+  /// Path to the install script, a bash script that defines any of the `pre_install`,
+  /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
+  /// pacman runs when the package is installed, upgraded or removed.
+  /// It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#install>
+  pub install: Option<PathBuf>,
   /// Source of the package to be stored at PKGBUILD.
   /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
   ///

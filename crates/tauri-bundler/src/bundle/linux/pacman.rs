@@ -20,7 +20,8 @@ use std::{
 };
 
 /// Bundles the project.
-/// Returns the paths of the generated `.tar.gz` archive, its `PKGBUILD` and `.SRCINFO`.
+/// Returns the paths of the generated `.tar.gz` archive, its `PKGBUILD`, `.SRCINFO`
+/// and install script.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Arch Linux uses its own naming for some architectures.
   let arch = match settings.binary_arch() {
@@ -84,7 +85,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let srcinfo_path = base_dir.join(".SRCINFO");
   write_file(&srcinfo_path, &package.srcinfo()).context("Failed to create .SRCINFO file")?;
 
-  Ok(vec![package_path, pkgbuild_path, srcinfo_path])
+  let mut paths = vec![package_path, pkgbuild_path, srcinfo_path];
+
+  if let (Some(src), Some(name)) = (&settings.pacman().install, &package.install) {
+    let dest = base_dir.join(name);
+    fs::copy(src, &dest).fs_context("Failed to copy the install script", src.clone())?;
+    paths.push(dest);
+  }
+
+  Ok(paths)
 }
 
 fn write_file(path: &Path, contents: &str) -> crate::Result<()> {
@@ -108,6 +117,8 @@ struct Package {
   pkgdesc: String,
   arch: String,
   url: String,
+  /// The install script file name.
+  install: Option<String>,
   license: String,
   depends: Vec<String>,
   optdepends: Vec<String>,
@@ -143,6 +154,11 @@ impl Package {
         ))
       })?,
     };
+
+    let install = pacman
+      .install
+      .as_ref()
+      .map(|_| format!("{pkgname}.install"));
 
     let pkgrel = pacman.pkgrel.clone().unwrap_or_else(|| "1".into());
     if !is_valid_pkgrel(&pkgrel) {
@@ -195,6 +211,7 @@ impl Package {
         .replace(['\r', '\n'], " "),
       arch: arch.to_string(),
       url: settings.homepage_url().unwrap_or_default().to_string(),
+      install,
       license: settings.license().unwrap_or_else(|| "unknown".into()),
       depends: pacman.depends.clone().unwrap_or_default(),
       optdepends: pacman.optdepends.clone().unwrap_or_default(),
@@ -222,6 +239,12 @@ impl Package {
       .collect::<Vec<_>>()
       .join(" ");
 
+    let install = self
+      .install
+      .as_ref()
+      .map(|install| format!("install={}\n", quote(install)))
+      .unwrap_or_default();
+
     let mut out = String::new();
     if !self.maintainer.is_empty() {
       out.push_str(&format!("# Maintainer: {}\n", self.maintainer));
@@ -234,7 +257,7 @@ pkgrel={}
 {}pkgdesc={}
 arch=({})
 url={}
-license=({})
+{install}license=({})
 depends=({})
 optdepends=({})
 provides=({})
@@ -286,6 +309,9 @@ package() {{
       field("epoch", &epoch.to_string());
     }
     field("url", &self.url);
+    if let Some(install) = &self.install {
+      field("install", install);
+    }
     field("arch", &self.arch);
     field("license", &self.license);
     for (key, values) in [
@@ -408,6 +434,7 @@ mod tests {
       pkgdesc: "My app".into(),
       arch: "x86_64".into(),
       url: String::new(),
+      install: Some("my-app.install".into()),
       license: "MIT".into(),
       depends: vec!["gtk3".into(), "webkit2gtk-4.1>=2.40".into()],
       optdepends: vec!["libappindicator-gtk3: tray icon support".into()],
@@ -428,6 +455,7 @@ mod tests {
 \tpkgver = 1.0.0_beta.1
 \tpkgrel = 2
 \tepoch = 1
+\tinstall = my-app.install
 \tarch = x86_64
 \tlicense = MIT
 \tdepends = gtk3

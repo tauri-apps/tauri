@@ -3862,6 +3862,13 @@
             "type": "string"
           }
         },
+        "install": {
+          "description": "Path to the install script, a bash script that defines any of the `pre_install`,\n `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions\n pacman runs when the package is installed, upgraded or removed.\n It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#install>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "source": {
           "description": "Source of the package to be stored at PKGBUILD.\n PKGBUILD is a bash script, so version can be referred as ${pkgver}\n\n To publish the package to the AUR, upload the generated `.tar.gz` archive and set the\n first entry to its download URL, for instance\n `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.\n `${pkgver}` has `-` replaced with `_`, `${_pkgver}` is the app version as is.\n The first entry is saved under the archive name and its checksum is written to\n `sha512sums`. Additional entries are not verified (`SKIP`).\n Defaults to the local archive file name.",
           "type": [

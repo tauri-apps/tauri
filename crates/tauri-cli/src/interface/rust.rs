@@ -1607,6 +1607,7 @@ fn tauri_config_to_bundle_settings(
       provides: config.linux.pacman.provides,
       conflicts: config.linux.pacman.conflicts,
       replaces: config.linux.pacman.replaces,
+      install: config.linux.pacman.install,
       source: config.linux.pacman.source,
     },
     dmg: DmgSettings {

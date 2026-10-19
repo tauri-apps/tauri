@@ -77,8 +77,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   // generate deb_folder structure
-  let (data_dir, icons) = debian::generate_data(&settings, &package_dir)
-    .with_context(|| "Failed to build data folders and files")?;
+  let (data_dir, icons) =
+    debian::generate_data(&settings, &package_dir, &settings.deb().desktop_template)
+      .with_context(|| "Failed to build data folders and files")?;
   fs_utils::copy_custom_files(&settings.appimage().files, &data_dir)
     .with_context(|| "Failed to copy custom files")?;
 

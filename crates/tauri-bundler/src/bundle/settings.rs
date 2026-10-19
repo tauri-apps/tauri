@@ -377,6 +377,18 @@ pub struct PacmanSettings {
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
   pub replaces: Option<Vec<String>>,
+  /// List of custom files to add to the package.
+  /// Maps the path on the package to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
+  /// ```
+  pub desktop_template: Option<PathBuf>,
   /// Path to the install script, a bash script that defines any of the `pre_install`,
   /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
   /// pacman runs when the package is installed, upgraded or removed.

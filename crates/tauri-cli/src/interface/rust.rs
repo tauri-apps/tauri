@@ -1607,6 +1607,8 @@ fn tauri_config_to_bundle_settings(
       provides: config.linux.pacman.provides,
       conflicts: config.linux.pacman.conflicts,
       replaces: config.linux.pacman.replaces,
+      files: config.linux.pacman.files,
+      desktop_template: config.linux.pacman.desktop_template,
       install: config.linux.pacman.install,
       source: config.linux.pacman.source,
     },

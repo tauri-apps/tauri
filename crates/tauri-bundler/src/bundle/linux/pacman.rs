@@ -58,9 +58,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_path = base_dir.join(&package_name);
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let (data_dir, _) =
-    generate_data(settings, &package_dir).context("Failed to build data folders and files")?;
-  fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
+  let (data_dir, _) = generate_data(settings, &package_dir, &settings.pacman().desktop_template)
+    .context("Failed to build data folders and files")?;
+  fs_utils::copy_custom_files(&settings.pacman().files, &data_dir)
     .context("Failed to copy custom files")?;
 
   // Apply tar/gzip to create the final package file.

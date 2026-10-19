@@ -77,8 +77,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let (data_dir, _) =
-    generate_data(settings, &package_dir).context("Failed to build data folders and files")?;
+  let (data_dir, _) = generate_data(settings, &package_dir, &settings.deb().desktop_template)
+    .context("Failed to build data folders and files")?;
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
     .context("Failed to copy custom files")?;
 
@@ -112,6 +112,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 pub fn generate_data(
   settings: &Settings,
   package_dir: &Path,
+  desktop_template: &Option<PathBuf>,
 ) -> crate::Result<(PathBuf, Vec<freedesktop::Icon>)> {
   // Generate data files.
   let data_dir = package_dir.join("data");
@@ -132,7 +133,7 @@ pub fn generate_data(
 
   let icons = freedesktop::copy_icon_files(settings, &data_dir)
     .with_context(|| "Failed to create icon files")?;
-  freedesktop::generate_desktop_file(settings, &settings.deb().desktop_template, &data_dir)
+  freedesktop::generate_desktop_file(settings, desktop_template, &data_dir)
     .with_context(|| "Failed to create desktop file")?;
   generate_changelog_file(settings, &data_dir)
     .with_context(|| "Failed to create changelog.gz file")?;

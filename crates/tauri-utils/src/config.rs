@@ -413,9 +413,6 @@ pub struct LinuxConfig {
 /// Configuration for Pacman bundles.
 ///
 /// See <https://wiki.archlinux.org/title/PKGBUILD>
-///
-/// The package contents are shared with the Debian bundle, so [`DebConfig`]'s `files`,
-/// `desktopTemplate` and `changelog` also apply to it.
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -469,6 +466,14 @@ pub struct PacmanConfig {
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
   pub replaces: Option<Vec<String>>,
+  /// The files to include on the package.
+  /// Maps the path on the package to the path of the file to include (relative to the current working directory).
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
   /// Path to the install script, a bash script that defines any of the `pre_install`,
   /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
   /// pacman runs when the package is installed, upgraded or removed.

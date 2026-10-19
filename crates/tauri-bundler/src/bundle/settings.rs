@@ -825,7 +825,7 @@ pub struct Settings {
   project_out_directory: PathBuf,
   /// the directory holding the project's `tauri.conf.json`, if the caller knows
   /// it. `None` when the bundler is driven by something other than the CLI.
-  project_dir: Option<PathBuf>,
+  tauri_dir: Option<PathBuf>,
   /// the directory to place tools used by the bundler,
   /// if `None`, tools are placed in the current user's platform-specific cache directory.
   local_tools_directory: Option<PathBuf>,
@@ -849,7 +849,7 @@ pub struct Settings {
 pub struct SettingsBuilder {
   log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
-  project_dir: Option<PathBuf>,
+  tauri_dir: Option<PathBuf>,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
   bundle_settings: BundleSettings,
@@ -865,7 +865,7 @@ impl Default for SettingsBuilder {
     Self {
       log_level: None,
       project_out_directory: None,
-      project_dir: None,
+      tauri_dir: None,
       package_types: None,
       package_settings: None,
       bundle_settings: BundleSettings::default(),
@@ -894,13 +894,13 @@ impl SettingsBuilder {
     self
   }
 
-  /// Sets the project directory, i.e. the one holding `tauri.conf.json`.
+  /// Sets the tauri directory, i.e. the one holding `tauri.conf.json`.
   ///
   /// Optional: the bundler works without it, and the formats that can use it
   /// leave the corresponding value out when it is not set.
   #[must_use]
-  pub fn project_dir<P: AsRef<Path>>(mut self, path: P) -> Self {
-    self.project_dir.replace(path.as_ref().to_path_buf());
+  pub fn tauri_dir<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self.tauri_dir.replace(path.as_ref().to_path_buf());
     self
   }
 
@@ -1000,7 +1000,7 @@ impl SettingsBuilder {
       project_out_directory: self
         .project_out_directory
         .ok_or_else(|| crate::Error::GenericError("out directory is required".into()))?,
-      project_dir: self.project_dir,
+      tauri_dir: self.tauri_dir,
       local_tools_directory: self.local_tools_directory,
       binaries: self.binaries,
       bundle_settings: BundleSettings {
@@ -1036,10 +1036,10 @@ impl Settings {
     &self.project_out_directory
   }
 
-  /// Returns the project directory (the one holding `tauri.conf.json`), if the
+  /// Returns the tauri directory (the one holding `tauri.conf.json`), if the
   /// caller provided it.
-  pub fn project_dir(&self) -> Option<&Path> {
-    self.project_dir.as_deref()
+  pub fn tauri_dir(&self) -> Option<&Path> {
+    self.tauri_dir.as_deref()
   }
 
   /// Returns the target triple.

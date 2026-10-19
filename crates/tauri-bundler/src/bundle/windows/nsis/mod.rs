@@ -304,15 +304,16 @@ fn build_nsis_app_installer(
     );
   }
 
-  if let Some(project_dir) = settings.project_dir() {
+  if let Some(tauri_dir) = settings.tauri_dir() {
     data.insert(
-      "src_tauri_dir",
-      to_json(dunce::canonicalize(project_dir).fs_context(
-        "failed to resolve the project directory",
-        project_dir.to_path_buf(),
+      "tauri_dir",
+      to_json(dunce::canonicalize(tauri_dir).fs_context(
+        "failed to resolve the tauri directory",
+        tauri_dir.to_path_buf(),
       )?),
     );
   }
+
   data.insert("arch", to_json(arch));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));

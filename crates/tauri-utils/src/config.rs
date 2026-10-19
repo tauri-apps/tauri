@@ -325,7 +325,7 @@ pub struct AppImageConfig {
   pub bundle_media_framework: bool,
   /// Shared libraries to exclude from the AppImage dependency deployment.
   ///
-  /// Each value is passed to linuxdeploy's `--exclude-library` option as a glob pattern.
+  /// Each value is a glob pattern matched against the library file name, e.g. `libwayland-*.so*`.
   #[serde(default, alias = "exclude-libraries")]
   pub exclude_libraries: Vec<String>,
   /// The files to include in the Appimage Binary.

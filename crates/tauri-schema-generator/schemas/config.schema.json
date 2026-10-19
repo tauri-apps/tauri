@@ -3303,7 +3303,7 @@
           "type": "boolean"
         },
         "excludeLibraries": {
-          "description": "Shared libraries to exclude from the AppImage dependency deployment.\n\n Each value is passed to linuxdeploy's `--exclude-library` option as a glob pattern.",
+          "description": "Shared libraries to exclude from the AppImage dependency deployment.\n\n Each value is a glob pattern matched against the library file name, e.g. `libwayland-*.so*`.",
           "default": [],
           "type": "array",
           "items": {

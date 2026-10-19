@@ -7,9 +7,17 @@ use super::{super::debian, write_and_make_executable};
 use crate::{
   bundle::settings::Arch,
   error::{Context, ErrorExt},
-  utils::{fs_utils, http_utils::download, CommandExt},
+  utils::{
+    fs_utils,
+    http_utils::{download, download_and_verify, HashAlgorithm},
+    CommandExt,
+  },
   Settings,
 };
+
+/// Tag suffix of the `linuxdeploy-<version>` release in tauri-apps/binary-releases,
+/// the linuxdeploy commit the binaries were built from.
+const LINUXDEPLOY_VERSION: &str = "07333c6";
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -201,7 +209,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   if settings.appimage().bundle_media_framework {
     cmd.args(["--plugin", "gstreamer"]);
   }
-  append_exclude_library_args(&mut cmd, &settings.appimage().exclude_libraries);
+  // Use the env var instead of `--exclude-library` so the exclusions also apply when
+  // the gtk and gstreamer plugins run linuxdeploy again to deploy their dependencies.
+  if let Some(excluded_libraries) = excluded_libraries_env(&settings.appimage().exclude_libraries) {
+    cmd.env("LINUXDEPLOY_EXCLUDED_LIBRARIES", excluded_libraries);
+  }
   cmd.args(["--output", "appimage"]);
 
   // Linuxdeploy logs everything into stderr so we have to ignore the output ourselves here
@@ -220,9 +232,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![appimage_path])
 }
 
-fn append_exclude_library_args(cmd: &mut Command, exclude_libraries: &[String]) {
-  for pattern in exclude_libraries {
-    cmd.arg("--exclude-library").arg(pattern);
+/// Value for linuxdeploy's `LINUXDEPLOY_EXCLUDED_LIBRARIES`, a `;` separated list of glob patterns.
+fn excluded_libraries_env(exclude_libraries: &[String]) -> Option<String> {
+  if exclude_libraries.is_empty() {
+    None
+  } else {
+    Some(exclude_libraries.join(";"))
+  }
+}
+
+/// SHA256 of the linuxdeploy AppImage for the given arch, as published in [`LINUXDEPLOY_VERSION`].
+fn linuxdeploy_sha256(linuxdeploy_arch: &str) -> Option<&'static str> {
+  match linuxdeploy_arch {
+    "x86_64" => Some("36a2d7e274d12e1050d0e9ecfe11d339ed54720b2bec464c286d53f8b07f5c62"),
+    "i386" => Some("fab919e3f88ec4460631f744ed5205bb7965ab4bc2c276227e12db81543afe9a"),
+    "aarch64" => Some("556ab80baa98e600aa80f0dcedfb70bca0e1ce7e9f147fb345be3fcc3e91b2b1"),
+    "armhf" => Some("2dad604a3b8110ff81f6f754d6fe1ba50b92bb75303385ab080966edddee28dd"),
+    _ => None,
   }
 }
 
@@ -237,9 +263,18 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
   }
 
   let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
-  let linuxdeploy = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}.AppImage"));
+  // The version is part of the file name so bumping it downloads the new binary instead of
+  // reusing an older cached one (which is kept for older tauri-cli versions sharing the cache).
+  // We can't verify the hash of the cached file because we patch its magic bytes below.
+  let linuxdeploy = tools_path.join(format!(
+    "linuxdeploy-{LINUXDEPLOY_VERSION}-{linuxdeploy_arch}.AppImage"
+  ));
   if !linuxdeploy.exists() {
-    let data = download(&format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"))?;
+    let url = format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-{LINUXDEPLOY_VERSION}/linuxdeploy-{linuxdeploy_arch}.AppImage");
+    let data = match linuxdeploy_sha256(linuxdeploy_arch) {
+      Some(hash) => download_and_verify(&url, hash, HashAlgorithm::Sha256)?,
+      None => download(&url)?,
+    };
     write_and_make_executable(&linuxdeploy, data)?;
   }
 
@@ -283,32 +318,4 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     .output();
 
   Ok(linuxdeploy)
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  fn append_exclude_library_args_adds_repeated_linuxdeploy_pairs() {
-    let mut cmd = Command::new("linuxdeploy");
-    let exclude_libraries = vec!["libwayland-*.so*".to_string(), "libEGL*.so*".to_string()];
-
-    append_exclude_library_args(&mut cmd, &exclude_libraries);
-
-    let args = cmd
-      .get_args()
-      .map(|arg| arg.to_string_lossy().into_owned())
-      .collect::<Vec<_>>();
-
-    assert_eq!(
-      args,
-      [
-        "--exclude-library",
-        "libwayland-*.so*",
-        "--exclude-library",
-        "libEGL*.so*"
-      ]
-    );
-  }
 }

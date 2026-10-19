@@ -398,6 +398,19 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   )
   .unwrap();
 
+  // add the additional capability files as compiler dependencies so editing them triggers a rebuild
+  let additional_capability_paths = additional_capabilities
+    .iter()
+    .flatten()
+    .map(|path| {
+      std::env::current_dir()
+        .expect("failed to read current directory")
+        .join(path)
+        .display()
+        .to_string()
+    })
+    .collect::<Vec<_>>();
+
   let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
 
   let acl_tokens = map_lit(
@@ -431,6 +444,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
 
   let context = quote!({
     #maybe_embed_plist_block
+    #(const _: &[u8] = ::std::include_bytes!(#additional_capability_paths);)*
 
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(

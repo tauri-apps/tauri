@@ -76,6 +76,13 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
   HashAlgorithm::Sha1,
 )];
 
+/// Files included by `installer.nsi`, copied next to it as-is,
+/// preserving the directory structure.
+///
+/// Unlike `installer.nsi` these are not handlebars templates.
+const NSIS_TEMPLATE_INCLUDES: include_dir::Dir<'_> =
+  include_dir::include_dir!("$CARGO_MANIFEST_DIR/src/bundle/windows/nsis/includes");
+
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
@@ -659,11 +666,7 @@ fn build_nsis_app_installer(
       .expect("Failed to setup handlebar template");
   }
 
-  write_utf8_with_bom(
-    output_path.join("FileAssociation.nsh"),
-    include_bytes!("./FileAssociation.nsh"),
-  )?;
-  write_utf8_with_bom(output_path.join("utils.nsh"), include_bytes!("./utils.nsh"))?;
+  write_template_includes(&NSIS_TEMPLATE_INCLUDES, &output_path)?;
 
   let installer_nsi_path = output_path.join("installer.nsi");
   write_utf8_with_bom(
@@ -986,6 +989,23 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     _ => return None,
   };
   Some((path, content))
+}
+
+/// Recursively writes the contents of `dir` into `output_path`.
+fn write_template_includes(dir: &include_dir::Dir<'_>, output_path: &Path) -> crate::Result<()> {
+  for file in dir.files() {
+    let path = output_path.join(file.path());
+    if let Some(parent) = path.parent() {
+      fs::create_dir_all(parent)?;
+    }
+    write_utf8_with_bom(path, file.contents())?;
+  }
+
+  for dir in dir.dirs() {
+    write_template_includes(dir, output_path)?;
+  }
+
+  Ok(())
 }
 
 fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> crate::Result<()> {

@@ -12,6 +12,9 @@ on:
       - '.github/workflows/deploy-schema-worker.yml'
       - 'crates/tauri-schema-worker/**'
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

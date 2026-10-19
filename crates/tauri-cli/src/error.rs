@@ -92,7 +92,7 @@ impl<T> ErrorExt<T> for std::result::Result<T, std::io::Error> {
 
 macro_rules! bail {
    ($msg:literal $(,)?) => {
-      return Err(crate::Error::GenericError($msg.into()))
+      return Err(crate::Error::GenericError(format!($msg)))
    };
     ($err:expr $(,)?) => {
        return Err(crate::Error::GenericError($err))

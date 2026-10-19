@@ -20,8 +20,8 @@ use std::{
 };
 
 /// Bundles the project.
-/// Returns the paths of the generated `.tar.gz` archive, its `PKGBUILD`, `.SRCINFO`
-/// and install script.
+/// Returns the paths of the generated `.tar.gz` archive, its `PKGBUILD`, `.SRCINFO`,
+/// install script and changelog.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Arch Linux uses its own naming for some architectures.
   let arch = match settings.binary_arch() {
@@ -87,10 +87,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let mut paths = vec![package_path, pkgbuild_path, srcinfo_path];
 
-  if let (Some(src), Some(name)) = (&settings.pacman().install, &package.install) {
-    let dest = base_dir.join(name);
-    fs::copy(src, &dest).fs_context("Failed to copy the install script", src.clone())?;
-    paths.push(dest);
+  for (src, name, description) in [
+    (
+      &settings.pacman().install,
+      &package.install,
+      "Failed to copy the install script",
+    ),
+    (
+      &settings.pacman().changelog,
+      &package.changelog,
+      "Failed to copy the changelog",
+    ),
+  ] {
+    if let (Some(src), Some(name)) = (src, name) {
+      let dest = base_dir.join(name);
+      fs::copy(src, &dest).fs_context(description, src.clone())?;
+      paths.push(dest);
+    }
   }
 
   Ok(paths)
@@ -119,6 +132,8 @@ struct Package {
   url: String,
   /// The install script file name.
   install: Option<String>,
+  /// The changelog file name.
+  changelog: Option<String>,
   license: String,
   depends: Vec<String>,
   optdepends: Vec<String>,
@@ -159,6 +174,10 @@ impl Package {
       .install
       .as_ref()
       .map(|_| format!("{pkgname}.install"));
+    let changelog = pacman
+      .changelog
+      .as_ref()
+      .map(|_| format!("{pkgname}.changelog"));
 
     let pkgrel = pacman.pkgrel.clone().unwrap_or_else(|| "1".into());
     if !is_valid_pkgrel(&pkgrel) {
@@ -212,6 +231,7 @@ impl Package {
       arch: arch.to_string(),
       url: settings.homepage_url().unwrap_or_default().to_string(),
       install,
+      changelog,
       license: settings.license().unwrap_or_else(|| "unknown".into()),
       depends: pacman.depends.clone().unwrap_or_default(),
       optdepends: pacman.optdepends.clone().unwrap_or_default(),
@@ -246,6 +266,11 @@ impl Package {
       .as_ref()
       .map(|install| format!("install={}\n", quote(install)))
       .unwrap_or_default();
+    let changelog = self
+      .changelog
+      .as_ref()
+      .map(|changelog| format!("changelog={}\n", quote(changelog)))
+      .unwrap_or_default();
 
     let mut out = String::new();
     if !self.maintainer.is_empty() {
@@ -259,7 +284,7 @@ pkgrel={}
 {}pkgdesc={}
 arch=({})
 url={}
-{install}license=({})
+{install}{changelog}license=({})
 depends=({})
 optdepends=({})
 provides=({})
@@ -313,6 +338,9 @@ package() {{
     field("url", &self.url);
     if let Some(install) = &self.install {
       field("install", install);
+    }
+    if let Some(changelog) = &self.changelog {
+      field("changelog", changelog);
     }
     field("arch", &self.arch);
     field("license", &self.license);
@@ -438,6 +466,7 @@ mod tests {
       arch: "x86_64".into(),
       url: String::new(),
       install: Some("my-app.install".into()),
+      changelog: None,
       license: "MIT".into(),
       depends: vec!["gtk3".into(), "webkit2gtk-4.1>=2.40".into()],
       optdepends: vec!["libappindicator-gtk3: tray icon support".into()],

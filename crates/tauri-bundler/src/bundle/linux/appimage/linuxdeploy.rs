@@ -80,6 +80,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let (data_dir, icons) =
     debian::generate_data(&settings, &package_dir, &settings.deb().desktop_template)
       .with_context(|| "Failed to build data folders and files")?;
+  debian::generate_changelog_file(&settings, &data_dir)
+    .with_context(|| "Failed to create changelog.gz file")?;
   fs_utils::copy_custom_files(&settings.appimage().files, &data_dir)
     .with_context(|| "Failed to copy custom files")?;
 

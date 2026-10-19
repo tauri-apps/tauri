@@ -79,6 +79,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let (data_dir, _) = generate_data(settings, &package_dir, &settings.deb().desktop_template)
     .context("Failed to build data folders and files")?;
+  generate_changelog_file(settings, &data_dir)
+    .with_context(|| "Failed to create changelog.gz file")?;
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
     .context("Failed to copy custom files")?;
 
@@ -135,15 +137,12 @@ pub fn generate_data(
     .with_context(|| "Failed to create icon files")?;
   freedesktop::generate_desktop_file(settings, desktop_template, &data_dir)
     .with_context(|| "Failed to create desktop file")?;
-  generate_changelog_file(settings, &data_dir)
-    .with_context(|| "Failed to create changelog.gz file")?;
-
   Ok((data_dir, icons))
 }
 
 /// Generate the Changelog file by compressing, to be stored at /usr/share/doc/package-name/changelog.gz. See
 /// <https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes>
-fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+pub fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
     let product_name = settings.product_name();

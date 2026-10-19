@@ -1610,6 +1610,7 @@ fn tauri_config_to_bundle_settings(
       files: config.linux.pacman.files,
       desktop_template: config.linux.pacman.desktop_template,
       install: config.linux.pacman.install,
+      changelog: config.linux.pacman.changelog,
       source: config.linux.pacman.source,
     },
     dmg: DmgSettings {

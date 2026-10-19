@@ -481,6 +481,11 @@ pub struct PacmanConfig {
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#install>
   pub install: Option<PathBuf>,
+  /// Path to the changelog file, shown by `pacman -Qc`.
+  /// It is written next to the PKGBUILD as `<pkgname>.changelog` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#changelog>
+  pub changelog: Option<PathBuf>,
   /// Source of the package to be stored at PKGBUILD.
   /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
   ///

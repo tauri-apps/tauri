@@ -4,7 +4,7 @@
 
 use super::{PluginApi, PluginHandle};
 
-use crate::{ipc::Channel, AppHandle, Runtime};
+use crate::{AppHandle, Runtime, ipc::Channel};
 #[cfg(target_os = "android")]
 use crate::{
   runtime::RuntimeHandle,
@@ -16,12 +16,12 @@ use std::sync::atomic::{AtomicI32, Ordering};
 #[cfg(mobile)]
 use tokio::sync::oneshot;
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 use std::{
   collections::HashMap,
   fmt,
-  sync::{mpsc::channel, Mutex, OnceLock},
+  sync::{Mutex, OnceLock, mpsc::channel},
 };
 
 type PluginResponse = Result<serde_json::Value, serde_json::Value>;
@@ -210,7 +210,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
     plugin_identifier: &str,
     class_name: &str,
   ) -> Result<PluginHandle<R>, PluginInvokeError> {
-    use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+    use jni::{JNIEnv, errors::Error as JniError, objects::JObject};
 
     fn initialize_plugin<R: Runtime>(
       env: &mut JNIEnv<'_>,
@@ -241,7 +241,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
         .l()?;
 
       let plugin_name = env.new_string(plugin_name)?;
-      let config = env.new_string(&serde_json::to_string(plugin_config).unwrap())?;
+      let config = env.new_string(serde_json::to_string(plugin_config).unwrap())?;
       env.call_method(
         plugin_manager,
         "load",
@@ -304,7 +304,15 @@ impl<R: Runtime> PluginHandle<R> {
       command,
       serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
       move |response| {
-        tx.lock().unwrap().take().unwrap().send(response).unwrap();
+        // The receiver is gone when the caller stopped waiting, for example because
+        // the future was dropped by a timeout, and the sender is gone when the
+        // response arrives twice (the Android `run_command` keeps a clone of the
+        // handler for its error path). This closure runs inside the native response
+        // handler, an `extern "C"` / JNI function where a panic cannot unwind and
+        // aborts the process, so a late or duplicate response is dropped instead.
+        if let Some(tx) = tx.lock().unwrap().take() {
+          let _ = tx.send(response);
+        }
       },
     )?;
 
@@ -333,7 +341,8 @@ impl<R: Runtime> PluginHandle<R> {
       command,
       serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
       move |response| {
-        tx.send(response).unwrap();
+        // Never panic inside the native response handler, see `run_mobile_plugin_async`.
+        let _ = tx.send(response);
       },
     )?;
 
@@ -448,9 +457,9 @@ pub(crate) fn run_command<
   payload: serde_json::Value,
   handler: F,
 ) -> Result<(), PluginInvokeError> {
-  use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+  use jni::{JNIEnv, errors::Error as JniError, objects::JObject};
 
-  fn run<R: Runtime>(
+  fn run(
     id: i32,
     plugin: &str,
     command: String,
@@ -460,7 +469,7 @@ pub(crate) fn run_command<
   ) -> Result<(), JniError> {
     let plugin = env.new_string(plugin)?;
     let command = env.new_string(&command)?;
-    let data = env.new_string(&serde_json::to_string(payload).unwrap())?;
+    let data = env.new_string(serde_json::to_string(payload).unwrap())?;
     let plugin_manager = env
       .call_method(
         activity,
@@ -502,7 +511,7 @@ pub(crate) fn run_command<
     .insert(id, Box::new(handler.clone()));
 
   handle.run_on_android_context(move |env, activity, _webview| {
-    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, env, activity) {
+    if let Err(e) = run(id, &plugin_name, command, &payload, env, activity) {
       handler(Err(e.to_string().into()));
     }
   });

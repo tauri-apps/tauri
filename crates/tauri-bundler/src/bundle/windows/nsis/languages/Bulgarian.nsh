@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_BULGARIAN} "${PRODUCTNAME} ${VERSION} е 
 LangString appRunning ${LANG_BULGARIAN} "{{product_name}} е отворен! Моля, затворете го първо и опитайте отново."
 LangString appRunningOkKill ${LANG_BULGARIAN} "{{product_name}} е отворен!$\nНатиснете ОК, за да го затворите."
 LangString chooseMaintenanceOption ${LANG_BULGARIAN} "Изберете опция за поддръжка."
-LangString choowHowToInstall ${LANG_BULGARIAN} "Изберете как искате да инсталирате ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_BULGARIAN} "Изберете как искате да инсталирате ${PRODUCTNAME}."
 LangString createDesktop ${LANG_BULGARIAN} "Създайте пряк път на работния плот"
 LangString dontUninstall ${LANG_BULGARIAN} "Не деинсталирайте"
 LangString dontUninstallDowngrade ${LANG_BULGARIAN} "Не деинсталирайте (Понижаването без деинсталация е забранено за този инсталатор)"

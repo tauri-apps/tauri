@@ -6,12 +6,12 @@ use std::{
   collections::HashMap,
   ffi::OsStr,
   fs::FileType,
-  io::{BufRead, Write},
+  io::BufRead,
   iter::once,
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
-  sync::{mpsc::sync_channel, Arc, Mutex},
+  sync::{Arc, Mutex, mpsc::sync_channel},
   time::Duration,
 };
 
@@ -25,16 +25,16 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
+use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
 
 use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
-  error::{bail, Context, Error, ErrorExt},
+  ConfigValue,
+  error::{Context, Error, ErrorExt, bail},
   helpers::{
     app_paths::Dirs,
-    config::{nsis_settings, reload_config, wix_settings, BundleResources, Config, ConfigMetadata},
+    config::{BundleResources, Config, ConfigMetadata, nsis_settings, reload_config, wix_settings},
   },
-  ConfigValue,
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -44,7 +44,7 @@ pub mod installation;
 pub mod manifest;
 use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
-use manifest::{rewrite_manifest, Manifest};
+use manifest::{Manifest, rewrite_manifest};
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
@@ -160,10 +160,12 @@ impl Rust {
       .as_ref()
       .is_some_and(|target| target.ends_with("ios") || target.ends_with("ios-sim"));
     if target_ios {
-      std::env::set_var(
-        "IPHONEOS_DEPLOYMENT_TARGET",
-        &config.bundle.ios.minimum_system_version,
-      );
+      unsafe {
+        std::env::set_var(
+          "IPHONEOS_DEPLOYMENT_TARGET",
+          &config.bundle.ios.minimum_system_version,
+        )
+      };
     }
 
     let app_settings = RustAppSettings::new(config, manifest, target, tauri_dir)?;
@@ -342,31 +344,31 @@ impl IgnoreMatcher {
 fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
   let mut matchers = Vec::new();
 
+  let custom_ignore_file = std::env::var_os("TAURI_CLI_WATCHER_IGNORE_FILENAME");
+  let mut overrides = ignore::overrides::OverrideBuilder::new(dir);
+  overrides.add(".taurignore").unwrap();
+  if let Some(ignore_file) = &custom_ignore_file {
+    let _ = overrides.add(&ignore_file.to_string_lossy());
+  }
+
   // ignore crate doesn't expose an API to build `ignore::gitignore::GitIgnore`
   // with custom ignore file names so we have to walk the directory and collect
   // our custom ignore files and add it using `ignore::gitignore::GitIgnoreBuilder::add`
   for entry in ignore::WalkBuilder::new(dir)
     .require_git(false)
     .ignore(false)
-    .overrides(
-      ignore::overrides::OverrideBuilder::new(dir)
-        .add(".taurignore")
-        .unwrap()
-        .build()
-        .unwrap(),
-    )
+    .overrides(overrides.build().unwrap())
     .build()
     .flatten()
   {
     let path = entry.path();
-    if path.file_name() == Some(OsStr::new(".taurignore")) {
+    let file_name = path.file_name();
+    if file_name == Some(OsStr::new(".taurignore"))
+      || (file_name.is_some() && file_name == custom_ignore_file.as_deref())
+    {
       let mut ignore_builder = GitignoreBuilder::new(path.parent().unwrap());
 
       ignore_builder.add(path);
-
-      if let Some(ignore_file) = std::env::var_os("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
-        ignore_builder.add(dir.join(ignore_file));
-      }
 
       for line in crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE
         .lines()
@@ -383,22 +385,16 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 }
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
-  let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".tauri");
-  let _ = std::fs::create_dir_all(&default_gitignore);
-  default_gitignore.push(".gitignore");
-  if !default_gitignore.exists() {
-    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
-    }
-  }
-
   let mut builder = ignore::WalkBuilder::new(dir);
   builder.add_custom_ignore_filename(".taurignore");
-  let _ = builder.add_ignore(default_gitignore);
   if let Some(ignore_file) = std::env::var_os("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
-    builder.add_ignore(ignore_file);
+    builder.add_custom_ignore_filename(ignore_file);
   }
+  crate::helpers::app_paths::skip_ignored_entries(
+    &mut builder,
+    dir,
+    crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE,
+  );
   builder.require_git(false).ignore(false).max_depth(Some(1));
 
   for entry in builder.build().flatten() {
@@ -690,6 +686,24 @@ impl BinarySettings {
   pub fn file_name(&self) -> &str {
     self.filename.as_ref().unwrap_or(&self.name)
   }
+
+  fn required_features_enabled(&self, enabled_features: &[String]) -> bool {
+    match &self.required_features {
+      Some(req_features) => req_features
+        .iter()
+        .all(|feat| enabled_features.contains(feat)),
+      None => true,
+    }
+  }
+
+  fn matches_src_bin(&self, name: &str, path: &Path) -> bool {
+    self.name == name
+      || self.file_name() == name
+      || self
+        .path
+        .as_ref()
+        .is_some_and(|src_path| path.ends_with(src_path))
+  }
 }
 
 /// The package settings.
@@ -881,26 +895,6 @@ impl AppSettings for RustAppSettings {
       });
     }
 
-    if let Some(open) = config.plugins.0.get("shell").and_then(|v| v.get("open")) {
-      if open.as_bool().is_some_and(|x| x) || open.is_string() {
-        settings.appimage.bundle_xdg_open = true;
-      }
-    }
-
-    if let Some(deps) = self
-      .manifest
-      .lock()
-      .unwrap()
-      .inner
-      .as_table()
-      .get("dependencies")
-      .and_then(|f| f.as_table())
-    {
-      if deps.contains_key("tauri-plugin-opener") {
-        settings.appimage.bundle_xdg_open = true;
-      };
-    }
-
     Ok(settings)
   }
 
@@ -933,6 +927,7 @@ impl AppSettings for RustAppSettings {
 
   fn get_binaries(&self, options: &Options, tauri_dir: &Path) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries = Vec::new();
+    let mut disabled_bins = Vec::new();
 
     if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
@@ -941,14 +936,9 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        if let Some(req_features) = &bin.required_features {
-          // Check if all required features are enabled.
-          if !req_features
-            .iter()
-            .all(|feat| options.features.contains(feat))
-          {
-            continue;
-          }
+        if !bin.required_features_enabled(&options.features) {
+          disabled_bins.push(bin);
+          continue;
         }
         let file_name = bin.file_name();
         let is_main = file_name == self.cargo_package_settings.name || file_name == default_run;
@@ -980,11 +970,7 @@ impl AppSettings for RustAppSettings {
       })
       .unwrap_or_default();
 
-    if !binaries_paths
-      .iter()
-      .any(|(_name, path)| path == Path::new("src/main.rs"))
-      && tauri_dir.join("src/main.rs").exists()
-    {
+    if tauri_dir.join("src/main.rs").exists() {
       binaries_paths.push((
         self.cargo_package_settings.name.clone(),
         tauri_dir.join("src/main.rs"),
@@ -993,10 +979,16 @@ impl AppSettings for RustAppSettings {
 
     for (name, path) in binaries_paths {
       // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
-      let bin_exists = binaries
+      let bin_exists = binaries.iter().any(|bin| {
+        bin.name() == name
+          || bin
+            .src_path()
+            .is_some_and(|src_path| path.ends_with(src_path))
+      });
+      let bin_disabled = disabled_bins
         .iter()
-        .any(|bin| bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string())));
-      if !bin_exists {
+        .any(|bin| bin.matches_src_bin(&name, &path));
+      if !bin_exists && !bin_disabled {
         binaries.push(BundleBinary::new(name, false))
       }
     }
@@ -1019,6 +1011,10 @@ impl AppSettings for RustAppSettings {
     }
 
     Ok(binaries)
+  }
+
+  fn target_triple(&self) -> &str {
+    &self.target_triple
   }
 
   fn app_name(&self) -> Option<String> {
@@ -1063,7 +1059,7 @@ impl RustAppSettings {
       None => {
         return Err(crate::Error::GenericError(
           "No package info in the config file".to_owned(),
-        ))
+        ));
       }
     };
 
@@ -1658,6 +1654,7 @@ fn tauri_config_to_bundle_settings(
       allow_downgrades: config.windows.allow_downgrades,
       sign_command: config.windows.sign_command.map(custom_sign_settings),
       minimum_webview2_version: config.windows.minimum_webview2_version,
+      bundle_vc_runtime: config.windows.bundle_vc_runtime,
     },
     license: config.license.or_else(|| {
       settings
@@ -1730,6 +1727,70 @@ mod pkgconfig_utils {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::fs;
+
+  fn app_settings_with_manifest(cargo_toml: &str) -> (tempfile::TempDir, RustAppSettings) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let tauri_dir = temp_dir.path().to_path_buf();
+    fs::create_dir_all(tauri_dir.join("src/bin")).unwrap();
+    fs::write(tauri_dir.join("Cargo.toml"), cargo_toml).unwrap();
+    fs::write(tauri_dir.join("src/main.rs"), "").unwrap();
+    fs::write(tauri_dir.join("src/bin/generate-bindings.rs"), "").unwrap();
+
+    let cargo_settings = CargoSettings::load(&tauri_dir).unwrap();
+    let cargo_package_settings = cargo_settings.package.clone().unwrap();
+    let package_settings = PackageSettings {
+      product_name: cargo_package_settings.name.clone(),
+      version: "0.1.0".into(),
+      description: String::new(),
+      homepage: None,
+      authors: None,
+      default_run: cargo_package_settings.default_run.clone(),
+    };
+
+    let target_triple = "x86_64-unknown-linux-gnu".to_string();
+
+    (
+      temp_dir,
+      RustAppSettings {
+        manifest: Mutex::new(Manifest::default()),
+        cargo_settings,
+        cargo_package_settings,
+        cargo_ws_package_settings: None,
+        package_settings,
+        cargo_config: CargoConfig::default(),
+        target_triple: target_triple.clone(),
+        target_platform: TargetPlatform::from_triple(&target_triple),
+        workspace_dir: tauri_dir,
+      },
+    )
+  }
+
+  #[test]
+  fn lookup_skips_builtin_ignored_entries() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dir = temp_dir.path();
+    for path in ["node_modules", "target", "gen", "src"] {
+      fs::create_dir_all(dir.join(path)).unwrap();
+    }
+    fs::write(dir.join("Cargo.lock"), "").unwrap();
+    fs::write(dir.join("Cargo.toml"), "").unwrap();
+
+    let mut paths = Vec::new();
+    lookup(dir, |_, path| {
+      paths.push(path.strip_prefix(dir).unwrap().to_path_buf())
+    });
+    paths.sort();
+
+    assert_eq!(
+      paths,
+      vec![
+        PathBuf::from(""),
+        PathBuf::from("Cargo.toml"),
+        PathBuf::from("src")
+      ]
+    );
+  }
 
   #[test]
   fn parse_cargo_option() {
@@ -1748,6 +1809,66 @@ mod tests {
     assert_eq!(get_cargo_option(&args, "--profile"), Some("holla"));
     assert_eq!(get_cargo_option(&args, "--target-dir"), Some("path/to/dir"));
     assert_eq!(get_cargo_option(&args, "--non-existent"), None);
+  }
+
+  #[test]
+  fn get_binaries_ignores_src_bin_with_disabled_required_features() {
+    let cargo_toml = r#"
+      [package]
+      name = "app"
+      version = "0.1.0"
+      default-run = "app"
+
+      [[bin]]
+      name = "generate-bindings"
+      path = "src/bin/generate-bindings.rs"
+      required-features = ["bindings"]
+    "#;
+
+    let (temp_dir, app_settings) = app_settings_with_manifest(cargo_toml);
+    let tauri_dir = temp_dir.path();
+
+    let binaries = app_settings
+      .get_binaries(&Options::default(), tauri_dir)
+      .unwrap();
+    assert!(binaries.iter().any(|bin| bin.name() == "app" && bin.main()));
+    assert!(!binaries.iter().any(|bin| bin.name() == "generate-bindings"));
+
+    let binaries = app_settings
+      .get_binaries(
+        &Options {
+          features: vec!["bindings".into()],
+          ..Default::default()
+        },
+        tauri_dir,
+      )
+      .unwrap();
+    assert!(binaries.iter().any(|bin| bin.name() == "generate-bindings"));
+  }
+
+  #[test]
+  fn get_binaries_keeps_src_bin_when_bin_has_no_path() {
+    let cargo_toml = r#"
+      [package]
+      name = "app"
+      version = "0.1.0"
+      default-run = "app"
+
+      [[bin]]
+      name = "other"
+    "#;
+
+    let (temp_dir, app_settings) = app_settings_with_manifest(cargo_toml);
+    let tauri_dir = temp_dir.path();
+
+    let binaries = app_settings
+      .get_binaries(&Options::default(), tauri_dir)
+      .unwrap();
+    let names = binaries.iter().map(|bin| bin.name()).collect::<Vec<_>>();
+    assert!(names.contains(&"other"), "{names:?}");
+    assert!(names.contains(&"app"), "{names:?}");
+    assert!(names.contains(&"generate-bindings"), "{names:?}");
+    assert_eq!(names.len(), 3, "{names:?}");
   }
 
   #[test]
@@ -1812,6 +1933,7 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn parse_target_dir_from_opts() {
     let dirs = crate::helpers::app_paths::resolve_dirs();
     let current_dir = std::env::current_dir().unwrap();
@@ -1867,7 +1989,7 @@ mod tests {
 
     #[cfg(windows)]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir");
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("D:\\path\\to\\env\\dir\\release")
@@ -1880,7 +2002,7 @@ mod tests {
 
     #[cfg(not(windows))]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir");
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("/path/to/env/dir/release")

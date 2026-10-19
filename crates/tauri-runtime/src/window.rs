@@ -5,15 +5,15 @@
 //! A layer between raw [`Runtime`] windows and Tauri.
 
 use crate::{
-  webview::{DetachedWebview, PendingWebview},
   Icon, Runtime, UserEvent, WindowDispatch,
+  webview::{DetachedWebview, PendingWebview},
 };
 
 use dpi::PixelUnit;
 use serde::{Deserialize, Deserializer, Serialize};
 use tauri_utils::{
-  config::{Color, WindowConfig},
   Theme,
+  config::{Color, WindowConfig},
 };
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -71,6 +71,7 @@ pub enum WindowEvent {
   /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
   /// - **Linux / macOS / Windows**: Unsupported.
   #[cfg(mobile)]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "android", target_os = "ios"))))]
   Suspended,
 
   /// Emitted when the application has been resumed.
@@ -81,6 +82,7 @@ pub enum WindowEvent {
   /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
   /// - **Linux / macOS / Windows**: Unsupported.
   #[cfg(mobile)]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "android", target_os = "ios"))))]
   Resumed,
 }
 
@@ -363,11 +365,9 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
+  ///
+  /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
+  /// creating a transparent window.
   #[must_use]
   fn transparent(self, transparent: bool) -> Self;
 
@@ -497,6 +497,13 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Sets custom name for Windows' window class. **Windows only**.
   #[must_use]
   fn window_classname<S: Into<String>>(self, window_classname: S) -> Self;
+
+  /// This sets `WS_EX_NOREDIRECTIONBITMAP`.
+  ///
+  /// This can avoid the white flash that may appear before the webview content is rendered
+  /// when using a transparent window. **Windows only**.
+  #[must_use]
+  fn no_redirection_bitmap(self, enable: bool) -> Self;
 
   /// The name of the activity to create for this webview window.
   #[cfg(target_os = "android")]

@@ -124,6 +124,34 @@ impl Package {
       .to_string_lossy()
       .into_owned();
 
+    let pkgname = match &pacman.pkgname {
+      Some(pkgname) => {
+        if !is_valid_pkgname(pkgname) {
+          return Err(crate::Error::GenericError(format!(
+            "invalid `bundle > linux > pacman > pkgname` `{pkgname}`: it must only contain lowercase alphanumerics and `@._+-`, and must not start with `-` or `.`"
+          )));
+        }
+        pkgname.clone()
+      }
+      None => default_pkgname(settings.product_name()).ok_or_else(|| {
+        crate::Error::GenericError(format!(
+          "cannot derive a pacman package name from the product name `{}`, set `bundle > linux > pacman > pkgname`",
+          settings.product_name()
+        ))
+      })?,
+    };
+
+    let mut provides = pacman.provides.clone().unwrap_or_default();
+    let mut conflicts = pacman.conflicts.clone().unwrap_or_default();
+    // a prebuilt `-bin` package stands in for the package built from source
+    if let Some(name) = pkgname.strip_suffix("-bin").filter(|n| !n.is_empty()) {
+      for list in [&mut provides, &mut conflicts] {
+        if !list.iter().any(|p| p == name) {
+          list.push(name.to_string());
+        }
+      }
+    }
+
     let mut source = pacman.source.clone().unwrap_or_default();
     match source.first_mut() {
       // save the download under the archive name, whatever the URL's file name is
@@ -144,7 +172,7 @@ impl Package {
         .authors_comma_separated()
         .unwrap_or_default()
         .replace(['\r', '\n'], " "),
-      pkgname: AsKebabCase(settings.product_name()).to_string(),
+      pkgname,
       version: settings.version_string().to_string(),
       pkgver: pkgver(settings.version_string()),
       pkgdesc: settings
@@ -155,8 +183,8 @@ impl Package {
       url: settings.homepage_url().unwrap_or_default().to_string(),
       license: settings.license().unwrap_or_else(|| "unknown".into()),
       depends: pacman.depends.clone().unwrap_or_default(),
-      provides: pacman.provides.clone().unwrap_or_default(),
-      conflicts: pacman.conflicts.clone().unwrap_or_default(),
+      provides,
+      conflicts,
       replaces: pacman.replaces.clone().unwrap_or_default(),
       source,
       sha512sums,
@@ -291,6 +319,29 @@ fn double_quote(value: &str) -> String {
   )
 }
 
+/// Whether the name is a valid `pkgname`.
+///
+/// See <https://wiki.archlinux.org/title/PKGBUILD#pkgname>
+fn is_valid_pkgname(name: &str) -> bool {
+  !name.is_empty()
+    && !name.starts_with(['-', '.'])
+    && name
+      .chars()
+      .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "@._+-".contains(c))
+}
+
+/// The kebab-cased product name, without the characters `pkgname` does not allow,
+/// with the `-bin` suffix.
+fn default_pkgname(product_name: &str) -> Option<String> {
+  let name = AsKebabCase(product_name)
+    .to_string()
+    .chars()
+    .filter(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "@._+-".contains(*c))
+    .collect::<String>();
+  let name = name.trim_start_matches(['-', '.']).trim_end_matches('-');
+  (!name.is_empty()).then(|| format!("{name}-bin"))
+}
+
 /// pacman does not allow hyphens in `pkgver`, so the semver pre-release
 /// separator is mapped to an underscore, e.g. `1.0.0-beta.1` -> `1.0.0_beta.1`.
 /// The original version is available to the PKGBUILD as `${_pkgver}`.
@@ -351,6 +402,16 @@ mod tests {
 pkgname = my-app
 "
     );
+  }
+
+  #[test]
+  fn derives_pkgname() {
+    assert_eq!(default_pkgname("My App").as_deref(), Some("my-app-bin"));
+    assert_eq!(default_pkgname("Café 2").as_deref(), Some("caf-2-bin"));
+    assert_eq!(default_pkgname("应用"), None);
+    assert!(is_valid_pkgname("my-app-bin"));
+    assert!(!is_valid_pkgname("My-App"));
+    assert!(!is_valid_pkgname("-app"));
   }
 
   #[test]

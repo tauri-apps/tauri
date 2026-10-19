@@ -1594,6 +1594,7 @@ fn tauri_config_to_bundle_settings(
       compression: config.linux.rpm.compression,
     },
     pacman: PacmanSettings {
+      pkgname: config.linux.pacman.pkgname,
       depends: if depends_pacman.is_empty() {
         None
       } else {

@@ -329,6 +329,15 @@ pub struct IosSettings {
 /// Must Read https://wiki.archlinux.org/title/PKGBUILD
 #[derive(Clone, Debug, Default)]
 pub struct PacmanSettings {
+  /// The package name.
+  ///
+  /// Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for
+  /// packages that ship prebuilt binaries, for instance `my-app-bin`.
+  /// When the name ends with `-bin`, the package also provides and conflicts with the name
+  /// without the suffix.
+  ///
+  /// See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>
+  pub pkgname: Option<String>,
   /// List of softwares that must be installed for the app to build and run.
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>

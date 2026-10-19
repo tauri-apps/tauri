@@ -3782,6 +3782,13 @@
       "description": "Configuration for Pacman bundles.\n\n See <https://wiki.archlinux.org/title/PKGBUILD>\n\n The package contents are shared with the Debian bundle, so [`DebConfig`]'s `files`,\n `desktopTemplate` and `changelog` also apply to it.",
       "type": "object",
       "properties": {
+        "pkgname": {
+          "description": "The package name.\n\n Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for\n packages that ship prebuilt binaries, for instance `my-app-bin`.\n When the name ends with `-bin`, the package also provides and conflicts with the name\n without the suffix.\n\n See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "depends": {
           "description": "List of softwares that must be installed for the app to build and run.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#depends>",
           "type": [

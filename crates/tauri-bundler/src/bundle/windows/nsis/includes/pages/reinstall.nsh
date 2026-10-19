@@ -3,6 +3,9 @@
 ;
 ; The page itself is declared in `installer.nsi` with
 ; `Page custom PageReinstall PageLeaveReinstall`.
+;
+; `installer.nsi` also calls `FindWixInstall` from `.onInit`, to compare
+; against the same installation this page would when it is skipped.
 
 ; Which radio button was selected the last time the page was shown,
 ; 1 for the first option and 2 for the second one

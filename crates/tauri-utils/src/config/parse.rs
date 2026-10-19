@@ -234,7 +234,7 @@ pub fn does_supported_file_name_exist(target: Target, path: impl Into<PathBuf>) 
 /// 2. Check if `tauri.conf.json5` exists
 ///    a. Parse it with `json5`
 ///    b. Return error if all above steps failed
-/// 3. Check if `Tauri.json` exists
+/// 3. Check if `Tauri.toml` exists
 ///    a. Parse it with `toml`
 ///    b. Return error if all above steps failed
 /// 4. Return error if all above steps failed

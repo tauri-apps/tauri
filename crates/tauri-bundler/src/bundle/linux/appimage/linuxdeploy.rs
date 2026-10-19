@@ -5,19 +5,18 @@
 
 use super::{super::debian, write_and_make_executable};
 use crate::{
-  bundle::settings::Arch,
-  error::{Context, ErrorExt},
-  utils::{
-    fs_utils,
-    http_utils::{download, download_and_verify, HashAlgorithm},
-    CommandExt,
-  },
   Settings,
+  bundle::settings::Arch,
+  error::Context,
+  utils::{
+    CommandExt, fs_utils,
+    http_utils::{HashAlgorithm, download, download_and_verify},
+  },
 };
 
-/// Tag suffix of the `linuxdeploy-<version>` release in tauri-apps/binary-releases,
+/// Tag suffix of the `linuxdeploy-<commit>` release in tauri-apps/binary-releases,
 /// the linuxdeploy commit the binaries were built from.
-const LINUXDEPLOY_VERSION: &str = "07333c6";
+const LINUXDEPLOY_COMMIT_HASH: &str = "07333c6";
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -126,21 +125,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs::create_dir_all(&app_dir_usr_bin)?;
   fs::create_dir_all(app_dir_usr_lib)?;
 
-  // Copy bins and libs that linuxdeploy doesn't know about
-
-  // we also check if the user may have provided their own copy already
-  // xdg-open will be handled by the `files` config instead
-  if settings.deep_link_protocols().is_some() && !app_dir_usr_bin.join("xdg-open").exists() {
-    fs::copy("/usr/bin/xdg-mime", app_dir_usr_bin.join("xdg-mime"))
-      .fs_context("xdg-mime binary not found", "/usr/bin/xdg-mime".to_string())?;
-  }
-
-  // we also check if the user may have provided their own copy already
-  if settings.appimage().bundle_xdg_open && !app_dir_usr_bin.join("xdg-open").exists() {
-    fs::copy("/usr/bin/xdg-open", app_dir_usr_bin.join("xdg-open"))
-      .fs_context("xdg-open binary not found", "/usr/bin/xdg-open".to_string())?;
-  }
-
   let search_dirs = [
     match settings.binary_arch() {
       Arch::X86_64 => "/usr/lib/x86_64-linux-gnu/",
@@ -241,7 +225,7 @@ fn excluded_libraries_env(exclude_libraries: &[String]) -> Option<String> {
   }
 }
 
-/// SHA256 of the linuxdeploy AppImage for the given arch, as published in [`LINUXDEPLOY_VERSION`].
+/// SHA256 of the linuxdeploy AppImage for the given arch, as published in [`LINUXDEPLOY_COMMIT_HASH`].
 fn linuxdeploy_sha256(linuxdeploy_arch: &str) -> Option<&'static str> {
   match linuxdeploy_arch {
     "x86_64" => Some("36a2d7e274d12e1050d0e9ecfe11d339ed54720b2bec464c286d53f8b07f5c62"),
@@ -259,43 +243,54 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     let data = download(&format!(
       "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-{arch}"
     ))?;
-    write_and_make_executable(&apprun, data)?;
+    write_and_make_executable(&apprun, &data)?;
   }
 
   let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
-  // The version is part of the file name so bumping it downloads the new binary instead of
+  // The commit is part of the file name so bumping it downloads the new binary instead of
   // reusing an older cached one (which is kept for older tauri-cli versions sharing the cache).
   // We can't verify the hash of the cached file because we patch its magic bytes below.
   let linuxdeploy = tools_path.join(format!(
-    "linuxdeploy-{LINUXDEPLOY_VERSION}-{linuxdeploy_arch}.AppImage"
+    "linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}-{linuxdeploy_arch}.AppImage"
   ));
   if !linuxdeploy.exists() {
-    let url = format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-{LINUXDEPLOY_VERSION}/linuxdeploy-{linuxdeploy_arch}.AppImage");
+    let url = format!(
+      "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}/linuxdeploy-{linuxdeploy_arch}.AppImage"
+    );
     let data = match linuxdeploy_sha256(linuxdeploy_arch) {
       Some(hash) => download_and_verify(&url, hash, HashAlgorithm::Sha256)?,
       None => download(&url)?,
     };
-    write_and_make_executable(&linuxdeploy, data)?;
+    write_and_make_executable(&linuxdeploy, &data)?;
   }
 
-  let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
-  if !gtk.exists() {
-    let data = download("https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh")?;
-    write_and_make_executable(&gtk, data)?;
-  }
-
-  let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
-  if !gstreamer.exists() {
-    let data = download("https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh")?;
-    write_and_make_executable(&gstreamer, data)?;
+  // The plugin scripts are embedded, so rewrite them whenever the cached copy differs:
+  // a copy left behind by an older CLI would otherwise be used forever.
+  for (name, data) in [
+    (
+      "linuxdeploy-plugin-gtk.sh",
+      include_bytes!("./linuxdeploy-plugin-gtk.sh").as_slice(),
+    ),
+    (
+      "linuxdeploy-plugin-gstreamer.sh",
+      include_bytes!("./linuxdeploy-plugin-gstreamer.sh").as_slice(),
+    ),
+  ] {
+    let path = tools_path.join(name);
+    if fs::read(&path).ok().as_deref() != Some(data) {
+      write_and_make_executable(&path, data)?;
+    }
   }
 
   let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");
   if !appimage.exists() {
     // This is optional, linuxdeploy will fall back to its built-in version if the download failed.
-    let data = download(&format!("https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"));
+    // Since switching to linuxdeploy-07333c6 this shouldn't be necessary anymore, but we keep it here for now just for fun.
+    let data = download(&format!(
+      "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"
+    ));
     match data {
-      Ok(data) => write_and_make_executable(&appimage, data)?,
+      Ok(data) => write_and_make_executable(&appimage, &data)?,
       Err(err) => {
         log::error!("Download of AppImage plugin failed. Using older built-in version instead.");
         if verbose {

@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_KOREAN} "${PRODUCTNAME} ${VERSION}이(가
 LangString appRunning ${LANG_KOREAN} "{{product_name}}이(가) 실행 중입니다! 먼저 닫은 후 다시 시도하세요."
 LangString appRunningOkKill ${LANG_KOREAN} "{{product_name}}이(가) 실행 중입니다!$\n'OK'를 누르면 실행 중인 프로그램을 종료합니다."
 LangString chooseMaintenanceOption ${LANG_KOREAN} "수행하려는 관리 옵션을 선택합니다."
-LangString choowHowToInstall ${LANG_KOREAN} "${PRODUCTNAME}의 설치 방법을 선택하세요.."
+LangString chooseHowToInstall ${LANG_KOREAN} "${PRODUCTNAME}의 설치 방법을 선택하세요.."
 LangString createDesktop ${LANG_KOREAN} "바탕화면 바로가기 만들기"
 LangString dontUninstall ${LANG_KOREAN} "제거하지 않기"
 LangString dontUninstallDowngrade ${LANG_KOREAN} "제거하지 않기 (이 설치 프로그램에서는 제거하지 않고 다운그레이드할 수 없습니다.)"

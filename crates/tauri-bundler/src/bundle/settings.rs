@@ -415,7 +415,7 @@ pub struct PacmanSettings {
   /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
   /// first entry to its download URL, for instance
   /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
-  /// `${pkgver}` has `-` replaced with `_`, `${_pkgver}` is the app version as is.
+  /// `${pkgver}` has `-` (and any `:`, `/` or whitespace) replaced with `_`, `${_pkgver}` is the app version as is.
   /// The first entry is saved under the archive name and its checksum is written to
   /// `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).
   /// Defaults to the local archive file name.

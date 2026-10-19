@@ -477,11 +477,14 @@ fn default_pkgname(product_name: &str) -> Option<String> {
   (!name.is_empty()).then(|| format!("{name}-bin"))
 }
 
-/// pacman does not allow hyphens in `pkgver`, so the semver pre-release
-/// separator is mapped to an underscore, e.g. `1.0.0-beta.1` -> `1.0.0_beta.1`.
+/// pacman does not allow hyphens, colons, forward slashes or whitespace in `pkgver`,
+/// so they are mapped to underscores, e.g. `1.0.0-beta.1` -> `1.0.0_beta.1`.
 /// The original version is available to the PKGBUILD as `${_pkgver}`.
 fn pkgver(version: &str) -> String {
-  version.replace('-', "_")
+  version.replace(
+    |c: char| c == '-' || c == ':' || c == '/' || c.is_whitespace(),
+    "_",
+  )
 }
 
 #[cfg(test)]
@@ -580,5 +583,7 @@ pkgname = my-app
   fn maps_pkgver() {
     assert_eq!(pkgver("1.0.0"), "1.0.0");
     assert_eq!(pkgver("1.0.0-beta.1"), "1.0.0_beta.1");
+    assert_eq!(pkgver("1.0.0-rc:1/2 3"), "1.0.0_rc_1_2_3");
+    assert_eq!(pkgver("1.0.0+build.5"), "1.0.0+build.5");
   }
 }

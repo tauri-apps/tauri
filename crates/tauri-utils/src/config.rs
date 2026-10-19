@@ -484,8 +484,12 @@ pub struct PacmanConfig {
   /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
   /// `${pkgver}` has `-` replaced with `_`, `${_pkgver}` is the app version as is.
   /// The first entry is saved under the archive name and its checksum is written to
-  /// `sha512sums`. Additional entries are not verified (`SKIP`).
+  /// `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).
   /// Defaults to the local archive file name.
+  ///
+  /// The sources are architecture specific (`source_<arch>`), so the PKGBUILDs generated
+  /// for each target architecture can be merged into one that supports all of them by
+  /// combining their `arch`, `source_<arch>` and `sha512sums_<arch>` entries.
   pub source: Option<Vec<String>>,
 }
 

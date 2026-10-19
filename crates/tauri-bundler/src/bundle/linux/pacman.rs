@@ -239,6 +239,8 @@ impl Package {
       .collect::<Vec<_>>()
       .join(" ");
 
+    // architecture specific, so the PKGBUILDs of each target can be merged
+    let arch = &self.arch;
     let install = self
       .install
       .as_ref()
@@ -265,8 +267,8 @@ conflicts=({})
 replaces=({})
 # the binaries are already built, makepkg must not strip them or split their debug symbols
 options=('!strip' '!debug')
-source=({source})
-sha512sums=({})
+source_{arch}=({source})
+sha512sums_{arch}=({})
 
 package() {{
   cp -a \"$srcdir/data/.\" \"$pkgdir/\"
@@ -327,11 +329,12 @@ package() {{
     }
     field("options", "!strip");
     field("options", "!debug");
+    // the architecture specific attributes follow the global ones
     for source in &self.source {
-      field("source", &self.expand(source));
+      field(&format!("source_{}", self.arch), &self.expand(source));
     }
     for sum in &self.sha512sums {
-      field("sha512sums", sum);
+      field(&format!("sha512sums_{}", self.arch), sum);
     }
     out.push_str(&format!("\npkgname = {}\n", self.pkgname));
     out
@@ -463,8 +466,8 @@ mod tests {
 \toptdepends = libappindicator-gtk3: tray icon support
 \toptions = !strip
 \toptions = !debug
-\tsource = a.tar.gz::https://x/v1.0.0-beta.1/a_x86_64.tar.gz
-\tsha512sums = abc
+\tsource_x86_64 = a.tar.gz::https://x/v1.0.0-beta.1/a_x86_64.tar.gz
+\tsha512sums_x86_64 = abc
 
 pkgname = my-app
 "

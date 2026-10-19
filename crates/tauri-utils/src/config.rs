@@ -442,6 +442,14 @@ pub struct PacmanConfig {
   /// of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.
   /// Defaults to the app authors.
   pub maintainer: Option<String>,
+  /// The package licenses, as SPDX identifiers. Use `LicenseRef-<name>` for licenses that
+  /// have no SPDX identifier.
+  /// Defaults to `bundle > license`, or `unknown` when it is not set.
+  ///
+  /// `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#license>
+  pub license: Option<Vec<String>>,
   /// List of softwares that must be installed for the app to build and run.
   ///
   /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>

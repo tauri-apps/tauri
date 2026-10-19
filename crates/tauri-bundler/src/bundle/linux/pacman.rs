@@ -54,6 +54,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     )?;
   }
 
+  let pkgname = pkgname(settings)?;
+
   let package_name = format!("{package_base_name}.tar.gz");
   let package_path = base_dir.join(&package_name);
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
@@ -63,11 +65,24 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs_utils::copy_custom_files(&settings.pacman().files, &data_dir)
     .context("Failed to copy custom files")?;
 
+  // custom licenses must be installed to /usr/share/licenses/$pkgname
+  if let Some(license_file) = settings.license_file() {
+    let file_name = license_file
+      .file_name()
+      .map(ToOwned::to_owned)
+      .unwrap_or_else(|| "LICENSE".into());
+    let dest = data_dir
+      .join("usr/share/licenses")
+      .join(&pkgname)
+      .join(file_name);
+    fs_utils::copy_file(&license_file, &dest).context("Failed to copy the license file")?;
+  }
+
   // Apply tar/gzip to create the final package file.
   let package_path = tar_and_gzip_dir(package_dir, Compression::default())
     .context("Failed to create the tar.gz package")?;
 
-  let package = Package::new(settings, arch, &package_path)?;
+  let package = Package::new(settings, arch, pkgname, &package_path)?;
 
   if settings
     .pacman()
@@ -134,7 +149,7 @@ struct Package {
   install: Option<String>,
   /// The changelog file name.
   changelog: Option<String>,
-  license: String,
+  license: Vec<String>,
   depends: Vec<String>,
   optdepends: Vec<String>,
   provides: Vec<String>,
@@ -145,30 +160,18 @@ struct Package {
 }
 
 impl Package {
-  fn new(settings: &Settings, arch: &str, package_path: &Path) -> crate::Result<Self> {
+  fn new(
+    settings: &Settings,
+    arch: &str,
+    pkgname: String,
+    package_path: &Path,
+  ) -> crate::Result<Self> {
     let pacman = settings.pacman();
     let archive_name = package_path
       .file_name()
       .unwrap_or_default()
       .to_string_lossy()
       .into_owned();
-
-    let pkgname = match &pacman.pkgname {
-      Some(pkgname) => {
-        if !is_valid_pkgname(pkgname) {
-          return Err(crate::Error::GenericError(format!(
-            "invalid `bundle > linux > pacman > pkgname` `{pkgname}`: it must only contain lowercase alphanumerics and `@._+-`, and must not start with `-` or `.`"
-          )));
-        }
-        pkgname.clone()
-      }
-      None => default_pkgname(settings.product_name()).ok_or_else(|| {
-        crate::Error::GenericError(format!(
-          "cannot derive a pacman package name from the product name `{}`, set `bundle > linux > pacman > pkgname`",
-          settings.product_name()
-        ))
-      })?,
-    };
 
     let install = pacman
       .install
@@ -232,7 +235,11 @@ impl Package {
       url: settings.homepage_url().unwrap_or_default().to_string(),
       install,
       changelog,
-      license: settings.license().unwrap_or_else(|| "unknown".into()),
+      license: pacman
+        .license
+        .clone()
+        .filter(|l| !l.is_empty())
+        .unwrap_or_else(|| vec![settings.license().unwrap_or_else(|| "unknown".into())]),
       depends: pacman.depends.clone().unwrap_or_default(),
       optdepends: pacman.optdepends.clone().unwrap_or_default(),
       provides,
@@ -310,7 +317,7 @@ package() {{
       quote(&self.pkgdesc),
       quote(&self.arch),
       quote(&self.url),
-      quote(&self.license),
+      array(&self.license),
       array(&self.depends),
       array(&self.optdepends),
       array(&self.provides),
@@ -343,8 +350,8 @@ package() {{
       field("changelog", changelog);
     }
     field("arch", &self.arch);
-    field("license", &self.license);
     for (key, values) in [
+      ("license", &self.license),
       ("depends", &self.depends),
       ("optdepends", &self.optdepends),
       ("provides", &self.provides),
@@ -400,6 +407,22 @@ fn double_quote(value: &str) -> String {
       .replace('"', "\\\"")
       .replace('`', "\\`")
   )
+}
+
+/// The configured `pkgname`, or the one derived from the product name.
+fn pkgname(settings: &Settings) -> crate::Result<String> {
+  match &settings.pacman().pkgname {
+    Some(pkgname) if is_valid_pkgname(pkgname) => Ok(pkgname.clone()),
+    Some(pkgname) => Err(crate::Error::GenericError(format!(
+      "invalid `bundle > linux > pacman > pkgname` `{pkgname}`: it must only contain lowercase alphanumerics and `@._+-`, and must not start with `-` or `.`"
+    ))),
+    None => default_pkgname(settings.product_name()).ok_or_else(|| {
+      crate::Error::GenericError(format!(
+        "cannot derive a pacman package name from the product name `{}`, set `bundle > linux > pacman > pkgname`",
+        settings.product_name()
+      ))
+    }),
+  }
 }
 
 /// Whether the name is a valid `pkgname`.
@@ -467,7 +490,7 @@ mod tests {
       url: String::new(),
       install: Some("my-app.install".into()),
       changelog: None,
-      license: "MIT".into(),
+      license: vec!["MIT".into(), "Apache-2.0".into()],
       depends: vec!["gtk3".into(), "webkit2gtk-4.1>=2.40".into()],
       optdepends: vec!["libappindicator-gtk3: tray icon support".into()],
       provides: vec![],
@@ -490,6 +513,7 @@ mod tests {
 \tinstall = my-app.install
 \tarch = x86_64
 \tlicense = MIT
+\tlicense = Apache-2.0
 \tdepends = gtk3
 \tdepends = webkit2gtk-4.1>=2.40
 \toptdepends = libappindicator-gtk3: tray icon support

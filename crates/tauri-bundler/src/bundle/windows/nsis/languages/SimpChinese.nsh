@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_SIMPCHINESE} "${PRODUCTNAME} ${VERSION} �
 LangString appRunning ${LANG_SIMPCHINESE} "{{product_name}} 正在运行！请关闭后再试。"
 LangString appRunningOkKill ${LANG_SIMPCHINESE} "{{product_name}} 正在运行！$\n点击确定以终止运行。"
 LangString chooseMaintenanceOption ${LANG_SIMPCHINESE} "选择要执行的维护操作。"
-LangString choowHowToInstall ${LANG_SIMPCHINESE} "选择你想要安装 ${PRODUCTNAME} 的方式。"
+LangString chooseHowToInstall ${LANG_SIMPCHINESE} "选择你想要安装 ${PRODUCTNAME} 的方式。"
 LangString createDesktop ${LANG_SIMPCHINESE} "创建桌面快捷方式"
 LangString dontUninstall ${LANG_SIMPCHINESE} "请勿卸载"
 LangString dontUninstallDowngrade ${LANG_SIMPCHINESE} "请勿卸载（此安装程序禁止未卸载就进行版本降级的操作）"

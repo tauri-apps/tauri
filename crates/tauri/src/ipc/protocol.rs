@@ -5,17 +5,17 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
+  Runtime,
   ipc::InvokeResponseBody,
   manager::AppManager,
   webview::{InvokeRequest, UriSchemeProtocolHandler},
-  Runtime,
 };
 use http::{
+  HeaderValue, Method, Request, StatusCode,
   header::{
     ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
     CONTENT_TYPE,
   },
-  HeaderValue, Method, Request, StatusCode,
 };
 use url::Url;
 
@@ -439,7 +439,8 @@ fn parse_invoke_request<R: Runtime>(
   let (parts, mut body) = request.into_parts();
 
   // skip leading `/`
-  let cmd = percent_encoding::percent_decode(&parts.uri.path().as_bytes()[1..])
+  let path = parts.uri.path().as_bytes();
+  let cmd = percent_encoding::percent_decode(path.strip_prefix(b"/").unwrap_or(path))
     .decode_utf8_lossy()
     .to_string();
 
@@ -553,7 +554,7 @@ mod tests {
   use std::str::FromStr;
 
   use super::*;
-  use crate::{ipc::InvokeBody, manager::AppManager, plugin::PluginStore, StateManager, Wry};
+  use crate::{StateManager, Wry, ipc::InvokeBody, manager::AppManager, plugin::PluginStore};
   use http::header::*;
   use serde_json::json;
   use tauri_macros::generate_context;
@@ -568,6 +569,7 @@ mod tests {
       None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),
@@ -642,6 +644,40 @@ mod tests {
   }
 
   #[test]
+  fn parse_invoke_request_empty_path() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
+    let manager: AppManager<Wry> = AppManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      None,
+      Default::default(),
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      Default::default(),
+      Default::default(),
+      Default::default(),
+      Default::default(),
+      "".into(),
+      None,
+      crate::generate_invoke_key().unwrap(),
+    );
+
+    // `ipc:foo` parses as authority-form, so its path is empty;
+    // this used to panic when stripping the leading `/`
+    let uri = http::Uri::from_static("ipc:foo");
+    assert_eq!(uri.path(), "");
+
+    let request = Request::builder().uri(uri).body(Vec::new()).unwrap();
+
+    assert!(super::parse_invoke_request(&manager, request).is_err());
+  }
+
+  #[test]
   #[cfg(feature = "isolation")]
   fn parse_invoke_request_isolation() {
     let context = generate_context!(
@@ -686,6 +722,7 @@ mod tests {
       None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),

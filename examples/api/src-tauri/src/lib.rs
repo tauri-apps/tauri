@@ -10,9 +10,9 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{
+  App, Emitter, Listener, Runtime, WebviewUrl,
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
-  App, Emitter, Listener, Runtime, WebviewUrl,
 };
 #[allow(unused)]
 use tauri::{Manager, RunEvent};
@@ -38,6 +38,13 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   builder: tauri::Builder<R>,
   setup: F,
 ) {
+  // WebDriver automation bridge for the `@tauri-apps/api` e2e suite (packages/api-e2e).
+  // Registered as early as possible per the plugin's docs. Behind the off-by-default
+  // `automation` feature, and `not(test)` so it never interferes with the mock-runtime
+  // unit test below.
+  #[cfg(all(desktop, feature = "automation", not(test)))]
+  let builder = builder.plugin(tauri_plugin_automation::init());
+
   let builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
@@ -103,12 +110,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
             let window = builder.build().unwrap();
             tauri::webview::NewWindowResponse::Create { window }
           });
+
+        // Liquid Glass effects need a transparent window to show through
+        #[cfg(target_os = "macos")]
+        {
+          window_builder = window_builder.transparent(true);
+        }
       }
 
-      let webview = window_builder.build()?;
-
-      #[cfg(debug_assertions)]
-      webview.open_devtools();
+      let _webview = window_builder.build()?;
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {

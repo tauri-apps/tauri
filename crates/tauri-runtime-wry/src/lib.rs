@@ -4685,9 +4685,14 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let gtk_fixed = {
     use gtk::prelude::*;
     let fixed = gtk::Fixed::new();
+    // a GtkFixed requests the extents of its children, which would become the window's minimum size;
+    // a scrolled window with the external policy does not propagate it (and shows no scrollbars)
+    let scrolled = gtk::ScrolledWindow::new(gtk::Adjustment::NONE, gtk::Adjustment::NONE);
+    scrolled.set_policy(gtk::PolicyType::External, gtk::PolicyType::External);
+    scrolled.add(&fixed);
     let vbox = window.default_vbox().unwrap();
-    vbox.pack_start(&fixed, true, true, 0);
-    fixed.show();
+    vbox.pack_start(&scrolled, true, true, 0);
+    scrolled.show_all();
     Some(fixed)
   };
   #[cfg(all(

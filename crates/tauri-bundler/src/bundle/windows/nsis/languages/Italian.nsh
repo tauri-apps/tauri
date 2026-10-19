@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_ITALIAN} "${PRODUCTNAME} ${VERSION} è gi
 LangString appRunning ${LANG_ITALIAN} "{{product_name}} è in esecuzione!$\nChiudi {product_name}} e riprova."
 LangString appRunningOkKill ${LANG_ITALIAN} "{{product_name}} è in esecuzione!$\nPer chiudere {product_name} seleziona 'OK'"
 LangString chooseMaintenanceOption ${LANG_ITALIAN} "Scegli l'operazione di manutenzione da eseguire."
-LangString choowHowToInstall ${LANG_ITALIAN} "Scegli come vuoi installare ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_ITALIAN} "Scegli come vuoi installare ${PRODUCTNAME}."
 LangString createDesktop ${LANG_ITALIAN} "Crea collegamento sul desktop"
 LangString dontUninstall ${LANG_ITALIAN} "Non disinstallare"
 LangString dontUninstallDowngrade ${LANG_ITALIAN} "Non disinstallare (per questo installer il downgrade senza la disinstallazione è disabilitato)"

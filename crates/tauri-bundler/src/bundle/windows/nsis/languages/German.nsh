@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_GERMAN} "${PRODUCTNAME} ${VERSION} ist be
 LangString appRunning ${LANG_GERMAN} "{{product_name}} wird ausgeführt! Bitte schließen Sie es zuerst und versuchen Sie es dann erneut."
 LangString appRunningOkKill ${LANG_GERMAN} "{{product_name}} läuft! $\nKlicken Sie auf OK, um es zu beenden"
 LangString chooseMaintenanceOption ${LANG_GERMAN} "Wählen Sie die auszuführende Wartungsoption."
-LangString choowHowToInstall ${LANG_GERMAN} "Wählen Sie, wie Sie ${PRODUCTNAME} installieren möchten."
+LangString chooseHowToInstall ${LANG_GERMAN} "Wählen Sie, wie Sie ${PRODUCTNAME} installieren möchten."
 LangString createDesktop ${LANG_GERMAN} "Desktop-Verknüpfung erstellen"
 LangString dontUninstall ${LANG_GERMAN} "Nicht deinstallieren"
 LangString dontUninstallDowngrade ${LANG_GERMAN} "Nicht deinstallieren (Downgrading ohne Deinstallation ist für dieses Installationsprogramm deaktiviert)"

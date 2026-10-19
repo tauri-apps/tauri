@@ -242,6 +242,13 @@ Function PageReinstall
 
   nsis_tauri_utils::SemverCompare "${VERSION}" $R0
   Pop $R0
+
+  ; Read the install choice header through $R5 so a custom language file that only
+  ; defines the misspelled `choowHowToInstall` still shows its own text
+  ; TODO: remove the `choowHowToInstall` fallback in a future major version
+  StrCpy $R5 "$(chooseHowToInstall)"
+  ${IfThen} $R5 == "" ${|} StrCpy $R5 "$(choowHowToInstall)" ${|}
+
   ; Reinstalling the same version
   ${If} $R0 = 0
     StrCpy $R1 "$(alreadyInstalledLong)"
@@ -253,7 +260,7 @@ Function PageReinstall
     StrCpy $R1 "$(olderOrUnknownVersionInstalled)"
     StrCpy $R2 "$(uninstallBeforeInstalling)"
     StrCpy $R3 "$(dontUninstall)"
-    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
+    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$R5"
   ; Downgrading
   ${ElseIf} $R0 = -1
     StrCpy $R1 "$(newerVersionInstalled)"
@@ -263,7 +270,7 @@ Function PageReinstall
     !else
       StrCpy $R3 "$(dontUninstallDowngrade)"
     !endif
-    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
+    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$R5"
   ${Else}
     Abort
   ${EndIf}
@@ -485,8 +492,15 @@ FunctionEnd
 !insertmacro MUI_UNPAGE_INSTFILES
 
 ;Languages
+; PageReinstall reads the misspelled `choowHowToInstall` as a fallback, and makensis warns
+; about a language string that is read but never set, so default it to an empty string for
+; every language. This runs before the language files are included, so a custom language
+; file that only defines the old spelling overrides the default and the fallback shows its
+; text. `0` as the language id means the language inserted right above.
+; TODO: remove the `choowHowToInstall` fallback in a future major version
 {{#each languages}}
 !insertmacro MUI_LANGUAGE "{{this}}"
+LangString choowHowToInstall 0 ""
 {{/each}}
 !insertmacro MUI_RESERVEFILE_LANGDLL
 {{#each language_files}}

@@ -1,18 +1,20 @@
-<script>
-  import { listen, emit } from '@tauri-apps/api/event'
-  import { invoke } from '@tauri-apps/api/tauri'
+<script lang="ts">
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+  import { Channel, invoke } from '@tauri-apps/api/core'
   import { onMount, onDestroy } from 'svelte'
+  import type { UnlistenFn } from '@tauri-apps/api/event'
+  import type { ViewProps } from '../App.svelte'
 
-  export let onMessage
-  let unlisten
+  let { onMessage }: ViewProps = $props()
 
+  const webviewWindow = getCurrentWebviewWindow()
+
+  let unlisten: UnlistenFn | undefined
   onMount(async () => {
-    unlisten = await listen('rust-event', onMessage)
+    unlisten = await webviewWindow.listen('rust-event', onMessage)
   })
   onDestroy(() => {
-    if (unlisten) {
-      unlisten()
-    }
+    unlisten?.()
   })
 
   function log() {
@@ -34,17 +36,35 @@
       .catch(onMessage)
   }
 
+  function echo() {
+    invoke('echo', {
+      message: 'Tauri JSON request!'
+    })
+      .then(onMessage)
+      .catch(onMessage)
+
+    invoke('echo', [1, 2, 3]).then(onMessage).catch(onMessage)
+  }
+
+  function spam() {
+    const channel = new Channel()
+    channel.onmessage = onMessage
+    invoke('spam', { channel })
+  }
+
   function emitEvent() {
-    emit('js-event', 'this is the payload string')
+    webviewWindow.emit('js-event', 'this is the payload string')
   }
 </script>
 
-<div>
-  <button class="btn" id="log" on:click={log}>Call Log API</button>
-  <button class="btn" id="request" on:click={performRequest}>
+<div class="flex gap-2">
+  <button class="btn" id="log" onclick={log}>Call Log API</button>
+  <button class="btn" id="request" onclick={performRequest}>
     Call Request (async) API
   </button>
-  <button class="btn" id="event" on:click={emitEvent}>
+  <button class="btn" id="event" onclick={emitEvent}>
     Send event to Rust
   </button>
+  <button class="btn" id="request" onclick={echo}>Echo</button>
+  <button class="btn" id="request" onclick={spam}>Spam</button>
 </div>

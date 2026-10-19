@@ -1,0 +1,874 @@
+
+# cargo-vet audits file
+
+[audits]
+
+[[trusted.aead]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2020-06-05"
+end = "2025-05-08"
+
+[[trusted.aes]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2020-06-05"
+end = "2025-05-08"
+
+[[trusted.aes-gcm]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2019-08-16"
+end = "2025-05-08"
+
+[[trusted.aho-corasick]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-03-28"
+end = "2025-03-06"
+
+[[trusted.anyhow]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-10-05"
+end = "2025-03-06"
+
+[[trusted.autocfg]]
+criteria = "safe-to-deploy"
+user-id = 539               # Josh Stone (cuviper)
+start = "2019-05-22"
+end = "2025-05-08"
+
+[[trusted.backtrace]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2023-06-29"
+end = "2025-03-06"
+
+[[trusted.byteorder]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-06-09"
+end = "2025-03-06"
+
+[[trusted.bytes]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-11-27"
+end = "2025-03-06"
+
+[[trusted.bytes]]
+criteria = "safe-to-deploy"
+user-id = 6741              # Alice Ryhl (Darksonn)
+start = "2021-01-11"
+end = "2025-03-06"
+
+[[trusted.cargo-platform]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-09-27"
+end = "2025-03-06"
+
+[[trusted.cc]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2024-02-20"
+end = "2025-03-06"
+
+[[trusted.cipher]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2020-10-15"
+end = "2025-05-08"
+
+[[trusted.cpufeatures]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2021-04-26"
+end = "2025-05-08"
+
+[[trusted.ctr]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2020-06-06"
+end = "2025-05-08"
+
+[[trusted.digest]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2020-06-10"
+end = "2025-05-08"
+
+[[trusted.dtoa]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-05-02"
+end = "2025-03-06"
+
+[[trusted.dyn-clone]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-12-23"
+end = "2025-03-06"
+
+[[trusted.flate2]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-14"
+end = "2025-03-06"
+
+[[trusted.ghash]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2019-09-19"
+end = "2025-05-08"
+
+[[trusted.h2]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-03-13"
+end = "2025-03-06"
+
+[[trusted.hashbrown]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2019-04-02"
+end = "2025-03-06"
+
+[[trusted.http]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-04-05"
+end = "2025-03-06"
+
+[[trusted.http-body]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-10-01"
+end = "2025-03-06"
+
+[[trusted.http-body-util]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2022-10-25"
+end = "2025-05-08"
+
+[[trusted.httparse]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-07-03"
+end = "2025-03-06"
+
+[[trusted.hyper]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-03-01"
+end = "2025-03-06"
+
+[[trusted.hyper-tls]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-03-19"
+end = "2025-03-06"
+
+[[trusted.hyper-util]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2022-01-15"
+end = "2025-05-08"
+
+[[trusted.indexmap]]
+criteria = "safe-to-deploy"
+user-id = 539               # Josh Stone (cuviper)
+start = "2020-01-15"
+end = "2025-03-06"
+
+[[trusted.itoa]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-05-02"
+end = "2025-03-06"
+
+[[trusted.javascriptcore-rs]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-10-04"
+end = "2025-05-08"
+
+[[trusted.javascriptcore-rs-sys]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-10-04"
+end = "2025-05-08"
+
+[[trusted.js-sys]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.libappindicator]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-10-11"
+end = "2025-05-08"
+
+[[trusted.libappindicator-sys]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-10-11"
+end = "2025-05-08"
+
+[[trusted.libc]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2021-01-27"
+end = "2025-03-06"
+
+[[trusted.libc]]
+criteria = "safe-to-deploy"
+user-id = 51017             # Yuki Okushi (JohnTitor)
+start = "2020-03-17"
+end = "2025-05-08"
+
+[[trusted.libm]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2022-02-06"
+end = "2025-03-06"
+
+[[trusted.linux-raw-sys]]
+criteria = "safe-to-deploy"
+user-id = 6825              # Dan Gohman (sunfishcode)
+start = "2021-06-12"
+end = "2025-03-06"
+
+[[trusted.lock_api]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2019-05-04"
+end = "2025-03-06"
+
+[[trusted.loom]]
+criteria = "safe-to-deploy"
+user-id = 6741              # Alice Ryhl (Darksonn)
+start = "2021-04-12"
+end = "2025-03-06"
+
+[[trusted.memchr]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-07-07"
+end = "2025-03-06"
+
+[[trusted.mime]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-09-09"
+end = "2025-03-06"
+
+[[trusted.mio]]
+criteria = "safe-to-deploy"
+user-id = 10                # Carl Lerche (carllerche)
+start = "2019-05-15"
+end = "2025-03-06"
+
+[[trusted.muda]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2022-12-06"
+end = "2025-05-08"
+
+[[trusted.new_debug_unreachable]]
+criteria = "safe-to-deploy"
+user-id = 2017              # Matt Brubeck (mbrubeck)
+start = "2019-02-26"
+end = "2025-05-08"
+
+[[trusted.num_cpus]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-06-10"
+end = "2025-03-06"
+
+[[trusted.openssl-src]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-02-25"
+end = "2025-03-06"
+
+[[trusted.parking_lot]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2019-05-04"
+end = "2025-03-06"
+
+[[trusted.parking_lot_core]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2019-05-04"
+end = "2025-03-06"
+
+[[trusted.paste]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-03-19"
+end = "2025-05-08"
+
+[[trusted.phf]]
+criteria = "safe-to-deploy"
+user-id = 51017             # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2025-05-08"
+
+[[trusted.phf_codegen]]
+criteria = "safe-to-deploy"
+user-id = 51017             # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2025-05-08"
+
+[[trusted.phf_generator]]
+criteria = "safe-to-deploy"
+user-id = 51017             # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2025-05-08"
+
+[[trusted.phf_macros]]
+criteria = "safe-to-deploy"
+user-id = 51017             # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2025-05-08"
+
+[[trusted.phf_shared]]
+criteria = "safe-to-deploy"
+user-id = 51017             # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2025-05-08"
+
+[[trusted.polyval]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2019-08-13"
+end = "2025-05-08"
+
+[[trusted.proc-macro-hack]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-04-16"
+end = "2025-03-06"
+
+[[trusted.proc-macro2]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-04-23"
+end = "2025-03-06"
+
+[[trusted.quickcheck]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-05-13"
+end = "2025-03-06"
+
+[[trusted.regex]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-02-27"
+end = "2025-03-06"
+
+[[trusted.regex-automata]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-02-25"
+end = "2025-03-06"
+
+[[trusted.regex-syntax]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-03-30"
+end = "2025-03-06"
+
+[[trusted.reqwest]]
+criteria = "safe-to-deploy"
+user-id = 359               # Sean McArthur (seanmonstar)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.rustc-demangle]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-04-12"
+end = "2025-05-08"
+
+[[trusted.rustix]]
+criteria = "safe-to-deploy"
+user-id = 6825              # Dan Gohman (sunfishcode)
+start = "2021-10-29"
+end = "2025-03-06"
+
+[[trusted.rustversion]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-07-08"
+end = "2025-05-08"
+
+[[trusted.ryu]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-05-02"
+end = "2025-03-06"
+
+[[trusted.same-file]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-07-16"
+end = "2025-03-06"
+
+[[trusted.scoped-tls]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-02-26"
+end = "2025-03-06"
+
+[[trusted.scopeguard]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2020-02-16"
+end = "2025-03-06"
+
+[[trusted.semver]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2021-05-25"
+end = "2025-03-06"
+
+[[trusted.serde]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-03-01"
+end = "2025-03-06"
+
+[[trusted.serde_derive]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-03-01"
+end = "2025-05-08"
+
+[[trusted.serde_derive_internals]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-09-08"
+end = "2025-03-06"
+
+[[trusted.serde_json]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-02-28"
+end = "2025-03-06"
+
+[[trusted.serde_repr]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-04-26"
+end = "2025-03-06"
+
+[[trusted.serde_spanned]]
+criteria = "safe-to-deploy"
+user-id = 6743              # Ed Page (epage)
+start = "2023-01-20"
+end = "2025-03-06"
+
+[[trusted.serialize-to-javascript]]
+criteria = "safe-to-deploy"
+user-id = 28029             # chip (chippers)
+start = "2022-02-08"
+end = "2025-05-08"
+
+[[trusted.serialize-to-javascript-impl]]
+criteria = "safe-to-deploy"
+user-id = 28029             # chip (chippers)
+start = "2022-02-08"
+end = "2025-05-08"
+
+[[trusted.sha2]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2020-05-24"
+end = "2025-05-08"
+
+[[trusted.slab]]
+criteria = "safe-to-deploy"
+user-id = 6741              # Alice Ryhl (Darksonn)
+start = "2021-10-13"
+end = "2025-03-06"
+
+[[trusted.smallvec]]
+criteria = "safe-to-deploy"
+user-id = 2017              # Matt Brubeck (mbrubeck)
+start = "2019-10-28"
+end = "2025-03-06"
+
+[[trusted.socket2]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-05-06"
+end = "2025-03-06"
+
+[[trusted.syn]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-03-01"
+end = "2025-03-06"
+
+[[trusted.tao]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-04-30"
+end = "2025-05-08"
+
+[[trusted.tao-macros]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2023-01-11"
+end = "2025-05-08"
+
+[[trusted.target-lexicon]]
+criteria = "safe-to-deploy"
+user-id = 6825              # Dan Gohman (sunfishcode)
+start = "2019-03-06"
+end = "2025-03-06"
+
+[[trusted.tauri]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2020-07-20"
+end = "2025-05-08"
+
+[[trusted.tauri-build]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-04-14"
+end = "2025-05-08"
+
+[[trusted.tauri-codegen]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-04-14"
+end = "2025-05-08"
+
+[[trusted.tauri-macros]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-04-14"
+end = "2025-05-08"
+
+[[trusted.tauri-plugin]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2024-02-03"
+end = "2025-05-08"
+
+[[trusted.tauri-runtime]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-05-10"
+end = "2025-05-08"
+
+[[trusted.tauri-runtime-wry]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-05-10"
+end = "2025-05-08"
+
+[[trusted.tauri-utils]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-04-14"
+end = "2025-05-08"
+
+[[trusted.tauri-winres]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2023-01-19"
+end = "2025-05-08"
+
+[[trusted.thiserror]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-10-09"
+end = "2025-03-06"
+
+[[trusted.thiserror-impl]]
+criteria = "safe-to-deploy"
+user-id = 3618              # David Tolnay (dtolnay)
+start = "2019-10-09"
+end = "2025-03-06"
+
+[[trusted.thread_local]]
+criteria = "safe-to-deploy"
+user-id = 2915              # Amanieu d'Antras (Amanieu)
+start = "2019-09-07"
+end = "2025-03-06"
+
+[[trusted.tokio]]
+criteria = "safe-to-deploy"
+user-id = 6741              # Alice Ryhl (Darksonn)
+start = "2020-12-25"
+end = "2025-03-06"
+
+[[trusted.tokio-macros]]
+criteria = "safe-to-deploy"
+user-id = 6741              # Alice Ryhl (Darksonn)
+start = "2020-10-26"
+end = "2025-03-06"
+
+[[trusted.tokio-macros]]
+criteria = "safe-to-deploy"
+user-id = 10                # Carl Lerche (carllerche)
+start = "2019-04-24"
+end = "2025-03-06"
+
+[[trusted.tokio-util]]
+criteria = "safe-to-deploy"
+user-id = 6741              # Alice Ryhl (Darksonn)
+start = "2021-01-12"
+end = "2025-03-06"
+
+[[trusted.toml]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-05-16"
+end = "2025-03-06"
+
+[[trusted.toml]]
+criteria = "safe-to-deploy"
+user-id = 6743              # Ed Page (epage)
+start = "2022-12-14"
+end = "2025-03-06"
+
+[[trusted.toml_edit]]
+criteria = "safe-to-deploy"
+user-id = 6743              # Ed Page (epage)
+start = "2021-09-13"
+end = "2025-03-06"
+
+[[trusted.tower]]
+criteria = "safe-to-deploy"
+user-id = 10                # Carl Lerche (carllerche)
+start = "2019-04-27"
+end = "2025-05-08"
+
+[[trusted.tower-layer]]
+criteria = "safe-to-deploy"
+user-id = 10                # Carl Lerche (carllerche)
+start = "2019-04-27"
+end = "2025-05-08"
+
+[[trusted.tray-icon]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2022-12-01"
+end = "2025-05-08"
+
+[[trusted.ucd-trie]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-07-21"
+end = "2025-03-06"
+
+[[trusted.walkdir]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2019-06-09"
+end = "2025-03-06"
+
+[[trusted.wasi]]
+criteria = "safe-to-deploy"
+user-id = 6825              # Dan Gohman (sunfishcode)
+start = "2019-07-22"
+end = "2025-03-06"
+
+[[trusted.wasi]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2020-06-03"
+end = "2025-03-06"
+
+[[trusted.wasm-bindgen]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.wasm-bindgen-backend]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.wasm-bindgen-futures]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.wasm-bindgen-macro]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.wasm-bindgen-macro-support]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.wasm-bindgen-shared]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.web-sys]]
+criteria = "safe-to-deploy"
+user-id = 1                 # Alex Crichton (alexcrichton)
+start = "2019-03-04"
+end = "2025-03-06"
+
+[[trusted.webkit2gtk]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-10-05"
+end = "2025-05-08"
+
+[[trusted.webkit2gtk-sys]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-10-05"
+end = "2025-05-08"
+
+[[trusted.winapi-util]]
+criteria = "safe-to-deploy"
+user-id = 189               # Andrew Gallant (BurntSushi)
+start = "2020-01-11"
+end = "2025-03-06"
+
+[[trusted.window-vibrancy]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2022-03-05"
+end = "2025-05-08"
+
+[[trusted.windows]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2021-01-15"
+end = "2025-03-06"
+
+[[trusted.windows-core]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2021-11-15"
+end = "2025-03-06"
+
+[[trusted.windows-implement]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2022-01-27"
+end = "2025-03-06"
+
+[[trusted.windows-interface]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2022-02-18"
+end = "2025-03-06"
+
+[[trusted.windows-result]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2024-02-02"
+end = "2025-03-06"
+
+[[trusted.windows-sys]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2021-11-15"
+end = "2025-03-06"
+
+[[trusted.windows-targets]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2022-09-09"
+end = "2025-03-06"
+
+[[trusted.windows-version]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2023-03-07"
+end = "2025-03-06"
+
+[[trusted.windows_aarch64_gnullvm]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2022-09-01"
+end = "2025-03-06"
+
+[[trusted.windows_aarch64_msvc]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2021-11-05"
+end = "2025-03-06"
+
+[[trusted.windows_i686_gnu]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2021-10-28"
+end = "2025-03-06"
+
+[[trusted.windows_i686_gnullvm]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2024-04-02"
+end = "2025-05-08"
+
+[[trusted.windows_i686_msvc]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2021-10-27"
+end = "2025-03-06"
+
+[[trusted.windows_x86_64_gnu]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2021-10-28"
+end = "2025-03-06"
+
+[[trusted.windows_x86_64_gnullvm]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2022-09-01"
+end = "2025-03-06"
+
+[[trusted.windows_x86_64_msvc]]
+criteria = "safe-to-deploy"
+user-id = 64539             # Kenny Kerr (kennykerr)
+start = "2021-10-27"
+end = "2025-03-06"
+
+[[trusted.winnow]]
+criteria = "safe-to-deploy"
+user-id = 6743              # Ed Page (epage)
+start = "2023-02-22"
+end = "2025-03-06"
+
+[[trusted.wry]]
+criteria = "safe-to-deploy"
+user-id = 95389             # tauri (tauri-bot)
+start = "2021-03-11"
+end = "2025-05-08"
+
+[[trusted.zeroize]]
+criteria = "safe-to-deploy"
+user-id = 267               # Tony Arcieri (tarcieri)
+start = "2021-11-05"
+end = "2025-05-08"

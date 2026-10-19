@@ -1,0 +1,25 @@
+{
+  "productName": "MultiWebview",
+  "version": "0.1.0",
+  "identifier": "com.tauri.dev",
+  "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "build": {
+    "frontendDist": ["index.html"]
+  },
+  "app": {
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../.icons/32x32.png",
+      "../.icons/128x128.png",
+      "../.icons/128x128@2x.png",
+      "../.icons/icon.icns",
+      "../.icons/icon.ico"
+    ]
+  }
+}

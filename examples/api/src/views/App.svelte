@@ -1,7 +1,9 @@
-<script>
-  import { show, hide } from '@tauri-apps/api/app'
+<script lang="ts">
+  import { show, hide, setDockVisibility } from '@tauri-apps/api/app'
+  import type { ViewProps } from '../App.svelte'
 
-  export let onMessage
+  let { onMessage }: ViewProps = $props()
+  let dockVisible = $state(true)
 
   function showApp() {
     hideApp()
@@ -20,14 +22,22 @@
       .then(() => onMessage('Hide app'))
       .catch(onMessage)
   }
+
+  async function toggleDockVisibility() {
+    await setDockVisibility(!dockVisible)
+    dockVisible = !dockVisible
+  }
 </script>
 
-<div>
+<div class="flex gap-2">
   <button
     class="btn"
     id="show"
     title="Hides and shows the app after 2 seconds"
-    on:click={showApp}>Show</button
+    onclick={showApp}>Show</button
   >
-  <button class="btn" id="hide" on:click={hideApp}>Hide</button>
+  <button class="btn" id="hide" onclick={hideApp}>Hide</button>
+  <button class="btn" id="toggle-dock-visibility" onclick={toggleDockVisibility}
+    >Toggle dock visibility</button
+  >
 </div>

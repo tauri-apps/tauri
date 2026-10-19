@@ -1,0 +1,33 @@
+{
+  "name": "@tauri-apps/cli-linux-arm-gnueabihf",
+  "version": "0.0.0",
+  "cpu": [
+    "arm"
+  ],
+  "main": "cli.linux-arm-gnueabihf.node",
+  "files": [
+    "cli.linux-arm-gnueabihf.node"
+  ],
+  "description": "Command line interface for building Tauri apps",
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "contributors": [
+    "Tauri Programme within The Commons Conservancy"
+  ],
+  "license": "Apache-2.0 OR MIT",
+  "engines": {
+    "node": ">= 10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": [
+    "linux"
+  ]
+}

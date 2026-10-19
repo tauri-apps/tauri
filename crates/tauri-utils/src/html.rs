@@ -1,0 +1,442 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+//! The module to process HTML in Tauri.
+
+use std::path::{Path, PathBuf};
+
+use html5ever::{
+  LocalName,
+  interface::QualName,
+  namespace_url, ns,
+  serialize::{HtmlSerializer, SerializeOpts, Serializer, TraversalScope},
+  tendril::TendrilSink,
+};
+pub use kuchiki::NodeRef;
+use kuchiki::{Attribute, ExpandedName, NodeData};
+use serde::Serialize;
+#[cfg(feature = "isolation")]
+use serialize_to_javascript::DefaultTemplate;
+
+#[cfg(feature = "isolation")]
+use crate::pattern::isolation::IsolationJavascriptCodegen;
+use crate::{
+  assets::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
+  config::{DisabledCspModificationKind, PatternKind},
+};
+
+// taken from <https://github.com/kuchiki-rs/kuchiki/blob/57ee6920d835315a498e748ba4b07a851ae5e498/src/serializer.rs#L12>
+fn serialize_node_ref_internal<S: Serializer>(
+  node: &NodeRef,
+  serializer: &mut S,
+  traversal_scope: TraversalScope,
+) -> crate::Result<()> {
+  match (traversal_scope, node.data()) {
+    (ref scope, NodeData::Element(element)) => {
+      if *scope == TraversalScope::IncludeNode {
+        let attrs = element.attributes.borrow();
+
+        // Unfortunately we need to allocate something to hold these &'a QualName
+        let attrs = attrs
+          .map
+          .iter()
+          .map(|(name, attr)| {
+            (
+              QualName::new(attr.prefix.clone(), name.ns.clone(), name.local.clone()),
+              &attr.value,
+            )
+          })
+          .collect::<Vec<_>>();
+
+        serializer.start_elem(
+          element.name.clone(),
+          attrs.iter().map(|&(ref name, value)| (name, &**value)),
+        )?
+      }
+
+      let children = match element.template_contents.as_ref() {
+        Some(template_root) => template_root.children(),
+        None => node.children(),
+      };
+      for child in children {
+        serialize_node_ref_internal(&child, serializer, TraversalScope::IncludeNode)?
+      }
+
+      if *scope == TraversalScope::IncludeNode {
+        serializer.end_elem(element.name.clone())?
+      }
+      Ok(())
+    }
+
+    (_, &NodeData::DocumentFragment) | (_, &NodeData::Document(_)) => {
+      for child in node.children() {
+        serialize_node_ref_internal(&child, serializer, TraversalScope::IncludeNode)?
+      }
+      Ok(())
+    }
+
+    (TraversalScope::ChildrenOnly(_), _) => Ok(()),
+
+    (TraversalScope::IncludeNode, NodeData::Doctype(doctype)) => {
+      serializer.write_doctype(&doctype.name).map_err(Into::into)
+    }
+    (TraversalScope::IncludeNode, NodeData::Text(text)) => {
+      serializer.write_text(&text.borrow()).map_err(Into::into)
+    }
+    (TraversalScope::IncludeNode, NodeData::Comment(text)) => {
+      serializer.write_comment(&text.borrow()).map_err(Into::into)
+    }
+    (TraversalScope::IncludeNode, NodeData::ProcessingInstruction(contents)) => {
+      let contents = contents.borrow();
+      serializer
+        .write_processing_instruction(&contents.0, &contents.1)
+        .map_err(Into::into)
+    }
+  }
+}
+
+/// Serializes the node to HTML.
+pub fn serialize_node(node: &NodeRef) -> Vec<u8> {
+  let mut u8_vec = Vec::new();
+  let mut ser = HtmlSerializer::new(
+    &mut u8_vec,
+    SerializeOpts {
+      traversal_scope: TraversalScope::IncludeNode,
+      ..Default::default()
+    },
+  );
+  serialize_node_ref_internal(node, &mut ser, TraversalScope::IncludeNode).unwrap();
+  u8_vec
+}
+
+/// Parses the given HTML string.
+pub fn parse(html: String) -> NodeRef {
+  kuchiki::parse_html().one(html).document_node
+}
+
+fn with_head<F: FnOnce(&NodeRef)>(document: &NodeRef, f: F) {
+  if let Ok(ref node) = document.select_first("head") {
+    f(node.as_node())
+  } else {
+    let node = NodeRef::new_element(
+      QualName::new(None, ns!(html), LocalName::from("head")),
+      None,
+    );
+    f(&node);
+    document.prepend(node)
+  }
+}
+
+fn inject_nonce(document: &NodeRef, selector: &str, token: &str) {
+  if let Ok(elements) = document.select(selector) {
+    for target in elements {
+      let node = target.as_node();
+      let element = node.as_element().unwrap();
+
+      let mut attrs = element.attributes.borrow_mut();
+      // if the node already has the `nonce` attribute, skip it
+      if attrs.get("nonce").is_some() {
+        continue;
+      }
+      attrs.insert("nonce", token.into());
+    }
+  }
+}
+
+/// Inject nonce tokens to all scripts and styles.
+pub fn inject_nonce_token(
+  document: &NodeRef,
+  dangerous_disable_asset_csp_modification: &DisabledCspModificationKind,
+) {
+  if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+    inject_nonce(document, "script[src^='http']", SCRIPT_NONCE_TOKEN);
+  }
+  if dangerous_disable_asset_csp_modification.can_modify("style-src") {
+    inject_nonce(document, "style", STYLE_NONCE_TOKEN);
+  }
+}
+
+/// Injects a content security policy to the HTML.
+pub fn inject_csp(document: &NodeRef, csp: &str) {
+  with_head(document, |head| {
+    head.append(create_csp_meta_tag(csp));
+  });
+}
+
+fn create_csp_meta_tag(csp: &str) -> NodeRef {
+  NodeRef::new_element(
+    QualName::new(None, ns!(html), LocalName::from("meta")),
+    vec![
+      (
+        ExpandedName::new(ns!(), LocalName::from("http-equiv")),
+        Attribute {
+          prefix: None,
+          value: "Content-Security-Policy".into(),
+        },
+      ),
+      (
+        ExpandedName::new(ns!(), LocalName::from("content")),
+        Attribute {
+          prefix: None,
+          value: csp.into(),
+        },
+      ),
+    ],
+  )
+}
+
+/// The shape of the JavaScript Pattern config
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase", tag = "pattern")]
+pub enum PatternObject {
+  /// Brownfield pattern.
+  Brownfield,
+  /// Isolation pattern. Recommended for security purposes.
+  Isolation {
+    /// Which `IsolationSide` this `PatternObject` is getting injected into
+    side: IsolationSide,
+  },
+}
+
+impl From<&PatternKind> for PatternObject {
+  fn from(pattern_kind: &PatternKind) -> Self {
+    match pattern_kind {
+      PatternKind::Brownfield => Self::Brownfield,
+      PatternKind::Isolation { .. } => Self::Isolation {
+        side: IsolationSide::default(),
+      },
+    }
+  }
+}
+
+/// Where the JavaScript is injected to
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum IsolationSide {
+  /// Original frame, the Brownfield application
+  #[default]
+  Original,
+  /// Secure frame, the isolation security application
+  Secure,
+}
+
+/// Injects the Isolation JavaScript to a codegen time document.
+///
+/// Note: This function is not considered part of the stable API.
+#[cfg(feature = "isolation")]
+pub fn inject_codegen_isolation_script(document: &NodeRef) {
+  with_head(document, |head| {
+    let script = NodeRef::new_element(
+      QualName::new(None, ns!(html), "script".into()),
+      vec![(
+        ExpandedName::new(ns!(), LocalName::from("nonce")),
+        Attribute {
+          prefix: None,
+          value: SCRIPT_NONCE_TOKEN.into(),
+        },
+      )],
+    );
+    script.append(NodeRef::new_text(
+      IsolationJavascriptCodegen {}
+        .render_default(&Default::default())
+        .expect("unable to render codegen isolation script template")
+        .into_string(),
+    ));
+
+    head.prepend(script);
+  });
+}
+
+/// Temporary workaround for Windows not allowing requests
+///
+/// Note: this does not prevent path traversal due to the isolation application expectation that it
+/// is secure.
+pub fn inline_isolation(document: &NodeRef, dir: &Path) {
+  for script in document
+    .select("script[src]")
+    .expect("unable to parse document for scripts")
+  {
+    let src = {
+      let attributes = script.attributes.borrow();
+      attributes
+        .get(LocalName::from("src"))
+        .expect("script with src attribute has no src value")
+        .to_string()
+    };
+
+    let mut path = PathBuf::from(src);
+    if path.has_root() {
+      path = path
+        .strip_prefix("/")
+        .expect("Tauri \"Isolation\" Pattern only supports relative or absolute (`/`) paths.")
+        .into();
+    }
+
+    let file = std::fs::read_to_string(dir.join(path)).expect("unable to find isolation file");
+    script.as_node().append(NodeRef::new_text(file));
+
+    let mut attributes = script.attributes.borrow_mut();
+    attributes.remove(LocalName::from("src"));
+  }
+}
+
+// TODO: Verify this, this is not found in the HTML spec, see https://github.com/tauri-apps/tauri/pull/14265#discussion_r2415396842
+/// Normalize line endings in script content to match what the browser uses for CSP hashing.
+///
+/// According to the HTML spec, browsers normalize:
+/// - `\r\n` → `\n`
+/// - `\r`   → `\n`
+pub fn normalize_script_for_csp(input: &[u8]) -> Vec<u8> {
+  let mut output = Vec::with_capacity(input.len());
+
+  let mut i = 0;
+  while i < input.len() {
+    match input[i] {
+      b'\r' => {
+        if i + 1 < input.len() && input[i + 1] == b'\n' {
+          // CRLF → LF
+          output.push(b'\n');
+          i += 2;
+        } else {
+          // Lone CR → LF
+          output.push(b'\n');
+          i += 1;
+        }
+      }
+      _ => {
+        output.push(input[i]);
+        i += 1;
+      }
+    }
+  }
+
+  output
+}
+
+#[cfg(test)]
+mod tests {
+  use std::io::Write;
+
+  use super::*;
+  use crate::{
+    assets::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
+    config,
+  };
+
+  #[test]
+  fn csp() {
+    let htmls = vec![
+      "<html><head></head></html>".to_string(),
+      "<html></html>".to_string(),
+    ];
+
+    for html in htmls {
+      let document = parse(html);
+      let csp = "csp-string";
+      inject_csp(&document, csp);
+
+      assert_eq!(
+        String::from_utf8(serialize_node(&document)).unwrap(),
+        format!(
+          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></head><body></body></html>"#,
+        )
+      );
+    }
+  }
+
+  #[test]
+  fn normalize_script_for_csp_test() {
+    let js = "// Copyright 2019-2024 Tauri Programme within The Commons Conservancy\r// SPDX-License-Identifier: Apache-2.0\n// SPDX-License-Identifier: MIT\r\n\r\nwindow.__TAURI_ISOLATION_HOOK__ = (payload, options) => {\r\n  return payload\r\n}\r\n";
+    let expected = "// Copyright 2019-2024 Tauri Programme within The Commons Conservancy\n// SPDX-License-Identifier: Apache-2.0\n// SPDX-License-Identifier: MIT\n\nwindow.__TAURI_ISOLATION_HOOK__ = (payload, options) => {\n  return payload\n}\n";
+
+    assert_eq!(normalize_script_for_csp(js.as_bytes()), expected.as_bytes())
+  }
+
+  #[test]
+  fn parse_and_serialize_roundtrips() {
+    let htmls = [
+      "<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>",
+      "<!DOCTYPE html><html><head></head><body></body></html>",
+    ];
+
+    for html in htmls {
+      let parsed = parse(html.to_string());
+      let serialized = serialize_node(&parsed);
+      let result = String::from_utf8(serialized).unwrap();
+
+      assert_eq!(result, html);
+    }
+  }
+
+  #[test]
+  fn inject_nonce_to_scripts() {
+    let html = r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      format!(
+        r#"<html><head><script src="http://example.com/script.js" nonce="{SCRIPT_NONCE_TOKEN}"></script></head><body></body></html>"#
+      )
+    );
+  }
+
+  #[test]
+  fn inject_nonce_to_styles() {
+    let html = r#"<html><head><style>body { color: red; }</style></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      format!(
+        r#"<html><head><style nonce="{STYLE_NONCE_TOKEN}">body {{ color: red; }}</style></head><body></body></html>"#
+      )
+    );
+  }
+
+  #[test]
+  fn inject_nonce_skips_existing() {
+    let html = r#"<html><head><script src="http://example.com/script.js" nonce="existing"></script></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
+
+    assert_eq!(String::from_utf8(serialize_node(&document)).unwrap(), html);
+  }
+
+  #[test]
+  fn inject_nonce_respects_disabled_modification() {
+    let html = r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(true));
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#
+    );
+  }
+
+  #[test]
+  fn inline_isolation_replaces_src_with_content() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let mut file = tempfile::NamedTempFile::with_suffix_in(".js", &temp_dir).unwrap();
+    file.write_all(b"console.log('test');").unwrap();
+    let file_name = file.path().file_name().unwrap().to_str().unwrap();
+
+    let html =
+      format!(r#"<html><head><script src="/{file_name}"></script></head><body></body></html>"#);
+    let document = parse(html);
+    inline_isolation(&document, temp_dir.path());
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      r#"<html><head><script>console.log('test');</script></head><body></body></html>"#
+    );
+  }
+}

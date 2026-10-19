@@ -2,64 +2,50 @@
 name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
-edition = "2021"
-rust-version = "1.60"
+edition = "2024"
+rust-version = "1.90"
 license = "Apache-2.0 OR MIT"
 
 [lib]
 name = "api_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isolation"] }
+tauri-build = { workspace = true, default-features = true, features = [
+  "codegen",
+  "isolation",
+] }
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = [ "derive" ] }
-tiny_http = "0.11"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+log = "0.4.21"
+tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
+tauri-plugin-log = "2"
+
+# WebDriver automation bridge, used by the `@tauri-apps/api` e2e suite (packages/api-e2e).
+# Desktop-only and behind the off-by-default `automation` feature so it never ships in a
+# regular build.
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-automation = { version = "0.2", optional = true }
 
 [dependencies.tauri]
-path = "../../../core/tauri"
+workspace = true
+default-features = true
 features = [
-  "api-all",
-  "cli",
-  "global-shortcut",
-  "http-multipart",
-  "icon-ico",
-  "icon-png",
+  "protocol-asset",
+  "image-ico",
+  "image-png",
   "isolation",
   "macos-private-api",
-  "windows7-compat",
-  "system-tray",
-  "updater"
+  "tray-icon",
 ]
 
 [dev-dependencies.tauri]
-path = "../../../core/tauri"
+workspace = true
 features = ["test"]
 
-[target."cfg(target_os = \"windows\")".dependencies]
-window-shadows= "0.2"
-
-[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
-log = "0.4"
-tauri-runtime-wry = { path = "../../../core/tauri-runtime-wry/" }
-
-[target.'cfg(target_os = "android")'.dependencies]
-android_logger = "0.9.0"
-jni = "0.19.0"
-paste = "1.0"
-
-[target.'cfg(target_os = "ios")'.dependencies]
-mobile-entry-point = "0.1.0"
-env_logger = "0.9.0"
-
 [features]
-custom-protocol = [ "tauri/custom-protocol" ]
-
-# default to small, optimized release binaries
-[profile.release]
-panic = "abort"
-codegen-units = 1
-lto = true
-incremental = false
-opt-level = "s"
+prod = ["tauri/custom-protocol"]
+# Enables the WebDriver automation bridge; set by the e2e suite's build (packages/api-e2e).
+automation = ["dep:tauri-plugin-automation"]

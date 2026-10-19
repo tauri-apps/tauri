@@ -1,0 +1,41 @@
+[package]
+name = "tauri-plugin"
+version = "2.7.2"
+description = "Build script and runtime Tauri plugin definitions"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[package.metadata.docs.rs]
+features = ["build", "runtime"]
+
+[features]
+build = [
+  "dep:anyhow",
+  "dep:serde",
+  "dep:serde_json",
+  "dep:glob",
+  "dep:plist",
+  "dep:walkdir",
+]
+runtime = []
+
+[dependencies]
+anyhow = { version = "1", optional = true }
+serde = { version = "1", optional = true }
+tauri-utils = { workspace = true, features = ["build-2"] }
+serde_json = { version = "1", optional = true }
+glob = { version = "0.3", optional = true }
+# Our code requires at least 0.8.22 so don't simplify this to 0.8
+schemars = { version = "0.8.22", features = ["preserve_order"] }
+walkdir = { version = "2", optional = true }
+
+[target."cfg(target_os = \"macos\")".dependencies]
+plist = { version = "1", optional = true }
+
+[lints]
+workspace = true

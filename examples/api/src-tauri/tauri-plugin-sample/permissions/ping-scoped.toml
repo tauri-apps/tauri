@@ -1,0 +1,8 @@
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+identifier = "allow-ping-scoped"
+description = "Enables the ping command with a test scope."
+commands.allow = ["ping"]
+[[permission.scope.allow]]
+path = "x"

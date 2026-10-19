@@ -2,16 +2,15 @@
 name = "resources"
 version = "0.1.0"
 description = "A Tauri application that uses Node.js with app resources"
-edition = "2021"
-rust-version = "1.60"
+edition = "2024"
+rust-version = "1.90"
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = ["codegen"] }
+tauri-build = { workspace = true, default-features = true, features = [
+  "codegen",
+] }
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features = ["shell-execute"] }
-
-[features]
-custom-protocol = [ "tauri/custom-protocol" ]
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+tauri = { workspace = true, default-features = true }

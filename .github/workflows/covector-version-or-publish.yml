@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -9,9 +9,58 @@ on:
     branches:
       - dev
 
+permissions:
+  contents: read
+
 jobs:
+  # covector publishes once no change files are left (the version update PR consumed them) and
+  # otherwise opens that PR, which does not need the tests below.
+  check-publish:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        run: |
+          if find .changes -maxdepth 1 -name '*.md' ! -iname 'readme.md' | grep -q .; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # covector audits again in its prepublish step, but only after every test job above finished;
+  # this fails the run within minutes instead.
+  audit:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit $CARGO_AUDIT_OPTIONS
+        env:
+          CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
+
+      - name: pnpm audit
+        run: pnpm audit
+
   run-integration-tests:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
     runs-on: ${{ matrix.platform }}
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0 # no debuginfo: faster builds and a much smaller target dir
 
     strategy:
       fail-fast: false
@@ -19,30 +68,29 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: install stable
-        uses: actions-rs/toolchain@v1
+
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v7
         with:
-          toolchain: stable
+          cache: 'pnpm'
+
+      - name: install stable
+        uses: dtolnay/rust-toolchain@stable
+
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libfuse2
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            core -> ../target
-            tooling/cli
-
+      # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
+      # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
+      # evicted before the next push only costs upload time.
       - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 
       - name: run integration tests
         run: cargo test --test '*' -- --ignored
@@ -50,31 +98,50 @@ jobs:
       - name: run CLI tests
         timeout-minutes: 30
         run: |
-          cd ./tooling/cli/node
-          yarn
-          yarn build
-          yarn test
+          cd ./packages/cli
+          pnpm i --frozen-lockfile
+          pnpm build
+          pnpm test
+
+  test-api-e2e:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    uses: ./.github/workflows/test-api-e2e.yml
+    secrets: inherit
+
+  test-api-e2e-mobile:
+    needs: check-publish
+    if: needs.check-publish.outputs.publish == 'true'
+    uses: ./.github/workflows/test-api-e2e-mobile.yml
 
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65
+    permissions:
+      actions: write # required for workflow_dispatch
+      contents: write # required to create new releases
+      pull-requests: write # required to open version update pr
+      id-token: write # pnpm provenance / oidc token
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
       successfulPublish: ${{ steps.covector.outputs.successfulPublish }}
     needs:
+      - audit
       - run-integration-tests
+      - test-api-e2e
+      - test-api-e2e-mobile
+    # the tests are skipped when covector only versions
+    if: ${{ !cancelled() && !failure() }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v2
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v7
         with:
-          node-version: 14
-          registry-url: 'https://registry.npmjs.org'
-          cache: yarn
-          cache-dependency-path: tooling/*/yarn.lock
+          node-version: 24
 
       - name: cargo login
         run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}
@@ -83,20 +150,30 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
 
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
         id: covector
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
+          NPM_CONFIG_PROVENANCE: true
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
+          token: ${{ secrets.GITHUB_TOKEN }}
           createRelease: true
+          recognizeContributors: true
+
+      - name: Sync Cargo.lock
+        if: steps.covector.outputs.commandRan == 'version'
+        run: cargo tree --depth 0
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
-        uses: tauri-apps/create-pull-request@v3
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates
@@ -104,12 +181,13 @@ jobs:
           commit-message: 'apply version updates'
           labels: 'version updates'
           body: ${{ steps.covector.outputs.change }}
+          sign-commits: true
 
       - name: Trigger doc update
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           steps.covector.outputs.packagesPublished != ''
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # 3.0.0
         with:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri-docs
@@ -119,16 +197,14 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          event-type: publish-js-cli
-          client-payload: >-
-            {"releaseId": "${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}" }
+        run: gh workflow run 31554138 -r dev -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          event-type: publish-clirs
+        run: gh workflow run 31554139 -r dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

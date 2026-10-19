@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,10 +6,13 @@
 
 // we move some basic commands to a separate module just to show it works
 mod commands;
-use commands::{cmd, invoke, message, resolver};
+use commands::{cmd, invoke, message, renamed_command_in_mod, resolver};
 
 use serde::Deserialize;
-use tauri::{command, State, Window};
+use tauri::{
+  State, Window, command,
+  ipc::{Request, Response},
+};
 
 #[derive(Debug)]
 pub struct MyState {
@@ -47,7 +50,7 @@ async fn async_stateful_command(
   the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<(), ()> {
-  println!("{:?} {:?}", the_argument, state.inner());
+  println!("{:?} {:?}", the_argument, *state);
   Ok(())
 }
 // ------------------------ Raw future commands ------------------------
@@ -82,7 +85,7 @@ fn force_async(the_argument: String) -> String {
 #[command(async)]
 fn force_async_with_result(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -118,7 +121,7 @@ fn force_async_snake(the_argument: String) -> String {
 #[command(rename_all = "snake_case", async)]
 fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -128,7 +131,7 @@ fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
 fn simple_command_with_result(the_argument: String) -> Result<String, MyError> {
   println!("{the_argument}");
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -137,7 +140,7 @@ fn stateful_command_with_result(
   the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
-  println!("{:?} {:?}", the_argument, state.inner());
+  println!("{:?} {:?}", the_argument, *state);
   dbg!(the_argument.ok_or(MyError::FooError))
 }
 
@@ -147,7 +150,7 @@ fn stateful_command_with_result(
 fn simple_command_with_result_snake(the_argument: String) -> Result<String, MyError> {
   println!("{the_argument}");
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -156,7 +159,7 @@ fn stateful_command_with_result_snake(
   the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
-  println!("{:?} {:?}", the_argument, state.inner());
+  println!("{:?} {:?}", the_argument, *state);
   dbg!(the_argument.ok_or(MyError::FooError))
 }
 
@@ -173,7 +176,7 @@ async fn async_stateful_command_with_result(
   the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
-  println!("{:?} {:?}", the_argument, state.inner());
+  println!("{:?} {:?}", the_argument, *state);
   Ok(the_argument.unwrap_or_default())
 }
 
@@ -182,6 +185,11 @@ async fn async_stateful_command_with_result(
 #[command]
 fn command_arguments_wild(_: Window) {
   println!("we saw the wildcard!")
+}
+
+#[command(rename = "renamed_command_new")]
+fn renamed_command() {
+  println!("renamed command called")
 }
 
 #[derive(Deserialize)]
@@ -213,6 +221,12 @@ fn borrow_cmd_async(the_argument: &str) -> &str {
   the_argument
 }
 
+#[command]
+fn raw_request(request: Request<'_>) -> Response {
+  println!("{request:?}");
+  Response::new(include_bytes!("./README.md").to_vec())
+}
+
 fn main() {
   tauri::Builder::default()
     .manage(MyState {
@@ -222,6 +236,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       borrow_cmd,
       borrow_cmd_async,
+      raw_request,
       window_label,
       force_async,
       force_async_with_result,
@@ -235,6 +250,8 @@ fn main() {
       future_simple_command,
       async_stateful_command,
       command_arguments_wild,
+      renamed_command,
+      renamed_command_in_mod,
       command_arguments_struct,
       simple_command_with_result,
       async_simple_command_snake,

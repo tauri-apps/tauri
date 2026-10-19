@@ -1,16 +1,19 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
 name: covector status
 on: [pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   covector:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: covector status
@@ -18,3 +21,5 @@ jobs:
         id: covector
         with:
           command: 'status'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          comment: true

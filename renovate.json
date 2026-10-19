@@ -1,119 +1,65 @@
 {
-  "extends": ["config:base"],
-  "schedule": "after 3am on Wednesday",
-  "ignorePaths": [],
+  "extends": ["config:recommended"],
+  "baseBranches": ["dev"],
   "labels": ["type: chore"],
   "enabledManagers": ["cargo", "npm"],
-  "cargo": {
-    "enabled": true
-  },
+  "rangeStrategy": "replace",
   "packageRules": [
     {
-      "packagePatterns": ["*"],
+      "matchPackageNames": ["*"],
+      "semanticCommitType": "chore",
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Disable node/pnpm version updates",
+      "matchPackageNames": ["node", "pnpm"],
+      "matchDepTypes": ["engines", "packageManager"],
       "enabled": false
     },
     {
-      "enabled": true,
-      "paths": ["core/tauri/**"],
-      "groupName": "Tauri Core",
-      "groupSlug": "allTauriCore",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false,
-      "ignoreDeps": ["cargo_toml", "toml"]
+      "description": "Disable oxc_* crates because of MSRV and PR spam",
+      "groupName": "oxc crates",
+      "matchPackageNames": ["oxc_*"],
+      "enabled": false
     },
     {
-      "enabled": true,
-      "paths": ["core/tauri-build/**"],
-      "groupName": "Tauri Build",
-      "groupSlug": "allTauriBuild",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false,
-      "ignoreDeps": ["cargo_toml"]
+      "description": "Group windows-rs / webview2-com crates",
+      "groupName": "windows-rs and webview2 crates",
+      "matchSourceUrls": [
+        "https://github.com/microsoft/windows-rs",
+        "https://github.com/wravery/webview2-rs"
+      ]
     },
     {
-      "enabled": true,
-      "paths": ["core/tauri-codegen/**"],
-      "groupName": "Tauri Codegen",
-      "groupSlug": "allTauriCodegen",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
+      "description": "Group worker-rs crates",
+      "groupName": "worker-rs crates",
+      "matchSourceUrls": ["https://github.com/cloudflare/workers-rs"]
     },
     {
-      "enabled": true,
-      "paths": ["core/tauri-macros/**"],
-      "groupName": "Tauri Macros",
-      "groupSlug": "allTauriMacros",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
+      "description": "Group jsonrpsee crates",
+      "groupName": "jsonrpsee crates",
+      "matchSourceUrls": ["https://github.com/paritytech/jsonrpsee"]
     },
     {
-      "enabled": true,
-      "paths": ["core/tauri-utils/**"],
-      "groupName": "Tauri Utils",
-      "groupSlug": "allTauriUtils",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
+      "description": "Bump CLI packages",
+      "matchFileNames": [
+        "crates/tauri-cli/Cargo.toml",
+        "packages/cli/Cargo.toml",
+        "packages/cli/package.json"
+      ],
+      "rangeStrategy": "auto"
     },
     {
-      "enabled": true,
-      "paths": ["tooling/cli/**"],
-      "groupName": "Tauri CLI",
-      "groupSlug": "allTauriCLI",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false,
-      "matchManagers": ["cargo"],
-      "ignoreDeps": ["minisign"]
-    },
-    {
-      "enabled": true,
-      "paths": ["tooling/bundler/**"],
-      "groupName": "Tauri Bundler",
-      "groupSlug": "allTauriBundler",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
-    },
-    {
-      "enabled": true,
-      "paths": ["tooling/cli/node"],
-      "groupName": "Tauri JS CLI",
-      "groupSlug": "allTauriJSCLI",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
-    },
-    {
-      "enabled": true,
-      "paths": ["tooling/api/**"],
-      "groupName": "Tauri API Definitions",
-      "groupSlug": "allTauriAPIDefinitions",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
+      "description": "Group napi-rs packages",
+      "groupName": "napi-rs packages",
+      "matchPackageNames": [
+        "napi",
+        "napi-build",
+        "napi-derive",
+        "@napi-rs/cli"
+      ],
+      "rangeStrategy": "bump"
     }
-  ]
+  ],
+  "postUpdateOptions": ["pnpmDedupe"]
 }

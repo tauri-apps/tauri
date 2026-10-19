@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -8,12 +8,12 @@ on:
   push:
     branches:
       - dev
-      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-cli-js.yml'
+      - 'packages/cli/**'
       # currently` @tauri-apps/cli` only tests the template
-      - 'tooling/cli/templates/app/**'
+      - 'crates/tauri-cli/templates/app/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -22,6 +22,9 @@ env:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -33,36 +36,37 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
-      - name: install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+      - name: install Rust 1.90
+        # the MSRV, so this job restores the `tauri-cli` cache entry saved by test-cli-rs
+        uses: dtolnay/rust-toolchain@1.90
+
+      - run: npm i -g --force corepack
       - name: setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v7
         with:
-          node-version: 14
-          cache: yarn
-          cache-dependency-path: tooling/cli/node/yarn.lock
+          node-version: 'lts/*'
+          cache: 'pnpm'
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: |
-            tooling/cli
-            tooling/cli/node/test/jest/fixtures/empty/src-tauri
+          # Restore-only: test-cli-rs saves this entry on `dev`; see test-cli-rs.yml.
+          shared-key: tauri-cli
+          save-if: false
 
       - name: test
         timeout-minutes: 30
+        # The template test exercises the CLI, not its release profile. A debug build reuses
+        # the cached dependencies instead of a from-scratch LTO build (5-8 minutes per platform).
         run: |
-          cd ./tooling/cli/node
-          yarn
-          yarn build
-          yarn test
+          cd ./packages/cli
+          pnpm i --frozen-lockfile
+          pnpm build:debug
+          pnpm test

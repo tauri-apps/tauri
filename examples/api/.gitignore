@@ -1,5 +1,2 @@
-/node_modules/
-/.vscode/
-.DS_Store
-gen/
-.cargo
+/dist/*
+!/dist/.gitkeep

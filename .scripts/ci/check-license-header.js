@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,25 +8,35 @@ const fs = require('fs')
 const path = require('path')
 const readline = require('readline')
 
-const header = `Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+const header = `Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 SPDX-License-Identifier: Apache-2.0
 SPDX-License-Identifier: MIT`
 const bundlerLicense =
   '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
+const denoLicense =
+  '// Copyright 2018-2023 the Deno authors. All rights reserved. MIT license.'
+// files vendored from apple-codesign keep their original MPL-2.0 notice
+const mplLicense =
+  '// This Source Code Form is subject to the terms of the Mozilla Public'
+const mplVendored = [
+  path.join('crates', 'tauri-macos-sign', 'src', 'apple_codesign')
+]
 
-const extensions = ['.rs', '.js', '.ts', '.yml']
+const extensions = ['.rs', '.js', '.ts', '.yml', '.swift', '.kt']
 const ignore = [
   'target',
   'templates',
   'node_modules',
   'gen',
   'dist',
-  'bundle.js',
   'bundle.global.js'
 ]
 
 async function checkFile(file) {
-  if (extensions.some((e) => file.endsWith(e))) {
+  if (
+    extensions.some((e) => file.endsWith(e))
+    && !ignore.some((i) => file.includes(`/${i}/`) || path.basename(file) === i)
+  ) {
     const fileStream = fs.createReadStream(file)
     const rl = readline.createInterface({
       input: fileStream,
@@ -36,11 +46,18 @@ async function checkFile(file) {
     let contents = ``
     let i = 0
     for await (let line of rl) {
+      // accept vendored apple-codesign code under the MPL-2.0 license
+      if (line === mplLicense && mplVendored.some((d) => file.includes(d))) {
+        return false
+      }
+
       // ignore empty lines, allow shebang and bundler license
       if (
-        line.length === 0 ||
-        line.startsWith('#!') ||
-        line === bundlerLicense
+        line.length === 0
+        || line.startsWith('#!')
+        || line.startsWith('// swift-tools-version:')
+        || line === bundlerLicense
+        || line === denoLicense
       ) {
         continue
       }

@@ -1,0 +1,108 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test android
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/test-android.yml'
+      - 'crates/tauri-cli/templates/mobile/android/**'
+      - 'crates/tauri-cli/src/mobile/**'
+      - '!crates/tauri-cli/src/mobile/ios.rs'
+      - '!crates/tauri-cli/src/mobile/ios/**'
+      - 'crates/tauri-build/src/mobile.rs'
+      - 'crates/tauri/mobile/android/**'
+      - 'crates/tauri/mobile/android-codegen/**'
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: 1
+  # Same values as test-cli-rs.yml: rust-cache hashes the CARGO_*/RUST* variables into its key,
+  # and this workflow restores the `tauri-cli` entry saved there.
+  CARGO_PROFILE_DEV_DEBUG: 0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install Rust 1.90
+        uses: dtolnay/rust-toolchain@1.90
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: 'pnpm'
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r29
+          local-cache: true
+
+      # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
+      - name: Restore Android Symlinks
+        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'macos-latest'
+        env:
+          NDK_HOST: ${{ matrix.platform == 'ubuntu-latest' && 'linux-x86_64' || 'darwin-x86_64' }}
+        run: |
+          directory="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/$NDK_HOST/bin"
+          find "$directory" -type l | while read link; do
+              current_target=$(readlink "$link")
+              new_target="$directory/$(basename "$current_target")"
+              ln -sf "$new_target" "$link"
+              echo "Changed $(basename "$link") from $current_target to $new_target"
+          done
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Restore-only: test-cli-rs saves this entry on `dev`; see test-cli-rs.yml.
+          shared-key: tauri-cli
+          save-if: false
+
+      - name: build and install CLI
+        # `--target-dir` so the build reuses the cached dependencies instead of a temporary dir
+        run: cargo install tauri-cli --path ./crates/tauri-cli/ --locked --debug --target-dir target
+
+      - run: pnpm i --frozen-lockfile
+
+      - name: build Tauri API
+        working-directory: ./packages/api
+        run: pnpm build
+
+      - name: init Android Studio project
+        working-directory: ./examples/api
+        run: cargo tauri android init
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+      - name: build APK
+        working-directory: ./examples/api
+        run: cargo tauri android build
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}

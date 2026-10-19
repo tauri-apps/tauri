@@ -1,0 +1,8 @@
+[[permission]]
+identifier = "allow-read-resources"
+description = "Enables the read_file and read_dir command using the $RESOURCE base directory."
+commands.allow = ["read_file", "read_dir"]
+[[permission.scope.allow]]
+path = "$RESOURCE/**"
+[[permission.scope.allow]]
+path = "$RESOURCE"

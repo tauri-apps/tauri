@@ -1,0 +1,14 @@
+target
+Cargo.lock
+.cargo
+.github
+npm
+test
+.eslintrc
+.prettierignore
+rustfmt.toml
+*.node
+__tests__
+src
+Cargo.toml
+build.rs

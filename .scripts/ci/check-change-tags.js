@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -57,7 +57,7 @@ function checkChangeFiles(changeFiles) {
     for (const [file, packages] of unknownTagsEntries) {
       for (const { package, tag } of packages) {
         console.error(
-          `Package \`${package}\` has an uknown change tag ${tag} in ${file} `
+          `Package \`${package}\` has an unknown change tag ${tag} in ${file} `
         )
       }
     }
@@ -69,7 +69,9 @@ function checkChangeFiles(changeFiles) {
 const [_bin, _script, ...files] = process.argv
 
 if (files.length > 0) {
-  checkChangeFiles(files.filter((f) => f.toLowerCase() !== 'readme.md'))
+  checkChangeFiles(
+    files.filter((f) => f.toLowerCase() !== '.changes/readme.md')
+  )
 } else {
   const changeFiles = fs
     .readdirSync('.changes')

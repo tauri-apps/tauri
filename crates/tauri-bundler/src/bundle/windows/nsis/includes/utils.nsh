@@ -1,14 +1,11 @@
-; Utility macros used by the installer, grouped by topic in the `utils` folder.
+; Only kept so that custom installer templates written against the old layout,
+; where every utility macro was reachable through this one file, keep working.
+; `installer.nsi` includes the files below directly.
 ;
-; This file only exists to include all of them at once,
-; it is also the include that custom installer templates rely on.
-;
-; Keep it macros and variables only, with no instructions and no dependency on
-; installer state, so that it stays safe to include from anywhere in a template.
-; Functions built on top of these macros live in their own file, see `shortcuts.nsh`.
+; TODO(v3): remove this file
 
-!include "utils\console.nsh"
-!include "utils\context.nsh"
-!include "utils\dpi.nsh"
-!include "utils\process.nsh"
-!include "utils\shell.nsh"
+!include "console.nsh"
+!include "context.nsh"
+!include "dpi.nsh"
+!include "process.nsh"
+!include "shell.nsh"

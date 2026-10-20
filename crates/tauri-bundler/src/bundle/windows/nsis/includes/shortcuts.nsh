@@ -3,8 +3,8 @@
 ;
 ; These are functions and not macros, so including this file emits instructions
 ; reading `$AppStartMenuFolder`, `$WixUninstallKey`, `$UpdateMode`, `$NoShortcutMode`
-; and `$OldMainBinaryName`, which is why it is included by `installer.nsi` after
-; those variables are declared instead of by `utils.nsh`. NSIS only warns about
+; and `$OldMainBinaryName`, which is why `installer.nsi` includes it after those
+; variables are declared, unlike the macro-only includes. NSIS only warns about
 ; variables it does not know yet, so including it any earlier would still compile
 ; but create the shortcuts in the wrong place.
 

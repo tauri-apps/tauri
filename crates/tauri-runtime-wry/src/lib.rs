@@ -757,7 +757,7 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
   }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct WindowBuilderWrapper {
   inner: TaoWindowBuilder,
   center: bool,
@@ -766,6 +766,21 @@ pub struct WindowBuilderWrapper {
   shadow: bool,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
+}
+
+impl Default for WindowBuilderWrapper {
+  fn default() -> Self {
+    Self {
+      inner: Default::default(),
+      center: false,
+      prevent_overflow: None,
+      // matches tao's `with_undecorated_shadow` default
+      #[cfg(windows)]
+      shadow: true,
+      #[cfg(target_os = "macos")]
+      tabbing_identifier: None,
+    }
+  }
 }
 
 impl std::fmt::Debug for WindowBuilderWrapper {

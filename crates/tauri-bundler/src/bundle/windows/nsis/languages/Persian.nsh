@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_PERSIAN} "${PRODUCTNAME} ${VERSION} قب�
 LangString appRunning ${LANG_PERSIAN} "{{product_name}} در حال اجر می باشد ! لطفا اول الان را ببندید و دوباره تلاش کنید"
 LangString appRunningOkKill ${LANG_PERSIAN} "{{product_name}} در حال اجرا می باشد!$\nبرای از بین بردن اوکی را انتخاب کنید"
 LangString chooseMaintenanceOption ${LANG_PERSIAN} "عملیات نگهداری مدنظر را برای اجرا انتخاب کنید"
-LangString choowHowToInstall ${LANG_PERSIAN} "نحوه نصب ${PRODUCTNAME} را انتخاب کنید"
+LangString chooseHowToInstall ${LANG_PERSIAN} "نحوه نصب ${PRODUCTNAME} را انتخاب کنید"
 LangString createDesktop ${LANG_PERSIAN} "ایجاد میانبر دسکتاپ"
 LangString dontUninstall ${LANG_PERSIAN} "حذف نکنید"
 LangString dontUninstallDowngrade ${LANG_PERSIAN} "حذف نکنید (تنزل ورژن بدون حذف برای نصب کننده غیرفعال است)"

@@ -37,7 +37,7 @@ hex = "0.4"
 semver = "1"
 sha1 = "0.11"
 sha2 = "0.11"
-zip = { version = "8", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 dunce = "1"
 url = "2"
 uuid = { version = "1", features = ["v4", "v5"] }

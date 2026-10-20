@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_HEBREW} "${PRODUCTNAME} ${VERSION} כבר
 LangString appRunning ${LANG_HEBREW} "{{product_name}} פועל! נא לסגור אותו ולנסות שוב."
 LangString appRunningOkKill ${LANG_HEBREW} "{{product_name}} פועל!$\nלחץ אישור כדי לסגור אותו."
 LangString chooseMaintenanceOption ${LANG_HEBREW} "בחר את פעולת התחזוקה לביצוע"
-LangString choowHowToInstall ${LANG_HEBREW} "בחר איך תרצה להתקין את ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_HEBREW} "בחר איך תרצה להתקין את ${PRODUCTNAME}."
 LangString createDesktop ${LANG_HEBREW} "צור קיצור דרך בשולחן העבודה"
 LangString dontUninstall ${LANG_HEBREW} "אל תסיר"
 LangString dontUninstallDowngrade ${LANG_HEBREW} "אל תסיר (התקנת גרסה ישנה ללא הסרת הגרסה הנוכחית מושעית עבור התקנה זו)"

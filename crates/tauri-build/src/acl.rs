@@ -449,7 +449,13 @@ pub fn build(
     let capabilities_dir = std::env::current_dir()
       .context("resolve current dir for capabilities watch path")?
       .join("capabilities");
-    println!("cargo:rerun-if-changed={}", capabilities_dir.display());
+    // For the same reason, skip the watch when the directory doesn't exist and the
+    // configuration lists capabilities in `app > security > capabilities`: that list
+    // only selects the files it references by identifier, so creating the directory
+    // alone doesn't change the selected capabilities.
+    if capabilities_dir.exists() || config.app.security.capabilities.is_empty() {
+      println!("cargo:rerun-if-changed={}", capabilities_dir.display());
+    }
     tauri_utils::acl::build::parse_capabilities("./capabilities/**/*")?
   };
   // the capabilities that are actually resolved at compile time are the ones returned by

@@ -426,9 +426,7 @@ async fn create_window(app: tauri::AppHandle) {
               None
             }
         });
-      if let Some(resolved_data_directory) = resolve_data_dir_res {
-        config.data_directory = Some(resolved_data_directory);
-      }
+      config.data_directory = resolve_data_dir_res;
     }
 
     Self {
@@ -1164,8 +1162,38 @@ fn main() {
   ///
   /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `profile_identifier` instead, which is also supported on Windows."
+  )]
   pub fn data_store_identifier(mut self, data_store_identifier: [u8; 16]) -> Self {
     self.webview_attributes.data_store_identifier = Some(data_store_identifier);
+    self
+  }
+
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes, usually a UUID.
+  ///
+  /// Webviews using the same identifier share their browsing data,
+  /// while webviews using different identifiers are fully isolated from each other.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Uses a [`WKWebsiteDataStore`] created with this identifier.
+  ///   Available on macOS >= 14 and iOS >= 17. Enable [incognito](Self::incognito) to use a
+  ///   non-persistent data store instead.
+  /// - **Windows**: Uses a [WebView2 profile] named after the lowercase hex representation of the identifier,
+  ///   stored inside the [data directory](Self::data_directory), so webviews sharing a data directory
+  ///   still share a single browser process. Requires WebView2 Runtime 101+, older runtimes ignore this setting.
+  /// - **Linux / Android**: Unsupported.
+  ///
+  /// Use `AppHandle::fetch_profile_identifiers` and `AppHandle::remove_profile` to manage the profiles.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)
+  /// [WebView2 profile]: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+  #[must_use]
+  pub fn profile_identifier(mut self, profile_identifier: [u8; 16]) -> Self {
+    self.webview_attributes.profile_identifier = Some(profile_identifier);
     self
   }
 
@@ -2394,8 +2422,10 @@ tauri::Builder::default()
   /// - **Linux**: the data is cleared for the whole WebKit web context, which is shared by every webview
   ///   using the same data directory, not only this one.
   /// - **macOS / iOS**: clears the [`WKWebsiteDataStore`] of this webview. Webviews created with a custom
-  ///   `WebviewBuilder::data_store_identifier` have their own store, so only that store is affected.
-  /// - **Windows**: implemented with `ICoreWebView2Profile2::ClearBrowsingDataAll`, so an error is returned
+  ///   [`WebviewBuilder::profile_identifier`] have their own store, so only that store is affected.
+  /// - **Windows**: clears the WebView2 profile of this webview, which is shared by every webview using the
+  ///   same data directory and [`WebviewBuilder::profile_identifier`]. Implemented with
+  ///   `ICoreWebView2Profile2::ClearBrowsingDataAll`, so an error is returned
   ///   if the installed WebView2 runtime is too old to provide it.
   ///
   /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore

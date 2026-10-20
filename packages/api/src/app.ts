@@ -48,6 +48,15 @@ export type DataStoreIdentifier = [
 ]
 
 /**
+ * Identifier of a webview browsing data profile, see the `profileIdentifier` webview option.
+ *
+ * Represents a 128-bit identifier, commonly expressed as a 16-byte UUID.
+ *
+ * @since 2.13.0
+ */
+export type ProfileIdentifier = DataStoreIdentifier
+
+/**
  * Bundle type of the current application.
  *
  * @see {@linkcode getBundleType}
@@ -178,13 +187,14 @@ async function hide(): Promise<void> {
  * (not included in `core:app:default`).
  *
  * @since 2.4.0
+ * @deprecated since 2.13.0. Use {@linkcode fetchProfileIdentifiers} instead, which is also supported on Windows.
  */
 async function fetchDataStoreIdentifiers(): Promise<DataStoreIdentifier[]> {
   return invoke('plugin:app|fetch_data_store_identifiers')
 }
 
 /**
- * Removes the data store with the given identifier.
+ * Removes the data store with the given identifier on macOS and iOS.
  *
  * Note that any webview using this data store should be closed before running this API.
  *
@@ -202,9 +212,70 @@ async function fetchDataStoreIdentifiers(): Promise<DataStoreIdentifier[]> {
  * in `core:app:default`).
  *
  * @since 2.4.0
+ * @deprecated since 2.13.0. Use {@linkcode removeProfile} instead, which is also supported on Windows.
  */
 async function removeDataStore(uuid: DataStoreIdentifier): Promise<void> {
   return invoke('plugin:app|remove_data_store', { uuid })
+}
+
+/**
+ * Fetches the identifiers of the app's browsing data profiles, see the `profileIdentifier` webview option.
+ *
+ * #### Platform-specific:
+ *
+ * - **macOS / iOS**: Lists the identifiers of the app's [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore)s.
+ *   Available on macOS >= 14 and iOS >= 17.
+ * - **Windows**: Lists the WebView2 profiles stored in the app local data directory, which is the default data directory,
+ *   and in the data directories of the webviews created since the app started.
+ * - **Linux / Android**: Unsupported, always returns an empty list.
+ *
+ * @example
+ * ```typescript
+ * import { fetchProfileIdentifiers } from '@tauri-apps/api/app';
+ * const ids = await fetchProfileIdentifiers();
+ * ```
+ *
+ * @remarks Requires the `core:app:allow-fetch-profile-identifiers` permission
+ * (not included in `core:app:default`).
+ *
+ * @since 2.13.0
+ */
+async function fetchProfileIdentifiers(): Promise<ProfileIdentifier[]> {
+  return invoke('plugin:app|fetch_profile_identifiers')
+}
+
+/**
+ * Removes the browsing data profile with the given identifier, see the `profileIdentifier` webview option.
+ *
+ * Every webview using this profile must be closed before calling this function.
+ *
+ * #### Platform-specific:
+ *
+ * - **macOS / iOS**: Removes the app's [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore) with this identifier.
+ *   Available on macOS >= 14 and iOS >= 17.
+ * - **Windows**: Removes the WebView2 profile from the same data directories {@linkcode fetchProfileIdentifiers} looks in.
+ *   Rejects if a webview still uses the profile. Closing a webview is asynchronous and WebView2 releases
+ *   the profile files shortly after, so the removal can fail right after closing the last webview using it,
+ *   in which case the profile is left untouched and the removal can be retried later.
+ * - **Linux / Android**: Unsupported, does nothing.
+ *
+ * @example
+ * ```typescript
+ * import { fetchProfileIdentifiers, removeProfile } from '@tauri-apps/api/app';
+ * for (const id of (await fetchProfileIdentifiers())) {
+ *   await removeProfile(id);
+ * }
+ * ```
+ *
+ * @remarks Requires the `core:app:allow-remove-profile` permission (not included
+ * in `core:app:default`).
+ *
+ * @since 2.13.0
+ */
+async function removeProfile(
+  profileIdentifier: ProfileIdentifier
+): Promise<void> {
+  return invoke('plugin:app|remove_profile', { profileIdentifier })
 }
 
 /**
@@ -412,6 +483,8 @@ export {
   setTheme,
   fetchDataStoreIdentifiers,
   removeDataStore,
+  fetchProfileIdentifiers,
+  removeProfile,
   setDockVisibility,
   getBundleType,
   type OnBackButtonPressPayload,

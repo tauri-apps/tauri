@@ -366,7 +366,13 @@ pub struct WebviewAttributes {
   pub zoom_hotkeys_enabled: bool,
   pub browser_extensions_enabled: bool,
   pub extensions_path: Option<PathBuf>,
+  /// macOS / iOS only `WKWebsiteDataStore` identifier, kept for the deprecated
+  /// `data_store_identifier` APIs. Prefer [`Self::profile_identifier`].
   pub data_store_identifier: Option<[u8; 16]>,
+  /// Identifier of the browsing data profile to use, see `WebviewBuilder::profile_identifier`.
+  ///
+  /// Takes precedence over [`Self::data_store_identifier`] on macOS / iOS.
+  pub profile_identifier: Option<[u8; 16]>,
   pub use_https_scheme: bool,
   pub devtools: Option<bool>,
   pub background_color: Option<Color>,
@@ -501,6 +507,14 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
     }
+    if let Some(data_directory) = &config.data_directory {
+      builder = builder.data_directory(data_directory.clone());
+    }
+    #[allow(deprecated)]
+    {
+      builder.data_store_identifier = config.data_store_identifier;
+    }
+    builder.profile_identifier = config.profile_identifier;
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
     #[cfg(target_os = "ios")]
@@ -535,6 +549,7 @@ impl WebviewAttributes {
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
       data_store_identifier: None,
+      profile_identifier: None,
       extensions_path: None,
       use_https_scheme: false,
       devtools: None,

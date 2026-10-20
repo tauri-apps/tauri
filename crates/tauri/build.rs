@@ -162,6 +162,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("exit", false),
       ("fetch_data_store_identifiers", false),
       ("remove_data_store", false),
+      ("fetch_profile_identifiers", false),
+      ("remove_profile", false),
       ("default_window_icon", false),
       ("set_app_theme", false),
       ("set_dock_visibility", false),

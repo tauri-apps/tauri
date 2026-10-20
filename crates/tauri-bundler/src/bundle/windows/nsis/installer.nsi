@@ -137,9 +137,11 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !include MultiUser.nsh
 !endif
 
-; Installer icon
+; Installer icon, unless an installer hook already defined one
 !if "${INSTALLERICON}" != ""
-  !define MUI_ICON "${INSTALLERICON}"
+  !ifndef MUI_ICON
+    !define MUI_ICON "${INSTALLERICON}"
+  !endif
 !endif
 
 ; Installer sidebar image
@@ -164,9 +166,11 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !define MUI_HEADERIMAGE_UNBITMAP "${UNINSTALLERHEADERIMAGE}"
 !endif
 
-; Uninstaller icon
+; Uninstaller icon, unless an installer hook already defined one
 !if "${UNINSTALLERICON}" != ""
-  !define MUI_UNICON "${UNINSTALLERICON}"
+  !ifndef MUI_UNICON
+    !define MUI_UNICON "${UNINSTALLERICON}"
+  !endif
 !endif
 
 ; Define registry key to store installer language

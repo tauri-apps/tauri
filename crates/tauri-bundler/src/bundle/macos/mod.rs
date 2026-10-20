@@ -6,5 +6,6 @@
 pub mod app;
 pub mod dmg;
 pub mod icon;
+#[cfg(target_os = "macos")]
 pub mod ios;
 pub mod sign;

@@ -18,6 +18,9 @@ use std::{
   process::{Command, Stdio},
 };
 
+#[cfg(not(target_os = "macos"))]
+mod linux;
+
 pub struct Bundled {
   pub dmg: Vec<PathBuf>,
   pub app: Vec<PathBuf>,
@@ -36,7 +39,11 @@ fn finder_permission_hint(stderr: &str) -> Option<&'static str> {
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
+#[allow(unreachable_code)]
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Bundled> {
+  #[cfg(not(target_os = "macos"))]
+  return linux::bundle_project(settings, bundles);
+
   // generate the .app bundle if needed
   let app_bundle_paths = if !bundles
     .iter()
@@ -210,17 +217,20 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   // Sign DMG if needed
   // skipping self-signing DMGs https://github.com/tauri-apps/tauri/issues/12288
-  let identity = settings.macos().signing_identity.as_deref();
-  if !settings.no_sign() && identity != Some("-") {
-    if let Some(keychain) = super::sign::keychain(identity)? {
-      super::sign::sign(
-        &keychain,
-        vec![super::sign::SignTarget {
-          path: dmg_path.clone(),
-          is_an_executable: false,
-        }],
-        settings,
-      )?;
+  #[cfg(target_os = "macos")]
+  {
+    let identity = settings.macos().signing_identity.as_deref();
+    if !settings.no_sign() && identity != Some("-") {
+      if let Some(keychain) = super::sign::keychain(identity)? {
+        super::sign::sign(
+          &keychain,
+          vec![super::sign::SignTarget {
+            path: dmg_path.clone(),
+            is_an_executable: false,
+          }],
+          settings,
+        )?;
+      }
     }
   }
 

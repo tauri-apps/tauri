@@ -5,11 +5,11 @@
 use clap::Parser;
 
 use crate::{
-  error::{Context, ErrorExt},
   Result,
+  error::{Context, ErrorExt},
 };
 use colored::Colorize;
-use tauri_utils::acl::{manifest::Manifest, APP_ACL_KEY};
+use tauri_utils::acl::{APP_ACL_KEY, manifest::Manifest};
 
 use std::{collections::BTreeMap, fs::read_to_string};
 

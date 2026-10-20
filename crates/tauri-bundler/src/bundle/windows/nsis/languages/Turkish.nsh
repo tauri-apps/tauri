@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_TURKISH} "${PRODUCTNAME} ${VERSION} daha 
 LangString appRunning ${LANG_TURKISH} "{{product_name}} çalışır durumda! Lütfen önce uygulamayı kapatın ve sonra tekrar deneyin."
 LangString appRunningOkKill ${LANG_TURKISH} "{{product_name}} çalışır durumda!$\nUygulamayı sonlandırmak için Tamam'a tıklayın."
 LangString chooseMaintenanceOption ${LANG_TURKISH} "Gerçekleştirmek istediğiniz bakım seçeneğini belirleyin."
-LangString choowHowToInstall ${LANG_TURKISH} "${PRODUCTNAME} uygulamasını nasıl yüklemek istediğinizi seçin."
+LangString chooseHowToInstall ${LANG_TURKISH} "${PRODUCTNAME} uygulamasını nasıl yüklemek istediğinizi seçin."
 LangString createDesktop ${LANG_TURKISH} "Masaüstü kısayolu oluştur"
 LangString dontUninstall ${LANG_TURKISH} "Kaldırma işlemini gerçekleştirme"
 LangString dontUninstallDowngrade ${LANG_TURKISH} "Kaldırma işlemini gerçekleştirme (Kaldırma işlemi yapmadan sürüm düşürme bu yükleyici için devre dışı bırakılmıştır)"

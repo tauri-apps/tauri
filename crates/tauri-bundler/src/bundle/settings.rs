@@ -12,7 +12,7 @@ use tauri_utils::{
     RpmCompression,
   },
   platform::Target as TargetPlatform,
-  resources::{external_binaries, ResourcePaths},
+  resources::{ResourcePaths, external_binaries},
 };
 
 use std::{
@@ -349,7 +349,7 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
-  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  /// Skip stapling the notarization ticket onto the app and do not wait for notarization to finish.
   ///
   /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
   /// reaching out to Apple's servers which is helpful in offline environments.
@@ -583,11 +583,15 @@ pub struct WindowsSettings {
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,
-  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  /// Whether an older version can be installed when a newer one is already installed.
   ///
-  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  /// For instance, if `1.2.1` is installed and this is set to `false`:
   ///
-  /// /// The default value of this flag is `true`.
+  /// - The MSI installer won't install version `1.2.0` or `1.1.5`.
+  /// - The NSIS installer won't install them over `1.2.1` in silent, passive or update mode.
+  ///   The interactive installer only lets the user install them after uninstalling `1.2.1` first.
+  ///
+  /// The default value of this flag is `true`.
   pub allow_downgrades: bool,
 
   /// Specify a custom command to sign the binaries.
@@ -1126,7 +1130,7 @@ impl Settings {
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."
-        )))
+        )));
       }
     };
 

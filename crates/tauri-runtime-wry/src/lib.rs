@@ -21,6 +21,9 @@ use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 #[cfg(windows)]
 use tauri_runtime::webview::ScrollBarStyle;
 use tauri_runtime::{
+  Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
+  ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
+  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -28,9 +31,6 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, DragDropEvent, PendingWindow, RawWindow,
     WebviewEvent, WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
   },
-  Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
-  ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
-  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_vendor = "apple")]
@@ -78,12 +78,12 @@ use tao::{
     UserAttentionType as TaoUserAttentionType,
   },
 };
-use tauri_utils::config::PreventOverflowConfig;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
+use tauri_utils::config::PreventOverflowConfig;
 use tauri_utils::{
-  config::{Color, WindowConfig},
   Theme,
+  config::{Color, WindowConfig},
 };
 use url::Url;
 #[cfg(windows)]
@@ -102,8 +102,8 @@ pub use wry::webview_version;
 use wry::WebViewExtWindows;
 #[cfg(target_os = "android")]
 use wry::{
-  prelude::{dispatch, find_class},
   WebViewBuilderExtAndroid, WebViewExtAndroid,
+  prelude::{dispatch, find_class},
 };
 #[cfg(not(any(
   target_os = "windows",
@@ -125,19 +125,19 @@ use tauri_runtime::ActivationPolicy;
 use std::{
   cell::RefCell,
   collections::{
-    hash_map::Entry::{Occupied, Vacant},
     BTreeMap, HashMap, HashSet,
+    hash_map::Entry::{Occupied, Vacant},
   },
   fmt,
   ops::Deref,
   path::PathBuf,
   rc::Rc,
   sync::{
-    atomic::{AtomicBool, AtomicU32, Ordering},
-    mpsc::{channel, Sender},
     Arc, Mutex, Weak,
+    atomic::{AtomicBool, AtomicU32, Ordering},
+    mpsc::{Sender, channel},
   },
-  thread::{current as current_thread, ThreadId},
+  thread::{ThreadId, current as current_thread},
 };
 
 pub type WebviewId = u32;
@@ -406,8 +406,19 @@ impl<T: UserEvent> Context<T> {
 }
 
 #[cfg(feature = "tracing")]
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
+
+// Deliberately does not borrow the inner `RefCell`: formatting can happen re-entrantly
+// while the store is already borrowed (e.g. from an event loop callback),
+// which would panic with "already borrowed".
+#[cfg(feature = "tracing")]
+impl fmt::Debug for ActiveTraceSpanStore {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("ActiveTraceSpanStore")
+      .finish_non_exhaustive()
+  }
+}
 
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
@@ -428,8 +439,16 @@ pub enum ActiveTracingSpan {
   },
 }
 
-#[derive(Debug)]
 pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
+
+// Deliberately does not borrow the inner `RefCell`: formatting can happen re-entrantly
+// while the store is already borrowed (e.g. from an event loop callback),
+// which would panic with "already borrowed".
+impl fmt::Debug for WindowsStore {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("WindowsStore").finish_non_exhaustive()
+  }
+}
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
@@ -613,7 +632,6 @@ impl From<MonitorHandleWrapper> for Monitor {
   }
 }
 
-#[cfg(desktop)]
 fn find_monitor_for_position(
   monitors: impl Iterator<Item = MonitorHandle>,
   window_position: Position,
@@ -793,22 +811,6 @@ impl WindowBuilder for WindowBuilderWrapper {
       }
     }
 
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    {
-      window = window.transparent(config.transparent);
-    }
-    #[cfg(all(
-      target_os = "macos",
-      not(feature = "macos-private-api"),
-      debug_assertions
-    ))]
-    if config.transparent {
-      eprintln!(
-        "The window is set to be transparent but the `macos-private-api` is not enabled.
-        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://v2.tauri.app/reference/config/#macosprivateapi>
-      ");
-    }
-
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -867,7 +869,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       .closable(config.closable)
       .maximizable(config.maximizable)
       .minimizable(config.minimizable)
-      .shadow(config.shadow);
+      .shadow(config.shadow)
+      .transparent(config.transparent);
 
     let mut constraints = WindowSizeConstraints::default();
 
@@ -1031,7 +1034,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   fn transparent(mut self, transparent: bool) -> Self {
     self.inner = self.inner.with_transparent(transparent);
     self
@@ -1320,10 +1322,12 @@ pub enum WindowMessage {
   IsClosable(Sender<bool>),
   IsVisible(Sender<bool>),
   Title(Sender<String>),
-  CurrentMonitor(Sender<Option<MonitorHandle>>),
-  PrimaryMonitor(Sender<Option<MonitorHandle>>),
-  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
-  AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  // Monitors are converted on the main thread: on iOS tao's `MonitorHandle`
+  // can only be queried (and dropped) there.
+  CurrentMonitor(Sender<Option<Monitor>>),
+  PrimaryMonitor(Sender<Option<Monitor>>),
+  MonitorFromPoint(Sender<Option<Monitor>>, (f64, f64)),
+  AvailableMonitors(Sender<Vec<Monitor>>),
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1377,6 +1381,7 @@ pub enum WindowMessage {
   SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFullscreenOnMonitor(PhysicalPosition<f64>),
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
@@ -1470,9 +1475,10 @@ pub enum WebviewMessage {
 
 pub enum EventLoopWindowTargetMessage {
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
-  PrimaryMonitor(Sender<Option<MonitorHandle>>),
-  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
-  AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  // See `WindowMessage::CurrentMonitor`.
+  PrimaryMonitor(Sender<Option<Monitor>>),
+  MonitorFromPoint(Sender<Option<Monitor>>, (f64, f64)),
+  AvailableMonitors(Sender<Vec<Monitor>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
 }
@@ -1923,11 +1929,11 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::CurrentMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+    window_getter!(self, WindowMessage::CurrentMonitor)
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+    window_getter!(self, WindowMessage::PrimaryMonitor)
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
@@ -1938,20 +1944,11 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       WindowMessage::MonitorFromPoint(tx, (x, y)),
     ));
 
-    Ok(
-      rx.recv()
-        .map_err(|_| crate::Error::FailedToReceiveMessage)?
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-    Ok(
-      window_getter!(self, WindowMessage::AvailableMonitors)?
-        .into_iter()
-        .map(|m| MonitorHandleWrapper(m).into())
-        .collect(),
-    )
+    window_getter!(self, WindowMessage::AvailableMonitors)
   }
 
   fn theme(&self) -> Result<Theme> {
@@ -2212,6 +2209,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     self.context.send_user_message(Message::Window(
       self.window_id,
       WindowMessage::SetPosition(position),
+    ))
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetFullscreenOnMonitor(position),
     ))
   }
 
@@ -2630,10 +2634,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(
-      event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor)?
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor)
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
@@ -2643,18 +2644,11 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .send_user_message(Message::EventLoopWindowTarget(
         EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y)),
       ))?;
-    Ok(rx.recv().unwrap().map(|m| MonitorHandleWrapper(m).into()))
+    Ok(rx.recv().unwrap())
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-    event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors).map(
-      |monitors| {
-        monitors
-          .into_iter()
-          .map(|m| MonitorHandleWrapper(m).into())
-          .collect()
-      },
-    )
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors)
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
@@ -3013,6 +3007,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    self.event_loop.set_activate_ignoring_other_apps(ignore);
+  }
+
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool) {
     self.event_loop.set_dock_visibility(visible);
   }
@@ -3285,14 +3284,35 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::IsClosable(tx) => tx.send(window.is_closable()).unwrap(),
           WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
           WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
-          WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
-          WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
-          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
-            tx.send(window.monitor_from_point(x, y)).unwrap()
-          }
-          WindowMessage::AvailableMonitors(tx) => {
-            tx.send(window.available_monitors().collect()).unwrap()
-          }
+          WindowMessage::CurrentMonitor(tx) => tx
+            .send(
+              window
+                .current_monitor()
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::PrimaryMonitor(tx) => tx
+            .send(
+              window
+                .primary_monitor()
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::MonitorFromPoint(tx, (x, y)) => tx
+            .send(
+              window
+                .monitor_from_point(x, y)
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::AvailableMonitors(tx) => tx
+            .send(
+              window
+                .available_monitors()
+                .map(|m| MonitorHandleWrapper(m).into())
+                .collect(),
+            )
+            .unwrap(),
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -3417,6 +3437,15 @@ fn handle_user_message<T: UserEvent>(
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
             } else {
               window.set_fullscreen(None)
+            }
+          }
+          WindowMessage::SetFullscreenOnMonitor(position) => {
+            // Not `Window::monitor_from_point`: on macOS and Linux (GTK) it takes logical
+            // coordinates, while callers pass physical ones (e.g. `Monitor::position`).
+            if let Some(monitor) =
+              find_monitor_for_position(window.available_monitors(), position.into())
+            {
+              window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))))
             }
           }
 
@@ -4021,18 +4050,46 @@ fn handle_user_message<T: UserEvent>(
         sender.send(pos).unwrap();
       }
       EventLoopWindowTargetMessage::PrimaryMonitor(sender) => {
-        sender.send(event_loop.primary_monitor()).unwrap();
+        sender
+          .send(
+            event_loop
+              .primary_monitor()
+              .map(|m| MonitorHandleWrapper(m).into()),
+          )
+          .unwrap();
       }
       EventLoopWindowTargetMessage::MonitorFromPoint(sender, (x, y)) => {
-        sender.send(event_loop.monitor_from_point(x, y)).unwrap();
+        sender
+          .send(
+            event_loop
+              .monitor_from_point(x, y)
+              .map(|m| MonitorHandleWrapper(m).into()),
+          )
+          .unwrap();
       }
       EventLoopWindowTargetMessage::AvailableMonitors(sender) => {
         sender
-          .send(event_loop.available_monitors().collect())
+          .send(
+            event_loop
+              .available_monitors()
+              .map(|m| MonitorHandleWrapper(m).into())
+              .collect(),
+          )
           .unwrap();
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
         event_loop.set_theme(to_tao_theme(theme));
+        // On macOS tao caches each window's theme and only refreshes it from the
+        // system-wide appearance change notification, which the app-level
+        // `NSApp.setAppearance` call above never posts, so `Window::theme()`
+        // would keep reporting the previous value. tao's window-level setter
+        // does update the cache, so push the theme through it as well.
+        #[cfg(target_os = "macos")]
+        for window in windows.0.borrow().values() {
+          if let Some(inner) = &window.inner {
+            inner.set_theme(to_tao_theme(theme));
+          }
+        }
       }
       EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
         event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
@@ -5037,8 +5094,12 @@ You may have it installed on another user account, but it is not available for t
     }
   }
 
+  #[cfg(windows)]
+  let window_id_for_ipc = window_id.clone();
+  #[cfg(not(windows))]
+  let window_id_for_ipc = window_id;
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-    window_id.clone(),
+    window_id_for_ipc,
     id,
     context.clone(),
     label.clone(),
@@ -5311,7 +5372,9 @@ fn add_focus_change_listeners<T: UserEvent>(
       token,
     )
   } {
-    log::error!("Failed to attach WebView2 `add_GotFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
+    log::error!(
+      "Failed to attach WebView2 `add_GotFocus` handler, `WindowEvent::Focused` will not be sent: {error}"
+    );
     return;
   }
 
@@ -5346,6 +5409,8 @@ fn add_focus_change_listeners<T: UserEvent>(
       token,
     )
   } {
-    log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
+    log::error!(
+      "Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}"
+    );
   }
 }

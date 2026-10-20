@@ -13,8 +13,8 @@
 pub use tokio::{
   runtime::{Handle as TokioHandle, Runtime as TokioRuntime},
   sync::{
-    mpsc::{channel, Receiver, Sender},
     Mutex, RwLock,
+    mpsc::{Receiver, Sender, channel},
   },
   task::JoinHandle as TokioJoinHandle,
 };
@@ -56,6 +56,7 @@ impl GlobalRuntime {
   }
 
   #[track_caller]
+  /// Runs the provided function on an executor dedicated to blocking operations.
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
     F: FnOnce() -> R + Send + 'static,
@@ -185,6 +186,26 @@ impl RuntimeHandle {
 
   #[track_caller]
   /// Runs the provided function on an executor dedicated to blocking operations.
+  ///
+  /// Use this instead of [`Self::spawn`] for code that blocks the thread it runs on
+  /// (synchronous file or network I/O, heavy computation, FFI calls) so the async executor
+  /// is not blocked. The returned [`JoinHandle`] resolves to the closure's return value.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle().clone();
+  ///     tauri::async_runtime::handle().spawn_blocking(move || {
+  ///       let contents = std::fs::read_to_string("file.txt").unwrap_or_default();
+  ///       handle.package_info().name.len() + contents.len()
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
     F: FnOnce() -> R + Send + 'static,
@@ -294,25 +315,6 @@ where
 {
   let runtime = RUNTIME.get_or_init(default_runtime);
   runtime.spawn_blocking(func)
-}
-
-#[track_caller]
-#[allow(dead_code)]
-pub(crate) fn safe_block_on<F>(task: F) -> F::Output
-where
-  F: Future + Send + 'static,
-  F::Output: Send + 'static,
-{
-  if let Ok(handle) = tokio::runtime::Handle::try_current() {
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    let handle_ = handle.clone();
-    handle.spawn_blocking(move || {
-      tx.send(handle_.block_on(task)).unwrap();
-    });
-    rx.recv().unwrap()
-  } else {
-    block_on(task)
-  }
 }
 
 #[cfg(test)]

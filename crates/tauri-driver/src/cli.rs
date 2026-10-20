@@ -46,7 +46,7 @@ impl From<pico_args::Arguments> for Args {
       native_port: args.value_from_str("--native-port").unwrap_or(4445),
       native_host: args
         .value_from_str("--native-host")
-        .unwrap_or(String::from("127.0.0.1")),
+        .unwrap_or_else(|_| String::from("127.0.0.1")),
       native_driver,
     };
 

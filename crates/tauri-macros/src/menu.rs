@@ -5,9 +5,9 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{
+  Expr, Token,
   parse::{Parse, ParseStream},
   punctuated::Punctuated,
-  Expr, Token,
 };
 
 pub struct DoMenuItemInput {

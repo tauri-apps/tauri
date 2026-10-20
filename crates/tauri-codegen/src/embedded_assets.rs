@@ -4,7 +4,7 @@
 
 use base64::Engine;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use sha2::{Digest, Sha256};
 use std::{
   collections::BTreeMap,
@@ -382,6 +382,9 @@ impl EmbeddedAssets {
           },
         )?;
       }
+
+      drop(out_file);
+      crate::backdate(&out_path);
     }
 
     Ok((key, (path.into(), out_path)))

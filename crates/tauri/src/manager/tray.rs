@@ -9,10 +9,10 @@ use std::{
 };
 
 use crate::{
+  AppHandle, Manager, Resource, ResourceId, Runtime,
   app::GlobalTrayIconEventListener,
   image::Image,
   tray::{TrayIcon, TrayIconEvent, TrayIconId},
-  AppHandle, Manager, Resource, ResourceId, Runtime,
 };
 
 pub struct TrayManager<R: Runtime> {

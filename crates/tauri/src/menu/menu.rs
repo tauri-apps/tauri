@@ -9,8 +9,8 @@ use super::sealed::ContextMenuBase;
 use super::{
   AboutMetadata, IsMenuItem, Menu, MenuInner, MenuItemKind, PredefinedMenuItem, Submenu,
 };
-use crate::run_main_thread;
 use crate::Window;
+use crate::run_main_thread;
 use crate::{AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
 use muda::MenuId;
@@ -96,11 +96,7 @@ impl<R: Runtime> Menu<R> {
 
     let menu = run_main_thread!(handle, || {
       let menu = muda::Menu::new();
-      MenuInner {
-        id: menu.id().clone(),
-        inner: Some(menu),
-        app_handle,
-      }
+      MenuInner::new(app_handle, menu)
     })?;
 
     Ok(Self(Arc::new(menu)))
@@ -112,13 +108,9 @@ impl<R: Runtime> Menu<R> {
     let app_handle = handle.clone();
 
     let id = id.into();
-    let menu = run_main_thread!(handle, || {
-      let menu = muda::Menu::with_id(id.clone());
-      MenuInner {
-        id,
-        inner: Some(menu),
-        app_handle,
-      }
+    let menu = run_main_thread!(handle, move || {
+      let menu = muda::Menu::with_id(id);
+      MenuInner::new(app_handle, menu)
     })?;
 
     Ok(Self(Arc::new(menu)))
@@ -259,7 +251,7 @@ impl<R: Runtime> Menu<R> {
 
   /// Returns a unique identifier associated with this menu.
   pub fn id(&self) -> &MenuId {
-    &self.0.id
+    self.0.inner.id()
   }
 
   /// Add a menu item to the end of this menu.
@@ -272,7 +264,9 @@ impl<R: Runtime> Menu<R> {
   pub fn append(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
     run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().append(kind.inner().inner_muda())
+      (*self_.0).as_ref().append(kind.inner().inner_muda())?;
+      self_.0.items.lock().unwrap().push(kind);
+      Ok::<_, muda::Error>(())
     })?
     .map_err(Into::into)
   }
@@ -302,7 +296,9 @@ impl<R: Runtime> Menu<R> {
   pub fn prepend(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
     run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().prepend(kind.inner().inner_muda())
+      (*self_.0).as_ref().prepend(kind.inner().inner_muda())?;
+      self_.0.items.lock().unwrap().insert(0, kind);
+      Ok::<_, muda::Error>(())
     })?
     .map_err(Into::into)
   }
@@ -327,9 +323,13 @@ impl<R: Runtime> Menu<R> {
   /// [`Submenu`]: super::Submenu
   pub fn insert(&self, item: &dyn IsMenuItem<R>, position: usize) -> crate::Result<()> {
     let kind = item.kind();
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .insert(kind.inner().inner_muda(), position))?
+    run_item_main_thread!(self, |self_: Self| {
+      (*self_.0)
+        .as_ref()
+        .insert(kind.inner().inner_muda(), position)?;
+      self_.0.items.lock().unwrap().insert(position, kind);
+      Ok::<_, muda::Error>(())
+    })?
     .map_err(Into::into)
   }
 
@@ -352,7 +352,14 @@ impl<R: Runtime> Menu<R> {
   pub fn remove(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
     run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().remove(kind.inner().inner_muda())
+      (*self_.0).as_ref().remove(kind.inner().inner_muda())?;
+      self_
+        .0
+        .items
+        .lock()
+        .unwrap()
+        .retain(|i| i.id() != kind.id());
+      Ok::<_, muda::Error>(())
     })?
     .map_err(Into::into)
   }
@@ -360,10 +367,8 @@ impl<R: Runtime> Menu<R> {
   /// Remove the menu item at the specified position from this menu and returns it.
   pub fn remove_at(&self, position: usize) -> crate::Result<Option<MenuItemKind<R>>> {
     run_item_main_thread!(self, |self_: Self| {
-      (*self_.0)
-        .as_ref()
-        .remove_at(position)
-        .map(|i| MenuItemKind::from_muda(self_.0.app_handle.clone(), i))
+      (*self_.0).as_ref().remove_at(position)?;
+      Some(self_.0.items.lock().unwrap().remove(position))
     })
   }
 
@@ -374,22 +379,18 @@ impl<R: Runtime> Menu<R> {
     MenuId: PartialEq<&'a I>,
   {
     self
-      .items()
-      .unwrap_or_default()
-      .into_iter()
+      .0
+      .items
+      .lock()
+      .unwrap()
+      .iter()
       .find(|i| i.id() == &id)
+      .cloned()
   }
 
   /// Returns a list of menu items that has been added to this menu.
   pub fn items(&self) -> crate::Result<Vec<MenuItemKind<R>>> {
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0)
-        .as_ref()
-        .items()
-        .into_iter()
-        .map(|i| MenuItemKind::from_muda(self_.0.app_handle.clone(), i))
-        .collect::<Vec<_>>()
-    })
+    Ok(self.0.items.lock().unwrap().clone())
   }
 
   /// Set this menu as the application menu.

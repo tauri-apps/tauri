@@ -10,6 +10,9 @@ on:
   repository_dispatch:
     types: [publish-clirs]
 
+permissions:
+  contents: write # required to create new releases
+
 jobs:
   build:
     runs-on: ${{ matrix.config.os }}
@@ -43,20 +46,25 @@ jobs:
             ext: ''
             args: ''
             cross: true
+          - os: ubuntu-22.04
+            rust_target: aarch64-unknown-linux-gnu
+            ext: ''
+            args: ''
+            cross: true
+          - os: ubuntu-22.04
+            rust_target: aarch64-unknown-linux-musl
+            ext: ''
+            args: ''
+            cross: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: 'Setup Rust'
         if: ${{ !matrix.config.cross }}
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
-
-      - uses: Swatinem/rust-cache@v2
-        if: ${{ !matrix.config.cross }}
-        with:
-          key: ${{ matrix.config.rust_target }}
 
       - name: install Linux dependencies
         if: ${{ !matrix.config.cross && startsWith(matrix.config.os, 'ubuntu') }}
@@ -72,22 +80,21 @@ jobs:
 
       - name: Build CLI
         if: ${{ !matrix.config.cross }}
-        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml --profile release-size-optimized ${{ matrix.config.args }}
+        run: >-
+          cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
+          --target ${{ matrix.config.rust_target }}
+          --profile release-size-optimized
+          ${{ matrix.config.args }}
 
       - name: Build CLI (cross)
         if: ${{ matrix.config.cross }}
-        run: cross build --manifest-path ./crates/tauri-cli/Cargo.toml --target ${{ matrix.config.rust_target }} --profile release-size-optimized ${{ matrix.config.args }}
+        run: >-
+          cross build --manifest-path ./crates/tauri-cli/Cargo.toml
+          --target ${{ matrix.config.rust_target }}
+          --profile release-size-optimized
+          ${{ matrix.config.args }}
 
       - name: Upload CLI
-        if: ${{ !matrix.config.cross }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
-          path: target/release-size-optimized/cargo-tauri${{ matrix.config.ext }}
-          if-no-files-found: error
-
-      - name: Upload CLI (cross)
-        if: ${{ matrix.config.cross }}
         uses: actions/upload-artifact@v4
         with:
           name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
@@ -100,7 +107,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download built CLIs
         uses: actions/download-artifact@v4.1.7

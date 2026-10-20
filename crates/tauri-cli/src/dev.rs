@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  CommandExt, ConfigValue, Error, Result,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
     command_env,
-    config::{get_config, reload_config, BeforeDevCommand, ConfigMetadata, FrontendDist},
+    config::{BeforeDevCommand, ConfigMetadata, FrontendDist, get_config, reload_config},
   },
   info::plugins::check_mismatched_packages,
-  interface::{AppInterface, ExitReason, Interface},
-  CommandExt, ConfigValue, Error, Result,
+  interface::{AppInterface, ExitReason},
 };
 
 use clap::{ArgAction, Parser};
@@ -22,16 +22,16 @@ use std::{
   env::set_current_dir,
   net::{IpAddr, Ipv4Addr},
   path::PathBuf,
-  process::{exit, Command, Stdio},
+  process::{Command, Stdio, exit},
   sync::{
+    OnceLock,
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex, OnceLock,
   },
 };
 
 mod builtin_dev_server;
 
-static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
+static BEFORE_DEV: OnceLock<SharedChild> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
@@ -54,7 +54,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
@@ -203,22 +203,24 @@ pub fn setup(
         command.stdout(os_pipe::dup_stdout().unwrap());
         command.stderr(os_pipe::dup_stderr().unwrap());
 
-        let child = SharedChild::spawn(&mut command)
-          .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
-        let child = Arc::new(child);
-        let child_ = child.clone();
+        let child = SharedChild::spawn(&mut command).map_err(|error| Error::CommandFailed {
+          command: format!(
+            "`{before_dev}` with `{}`",
+            if cfg!(windows) { "cmd /S /C" } else { "sh -c" }
+          ),
+          error,
+        })?;
 
+        let child = BEFORE_DEV.get_or_init(move || child);
         std::thread::spawn(move || {
-          let status = child_
+          let status = child
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
-          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed)) {
+          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst)) {
             log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
         });
-
-        BEFORE_DEV.set(Mutex::new(child)).unwrap();
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
@@ -232,9 +234,6 @@ pub fn setup(
     options.runner = config.build.runner.clone();
   }
 
-  let mut cargo_features = config.build.features.clone().unwrap_or_default();
-  cargo_features.extend(options.features.clone());
-
   let mut dev_url = config.build.dev_url.clone();
   let frontend_dist = config.build.frontend_dist.clone();
   if !options.no_dev_server && dev_url.is_none() {
@@ -244,9 +243,7 @@ pub fn setup(
           .canonicalize()
           .fs_context("failed to canonicalize path", path.to_path_buf())?;
 
-        let ip = options
-          .host
-          .unwrap_or_else(|| Ipv4Addr::new(127, 0, 0, 1).into());
+        let ip = options.host.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
 
         let server_url = builtin_dev_server::start(path, ip, options.port)
           .context("failed to start builtin dev server")?;
@@ -270,16 +267,20 @@ pub fn setup(
 
   if !options.no_dev_server_wait {
     if let Some(url) = dev_url {
-      let host = url.host().expect("No host name in the URL");
+      let host = url
+        .host()
+        .with_context(|| format!("no host name in the dev URL `{url}`"))?;
       let port = url
         .port_or_known_default()
-        .expect("No port number in the URL");
+        .with_context(|| format!("no port number in the dev URL `{url}`"))?;
       let addrs;
       let addr;
       let addrs = match host {
         url::Host::Domain(domain) => {
           use std::net::ToSocketAddrs;
-          addrs = (domain, port).to_socket_addrs().unwrap();
+          addrs = (domain, port)
+            .to_socket_addrs()
+            .with_context(|| format!("failed to resolve the dev URL host `{domain}`"))?;
           addrs.as_slice()
         }
         url::Host::Ipv4(ip) => {
@@ -307,7 +308,10 @@ pub fn setup(
         }
         i += 1;
         if i == max_attempts {
-          log::error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
+          log::error!(
+            "Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.",
+            i * sleep_interval.as_secs()
+          );
           exit(1);
         }
         std::thread::sleep(sleep_interval);
@@ -336,11 +340,10 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
 
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    let child = child.lock().unwrap();
-    if KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed) {
+    // swap so only the first caller (e.g. the Ctrl+C handler or `on_app_exit`) kills the process
+    if KILL_BEFORE_DEV_FLAG.swap(true, Ordering::SeqCst) {
       return;
     }
-    KILL_BEFORE_DEV_FLAG.store(true, Ordering::Relaxed);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

@@ -3,19 +3,19 @@
 // SPDX-License-Identifier: MIT
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use serde::Deserialize;
 
 use crate::{
-  command,
+  AppHandle, Manager, Runtime, Webview, command,
   image::JsImage,
   ipc::Channel,
-  menu::{plugin::ItemKind, Menu, Submenu},
+  menu::{Menu, Submenu, plugin::ItemKind},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
-  AppHandle, Manager, Runtime, Webview,
 };
 
 use super::{TrayIcon, TrayIconEvent};
@@ -62,11 +62,11 @@ fn new<R: Runtime>(
         let submenu = resources_table.get::<Submenu<R>>(rid)?;
         builder = builder.menu(&*submenu);
       }
-      _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+      _ => return Err(crate::Error::UnexpectedMenuKind),
     };
   }
   if let Some(icon) = options.icon {
-    builder = builder.icon(icon.into_img(&resources_table)?.as_ref().clone());
+    builder = builder.icon(Arc::unwrap_or_clone(icon.into_img(&resources_table)?));
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -118,7 +118,7 @@ fn set_icon<R: Runtime>(
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   let webview_resources_table = webview.resources_table();
   let icon = match icon {
-    Some(i) => Some(i.into_img(&webview_resources_table)?.as_ref().clone()),
+    Some(i) => Some(Arc::unwrap_or_clone(i.into_img(&webview_resources_table)?)),
     None => None,
   };
   tray.set_icon(icon)
@@ -144,7 +144,7 @@ fn set_menu<R: Runtime>(
         let submenu = webview_resources_table.get::<Submenu<R>>(rid)?;
         tray.set_menu(Some((*submenu).clone()))?;
       }
-      _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+      _ => return Err(crate::Error::UnexpectedMenuKind),
     };
   } else {
     tray.set_menu(None::<Menu<R>>)?;
@@ -204,6 +204,24 @@ fn set_icon_as_template<R: Runtime>(
 }
 
 #[command(root = "crate")]
+fn set_icon_with_as_template<R: Runtime>(
+  app: AppHandle<R>,
+  webview: Webview<R>,
+  rid: ResourceId,
+  icon: Option<JsImage>,
+  as_template: bool,
+) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  let webview_resources_table = webview.resources_table();
+  let icon = match icon {
+    Some(i) => Some(Arc::unwrap_or_clone(i.into_img(&webview_resources_table)?)),
+    None => None,
+  };
+  tray.set_icon_with_as_template(icon, as_template)
+}
+
+#[command(root = "crate")]
 fn set_show_menu_on_left_click<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
@@ -228,6 +246,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_visible,
       set_temp_dir_path,
       set_icon_as_template,
+      set_icon_with_as_template,
       set_show_menu_on_left_click,
     ])
     .build()

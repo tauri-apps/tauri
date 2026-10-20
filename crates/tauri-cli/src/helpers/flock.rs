@@ -5,12 +5,12 @@
 // taken from https://github.com/rust-lang/cargo/blob/b0c9586f4cbf426914df47c65de38ea323772c74/src/cargo/util/flock.rs
 #![allow(dead_code)]
 
-use std::fs::{create_dir_all, File, OpenOptions};
+use std::fs::{File, OpenOptions, create_dir_all};
 use std::io;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-use crate::{error::ErrorExt, Error, Result};
+use crate::{Error, Result, error::ErrorExt};
 use sys::*;
 
 #[derive(Debug)]
@@ -219,7 +219,7 @@ fn acquire(
     }
   }
   let msg = format!("waiting for file lock on {msg}");
-  log::info!(action = "Blocking"; "{}", &msg);
+  log::info!(action = "Blocking"; "{msg}");
 
   lock_block().fs_context("failed to lock file", path.to_path_buf())?;
   return Ok(());
@@ -316,7 +316,7 @@ mod sys {
 
   use windows_sys::Win32::Foundation::{ERROR_INVALID_FUNCTION, ERROR_LOCK_VIOLATION, HANDLE};
   use windows_sys::Win32::Storage::FileSystem::{
-    LockFileEx, UnlockFile, LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY, LOCK_FILE_FLAGS,
+    LOCK_FILE_FLAGS, LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY, LockFileEx, UnlockFile,
   };
 
   pub(super) fn lock_shared(file: &File) -> Result<()> {

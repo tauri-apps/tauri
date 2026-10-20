@@ -1,5 +1,44 @@
 # Changelog
 
+## [2.4.2]
+
+### Bug Fixes
+
+- [`b9487627b`](https://www.github.com/tauri-apps/tauri/commit/b9487627b17f07c70db68d890a560112bdbf3505) ([#15844](https://www.github.com/tauri-apps/tauri/pull/15844)) Fixed importing a signing certificate failing with `MAC verification failed during PKCS12 import` for p12 files that use modern PBES2/AES encryption. The certificate format is now detected and passed to `security import` explicitly (PKCS#12 or a PEM bundle), and import failures explain the expected certificate format and password.
+
+### Dependencies
+
+- [`5a3cbfcdc`](https://www.github.com/tauri-apps/tauri/commit/5a3cbfcdcaad82185ce2cc9f4d246c78e144c78c) ([#16279](https://www.github.com/tauri-apps/tauri/pull/16279)) **Breaking Change:** Temporarily inlined the code we need from apple-codesign-rs until its next release to unblock important dependency updates. Technically this is a breaking change to the `CertificateProfile` enum re-export and the `Error::FailedToCreateSelfSignedCertificate` enum variant.
+
+## [2.4.1]
+
+### Dependencies
+
+- [`fd319dd43`](https://www.github.com/tauri-apps/tauri/commit/fd319dd432e36748483ae93e6cdea1c44a66fe79) Update `base64` to 0.23.
+
+## [2.4.0]
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+### Dependencies
+
+- [`6f1f9da69`](https://www.github.com/tauri-apps/tauri/commit/6f1f9da69ae58f90b9ad56430d981d58f4690734) ([#15593](https://www.github.com/tauri-apps/tauri/pull/15593)) Updated dependency `apple-codesign` to `0.29`, no user facing changes.
+
+## \[2.3.4]
+
+### Enhancements
+
+- [`eacd36a4e`](https://www.github.com/tauri-apps/tauri/commit/eacd36a4ea4d6a14a73f414981fb5a8af7dfdafe) ([#15038](https://www.github.com/tauri-apps/tauri/pull/15038)) Do not rely on system base64 CLI to decode certificates.
+
+## \[2.3.3]
+
+### Dependencies
+
+- [`268bb339f`](https://www.github.com/tauri-apps/tauri/commit/268bb339f0c512f021cc94e102573432cf2696d0) ([#14766](https://www.github.com/tauri-apps/tauri/pull/14766) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Remove once-cell-regex from direct dependencies.
+
 ## \[2.3.2]
 
 ### Dependencies

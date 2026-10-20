@@ -1,15 +1,15 @@
 [package]
 name = "tauri-schema-worker"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = { version = "0.7", features = ['http', 'axum'] }
-worker-macros = { version = "0.7", features = ['http'] }
+worker = { version = "0.8", features = ['http', 'axum'] }
+worker-macros = { version = "0.8", features = ['http'] }
 console_error_panic_hook = { version = "0.1" }
 axum = { version = "0.8", default-features = false }
 tower-service = "0.3"

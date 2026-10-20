@@ -18,6 +18,7 @@ use std::{
   borrow::Cow,
   fmt::{self, Write},
   path::{Path, PathBuf},
+  time::{Duration, SystemTime},
 };
 pub use tauri_utils::config::{Config, parse::ConfigError};
 use tauri_utils::platform::Target;
@@ -115,6 +116,21 @@ fn checksum(bytes: &[u8]) -> Result<String, fmt::Error> {
   Ok(hex)
 }
 
+/// Set the modification time of a file written to `$OUT_DIR` to 2000-01-01 UTC.
+///
+/// The generated code embeds these files with `include_bytes!`, so Cargo checks them for changes
+/// like source files: it treats a file modified after the compilation started as changed, and the
+/// macro writes the file during the compilation. Without this, the next build recompiles the crate.
+/// Each file name is a checksum of the data the file was generated from, so the modification time
+/// isn't needed to tell versions apart. Unlike the Unix epoch, the date fits FAT and exFAT. Errors
+/// are ignored, since at worst the next build recompiles the crate as before.
+fn backdate(path: &Path) {
+  let _ = std::fs::File::options()
+    .write(true)
+    .open(path)
+    .and_then(|file| file.set_modified(SystemTime::UNIX_EPOCH + Duration::from_secs(946_684_800)));
+}
+
 /// Cache the data to `$OUT_DIR`, only if it does not already exist.
 ///
 /// Due to using a checksum as the filename, an existing file should be the exact same content
@@ -139,7 +155,10 @@ impl TryFrom<Vec<u8>> for Cached {
     let path = ensure_out_dir()?.join(&checksum);
 
     write_if_changed(&path, &content)
-      .map(|_| Self { checksum })
+      .map(|_| {
+        backdate(&path);
+        Self { checksum }
+      })
       .map_err(|error| EmbeddedAssetsError::AssetWrite { path, error })
   }
 }
@@ -148,5 +167,59 @@ impl ToTokens for Cached {
   fn to_tokens(&self, tokens: &mut TokenStream) {
     let path = &self.checksum;
     tokens.append_all(quote!(::std::concat!(::std::env!("OUT_DIR"), "/", #path)))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    Cached,
+    embedded_assets::{AssetOptions, EmbeddedAssets},
+  };
+  use std::time::{Duration, SystemTime};
+  use tauri_utils::config::PatternKind;
+
+  #[test]
+  fn out_dir_files_are_backdated() {
+    let dir = std::env::temp_dir().join(format!("tauri-codegen-backdate-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let out_dir = dir.join("out");
+    let dist = dir.join("dist");
+    std::fs::create_dir_all(&out_dir).unwrap();
+    std::fs::create_dir_all(&dist).unwrap();
+    std::fs::write(dist.join("index.html"), "<html></html>").unwrap();
+    // SAFETY: no other thread in this test binary accesses the environment outside `std::env`;
+    // the other tests only process in-memory icons
+    unsafe { std::env::set_var("OUT_DIR", &out_dir) };
+
+    let cached = Cached::try_from(vec![1, 2, 3]).unwrap();
+    EmbeddedAssets::new(
+      dist,
+      &AssetOptions::new(PatternKind::Brownfield),
+      |_, _, _, _| Ok(()),
+    )
+    .unwrap();
+
+    let mut files = vec![out_dir.join(&cached.checksum)];
+    for entry in std::fs::read_dir(out_dir.join("tauri-codegen-assets")).unwrap() {
+      files.push(entry.unwrap().path());
+    }
+    let modified: Vec<_> = files
+      .iter()
+      .map(|file| std::fs::metadata(file).unwrap().modified().unwrap())
+      .collect();
+
+    // unset `OUT_DIR` and remove the test files before the assertions, so a failed one leaves
+    // nothing behind
+    // SAFETY: see above
+    unsafe { std::env::remove_var("OUT_DIR") };
+    std::fs::remove_dir_all(&dir).unwrap();
+
+    // 2000-01-01 UTC
+    let expected = SystemTime::UNIX_EPOCH + Duration::from_secs(946_684_800);
+    assert_eq!(files.len(), 2);
+    for (file, modified) in files.iter().zip(modified) {
+      assert_eq!(modified, expected, "{}", file.display());
+    }
   }
 }

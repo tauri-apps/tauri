@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_ARABIC} "${PRODUCTNAME} ${VERSION} مثب
 LangString appRunning ${LANG_ARABIC} "{{product_name}} مازال يعمل! من فضلك، قم بإغلاق التطبيق أولاً ثم حاول مرة أخرى."
 LangString appRunningOkKill ${LANG_ARABIC} "{{product_name}} مازال يعمل!$\nاضغط OK لإغلاقه"
 LangString chooseMaintenanceOption ${LANG_ARABIC} "قم باختيار نوع الصيانة التى تريدها."
-LangString choowHowToInstall ${LANG_ARABIC} "قم باختيار طريقة تنصيب ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_ARABIC} "قم باختيار طريقة تنصيب ${PRODUCTNAME}."
 LangString createDesktop ${LANG_ARABIC} "اضف اختصار على سطح المكتب"
 LangString dontUninstall ${LANG_ARABIC} "عدم إزالة"
 LangString dontUninstallDowngrade ${LANG_ARABIC} "عدم إزالة (التخفيض بدون إزالة غير مسموح لهذا المثبت)"

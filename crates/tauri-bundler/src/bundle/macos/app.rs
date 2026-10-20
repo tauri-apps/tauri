@@ -28,22 +28,19 @@ use super::sign::SignTarget;
 use super::sign::{notarize, notarize_auth, notarize_without_stapling, sign};
 #[cfg(target_os = "macos")]
 use crate::error::NotarizeAuthError;
-#[cfg(target_os = "macos")]
-use crate::utils::CommandExt;
 use crate::{
   Error::GenericError,
   Settings,
   bundle::settings::PlistKind,
   error::{Context, ErrorExt},
-  utils::fs_utils,
+  utils::{CommandExt, fs_utils},
 };
 
-#[cfg(target_os = "macos")]
-use std::process::Command;
 use std::{
   ffi::OsStr,
   fs,
   path::{Path, PathBuf},
+  process::Command,
 };
 
 const NESTED_CODE_FOLDER: [&str; 6] = [
@@ -117,6 +114,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
+  #[cfg(not(target_os = "macos"))]
+  sign_with_rcodesign(&app_bundle_path, settings)?;
+
   #[cfg(target_os = "macos")]
   if settings.no_sign() {
     log::warn!("Skipping signing due to --no-sign flag.",);
@@ -160,6 +160,42 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let _ = sign_paths;
 
   Ok(vec![app_bundle_path])
+}
+
+/// Ad-hoc signs the bundle with `rcodesign` when bundling on Linux.
+///
+/// Cross-compiled arm64 binaries need at least an ad-hoc signature to launch on
+/// Apple Silicon. Certificate-based signing is left to macOS or a custom
+/// pipeline for now.
+#[cfg(not(target_os = "macos"))]
+fn sign_with_rcodesign(app_bundle_path: &Path, settings: &Settings) -> crate::Result<()> {
+  if settings.no_sign() {
+    return Ok(());
+  }
+
+  let rcodesign = match super::tools::resolve(settings, "rcodesign", "TAURI_BUNDLER_RCODESIGN") {
+    Ok(path) => path,
+    Err(error) => {
+      log::warn!("{error}; skipping ad-hoc signing");
+      return Ok(());
+    }
+  };
+
+  if let Some(identity) = settings.macos().signing_identity.as_deref() {
+    if identity != "-" {
+      log::warn!(
+        "code signing identity signing is not supported on Linux hosts; signing ad-hoc instead"
+      );
+    }
+  }
+
+  log::info!(action = "Signing"; "{} (ad-hoc)", app_bundle_path.display());
+  Command::new(rcodesign)
+    .arg("sign")
+    .arg(app_bundle_path)
+    .output_ok()
+    .context("failed to ad-hoc sign app bundle")?;
+  Ok(())
 }
 
 #[cfg(target_os = "macos")]

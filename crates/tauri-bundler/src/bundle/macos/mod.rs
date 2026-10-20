@@ -9,3 +9,5 @@ pub mod icon;
 #[cfg(target_os = "macos")]
 pub mod ios;
 pub mod sign;
+#[cfg(not(target_os = "macos"))]
+mod tools;

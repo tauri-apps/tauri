@@ -132,7 +132,7 @@ pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Resu
       let build = if version.build.is_empty() {
         number.to_string()
       } else {
-        format!("{}.{number}", version.build)
+        format!("{number}.{}", version.build)
       };
       version.build = semver::BuildMetadata::new(&build).with_context(|| {
         format!(
@@ -153,8 +153,8 @@ mod tests {
   fn strips_semver_prerelease_tag() {
     for (input, expected) in [
       ("1.2.3-beta.4", "1.2.3+4"),
-      ("1.2.3-beta.4+5", "1.2.3+5.4"),
-      ("1.2.3-rc.7+10", "1.2.3+10.7"),
+      ("1.2.3-beta.4+5", "1.2.3+4.5"),
+      ("1.2.3-rc.7+10", "1.2.3+7.10"),
     ] {
       let mut version = semver::Version::parse(input).unwrap();
 

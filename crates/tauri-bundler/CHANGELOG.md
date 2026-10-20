@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.10.3]
+
+### Bug Fixes
+
+- [`5a6149898`](https://www.github.com/tauri-apps/tauri/commit/5a614989840d3176775cbdb8731ab7ca328845e2) ([#16227](https://www.github.com/tauri-apps/tauri/pull/16227)) `output_ok` used to throw away the stderr it captured, so a failing bundler script surfaced as a bare "failed to run" with no diagnosis (#3055). The stderr (or stdout, for tools such as WiX and signtool that report errors there) is now part of the error, and when the DMG script dies because macOS denied the terminal permission to control Finder, the error says where to enable it: System Settings > Privacy & Security > Automation.
+- [`d62e5d9c0`](https://www.github.com/tauri-apps/tauri/commit/d62e5d9c0878b6fb327543cc9be50aa1696ee23c) ([#16184](https://www.github.com/tauri-apps/tauri/pull/16184)) Fix NSIS installer leaving `uninstall.exe` and the installation directory behind when uninstalling an existing installation from the installer.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-macos-sign@2.4.2`
+- [`5a2953e55`](https://www.github.com/tauri-apps/tauri/commit/5a2953e555b4444bed68bd5324ea13ad85a6c06e) ([#16237](https://www.github.com/tauri-apps/tauri/pull/16237)) Updated NSIS to 3.13
+- [`55883af3f`](https://www.github.com/tauri-apps/tauri/commit/55883af3f40b569d57ff9ae4bfc0b1db5845a7d9) ([#15639](https://www.github.com/tauri-apps/tauri/pull/15639)) Updated `rpm-rs` crate to `v0.30` which should improve build times for .rpm bundles.
+
+## [2.10.2]
+
+### Bug Fixes
+
+- [`eeeaa0ff9`](https://www.github.com/tauri-apps/tauri/commit/eeeaa0ff945f0e9aca177676e153a0fb426190a8) ([#16230](https://www.github.com/tauri-apps/tauri/pull/16230)) Fix NSIS installers not blocking downgrades in silent (`/S`), passive (`/P`) and update (`/UPDATE`) modes when `bundle.windows.allowDowngrades` is `false`.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.4.1`
+
+## [2.10.1]
+
+### Bug Fixes
+
+- [`d15cf9b1e`](https://www.github.com/tauri-apps/tauri/commit/d15cf9b1e481035a248227c791fde5740fcfe0ba) ([#16149](https://www.github.com/tauri-apps/tauri/pull/16149) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Make the `Glob` and `GlobPattern` error variants available on all platforms, fixing a compile error in the Windows bundler utilities on targets other than Windows, macOS and Linux.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+
 ## [2.10.0]
 
 ### New Features

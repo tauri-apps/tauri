@@ -7,7 +7,7 @@
 // Appium: the UiAutomator2 driver (Android; chromedriver attaches to the
 // WebView) or the XCUITest driver (iOS simulator; WebKit remote inspector).
 // Debug builds enable webview debugging on both platforms, which is what makes
-// the `WEBVIEW_*` context — and `browser.executeAsync` inside it — available.
+// the `WEBVIEW_*` context — and `browser.execute` inside it — available.
 
 import path from 'node:path'
 import fs from 'node:fs'
@@ -178,7 +178,20 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
             ?? (platform === 'ios'
               ? contexts.find((name) => name.startsWith('WEBVIEW_'))
               : undefined)
-          return webview !== undefined
+          if (webview === undefined) {
+            return false
+          }
+          try {
+            await browser.switchAppiumContext(webview)
+            return true
+          } catch {
+            // On Android the context is listed as soon as the WebView's
+            // devtools socket exists, but switching to it fails with "No such
+            // context found" until the page is attachable. The suite would
+            // otherwise carry on in the native context, where every script
+            // fails with "Method has not yet been implemented".
+            return false
+          }
         },
         {
           // Covers a cold app start plus, on Android, the on-demand chromedriver
@@ -189,7 +202,6 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
             'no WEBVIEW context appeared — is the app a debug build (webview debugging enabled)?'
         }
       )
-      await browser.switchAppiumContext(webview!)
       // The specs run the page through `executeAsync`, and the XCUITest driver
       // starts with a script timeout of 0 (every async script times out at
       // once) rather than the 30s the other drivers default to.
@@ -198,8 +210,8 @@ export function mobileConfig(platform: MobilePlatform): WebdriverIO.Config {
       await browser.waitUntil(
         async () => {
           try {
-            return (await browser.executeAsync(
-              'var done = arguments[arguments.length - 1]; done(typeof window.__TAURI__ !== "undefined");'
+            return (await browser.execute(
+              'return typeof window.__TAURI__ !== "undefined";'
             )) as boolean
           } catch {
             // A command issued mid-navigation can fail on a stale execution

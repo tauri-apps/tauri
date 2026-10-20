@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_PORTUGUESE} "${PRODUCTNAME} ${VERSION} j�
 LangString appRunning ${LANG_PORTUGUESE} "{{product_name}} está em execução! Por favor, feche-o primeiro e tente novamente."
 LangString appRunningOkKill ${LANG_PORTUGUESE} "{{product_name}} está em execução!$\nClique em OK para encerrá-lo."
 LangString chooseMaintenanceOption ${LANG_PORTUGUESE} "Escolha a opção de manutenção a realizar."
-LangString choowHowToInstall ${LANG_PORTUGUESE} "Escolha como deseja instalar o ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_PORTUGUESE} "Escolha como deseja instalar o ${PRODUCTNAME}."
 LangString createDesktop ${LANG_PORTUGUESE} "Criar atalho no ambiente de trabalho"
 LangString dontUninstall ${LANG_PORTUGUESE} "Não desinstalar"
 LangString dontUninstallDowngrade ${LANG_PORTUGUESE} "Não desinstalar (Instalar uma versão anterior sem desinstalar está desativado neste instalador)"

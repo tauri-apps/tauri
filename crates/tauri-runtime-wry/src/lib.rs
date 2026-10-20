@@ -4120,8 +4120,12 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Ready);
     }
 
-    Event::NewEvents(StartCause::Poll) => {
+    Event::Resumed => {
       callback(RunEvent::Resumed);
+    }
+
+    Event::Suspended => {
+      callback(RunEvent::Suspended);
     }
 
     Event::MainEventsCleared => {
@@ -4211,16 +4215,6 @@ fn handle_event_loop<T: UserEvent>(
     Event::WindowEvent {
       event, window_id, ..
     } => {
-      // Surface the resume to the app-level callback as well. The per-window
-      // dispatch below is skipped when the resumed window is not tracked (e.g. on
-      // Android when the activity was destroyed while a foreground service kept
-      // the process alive and the relaunched activity has no window yet), so the
-      // app would otherwise never learn about it.
-      #[cfg(mobile)]
-      if matches!(event, TaoWindowEvent::Resumed) {
-        callback(RunEvent::Resumed);
-      }
-
       if let Some(window_id) = window_id_map.get(&window_id) {
         {
           let windows_ref = windows.0.borrow();

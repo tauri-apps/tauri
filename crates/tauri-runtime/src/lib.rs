@@ -232,10 +232,26 @@ pub enum RunEvent<T: UserEvent> {
   },
   /// Application ready.
   Ready,
-  /// Sent when the application has been resumed.
+  /// The application has moved back to the foreground after [`RunEvent::Suspended`].
   ///
-  /// On desktop this is only emitted when the event loop is woken while running in poll mode, which is not used by default.
+  /// Not emitted when the application launches.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Emitted when the first activity of the application is started after the application was suspended.
+  /// - **iOS**: Emitted when the application is about to enter the foreground.
+  /// - **Linux / macOS / Windows**: Unsupported.
   Resumed,
+  /// The application has moved to the background.
+  ///
+  /// This is an application-wide event, see [`WindowEvent::Suspended`](crate::window::WindowEvent::Suspended) for the per-window event.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Emitted when the last started activity of the application is stopped.
+  /// - **iOS**: Emitted when the application enters the background.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  Suspended,
   /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.

@@ -102,7 +102,15 @@ Var ExistingVersion
 ; 0 if equal, 1 if we are upgrading and -1 if we are downgrading
 Var VersionCompareResult
 
-!include "utils.nsh"
+; Macros and variables only, with no instructions and no dependency on installer
+; state, so that they stay safe to include from anywhere in a template
+!include "console.nsh"
+!include "context.nsh"
+!include "dpi.nsh"
+!include "process.nsh"
+!include "shell.nsh"
+
+; Functions built on top of the macros above
 !include "shortcuts.nsh"
 
 Name "${PRODUCTNAME}"

@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_NORWEGIAN} "${PRODUCTNAME} ${VERSION} er 
 LangString appRunning ${LANG_NORWEGIAN} "{{product_name}} kjører! Lukk den først og prøv igjen."
 LangString appRunningOkKill ${LANG_NORWEGIAN} "{{product_name}} kjører!$\nKlikk OK for å avslutte den"
 LangString chooseMaintenanceOption ${LANG_NORWEGIAN} "Velg vedlikeholdsoperasjonen som skal utføres."
-LangString choowHowToInstall ${LANG_NORWEGIAN} "Velg hvordan du vil installere ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_NORWEGIAN} "Velg hvordan du vil installere ${PRODUCTNAME}."
 LangString createDesktop ${LANG_NORWEGIAN} "Opprett skrivebordssnarvei"
 LangString dontUninstall ${LANG_NORWEGIAN} "Ikke avinstaller"
 LangString dontUninstallDowngrade ${LANG_NORWEGIAN} "Ikke avinstaller (nedgradering uten avinstallasjon er deaktivert for denne installasjonen)"

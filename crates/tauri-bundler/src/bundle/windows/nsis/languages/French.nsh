@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_FRENCH} "${PRODUCTNAME} ${VERSION} est d�
 LangString appRunning ${LANG_FRENCH} "{{product_name}} est en cours d'exécution. Veuillez fermer l'application avant de réessayer."
 LangString appRunningOkKill ${LANG_FRENCH} "{{product_name}} est en cours d'exécution.$\nCliquez sur OK pour fermer l'application."
 LangString chooseMaintenanceOption ${LANG_FRENCH} "Veuillez choisir l'option de maintenance à effectuer."
-LangString choowHowToInstall ${LANG_FRENCH} "Veuillez choisir l'emplacement d'installation de ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_FRENCH} "Veuillez choisir l'emplacement d'installation de ${PRODUCTNAME}."
 LangString createDesktop ${LANG_FRENCH} "Créer un raccourci sur le bureau."
 LangString dontUninstall ${LANG_FRENCH} "Ne pas désinstaller"
 LangString dontUninstallDowngrade ${LANG_FRENCH} "Ne pas désinstaller (revenir à une ancienne version sans désinstallation est désactivé pour cet installateur)"

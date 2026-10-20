@@ -167,10 +167,10 @@ export interface TrayIconOptions {
  *
  * #### Warning
  *
- * Unlike Rust, javascript does not have any way to run cleanup code
+ * Unlike Rust, JavaScript does not have any way to run cleanup code
  * when an object is being removed by garbage collection, but this tray icon
  * will be cleaned up when the tauri app exists, however if you want to cleanup
- * this object early, you need to call {@linkcode TrayIcon.close}.
+ * and remove the tray early, you need to call {@linkcode TrayIcon.close}.
  *
  * @example
  * ```ts
@@ -239,7 +239,7 @@ export class TrayIcon extends Resource {
    * import { Menu } from '@tauri-apps/api/menu';
    * import { defaultWindowIcon } from '@tauri-apps/api/app';
    *
-   * const menu = await Menu.new({
+   * await using menu = await Menu.new({
    *   items: [{ id: 'quit', text: 'Quit', action: () => console.log('quit') }]
    * });
    *
@@ -314,7 +314,7 @@ export class TrayIcon extends Resource {
    * @example
    * ```typescript
    * import { Menu } from '@tauri-apps/api/menu';
-   * const menu = await Menu.new({ items: [{ id: 'quit', text: 'Quit' }] });
+   * await using menu = await Menu.new({ items: [{ id: 'quit', text: 'Quit' }] });
    * await tray.setMenu(menu);
    * ```
    */

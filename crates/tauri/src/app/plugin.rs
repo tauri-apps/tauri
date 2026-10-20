@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri_utils::{config::BundleType, Theme};
+use tauri_utils::{Theme, config::BundleType};
 
 use crate::{
-  command,
+  AppHandle, Manager, ResourceId, Runtime, Webview, command,
   plugin::{Builder, TauriPlugin},
-  AppHandle, Manager, ResourceId, Runtime, Webview,
 };
 
 #[command(root = "crate")]
@@ -44,6 +43,11 @@ pub fn app_hide<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
   app.hide()?;
   Ok(())
+}
+
+#[command(root = "crate")]
+pub fn exit<R: Runtime>(app: AppHandle<R>, code: i32) {
+  app.exit(code)
 }
 
 #[command(root = "crate")]
@@ -130,6 +134,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       identifier,
       app_show,
       app_hide,
+      exit,
       fetch_data_store_identifiers,
       remove_data_store,
       default_window_icon,

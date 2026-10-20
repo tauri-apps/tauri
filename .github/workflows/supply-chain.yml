@@ -14,6 +14,10 @@ on:
       - '.github/workflows/supply-chain.yml'
       - '**/Cargo.lock'
       - '**/Cargo.toml'
+
+permissions:
+  contents: read
+
 jobs:
   cargo-vet:
     name: check rust dependencies with cargo vet

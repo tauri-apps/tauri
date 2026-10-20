@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_UKRAINIAN} "${PRODUCTNAME} ${VERSION} в�
 LangString appRunning ${LANG_UKRAINIAN} "{{product_name}} запущено! Будь ласка, спочатку закрийте його, а потім спробуйте ще раз."
 LangString appRunningOkKill ${LANG_UKRAINIAN} "{{product_name}} запущено!$\nНатисніть ОК, щоб примусово закрити його"
 LangString chooseMaintenanceOption ${LANG_UKRAINIAN} "Виберіть дію, яку треба виконати."
-LangString choowHowToInstall ${LANG_UKRAINIAN} "Виберіть, як ви хочете встановити ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_UKRAINIAN} "Виберіть, як ви хочете встановити ${PRODUCTNAME}."
 LangString createDesktop ${LANG_UKRAINIAN} "Створити ярлик на робочому столі"
 LangString dontUninstall ${LANG_UKRAINIAN} "Не видаляти"
 LangString dontUninstallDowngrade ${LANG_UKRAINIAN} "Не видаляти (для цього встановлювача вимкнено зниження версії без видалення)"

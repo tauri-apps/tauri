@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_DUTCH} "${PRODUCTNAME} ${VERSION} is al g
 LangString appRunning ${LANG_DUTCH} "{{product_name}} is geopend! Sluit het programma eerst en probeer het dan opnieuw."
 LangString appRunningOkKill ${LANG_DUTCH} "{{product_name}} is geopend!$\nKlik op OK om het te stoppen."
 LangString chooseMaintenanceOption ${LANG_DUTCH} "Kies de onderhoudsoptie die u wilt uitvoeren."
-LangString choowHowToInstall ${LANG_DUTCH} "Kies hoe u ${PRODUCTNAME} wilt installeren."
+LangString chooseHowToInstall ${LANG_DUTCH} "Kies hoe u ${PRODUCTNAME} wilt installeren."
 LangString createDesktop ${LANG_DUTCH} "Maak een snelkoppeling aan op het bureaublad"
 LangString dontUninstall ${LANG_DUTCH} "Deïnstalleer niet"
 LangString dontUninstallDowngrade ${LANG_DUTCH} "Deïnstalleer niet (Downgraden zonder deïnstalleren is uitgeschakeld voor deze installer)"

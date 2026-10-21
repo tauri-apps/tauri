@@ -101,23 +101,28 @@ impl<E> ScopedEventListeners<E> {
 
 /// The listeners of a single window or webview instance.
 ///
-/// Handlers are user code, so dispatch must not hold a lock on anything they might
-/// reach for. A registration made while these listeners are dispatching - from one of
-/// them, or from another thread - parks in `pending` instead of waiting on (or, from the
-/// dispatching thread, deadlocking on) `handlers`, and joins the list once dispatch finishes.
+/// Handlers are user code, so no lock on the list is held while they run: dispatch runs
+/// over a snapshot of it. A handler registering another one - for this list or any other -
+/// or another thread doing so mid-dispatch therefore never waits on (or, from the
+/// dispatching thread, deadlocks on) the running dispatch, and the new handler takes effect
+/// from the next event.
 ///
-/// A handler panicking poisons `handlers`, but leaves the list itself intact, so the
-/// poisoning is ignored rather than turning every later registration or event into a panic.
+/// Each handler sits behind its own lock instead, since it may not be [`Sync`]. A handler
+/// that makes the platform deliver another event for this window or webview synchronously
+/// (e.g. pumping a nested event loop) is not re-entered for it - the other handlers still
+/// are - rather than deadlocking on its own lock. Dispatch only happens on the event loop
+/// thread, so that lock is never contended otherwise.
+///
+/// A handler panicking poisons its lock, but leaves the handler itself intact, so the
+/// poisoning is ignored rather than turning every later event into a panic.
 pub(crate) struct Listeners<E> {
-  handlers: Mutex<Vec<Handler<E>>>,
-  pending: Mutex<Vec<Handler<E>>>,
+  handlers: Mutex<Vec<Arc<Mutex<Handler<E>>>>>,
 }
 
 impl<E> Default for Listeners<E> {
   fn default() -> Self {
     Self {
       handlers: Default::default(),
-      pending: Default::default(),
     }
   }
 }
@@ -125,30 +130,28 @@ impl<E> Default for Listeners<E> {
 impl<E> Listeners<E> {
   /// Registers an event listener.
   pub(crate) fn add(&self, handler: Handler<E>) {
-    // `pending` is held while checking `handlers`, so `dispatch` can't collect the parked
-    // handlers in between the failed check and the push, leaving this one behind
-    let mut pending = self.pending.lock().unwrap_or_else(PoisonError::into_inner);
-    match self.handlers.try_lock() {
-      Ok(mut handlers) => handlers.push(handler),
-      Err(TryLockError::WouldBlock) => pending.push(handler),
-      Err(TryLockError::Poisoned(handlers)) => handlers.into_inner().push(handler),
-    }
+    self
+      .handlers
+      .lock()
+      .unwrap_or_else(PoisonError::into_inner)
+      .push(Arc::new(Mutex::new(handler)));
   }
 
   /// Runs the listeners.
   pub(crate) fn dispatch(&self, event: &E) {
-    let mut handlers = self.handlers.lock().unwrap_or_else(PoisonError::into_inner);
-    for handler in handlers.iter() {
-      handler(event);
+    let handlers = self
+      .handlers
+      .lock()
+      .unwrap_or_else(PoisonError::into_inner)
+      .clone();
+    for handler in handlers {
+      match handler.try_lock() {
+        Ok(handler) => handler(event),
+        Err(TryLockError::Poisoned(handler)) => handler.into_inner()(event),
+        // running further up the stack, for the event that led to this one
+        Err(TryLockError::WouldBlock) => {}
+      }
     }
-
-    // add any listeners that were parked while dispatching
-    let mut pending = self.pending.lock().unwrap_or_else(PoisonError::into_inner);
-    handlers.append(&mut pending);
-    // release `handlers` first: an `add` waiting on `pending` must then find `handlers`
-    // free, instead of parking a listener there is no dispatch left to collect
-    drop(handlers);
-    drop(pending);
   }
 }
 
@@ -207,7 +210,7 @@ mod tests {
   }
 
   #[test]
-  fn registering_for_the_dispatching_label_parks_until_dispatch_is_done() {
+  fn registering_for_the_dispatching_label_takes_effect_from_the_next_event() {
     let listeners = ScopedEventListeners::<u32>::default();
     let seen = Arc::new(Mutex::new(Vec::new()));
     let registered = Arc::new(Mutex::new(false));
@@ -282,6 +285,34 @@ mod tests {
     listeners.dispatch("a", &1);
     listeners.dispatch("a", &2);
     assert_eq!(*count.lock().unwrap(), 1);
+  }
+
+  #[test]
+  fn a_reentrant_dispatch_runs_every_handler_but_the_one_it_came_from() {
+    let listeners = Arc::new(ScopedEventListeners::<u32>::default());
+    let seen = Arc::new(Mutex::new(Vec::new()));
+
+    let a = listeners.register("a").upgrade().unwrap();
+    let listeners_ = listeners.clone();
+    let seen_ = seen.clone();
+    a.add(Box::new(move |e| {
+      seen_.lock().unwrap().push(("first", *e));
+      // e.g. a window API call the platform answers with another event, synchronously
+      if *e == 1 {
+        listeners_.dispatch("a", &2);
+      }
+    }));
+    let seen_ = seen.clone();
+    a.add(Box::new(move |e| {
+      seen_.lock().unwrap().push(("second", *e))
+    }));
+
+    listeners.dispatch("a", &1);
+
+    assert_eq!(
+      *seen.lock().unwrap(),
+      vec![("first", 1), ("second", 2), ("second", 1)]
+    );
   }
 
   #[test]

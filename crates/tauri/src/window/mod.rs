@@ -1275,10 +1275,15 @@ impl<R: Runtime> Window<R> {
 
   /// Registers a window event listener.
   ///
-  /// Does nothing once the window is destroyed.
+  /// Does nothing once the window is destroyed, other than logging a warning.
   pub fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) {
     if let Some(listeners) = self.event_listeners.upgrade() {
       listeners.add(Box::new(f));
+    } else {
+      log::warn!(
+        "ignoring a window event listener registered on `{}`, which was already destroyed",
+        self.label()
+      );
     }
   }
 }

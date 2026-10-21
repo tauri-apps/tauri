@@ -1582,10 +1582,15 @@ impl<R: Runtime> Webview<R> {
 
   /// Registers a webview event listener.
   ///
-  /// Does nothing once the webview is closed.
+  /// Does nothing once the webview is closed, other than logging a warning.
   pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
     if let Some(listeners) = self.event_listeners.upgrade() {
       listeners.add(Box::new(f));
+    } else {
+      log::warn!(
+        "ignoring a webview event listener registered on `{}`, which was already closed",
+        self.label()
+      );
     }
   }
 

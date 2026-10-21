@@ -260,15 +260,31 @@ pub struct WinappLauncher {
 }
 
 impl WinappLauncher {
+  /// Also selects the binary to build in `options.args`: `cargo run` builds just the binary it
+  /// runs, while `cargo build` would build every target.
   pub fn resolve(
-    options: &Options,
+    options: &mut Options,
     run_args: &[String],
     app_settings: &RustAppSettings,
     dirs: &Dirs,
   ) -> crate::Result<Self> {
     // the platform is validated by the dev command, before the dev server starts
     let manifest = winapp_manifest(dirs)?;
-    let bin_path = app_settings.app_binary_path(options, dirs.tauri)?;
+    let bin_path = match cargo_bin(&options.args) {
+      Some(bin) => app_settings
+        .out_dir(options, dirs.tauri)?
+        .join(format!("{bin}.exe")),
+      None => {
+        let bin_path = app_settings.app_binary_path(options, dirs.tauri)?;
+        // the `.exe` extension is appended to the binary name, so the stem is the full name
+        let bin = bin_path
+          .file_stem()
+          .expect("app binary path has no file name");
+        options.args.push("--bin".into());
+        options.args.push(bin.to_string_lossy().into_owned());
+        bin_path
+      }
+    };
     let out_dir = bin_path
       .parent()
       .expect("app binary path has no parent directory");
@@ -330,6 +346,17 @@ impl WinappLauncher {
       error,
     })
   }
+}
+
+/// The binary selected with `--bin` in the cargo arguments, if any.
+fn cargo_bin(args: &[String]) -> Option<&str> {
+  args
+    .iter()
+    .enumerate()
+    .find_map(|(i, arg)| match arg.strip_prefix("--bin")? {
+      "" => args.get(i + 1).map(String::as_str),
+      value => value.strip_prefix('='),
+    })
 }
 
 /// Finds the package manifest `winapp init` created, in the Tauri directory or in the project
@@ -632,5 +659,22 @@ mod terminal {
 
       None
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::cargo_bin;
+
+  fn args(args: &[&str]) -> Vec<String> {
+    args.iter().map(|arg| arg.to_string()).collect()
+  }
+
+  #[test]
+  fn cargo_bin_reads_both_forms() {
+    assert_eq!(cargo_bin(&args(&["--bin", "app"])), Some("app"));
+    assert_eq!(cargo_bin(&args(&["--release", "--bin=app"])), Some("app"));
+    assert_eq!(cargo_bin(&args(&["--bins", "--release"])), None);
+    assert_eq!(cargo_bin(&args(&["--bin"])), None);
   }
 }

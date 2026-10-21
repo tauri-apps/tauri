@@ -218,7 +218,7 @@ impl Rust {
 
     let launcher = if options.packaged {
       Some(Arc::new(desktop::WinappLauncher::resolve(
-        &options,
+        &mut options,
         &run_args,
         &self.app_settings,
         dirs,

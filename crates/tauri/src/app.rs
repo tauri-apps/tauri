@@ -2856,15 +2856,20 @@ fn on_event_loop_event<R: Runtime>(
   // hand the event to the listeners registered for this specific window or webview
   // through `Window::on_window_event` / `Webview::on_webview_event`
   match &event {
-    RunEvent::WindowEvent { label, event } => {
-      manager.window.scoped_event_listeners.dispatch(label, event);
-      // the window is gone for good, so nothing else can arrive for it. Doing this
-      // before the application's own run event handler matters: a handler that
-      // recreates a window under the same label gets a clean slot to register into,
-      // rather than one this sweeps out from under it.
-      if matches!(event, WindowEvent::Destroyed) {
-        manager.window.scoped_event_listeners.remove(label);
+    RunEvent::WindowEvent {
+      label,
+      event: WindowEvent::Destroyed,
+    } => {
+      // the window is gone for good, so nothing else can arrive for it: its listeners
+      // are detached before running them one last time, so a window recreated under the
+      // same label - even from one of them - registers into its own list rather than
+      // one this sweeps out from under it
+      if let Some(listeners) = manager.window.scoped_event_listeners.remove(label) {
+        listeners.dispatch(&WindowEvent::Destroyed);
       }
+    }
+    RunEvent::WindowEvent { label, event } => {
+      manager.window.scoped_event_listeners.dispatch(label, event)
     }
     RunEvent::WebviewEvent { label, event } => manager
       .webview
@@ -2982,6 +2987,62 @@ mod tests {
       *events.lock().unwrap(),
       vec![("old", None), ("new", Some(true))]
     );
+  }
+
+  #[test]
+  fn listener_registered_through_a_destroyed_window_is_dropped() {
+    use crate::window::WindowBuilder;
+
+    let app = mock_app();
+    let old = WindowBuilder::new(&app, "main").build().unwrap();
+    dispatch_window_event(&app, "main", RuntimeWindowEvent::Destroyed);
+
+    // a handle that outlived its window must not register a listener that would
+    // fire for the next window reusing the label
+    let count = Arc::new(Mutex::new(0));
+    let count_ = count.clone();
+    old.on_window_event(move |_| *count_.lock().unwrap() += 1);
+
+    let _new = WindowBuilder::new(&app, "main").build().unwrap();
+    dispatch_window_event(&app, "main", RuntimeWindowEvent::Focused(true));
+
+    assert_eq!(*count.lock().unwrap(), 0);
+  }
+
+  #[test]
+  fn window_recreated_from_its_destroyed_listener_keeps_its_listeners() {
+    use crate::{
+      test::{mock_builder, mock_context, noop_assets},
+      window::WindowBuilder,
+    };
+
+    let recreated = Mutex::new(false);
+    let resizes = Arc::new(Mutex::new(0));
+
+    let resizes_ = resizes.clone();
+    let app = mock_builder()
+      .on_window_event(move |window, event| match event {
+        WindowEvent::Destroyed if !std::mem::replace(&mut *recreated.lock().unwrap(), true) => {
+          WindowBuilder::new(window.app_handle(), "main")
+            .build()
+            .unwrap();
+        }
+        WindowEvent::Resized(_) => *resizes_.lock().unwrap() += 1,
+        _ => {}
+      })
+      .build(mock_context(noop_assets()))
+      .unwrap();
+
+    WindowBuilder::new(&app, "main").build().unwrap();
+    dispatch_window_event(&app, "main", RuntimeWindowEvent::Destroyed);
+    assert!(app.manager().get_window("main").is_some());
+
+    dispatch_window_event(
+      &app,
+      "main",
+      RuntimeWindowEvent::Resized(PhysicalSize::new(1, 1)),
+    );
+    assert_eq!(*resizes.lock().unwrap(), 1);
   }
 
   #[test]

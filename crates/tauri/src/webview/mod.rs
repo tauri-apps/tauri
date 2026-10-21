@@ -48,7 +48,7 @@ use crate::{
     CallbackFn, CommandArg, CommandItem, CommandScope, GlobalScope, Invoke, InvokeBody,
     InvokeError, InvokeMessage, InvokeResolver, Origin, OwnedInvokeResponder, ScopeObject,
   },
-  manager::AppManager,
+  manager::{AppManager, scoped_listener::Listeners},
   path::SafePathBuf,
   sealed::{ManagerBase, RuntimeOrDispatch},
 };
@@ -57,7 +57,7 @@ use std::{
   borrow::Cow,
   hash::{Hash, Hasher},
   path::{Path, PathBuf},
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, Weak},
 };
 
 pub(crate) type WebResourceRequestHandler =
@@ -1479,6 +1479,8 @@ pub struct Webview<R: Runtime = crate::DynRuntime> {
   use_https_scheme: bool,
   /// DevTools preference from webview creation (`Some(false)` means inspector disabled).
   pub(crate) devtools: Option<bool>,
+  /// The listeners registered through [`Webview::on_webview_event`].
+  event_listeners: Weak<Listeners<WebviewEvent>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
@@ -1502,6 +1504,7 @@ impl<R: Runtime> Clone for Webview<R> {
       resources_table: self.resources_table.clone(),
       use_https_scheme: self.use_https_scheme,
       devtools: self.devtools,
+      event_listeners: self.event_listeners.clone(),
     }
   }
 }
@@ -1541,6 +1544,11 @@ impl<R: Runtime> Webview<R> {
     use_https_scheme: bool,
     devtools: Option<bool>,
   ) -> Self {
+    let event_listeners = window
+      .manager
+      .webview
+      .scoped_event_listeners
+      .register(&webview.label);
     Self {
       manager: window.manager.clone(),
       app_handle: window.app_handle.clone(),
@@ -1549,6 +1557,7 @@ impl<R: Runtime> Webview<R> {
       resources_table: Default::default(),
       use_https_scheme,
       devtools,
+      event_listeners,
     }
   }
 
@@ -1572,12 +1581,12 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Registers a webview event listener.
+  ///
+  /// Does nothing once the webview is closed.
   pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
-    self
-      .manager()
-      .webview
-      .scoped_event_listeners
-      .add(self.label(), Box::new(f));
+    if let Some(listeners) = self.event_listeners.upgrade() {
+      listeners.add(Box::new(f));
+    }
   }
 
   /// Resolves the given command scope for this webview on the currently loaded URL.

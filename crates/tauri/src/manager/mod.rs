@@ -35,7 +35,7 @@ use crate::app::OnWebContentProcessTerminate;
 
 #[cfg(desktop)]
 mod menu;
-mod scoped_listener;
+pub(crate) mod scoped_listener;
 #[cfg(all(desktop, feature = "tray-icon"))]
 mod tray;
 pub mod webview;

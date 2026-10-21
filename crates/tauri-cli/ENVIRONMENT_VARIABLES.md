@@ -21,6 +21,10 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR` - Specify a GitHub mirror to download files and tools used by tauri bundler.
 - `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE` - Specify a GitHub mirror template to download files and tools used by tauri bundler, for example: `https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>`.
 - `TAURI_BUNDLER_DMG_IGNORE_CI` - Disable the check for `CI: true` in the `.dmg` bundler.
+- `TAURI_BUNDLER_MKFS_HFSPLUS` - Path to the `mkfs.hfsplus` binary used to create the HFS+ volume for cross-platform `.dmg` bundling. If unset, `target/.tauri` and `~/.cache/tauri` are checked before `PATH`.
+- `TAURI_BUNDLER_HFSPLUS` - Path to the libdmg-hfsplus `hfsplus` binary used to fill the HFS+ volume while building a `.dmg` on Linux.
+- `TAURI_BUNDLER_DMG` - Path to the libdmg-hfsplus `dmg` binary used for cross-platform `.dmg` bundling.
+- `TAURI_BUNDLER_RCODESIGN` - Path to the `rcodesign` binary used for ad-hoc signing macOS bundles on Linux.
 - `TAURI_SKIP_SIDECAR_SIGNATURE_CHECK` - Skip signing sidecars.
 - `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles. For the `build` and `bundle` command, can be either a string or a path to the file. For the `signer sign` command, this must be the literal key string.
 - `TAURI_SIGNING_PRIVATE_KEY_PATH` — Path to the private key file for the `signer sign` command. Mutually exclusive with `TAURI_SIGNING_PRIVATE_KEY` when using the signer command.

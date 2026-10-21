@@ -7,7 +7,7 @@ mod category;
 mod kmp;
 #[cfg(target_os = "linux")]
 mod linux;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 mod macos;
 mod platform;
 mod settings;
@@ -40,6 +40,15 @@ pub use windows::vswhere_path;
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
+  // macOS bundles are not patched on any host, so cross-compiling from Linux
+  // must skip the patch step as well.
+  if matches!(
+    package_type,
+    crate::PackageType::MacOsBundle | crate::PackageType::Dmg
+  ) {
+    return Ok(());
+  }
+
   #[cfg(target_os = "linux")]
   let bundle_type = match package_type {
     crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
@@ -69,10 +78,6 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
   let bundle_type = match package_type {
     // NSIS installers can be built in macOS using cargo-xwin
     crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
-    crate::PackageType::MacOsBundle | crate::PackageType::Dmg => {
-      // skip patching for macOS-native bundles
-      return Ok(());
-    }
     _ => {
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
@@ -170,12 +175,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
 
     let bundle_paths = match package_type {
-      #[cfg(target_os = "macos")]
+      #[cfg(any(target_os = "macos", target_os = "linux"))]
       PackageType::MacOsBundle => macos::app::bundle_project(settings)?,
       #[cfg(target_os = "macos")]
       PackageType::IosBundle => macos::ios::bundle_project(settings)?,
       // dmg is dependent of MacOsBundle, we send our bundles to prevent rebuilding
-      #[cfg(target_os = "macos")]
+      #[cfg(any(target_os = "macos", target_os = "linux"))]
       PackageType::Dmg => {
         let bundled = macos::dmg::bundle_project(settings, &bundles)?;
         if !bundled.app.is_empty() {
@@ -266,7 +271,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
-  #[cfg(target_os = "macos")]
+  // Cross-compiling macOS bundles from Linux leaves the intermediate .app
+  // behind for the same reason the native path does, so clean it up there too.
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
   {
     // Clean up .app if only building dmg or updater
     if !package_types.contains(&PackageType::MacOsBundle) {

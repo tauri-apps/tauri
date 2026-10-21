@@ -155,7 +155,7 @@ pub enum Error {
   #[error("`{0}`")]
   TimeError(#[from] time::error::Error),
   /// Plist error.
-  #[cfg(target_os = "macos")]
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
   #[error(transparent)]
   Plist(#[from] plist::Error),
   /// Rpm error.

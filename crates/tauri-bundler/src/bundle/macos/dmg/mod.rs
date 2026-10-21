@@ -3,18 +3,30 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{app, icon::create_icns_file};
+use crate::{Settings, bundle::Bundle};
+
+use std::path::PathBuf;
+
+#[cfg(target_os = "linux")]
+mod ds_store;
+#[cfg(target_os = "linux")]
+mod hfs;
+#[cfg(target_os = "linux")]
+mod linux;
+
+#[cfg(target_os = "macos")]
+use super::{SignTarget, app, icon::create_icns_file};
+#[cfg(target_os = "macos")]
 use crate::{
-  PackageType, Settings,
-  bundle::{Bundle, settings::Arch},
+  PackageType,
+  bundle::settings::Arch,
   error::{Context, ErrorExt},
   utils::CommandExt,
 };
-
+#[cfg(target_os = "macos")]
 use std::{
   env,
   fs::{self, write},
-  path::PathBuf,
   process::{Command, Stdio},
 };
 
@@ -23,6 +35,7 @@ pub struct Bundled {
   pub app: Vec<PathBuf>,
 }
 
+#[cfg(target_os = "macos")]
 // bundle_dmg.sh drives Finder through osascript, and macOS denies that unless
 // the terminal has Finder automation permission (#3055). Match the error code
 // (errAEEventNotPermitted), since the message itself is localized.
@@ -37,6 +50,18 @@ fn finder_permission_hint(stderr: &str) -> Option<&'static str> {
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Bundled> {
+  #[cfg(target_os = "macos")]
+  {
+    bundle_project_macos(settings, bundles)
+  }
+  #[cfg(target_os = "linux")]
+  {
+    linux::bundle_project(settings, bundles)
+  }
+}
+
+#[cfg(target_os = "macos")]
+fn bundle_project_macos(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Bundled> {
   // generate the .app bundle if needed
   let app_bundle_paths = if !bundles
     .iter()
@@ -215,7 +240,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     if let Some(keychain) = super::sign::keychain(identity)? {
       super::sign::sign(
         &keychain,
-        vec![super::sign::SignTarget {
+        vec![SignTarget {
           path: dmg_path.clone(),
           is_an_executable: false,
         }],
@@ -230,7 +255,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   })
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 mod tests {
   use super::finder_permission_hint;
 

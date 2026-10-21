@@ -11,10 +11,7 @@ use std::{
 
 use crate::{Entitlements, Settings, error::NotarizeAuthError};
 
-pub struct SignTarget {
-  pub path: PathBuf,
-  pub is_an_executable: bool,
-}
+use super::SignTarget;
 
 pub fn keychain(identity: Option<&str>) -> crate::Result<Option<tauri_macos_sign::Keychain>> {
   if let (Some(certificate_encoded), Some(certificate_password)) = (

@@ -36,7 +36,12 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   #[cfg(target_os = "macos")]
   return bundle_update_macos(bundles);
   #[cfg(target_os = "linux")]
-  return bundle_update_linux(bundles);
+  {
+    if matches!(target_os, TargetPlatform::MacOS) {
+      return bundle_update_macos(bundles);
+    }
+    bundle_update_linux(bundles)
+  }
 
   #[cfg(not(any(target_os = "macos", target_os = "linux")))]
   {
@@ -47,7 +52,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
 // Create simple update-macos.tar.gz
 // This is the Mac OS App packaged
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn bundle_update_macos(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
 
@@ -266,26 +271,55 @@ fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 
     tar_builder.append_file(file_name, &mut src_file)?;
   } else {
-    for entry in walkdir::WalkDir::new(src_dir) {
-      let entry = entry?;
-      let src_path = entry.path();
-      if src_path == src_dir {
-        continue;
-      }
-
-      // We add the .parent() because example if we send a path
-      // /dev/src-tauri/target/debug/bundle/osx/app.app
-      // We need a tar with app.app/<...> (source root folder should be included)
-      // safe to unwrap: the path has a parent
-      let dest_path = src_path.strip_prefix(src_dir.parent().unwrap())?;
-      if entry.file_type().is_dir() {
-        tar_builder.append_dir(dest_path, src_path)?;
-      } else {
-        let mut src_file = fs::File::open(src_path)?;
-        tar_builder.append_file(dest_path, &mut src_file)?;
-      }
-    }
+    // Preserve symlinks (app bundles depend on them) and include the source
+    // directory itself so the archive matches the macOS implementation.
+    tar_builder.follow_symlinks(false);
+    tar_builder.append_dir_all(src_dir.file_name().expect("Path has no file_name"), src_dir)?;
   }
   let dest_file = tar_builder.into_inner()?;
   Ok(dest_file)
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+  use super::create_tar_from_src;
+  use std::{fs, io::Cursor, os::unix::fs::symlink};
+
+  #[test]
+  fn macos_update_tar_keeps_root_directory_and_symlinks() {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = tmp.path().join("Test.app");
+    fs::create_dir_all(app.join("Contents/MacOS")).unwrap();
+    fs::write(app.join("Contents/MacOS/Test"), b"binary").unwrap();
+    symlink("../MacOS/Test", app.join("Contents/link")).unwrap();
+
+    let mut archive_bytes = Vec::new();
+    create_tar_from_src(&app, &mut archive_bytes).unwrap();
+
+    let mut archive = tar::Archive::new(Cursor::new(archive_bytes));
+    let entries = archive
+      .entries()
+      .unwrap()
+      .map(|entry| {
+        let entry = entry.unwrap();
+        (
+          entry.path().unwrap().to_string_lossy().into_owned(),
+          entry.header().entry_type().is_symlink(),
+        )
+      })
+      .collect::<Vec<_>>();
+
+    assert!(
+      entries
+        .iter()
+        .any(|(path, _)| path == "Test.app/Contents/MacOS/Test"),
+      "{entries:?}"
+    );
+    assert!(
+      entries
+        .iter()
+        .any(|(path, is_symlink)| path == "Test.app/Contents/link" && *is_symlink),
+      "{entries:?}"
+    );
+  }
 }

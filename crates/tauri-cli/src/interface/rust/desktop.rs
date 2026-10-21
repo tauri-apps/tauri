@@ -104,25 +104,13 @@ true
 pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   options: Options,
   run_args: &[String],
+  launcher: Option<Arc<WinappLauncher>>,
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
-  app_settings: &RustAppSettings,
-  tauri_dir: &Path,
   on_exit: F,
 ) -> crate::Result<DevChild> {
   // under package identity cargo only builds; `winapp run` launches the app from a
   // registered loose layout package, because identity is tied to the activation path.
-  let launcher = if options.packaged {
-    Some(WinappLauncher::resolve(
-      &options,
-      run_args,
-      app_settings,
-      tauri_dir,
-    )?)
-  } else {
-    None
-  };
-
   let mut dev_cmd = cargo_command(
     launcher.is_none(),
     options,
@@ -260,7 +248,9 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
 ///
 /// `winapp run` copies its input folder into a loose layout package, so we stage just the
 /// binary instead of pointing it at the whole cargo target directory.
-struct WinappLauncher {
+///
+/// Resolved once per dev session, since resolving the binary path runs `cargo metadata`.
+pub struct WinappLauncher {
   bin_path: PathBuf,
   staging_dir: PathBuf,
   appx_dir: PathBuf,
@@ -269,7 +259,7 @@ struct WinappLauncher {
 }
 
 impl WinappLauncher {
-  fn resolve(
+  pub fn resolve(
     options: &Options,
     run_args: &[String],
     app_settings: &RustAppSettings,
@@ -313,7 +303,7 @@ impl WinappLauncher {
       &self.staging_dir,
     )?;
     let staged_bin = self.staging_dir.join(exe_name);
-    fs::copy(&self.bin_path, &staged_bin)
+    link_or_copy(&self.bin_path, &staged_bin)
       .fs_context("failed to stage app binary for winapp", &self.bin_path)?;
 
     // `Command` only looks for `winapp.exe`, which the winget install provides, while npm
@@ -349,6 +339,15 @@ impl WinappLauncher {
       error,
     })
   }
+}
+
+/// Hard links `from` at `to`, replacing any file there, or copies it where links are not supported.
+fn link_or_copy(from: &Path, to: &Path) -> std::io::Result<()> {
+  match fs::remove_file(to) {
+    Err(e) if e.kind() != ErrorKind::NotFound => return Err(e),
+    _ => {}
+  }
+  fs::hard_link(from, to).or_else(|_| fs::copy(from, to).map(|_| ()))
 }
 
 pub fn build(

@@ -205,7 +205,6 @@ impl Rust {
     dirs: &Dirs,
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
-    let tauri_dir = dirs.tauri;
 
     let mut run_args = Vec::new();
     dev_options(
@@ -216,9 +215,20 @@ impl Rust {
       &self.app_settings,
     );
 
+    let launcher = if options.packaged {
+      Some(Arc::new(desktop::WinappLauncher::resolve(
+        &options,
+        &run_args,
+        &self.app_settings,
+        dirs.tauri,
+      )?))
+    } else {
+      None
+    };
+
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, &run_args, dirs.tauri, move |status, reason| {
+      self.run_dev(options, &run_args, launcher, move |status, reason| {
         on_exit(status, reason);
         tx.send(()).unwrap();
       })?;
@@ -237,7 +247,7 @@ impl Rust {
             .run_dev(
               options.clone(),
               &run_args,
-              tauri_dir,
+              launcher.clone(),
               move |status, reason| on_exit(status, reason),
             )
             .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
@@ -506,17 +516,15 @@ impl Rust {
     &mut self,
     options: Options,
     run_args: &[String],
-    tauri_dir: &Path,
+    launcher: Option<Arc<desktop::WinappLauncher>>,
     on_exit: F,
   ) -> crate::Result<desktop::DevChild> {
-    let app_settings = self.app_settings.clone();
     desktop::run_dev(
       options,
       run_args,
+      launcher,
       &mut self.available_targets,
       self.config_features.clone(),
-      &app_settings,
-      tauri_dir,
       on_exit,
     )
   }

@@ -266,10 +266,7 @@ impl WinappLauncher {
     app_settings: &RustAppSettings,
     dirs: &Dirs,
   ) -> crate::Result<Self> {
-    if !matches!(app_settings.target_platform, TargetPlatform::Windows) {
-      crate::error::bail!("`--packaged` is only supported when targeting Windows");
-    }
-
+    // the platform is validated by the dev command, before the dev server starts
     let manifest = winapp_manifest(dirs)?;
     let bin_path = app_settings.app_binary_path(options, dirs.tauri)?;
     let out_dir = bin_path
@@ -338,7 +335,7 @@ impl WinappLauncher {
 /// Finds the package manifest `winapp init` created, in the Tauri directory or in the project
 /// root, which is where it lands when `winapp init` runs next to `package.json`. The file names
 /// are the ones `winapp` itself looks for, in the same order.
-fn winapp_manifest(dirs: &Dirs) -> crate::Result<PathBuf> {
+pub fn winapp_manifest(dirs: &Dirs) -> crate::Result<PathBuf> {
   [dirs.tauri, dirs.frontend]
     .into_iter()
     .flat_map(|dir| ["Package.appxmanifest", "appxmanifest.xml"].map(|name| dir.join(name)))

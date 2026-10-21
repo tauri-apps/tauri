@@ -40,6 +40,7 @@ use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 mod cargo_config;
 mod desktop;
+pub use desktop::winapp_manifest;
 pub mod installation;
 pub mod manifest;
 use crate::helpers::config::custom_sign_settings;

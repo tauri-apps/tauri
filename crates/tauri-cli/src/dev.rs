@@ -11,7 +11,7 @@ use crate::{
     config::{BeforeDevCommand, ConfigMetadata, FrontendDist, get_config, reload_config},
   },
   info::plugins::check_mismatched_packages,
-  interface::{AppInterface, ExitReason},
+  interface::{AppInterface, ExitReason, rust::winapp_manifest},
 };
 
 use clap::{ArgAction, Parser};
@@ -119,6 +119,14 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
+
+  // checked before `beforeDevCommand` starts the dev server
+  if options.packaged {
+    if !cfg!(windows) || !matches!(target, Target::Windows) {
+      crate::error::bail!("`--packaged` is only supported when running on and targeting Windows");
+    }
+    winapp_manifest(&dirs)?;
+  }
 
   let mut config = get_config(
     target,

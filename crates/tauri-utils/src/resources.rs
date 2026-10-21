@@ -28,12 +28,18 @@ pub fn resource_relpath(path: &Path) -> PathBuf {
   dest
 }
 
+/// Normalizes a path to the resource *source* location, dropping the no-op
+/// `.` components while keeping the path pointing at the same file.
+///
+/// Unlike [`resource_relpath`], the prefix and root are preserved: this is the
+/// path the resource is read from, so dropping the `C:` of `C:\assets` would
+/// leave a root-relative path that resolves against whatever drive the current
+/// directory happens to be on.
 fn normalize(path: &Path) -> PathBuf {
   let mut dest = PathBuf::new();
   for component in path.components() {
     match component {
-      Component::Prefix(_) => {}
-      Component::RootDir => dest.push("/"),
+      Component::Prefix(_) | Component::RootDir => dest.push(component.as_os_str()),
       Component::CurDir => {}
       Component::ParentDir => dest.push(".."),
       Component::Normal(string) => dest.push(string),
@@ -215,11 +221,20 @@ impl ResourcePathsIter<'_> {
             ResourcePathsInnerIter::Walk {
               current_pattern, ..
             } => {
-              if let Some(pattern) = current_pattern {
-                dest.join(path.strip_prefix(pattern).unwrap_or(&path))
-              } else {
-                dest.join(&path)
-              }
+              // `current_pattern` is always set when `current_dest` is, since both
+              // only exist for the map form, and walked entries always start with
+              // the pattern they were walked from, so this is the entry path
+              // relative to the pattern.
+              //
+              // `resource_relpath` is the fallback rather than `path` itself
+              // because it is guaranteed to be relative: joining an absolute
+              // path would discard `dest` entirely.
+              let relpath = current_pattern
+                .as_deref()
+                .and_then(|pattern| path.strip_prefix(pattern).ok())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| resource_relpath(&path));
+              dest.join(relpath)
             }
             // if processing a glob and current_dest is not empty
             // we put all globbed paths under current_dest
@@ -508,12 +523,97 @@ mod tests {
     assert_eq!(
       resources.rerun_if_changed(),
       &[
-        normalize(Path::new("../src/script.js")),
-        normalize(Path::new("../src/assets")),
-        normalize(Path::new("../src/textures")),
+        PathBuf::from("../src/script.js"),
+        PathBuf::from("../src/assets"),
+        PathBuf::from("../src/textures"),
         PathBuf::from("."),
       ]
     );
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
+  fn resource_paths_iter_absolute_paths() {
+    setup_test_dirs();
+
+    // `setup_test_dirs` moves into the temp directory, so these are absolute
+    // paths, which on Windows means they carry a drive letter prefix.
+    let root = std::env::current_dir().unwrap();
+    let file = root.join("src").join("index.html");
+    let dir = root.join("src").join("sounds");
+
+    let patterns = [
+      file.to_string_lossy().into_owned(),
+      dir.to_string_lossy().into_owned(),
+    ];
+    let mut iter = ResourcePaths::new(&patterns, true).iter();
+    let resources = iter.by_ref().flatten().collect::<Vec<_>>();
+
+    let mut paths = resources
+      .iter()
+      .map(|resource| resource.path().to_path_buf())
+      .collect::<Vec<_>>();
+    paths.sort();
+
+    let mut expected = vec![
+      file.clone(),
+      dir.join("lang").join("es.wav"),
+      dir.join("lang").join("fr.wav"),
+    ];
+    expected.sort();
+
+    assert_eq!(paths, expected);
+
+    for resource in &resources {
+      // On Windows a path is only absolute when it has a prefix *and* a root,
+      // so this is what catches a dropped drive letter: `\src\index.html`
+      // would resolve against whatever drive the current directory is on.
+      assert!(
+        resource.path().is_absolute(),
+        "{:?} is not absolute, it would resolve against the current drive",
+        resource.path()
+      );
+      // The in-bundle target is unaffected: the root still maps to `_root_`,
+      // and it must stay relative for the bundlers to join it onto the
+      // resources directory.
+      assert!(
+        resource.target().is_relative() && resource.target().starts_with("_root_"),
+        "unexpected target {:?} for {:?}",
+        resource.target(),
+        resource.path()
+      );
+    }
+
+    assert_eq!(iter.rerun_if_changed(), &[file.clone(), dir.clone()]);
+
+    // the map form must still place the resources under the given destination
+    let dir_pattern = dir.to_string_lossy().into_owned();
+    let resources = ResourcePaths::from_map(&resources_map(&[(&dir_pattern, "voices")]), true)
+      .iter()
+      .flatten()
+      .collect::<Vec<_>>();
+
+    let mut targets = resources
+      .iter()
+      .map(|resource| resource.target().to_path_buf())
+      .collect::<Vec<_>>();
+    targets.sort();
+
+    assert_eq!(
+      targets,
+      [
+        PathBuf::from("voices").join("lang").join("es.wav"),
+        PathBuf::from("voices").join("lang").join("fr.wav"),
+      ]
+    );
+
+    for resource in &resources {
+      assert!(
+        resource.path().is_absolute(),
+        "{:?} is not absolute, it would resolve against the current drive",
+        resource.path()
+      );
+    }
   }
 
   #[test]

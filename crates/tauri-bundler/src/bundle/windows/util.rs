@@ -258,8 +258,8 @@ pub fn processor_architecture<'a>() -> Option<&'a str> {
 /// CI runners and build agents installed as Windows services usually run as, WOW64 file system
 /// redirection makes those tools look for their own files in `C:\Windows\SysWOW64` instead, and
 /// bundling fails with errors like `Unable to start child process, error 0x2`. In that case the
-/// tools are stored in the project output directory instead, and if that is inside the system
-/// directory too, this returns an error.
+/// tools are stored in the project output directory instead, as they are when there's no cache
+/// dir, and if that is inside the system directory too, this returns an error.
 pub fn tauri_tools_path(settings: &Settings) -> crate::Result<PathBuf> {
   let system_dir = wow64_redirected_system_directory();
   let is_redirected = |path: &Path| {
@@ -268,24 +268,23 @@ pub fn tauri_tools_path(settings: &Settings) -> crate::Result<PathBuf> {
       .is_some_and(|system_dir| starts_with_ignore_ascii_case(path, system_dir))
   };
 
-  let tools_path = if let Some(local_tools_directory) = settings.local_tools_directory() {
-    local_tools_directory.join(".tauri")
-  } else {
-    let cache_dir = dirs::cache_dir().unwrap().join("tauri");
-    if is_redirected(&cache_dir) {
+  let tools_path = match (settings.local_tools_directory(), dirs::cache_dir()) {
+    (Some(local_tools_directory), _) => local_tools_directory.join(".tauri"),
+    (None, Some(cache_dir)) if !is_redirected(&cache_dir) => cache_dir.join("tauri"),
+    (None, cache_dir) => {
       let tools_path = settings.project_out_directory().join(".tauri");
-      // both the NSIS and the MSI bundlers, and their updater variants, ask for this directory
-      static WARNING: Once = Once::new();
-      WARNING.call_once(|| {
-        log::warn!(
-          "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. To share them across build profiles and targets in `target/.tauri` and silence this warning, set `bundle > useLocalToolsDir` to `true`.",
-          cache_dir.display(),
-          tools_path.display()
-        )
-      });
+      if let Some(cache_dir) = cache_dir {
+        // both the NSIS and the MSI bundlers, and their updater variants, ask for this directory
+        static WARNING: Once = Once::new();
+        WARNING.call_once(|| {
+          log::warn!(
+            "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. To share them across build profiles and targets in `target/.tauri` and silence this warning, set `bundle > useLocalToolsDir` to `true`.",
+            cache_dir.display(),
+            tools_path.display()
+          )
+        });
+      }
       tools_path
-    } else {
-      cache_dir
     }
   };
 

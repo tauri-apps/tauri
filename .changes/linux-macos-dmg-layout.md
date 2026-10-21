@@ -2,6 +2,8 @@
 "tauri-bundler": patch:feat
 ---
 
-Give DMGs built on Linux the Finder layout Tauri uses on macOS. The staging directory now contains a generated `.DS_Store` with the configured window size, icon size, and the app/Applications icon positions, plus a `.VolumeIcon.icns` copied from the app icon, so the mounted image no longer opens as an unstyled window.
+Give DMGs built on Linux the Finder layout Tauri uses on macOS.
 
-`genisoimage` only writes Apple's `AA` Finder-info entry for regular files, so the volume root is patched afterwards to carry the "has custom icon" flag. Without it Finder ignores `.VolumeIcon.icns` and the image keeps the generic disk icon.
+The Linux path now writes a real HFS+ volume (`mkfs.hfsplus` plus libdmg-hfsplus' `hfsplus`) instead of an ISO 9660 image with Apple extensions. macOS's cd9660 driver does not expose Finder metadata, so the previous output ignored both the icon layout and the volume icon.
+
+The staging directory gets a generated `.DS_Store` with the configured window size, icon size, and the app/Applications positions, plus a `.VolumeIcon.icns` copied from the app icon. The root folder's catalog record is patched afterwards to set `kHasCustomIcon`, which is what makes Finder use the icon.

@@ -8,9 +8,9 @@ use crate::{Settings, bundle::Bundle};
 use std::path::PathBuf;
 
 #[cfg(target_os = "linux")]
-mod apple_ext;
-#[cfg(target_os = "linux")]
 mod ds_store;
+#[cfg(target_os = "linux")]
+mod hfs;
 #[cfg(target_os = "linux")]
 mod linux;
 

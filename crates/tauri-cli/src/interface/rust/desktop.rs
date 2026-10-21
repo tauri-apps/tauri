@@ -51,7 +51,9 @@ impl DevProcess for DevChild {
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
     let status = self.dev_child.wait()?;
-    match self.app_child.lock().unwrap().clone() {
+    // a guard in the `match` scrutinee would keep the lock until the app exits
+    let app_child = self.app_child.lock().unwrap().clone();
+    match app_child {
       Some(app_child) => app_child.wait(),
       None => Ok(status),
     }

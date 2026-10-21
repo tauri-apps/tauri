@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### Breaking Changes
+
+- [`78f49ba39`](https://www.github.com/tauri-apps/tauri/commit/78f49ba3993fed5a1b921235c547731006ad2a74) ([#16077](https://www.github.com/tauri-apps/tauri/pull/16077) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Removed `WindowDispatch::on_window_event` and `WebviewDispatch::on_webview_event`, along with the `WindowEventId` and `WebviewEventId` types. Runtimes already report every window and webview event through `RunEvent::WindowEvent` / `RunEvent::WebviewEvent`, so the per-window listener registries each runtime kept were a duplicate of that stream.
+    
+    **Migration:** custom runtimes should drop their `on_window_event`/`on_webview_event` implementations and their listener storage; emitting `RunEvent::WindowEvent` and `RunEvent::WebviewEvent` is now the only thing required to deliver events.
+
 ## [3.0.0-alpha.4]
 
 ### Dependencies

@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0-alpha.6]
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@3.0.0-alpha.5`
+- Upgraded to `tauri@3.0.0-alpha.6`
+
+### Breaking Changes
+
+- [`78f49ba39`](https://www.github.com/tauri-apps/tauri/commit/78f49ba3993fed5a1b921235c547731006ad2a74) ([#16077](https://www.github.com/tauri-apps/tauri/pull/16077) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Removed the per-window event listener registry, following its removal from `tauri-runtime`. `tauri-runtime-wry` no longer exports `WindowEventHandler`, `WindowEventListeners`, `WebviewEventHandler` or `WebviewEventListeners`, and `WindowMessage::AddEventListener` / `WebviewMessage::AddEventListener` are gone.
+
 ## [3.0.0-alpha.5]
 
 ### Dependencies

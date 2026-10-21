@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### Bug Fixes
+
+- [`f424d43fb`](https://www.github.com/tauri-apps/tauri/commit/f424d43fb8a05a7f66053b873d8b36f8033ee8fe) ([#16332](https://www.github.com/tauri-apps/tauri/pull/16332) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fixed the German NSIS installer defining the `older` and `unknown` strings under translated identifiers (`älter` and `unbekannt`), which made makensis emit `warning 6040: LangString "older" is not set in language table of language German` and left the version kind blank in the "An $R4 version of ... is installed on your system" prompt.
+- [`f424d43fb`](https://www.github.com/tauri-apps/tauri/commit/f424d43fb8a05a7f66053b873d8b36f8033ee8fe) ([#16332](https://www.github.com/tauri-apps/tauri/pull/16332) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fixed malformed tokens in the Italian and Swedish NSIS language files.
+
 ## [3.0.0-alpha.4]
 
 ### New Features

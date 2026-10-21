@@ -2445,6 +2445,21 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         );
       }
       WinitWindowEvent::Focused(focused) => {
+        // X11 focuses the toplevel, not the browser's child window; offscreen embedders
+        // forward focus themselves.
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        if focused
+          && let [child] = appwindow.children.as_slice()
+          && child.offscreen.is_none()
+        {
+          child.host.set_focus(1);
+        }
         self.emit_window_event(window_id, WindowEvent::Focused(focused));
       }
       WinitWindowEvent::ThemeChanged(theme) => {

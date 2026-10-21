@@ -1040,9 +1040,14 @@ fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> c
 #[cfg(all(test, target_os = "windows"))]
 mod tests {
   use super::*;
-  use crate::bundle::settings::{
-    BundleBinary, BundleSettings, NsisSettings, PackageSettings, SettingsBuilder, WindowsSettings,
+  use crate::bundle::{
+    settings::{
+      BundleBinary, BundleSettings, CustomSignCommandSettings, NsisSettings, PackageSettings,
+      SettingsBuilder, WindowsSettings,
+    },
+    windows::util::{WEBVIEW2_OFFLINE_INSTALLER_X64_URL, webview2_guid_path},
   };
+  use std::collections::HashMap;
   use tauri_utils::config::{AssociationExt, DeepLinkProtocol, FileAssociation};
 
   /// A template configuration to compile.
@@ -1061,10 +1066,12 @@ mod tests {
     /// A hook file defining all four `NSIS_HOOK_*` macros, for the
     /// `!ifmacrodef` branches.
     installer_hooks: bool,
-    /// A homepage, a license, a start menu folder, a file association, a deep
-    /// link protocol, a resource and a second binary.
-    optional_content: bool,
+    optional_content: OptionalContent,
     images: Images,
+    /// A custom signing command, which the bundler runs over the NSIS plugins
+    /// in a copy of its own for the template to add with `!addplugindir`, and
+    /// hands to the template for makensis to run over the uninstaller.
+    sign: bool,
   }
 
   /// Which of the five icon and image settings a configuration sets. The
@@ -1076,10 +1083,31 @@ mod tests {
     OnlyUninstallerHeader,
   }
 
-  /// Takes every branch of the template at least once, bar two that declare
-  /// nothing and cost too much to reach: `offlineInstaller`, which would
-  /// download the whole WebView2 runtime, and the uninstaller signing command,
-  /// which needs a signing tool for makensis to run.
+  /// Whether a configuration sets a homepage, a license, a start menu folder, a
+  /// file association, a deep link protocol, a second binary and a resource.
+  ///
+  /// Where the resource lands matters on its own: the uninstaller removes the
+  /// directories of a resource that is in one, and the template drops the last
+  /// of those directories, which is the only one a resource at the root of the
+  /// install directory has.
+  enum OptionalContent {
+    None,
+    RootResource,
+    NestedResource,
+  }
+
+  /// Takes every branch of the template, bar two that nothing the bundler can
+  /// be configured with reaches:
+  ///
+  /// - the `!ifdef SHCNE_ASSOCCHANGED` and `!ifdef SHCNF_FLUSH` guards of
+  ///   `includes/FileAssociation.nsh`, which only take their branch if
+  ///   something defined those names first, and nothing the bundler ships does.
+  /// - `languages/Persian.nsh`, for the reason [`all_languages`] gives.
+  ///
+  /// The install mode and the architecture are picked together, because the
+  /// default install directory and the MultiUser setup both branch on the
+  /// architecture inside a branch on the install mode, so a pair only compiles
+  /// the arms of the one configuration that has it.
   fn configurations() -> Vec<Configuration> {
     vec![
       // Nothing optional configured, which is also the only configuration where
@@ -1095,8 +1123,9 @@ mod tests {
         all_languages: false,
         display_language_selector: false,
         installer_hooks: false,
-        optional_content: false,
+        optional_content: OptionalContent::None,
         images: Images::None,
+        sign: false,
       },
       // Everything optional configured at once, bar the uninstaller header
       // image, which the `current-user` configuration takes on its own
@@ -1111,11 +1140,13 @@ mod tests {
         all_languages: true,
         display_language_selector: true,
         installer_hooks: true,
-        optional_content: true,
+        optional_content: OptionalContent::RootResource,
         images: Images::AllButUninstallerHeader,
+        sign: true,
       },
       // `perMachine` with the WebView2 section present but no minimum version,
-      // which is the pair the two configurations above never compile together
+      // which is the pair the two configurations above never compile together,
+      // and the resource in a directory of its own
       Configuration {
         name: "per-machine",
         target: "aarch64-pc-windows-msvc",
@@ -1123,12 +1154,13 @@ mod tests {
         webview_install_mode: WebviewInstallMode::DownloadBootstrapper { silent: false },
         minimum_webview2_version: None,
         allow_downgrades: false,
-        compression: NsisCompression::Lzma,
+        compression: NsisCompression::Bzip2,
         all_languages: true,
         display_language_selector: false,
         installer_hooks: false,
-        optional_content: true,
+        optional_content: OptionalContent::NestedResource,
         images: Images::None,
+        sign: false,
       },
       // `currentUser` with a minimum version but no hooks, for the remaining
       // install mode and minimum version pair, the `embedBootstrapper` arm and
@@ -1140,12 +1172,62 @@ mod tests {
         webview_install_mode: WebviewInstallMode::EmbedBootstrapper { silent: true },
         minimum_webview2_version: Some("110.0.1531.0"),
         allow_downgrades: true,
-        compression: NsisCompression::Lzma,
+        compression: NsisCompression::Zlib,
         all_languages: false,
         display_language_selector: false,
         installer_hooks: true,
-        optional_content: false,
+        optional_content: OptionalContent::None,
         images: Images::OnlyUninstallerHeader,
+        sign: false,
+      },
+      // The three install mode and architecture pairs the configurations above
+      // leave out. Nothing optional is configured, so each one only compiles
+      // the handful of lines its pair is there for, bar `per-machine-x64`,
+      // which carries the `offlineInstaller` arm as well
+      Configuration {
+        name: "both-arm64",
+        target: "aarch64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::Both,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+      Configuration {
+        name: "per-machine-x64",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::OfflineInstaller { silent: true },
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+      Configuration {
+        name: "per-machine-x86",
+        target: "i686-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
       },
     ]
   }
@@ -1223,6 +1305,26 @@ mod tests {
     24, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   ];
 
+  /// Puts a stand-in for the WebView2 offline installer where the bundler looks
+  /// for the copy it downloads, and returns the tools directory to hand it.
+  ///
+  /// The real installer is 130 MB of runtime that makensis packs into the output
+  /// without reading, and the stand-in goes in a tools directory of this
+  /// configuration's own rather than the shared cache, so that no later build
+  /// can ship it. That costs this configuration its own copy of the NSIS
+  /// toolset. Only the name of the file comes from the network, which is one
+  /// redirect away.
+  fn fake_webview2_offline_installer(dir: &Path) -> crate::Result<PathBuf> {
+    let tools = dir.join("tools");
+    let (guid, filename) = webview2_guid_path(WEBVIEW2_OFFLINE_INSTALLER_X64_URL)?;
+    // `.tauri` and the architecture are what the bundler joins onto the
+    // directory it is given
+    let path = tools.join(".tauri").join("x64").join(guid);
+    fs::create_dir_all(&path)?;
+    fs::write(path.join(filename), b"webview2 offline installer")?;
+    Ok(tools)
+  }
+
   fn compile(configuration: &Configuration) -> crate::Result<()> {
     // The name goes in the directory makensis prints as it compiles, which is
     // the only thing tying its output to a configuration
@@ -1244,7 +1346,8 @@ mod tests {
       ..Default::default()
     };
 
-    if configuration.optional_content {
+    let optional_content = !matches!(configuration.optional_content, OptionalContent::None);
+    if optional_content {
       fs::write(out.join("helper.exe"), b"second binary").unwrap();
       binaries.push(BundleBinary::new("helper".into(), false));
 
@@ -1258,7 +1361,21 @@ mod tests {
       // the crate root, and an absolute path loses its drive letter on the way
       // through `resources::normalize`, leaving it on whichever drive that
       // directory happens to be
-      bundle_settings.resources = Some(vec!["Cargo.toml".into()]);
+      match configuration.optional_content {
+        OptionalContent::None => {}
+        OptionalContent::RootResource => {
+          bundle_settings.resources = Some(vec!["Cargo.toml".into()])
+        }
+        // The map form rather than the list, because the list derives the
+        // target from the source and the source has to stay a relative path.
+        // Setting both of them is a panic
+        OptionalContent::NestedResource => {
+          bundle_settings.resources_map = Some(HashMap::from([(
+            "Cargo.toml".to_string(),
+            "resources/nested/Cargo.toml".to_string(),
+          )]))
+        }
+      }
       bundle_settings.file_associations = Some(vec![FileAssociation {
         ext: vec![AssociationExt("myext".into())],
         content_types: None,
@@ -1305,15 +1422,21 @@ mod tests {
       minimum_webview2_version: configuration
         .minimum_webview2_version
         .map(|version| version.to_string()),
+      // A command that does nothing but succeed, because what the template
+      // needs is for the bundler to have made the copy of the plugins that
+      // signing them calls for and to have put the command itself in
+      // `!uninstfinalize`, which makensis runs as it compiles
+      sign_command: configuration.sign.then(|| CustomSignCommandSettings {
+        cmd: "cmd".into(),
+        args: vec!["/c".into(), "exit".into(), "0".into()],
+      }),
       nsis: Some(NsisSettings {
         template: Some(template_with_fatal_warnings(dir.path())),
         install_mode: configuration.install_mode,
         compression: configuration.compression,
         display_language_selector: configuration.display_language_selector,
         languages: configuration.all_languages.then(all_languages),
-        start_menu_folder: configuration
-          .optional_content
-          .then(|| "Tauri Tests".to_string()),
+        start_menu_folder: optional_content.then(|| "Tauri Tests".to_string()),
         installer_hooks,
         installer_icon: all_but_uninstaller_header.then(|| image("icon.ico", ICON)),
         header_image: all_but_uninstaller_header.then(|| image("header.bmp", BITMAP)),
@@ -1326,7 +1449,7 @@ mod tests {
       ..Default::default()
     };
 
-    let settings = SettingsBuilder::new()
+    let mut builder = SettingsBuilder::new()
       .project_out_directory(&out)
       .package_settings(PackageSettings {
         product_name: "NSIS Template Test".into(),
@@ -1341,10 +1464,20 @@ mod tests {
       .bundle_settings(bundle_settings)
       // makensis warnings only reach the log at this level
       .log_level(log::Level::Debug)
-      .no_sign(true)
-      .binary_patching(false)
-      .build()
-      .unwrap();
+      // Signing is skipped where there is no command to run, and has to go
+      // ahead where there is one: the bundler leaves the uninstaller signing
+      // command out of the template data when it is told not to sign
+      .no_sign(!configuration.sign)
+      .binary_patching(false);
+
+    if matches!(
+      configuration.webview_install_mode,
+      WebviewInstallMode::OfflineInstaller { .. }
+    ) {
+      builder = builder.local_tools_directory(fake_webview2_offline_installer(dir.path())?);
+    }
+
+    let settings = builder.build().unwrap();
 
     bundle_project(&settings, false)?;
 

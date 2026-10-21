@@ -260,7 +260,7 @@ pub fn processor_architecture<'a>() -> Option<&'a str> {
 /// bundling fails with errors like `Unable to start child process, error 0x2`. In that case the
 /// tools are stored in the project output directory instead, as they are when there's no cache
 /// dir, and if that is inside the system directory too, this returns an error.
-pub fn tauri_tools_path(settings: &Settings) -> crate::Result<PathBuf> {
+pub fn tools_directory(settings: &Settings) -> crate::Result<PathBuf> {
   let system_dir = wow64_redirected_system_directory();
   let is_redirected = |path: &Path| {
     system_dir

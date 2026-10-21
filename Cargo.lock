@@ -8507,6 +8507,7 @@ dependencies = [
  "axum",
  "base64 0.23.1",
  "cargo-mobile2",
+ "cargo-platform",
  "clap",
  "clap_complete",
  "colored 3.1.1",

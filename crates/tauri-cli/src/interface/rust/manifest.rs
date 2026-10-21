@@ -7,18 +7,24 @@ use crate::{
   helpers::config::{Config, PatternKind},
 };
 
+use cargo_platform::{Cfg, Platform};
 use itertools::Itertools;
 use toml_edit::{Array, DocumentMut, InlineTable, Item, TableLike, Value};
 
 use std::{
   collections::{HashMap, HashSet},
   path::Path,
+  process::Command,
+  str::FromStr,
 };
 
 #[derive(Default)]
 pub struct Manifest {
   pub inner: DocumentMut,
+  /// `tauri` features from `[dependencies]` and the Tauri config.
   pub tauri_features: HashSet<String>,
+  /// `tauri` features from `[target.<platform>.dependencies]`, keyed by the platform.
+  pub target_tauri_features: Vec<(String, HashSet<String>)>,
 }
 
 impl Manifest {
@@ -47,9 +53,26 @@ impl Manifest {
     f
   }
 
-  pub fn all_enabled_features(&self, enabled_features: &[String]) -> Vec<String> {
-    let mut all_enabled_features: Vec<String> = self
-      .tauri_features
+  /// All enabled features when building for `target_triple`,
+  /// ignoring `tauri` features of target tables that do not match it.
+  pub fn all_enabled_features(
+    &self,
+    target_triple: &str,
+    enabled_features: &[String],
+  ) -> crate::Result<Vec<String>> {
+    let mut tauri_features = self.tauri_features.clone();
+    if !self.target_tauri_features.is_empty() {
+      let cfg = target_cfg(target_triple)?;
+      for (platform, features) in &self.target_tauri_features {
+        let platform = Platform::from_str(platform)
+          .with_context(|| format!("invalid target `{platform}` in Cargo.toml"))?;
+        if platform.matches(target_triple, &cfg) {
+          tauri_features.extend(features.iter().cloned());
+        }
+      }
+    }
+
+    let mut all_enabled_features: Vec<String> = tauri_features
       .iter()
       .map(|f| format!("tauri/{f}"))
       .collect();
@@ -59,8 +82,25 @@ impl Manifest {
       all_enabled_features.extend(get_enabled_features(&manifest_features, f));
     }
 
-    all_enabled_features
+    Ok(all_enabled_features)
   }
+}
+
+fn target_cfg(target_triple: &str) -> crate::Result<Vec<Cfg>> {
+  let output = Command::new("rustc")
+    .args(["--print", "cfg", "--target", target_triple])
+    .output()
+    .context("failed to run `rustc --print cfg`")?;
+  if !output.status.success() {
+    crate::error::bail!(
+      "`rustc --print cfg --target {target_triple}` failed: {}",
+      String::from_utf8_lossy(&output.stderr)
+    );
+  }
+  String::from_utf8_lossy(&output.stdout)
+    .lines()
+    .map(|line| Cfg::from_str(line).with_context(|| format!("invalid rustc cfg `{line}`")))
+    .collect()
 }
 
 fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> Vec<String> {
@@ -116,7 +156,7 @@ fn find_dependency<'a>(
   manifest: &'a mut DocumentMut,
   name: &'a str,
   kind: DependencyKind,
-) -> Vec<&'a mut Item> {
+) -> Vec<(Option<String>, &'a mut Item)> {
   let table = match kind {
     DependencyKind::Build => "build-dependencies",
     DependencyKind::Normal => "dependencies",
@@ -128,14 +168,14 @@ fn find_dependency<'a>(
     if let Some(t) = v.as_table_mut() {
       if k == table {
         if let Some(item) = t.get_mut(name) {
-          matching_deps.push(item);
+          matching_deps.push((None, item));
         }
       } else if k == "target" {
-        for (_, target_value) in t.iter_mut() {
+        for (platform, target_value) in t.iter_mut() {
           if let Some(target_table) = target_value.as_table_mut() {
             if let Some(deps) = target_table.get_mut(table) {
               if let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name)) {
-                matching_deps.push(item);
+                matching_deps.push((Some(platform.get().to_string()), item));
               }
             }
           }
@@ -194,6 +234,8 @@ struct DependencyAllowlist {
   kind: DependencyKind,
   all_cli_managed_features: Vec<&'static str>,
   features: HashSet<String>,
+  /// features of the `[target.<platform>.dependencies]` sections, keyed by the platform
+  target_features: Vec<(String, HashSet<String>)>,
 }
 
 fn inject_features_table<D: TableLike, F: Fn(&str) -> bool>(
@@ -244,10 +286,12 @@ fn inject_features(
     let name = dependency.name.clone();
     let items = find_dependency(manifest, &dependency.name, dependency.kind);
     // features collected from all matching sections,
-    // each section only gets its own non CLI-managed features
+    // each section only gets its own non CLI-managed features.
+    // target sections are kept apart, as they only apply to matching targets
     let mut all_features = dependency.features.clone();
+    let mut target_features = Vec::new();
 
-    for item in items {
+    for (platform, item) in items {
       // do not rewrite if dependency uses workspace inheritance
       if item
         .get("workspace")
@@ -265,7 +309,10 @@ fn inject_features(
 
         let mut features = dependency.features.clone();
         let should_write = write_features(&name, item, is_managed_feature, &mut features)?;
-        all_features.extend(features);
+        match platform {
+          Some(platform) => target_features.push((platform, features)),
+          None => all_features.extend(features),
+        }
 
         if !persist {
           persist = should_write;
@@ -274,6 +321,7 @@ fn inject_features(
     }
 
     dependency.features = all_features;
+    dependency.target_features = target_features;
   }
 
   Ok(persist)
@@ -295,6 +343,7 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
     kind: DependencyKind::Build,
     all_cli_managed_features: vec!["isolation"],
     features: tauri_build_features,
+    target_features: Vec::new(),
   });
 
   // tauri
@@ -307,15 +356,16 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
       .filter(|f| f != &"tray-icon")
       .collect(),
     features: tauri_features,
+    target_features: Vec::new(),
   });
 
   let persist = inject_features(&mut manifest, &mut dependencies)?;
 
-  let tauri_features = dependencies
+  let tauri = dependencies
     .into_iter()
     .find(|d| d.name == "tauri")
-    .unwrap()
-    .features;
+    .unwrap();
+  let (tauri_features, target_tauri_features) = (tauri.features, tauri.target_features);
 
   let new_manifest_str = serialize_manifest(&manifest);
 
@@ -326,6 +376,7 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
       Manifest {
         inner: manifest,
         tauri_features,
+        target_tauri_features,
       },
       true,
     ))
@@ -334,6 +385,7 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
       Manifest {
         inner: manifest,
         tauri_features,
+        target_tauri_features,
       },
       false,
     ))
@@ -353,7 +405,7 @@ mod tests {
     let mut expected = HashMap::new();
     for dep in &dependencies {
       let mut expected_per_item = Vec::new();
-      for item in super::find_dependency(&mut manifest, &dep.name, dep.kind) {
+      for (_, item) in super::find_dependency(&mut manifest, &dep.name, dep.kind) {
         let mut features = dep.features.clone();
         let item_table = if let Some(table) = item.as_table() {
           Some(table.clone())
@@ -381,7 +433,7 @@ mod tests {
       let expected_per_item = expected.get(&dep.name).unwrap();
       let items = super::find_dependency(&mut manifest, &dep.name, dep.kind);
       assert_eq!(items.len(), expected_per_item.len());
-      for (item, expected_features) in items.into_iter().zip(expected_per_item) {
+      for ((_, item), expected_features) in items.into_iter().zip(expected_per_item) {
         let item_table = if let Some(table) = item.as_table() {
           table.clone()
         } else if let Some(toml_edit::Value::InlineTable(table)) = item.as_value() {
@@ -418,6 +470,7 @@ mod tests {
       kind: DependencyKind::Normal,
       all_cli_managed_features: vec!["isolation"],
       features,
+      target_features: Vec::new(),
     }
   }
 
@@ -427,6 +480,7 @@ mod tests {
       kind: DependencyKind::Build,
       all_cli_managed_features: crate::helpers::config::AppConfig::all_features(),
       features,
+      target_features: Vec::new(),
     }
   }
 
@@ -523,6 +577,41 @@ mod tests {
   }
 
   #[test]
+  fn target_features_only_apply_to_matching_targets() {
+    // the user's own text matches the cfg syntax we parse: a `windows` feature name
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+      dir.path().join("Cargo.toml"),
+      r#"[dependencies]
+tauri = { version = "2", features = ["windows"] }
+
+[target.'cfg(windows)'.dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+tauri = { version = "2", features = ["image-png"] }
+"#,
+    )
+    .unwrap();
+    let (manifest, _) = super::rewrite_manifest(&Default::default(), dir.path()).unwrap();
+
+    let enabled = |triple| {
+      let mut f = manifest.all_enabled_features(triple, &[]).unwrap();
+      f.sort();
+      f
+    };
+    assert_eq!(enabled("x86_64-unknown-linux-gnu"), vec!["tauri/windows"]);
+    assert_eq!(
+      enabled("x86_64-pc-windows-msvc"),
+      vec!["tauri/tray-icon", "tauri/windows"]
+    );
+    assert_eq!(
+      enabled("aarch64-apple-darwin"),
+      vec!["tauri/image-png", "tauri/windows"]
+    );
+  }
+
+  #[test]
   fn inject_features_inline_table() {
     inject_features(
       r#"
@@ -560,6 +649,7 @@ tauri-build = '2.1'
         kind: DependencyKind::Normal,
         all_cli_managed_features: vec![],
         features: HashSet::from_iter(vec!["codegen".into()]),
+        target_features: Vec::new(),
       },
     ];
     super::inject_features(&mut manifest, &mut dependencies).unwrap();

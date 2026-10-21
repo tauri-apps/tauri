@@ -1354,7 +1354,7 @@ fn tauri_config_to_bundle_settings(
     .manifest
     .lock()
     .unwrap()
-    .all_enabled_features(features);
+    .all_enabled_features(&settings.target_triple, features)?;
 
   #[allow(unused_mut)]
   let mut resources = config

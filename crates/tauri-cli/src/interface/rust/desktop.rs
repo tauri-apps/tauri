@@ -316,7 +316,15 @@ impl WinappLauncher {
     fs::copy(&self.bin_path, &staged_bin)
       .fs_context("failed to stage app binary for winapp", &self.bin_path)?;
 
-    let mut cmd = Command::new("winapp");
+    // `Command` only looks for `winapp.exe`, which the winget install provides, while npm
+    // installs a `winapp.cmd` shim; `which` resolves both through `PATHEXT`
+    let Ok(winapp) = which::which("winapp") else {
+      crate::error::bail!(
+        "`winapp` command not found. Install it with `npm install --save-dev @microsoft/winappcli`, or see https://github.com/microsoft/winappCli."
+      );
+    };
+
+    let mut cmd = Command::new(winapp);
     cmd
       .arg("run")
       .arg(&self.staging_dir)
@@ -335,16 +343,10 @@ impl WinappLauncher {
 
     log::info!(action = "Running"; "app with package identity (`winapp run`)");
 
-    match SharedChild::spawn(&mut cmd) {
-      Ok(child) => Ok(child),
-      Err(e) if e.kind() == ErrorKind::NotFound => crate::error::bail!(
-        "`winapp` command not found. Install it with `npm install --save-dev @microsoft/winappcli`, or see https://github.com/microsoft/winappCli."
-      ),
-      Err(e) => Err(Error::CommandFailed {
-        command: "winapp".into(),
-        error: e,
-      }),
-    }
+    SharedChild::spawn(&mut cmd).map_err(|error| Error::CommandFailed {
+      command: "winapp".into(),
+      error,
+    })
   }
 }
 

@@ -202,10 +202,19 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     let mut status = dev_child_.wait().expect("failed to build app");
 
     if let (true, Some(launcher)) = (status.success(), &launcher) {
+      // hold the lock until the child is stored: `kill()` flags the kill before taking it,
+      // so it either finds the child or the launch sees the flag and is skipped
+      let mut app_child = app_child_.lock().unwrap();
+      if manually_killed_app_.load(Ordering::SeqCst) {
+        on_exit(status.code(), ExitReason::TriggeredKill);
+        return;
+      }
+
       match launcher.spawn() {
         Ok(child) => {
           let child = Arc::new(child);
-          app_child_.lock().unwrap().replace(child.clone());
+          app_child.replace(child.clone());
+          drop(app_child);
           status = child.wait().expect("failed to wait for winapp");
         }
         Err(e) => {

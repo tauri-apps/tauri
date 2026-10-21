@@ -3,6 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+// `SignTarget` is shared with the cross-platform bundler; the remaining helpers
+// are only called on macOS.
+#![allow(dead_code)]
+
 use std::{
   env::{var, var_os},
   ffi::OsString,

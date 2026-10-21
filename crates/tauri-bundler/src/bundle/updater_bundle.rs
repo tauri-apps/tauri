@@ -36,7 +36,12 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   #[cfg(target_os = "macos")]
   return bundle_update_macos(bundles);
   #[cfg(target_os = "linux")]
-  return bundle_update_linux(bundles);
+  {
+    if matches!(target_os, TargetPlatform::MacOS) {
+      return bundle_update_macos(bundles);
+    }
+    bundle_update_linux(bundles)
+  }
 
   #[cfg(not(any(target_os = "macos", target_os = "linux")))]
   {
@@ -47,7 +52,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
 // Create simple update-macos.tar.gz
 // This is the Mac OS App packaged
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn bundle_update_macos(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
 

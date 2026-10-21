@@ -22,23 +22,28 @@
 // Currently, cargo-bundle does not support Frameworks, nor does it support placing arbitrary
 // files into the `Contents` directory of the bundle.
 
-use super::{
-  icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file},
-  sign::{SignTarget, notarize, notarize_auth, notarize_without_stapling, sign},
-};
+use super::icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file};
+use super::sign::SignTarget;
+#[cfg(target_os = "macos")]
+use super::sign::{notarize, notarize_auth, notarize_without_stapling, sign};
+#[cfg(target_os = "macos")]
+use crate::error::NotarizeAuthError;
+#[cfg(target_os = "macos")]
+use crate::utils::CommandExt;
 use crate::{
   Error::GenericError,
   Settings,
   bundle::settings::PlistKind,
-  error::{Context, ErrorExt, NotarizeAuthError},
-  utils::{CommandExt, fs_utils},
+  error::{Context, ErrorExt},
+  utils::fs_utils,
 };
 
+#[cfg(target_os = "macos")]
+use std::process::Command;
 use std::{
   ffi::OsStr,
   fs,
   path::{Path, PathBuf},
-  process::Command,
 };
 
 const NESTED_CODE_FOLDER: [&str; 6] = [
@@ -112,6 +117,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
+  #[cfg(target_os = "macos")]
   if settings.no_sign() {
     log::warn!("Skipping signing due to --no-sign flag.",);
   } else if let Some(keychain) =
@@ -150,9 +156,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     }
   }
 
+  #[cfg(not(target_os = "macos"))]
+  let _ = sign_paths;
+
   Ok(vec![app_bundle_path])
 }
 
+#[cfg(target_os = "macos")]
 fn remove_extra_attr(app_bundle_path: &Path) -> crate::Result<()> {
   Command::new("xattr")
     .arg("-crs")

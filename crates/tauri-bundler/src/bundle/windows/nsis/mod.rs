@@ -495,7 +495,7 @@ fn build_nsis_app_installer(
         language_files_paths.push(path);
       } else {
         log::warn!(
-          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`"
+          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`"
         );
       }
     }

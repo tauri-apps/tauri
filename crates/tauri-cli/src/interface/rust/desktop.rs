@@ -338,7 +338,8 @@ impl WinappLauncher {
       .arg("--with-alias")
       .arg("--unregister-on-exit");
     if !self.app_args.is_empty() {
-      cmd.arg("--args").arg(self.app_args.join(" "));
+      // unlike a joined `--args` string, arguments after `--` keep their boundaries
+      cmd.arg("--").args(&self.app_args);
     }
 
     log::info!(action = "Running"; "app with package identity (`winapp run`)");

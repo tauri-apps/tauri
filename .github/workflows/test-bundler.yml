@@ -1,0 +1,52 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test `tauri-bundler`
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '.github/workflows/test-bundler.yml'
+      - 'crates/tauri-bundler/**'
+      - 'crates/tauri-utils/**'
+      - 'crates/tauri-macos-sign/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 'Setup Rust'
+        uses: dtolnay/rust-toolchain@1.90
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-cli
+          save-if: false
+
+      - name: test
+        run: cargo test --manifest-path ./crates/tauri-bundler/Cargo.toml

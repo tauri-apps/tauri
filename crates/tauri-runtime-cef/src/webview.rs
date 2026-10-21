@@ -181,12 +181,11 @@ fn color_to_argb(color: Color) -> u32 {
 /// [`apply_user_agent_override`]), because `CefSettings.user_agent` is fixed for
 /// the whole process before any webview is created.
 ///
-/// An off-screen browser reads a background alpha of 0 as transparent painting
-/// rather than as "unset", so it gets an opaque white background unless the
-/// webview asks to be transparent or names a color of its own.
+/// CEF reads a background alpha of 0 as transparent painting rather than as
+/// "unset", so a webview gets an opaque white background unless it asks to be
+/// transparent or names a color of its own.
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
-  offscreen: bool,
 ) -> cef::BrowserSettings {
   cef::BrowserSettings {
     javascript: cef::State::from(if webview_attributes.javascript_disabled {
@@ -224,7 +223,7 @@ fn browser_settings_from_webview_attributes(
 /// leaves an attribute at its default stays quiet. Each message names the runtime-wide
 /// API that does the same thing where one exists: an application ported from WebView2 or
 /// WKWebView may rely on the attribute, and silently dropping it is the worst outcome.
-fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes, offscreen: bool) {
+fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes) {
   if attributes.additional_browser_args.is_some() {
     log::warn!(
       "webview {label:?} sets additional_browser_args, which the CEF runtime does not support: \
@@ -853,8 +852,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       info.runtime_style = cef_runtime_style;
       info
     };
-    let mut settings =
-      browser_settings_from_webview_attributes(&pending.webview_attributes, offscreen.is_some());
+    let mut settings = browser_settings_from_webview_attributes(&pending.webview_attributes);
     // Applied last so an application can override what the runtime mapped.
     if let Some(callback) = &pending
       .runtime_specific_attributes
@@ -869,11 +867,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // `navigator.userAgent` for this one target.
     let user_agent = pending.webview_attributes.user_agent.clone();
 
-    warn_about_unsupported_attributes(
-      &pending.label,
-      &pending.webview_attributes,
-      offscreen.is_some(),
-    );
+    warn_about_unsupported_attributes(&pending.label, &pending.webview_attributes);
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {
       "https"
@@ -2484,26 +2478,22 @@ mod tests {
   use super::*;
 
   #[test]
-  fn offscreen_background_is_transparent_only_on_request() {
+  fn background_is_transparent_only_on_request() {
     let mut attributes = WebviewAttributes::new(tauri_utils::config::WebviewUrl::default());
     assert_eq!(
-      browser_settings_from_webview_attributes(&attributes, false).background_color,
-      0
-    );
-    assert_eq!(
-      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      browser_settings_from_webview_attributes(&attributes).background_color,
       0xFFFF_FFFF
     );
 
     attributes.transparent = true;
     assert_eq!(
-      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      browser_settings_from_webview_attributes(&attributes).background_color,
       0
     );
 
     attributes.background_color = Some(Color(1, 2, 3, 255));
     assert_eq!(
-      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      browser_settings_from_webview_attributes(&attributes).background_color,
       0xFF01_0203
     );
   }

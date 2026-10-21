@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.7.4]
+
+### Bug Fixes
+
+- [`d6de22ef9`](https://www.github.com/tauri-apps/tauri/commit/d6de22ef9288fbc17cccc34459f0ab172975e438) ([#16326](https://www.github.com/tauri-apps/tauri/pull/16326) by [@jay-tau](https://www.github.com/tauri-apps/tauri/../../jay-tau)) Don't watch the `capabilities` directory when it doesn't exist and the configuration lists capabilities in `app > security > capabilities`. Cargo treats a missing watched path as changed, so these apps re-ran the build script and recompiled on every build.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.7.4`
+
 ## [2.7.3]
 
 ### Enhancements

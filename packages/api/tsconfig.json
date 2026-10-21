@@ -8,8 +8,7 @@
     "noUnusedLocals": true,
     "noImplicitAny": true,
     "noEmit": true,
-    "lib": ["es2022", "esnext.disposable", "dom"]
-  },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+    "lib": ["es2022", "esnext.disposable", "dom"],
+    "types": ["node"],
+  }
 }

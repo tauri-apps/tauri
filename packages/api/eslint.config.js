@@ -23,7 +23,7 @@ export default [
         process: true
       },
       parserOptions: {
-        project: ['./tsconfig.json', './tsconfig.node.json'],
+        project: true,
         tsconfigRootDir: import.meta.dirname
       }
     },

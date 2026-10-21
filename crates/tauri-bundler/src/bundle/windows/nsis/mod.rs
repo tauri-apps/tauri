@@ -1248,15 +1248,17 @@ mod tests {
       fs::write(out.join("helper.exe"), b"second binary").unwrap();
       binaries.push(BundleBinary::new("helper".into(), false));
 
-      let resource = dir.path().join("resource.txt");
-      fs::write(&resource, b"resource").unwrap();
-
       let license = dir.path().join("LICENSE.txt");
       fs::write(&license, b"license").unwrap();
 
       bundle_settings.homepage = Some("https://tauri.app".into());
       bundle_settings.license_file = Some(license);
-      bundle_settings.resources = Some(vec![resource.to_string_lossy().into_owned()]);
+      // The resource is the manifest rather than a file in `dir` because
+      // resources are globbed from the working directory, which cargo sets to
+      // the crate root, and an absolute path loses its drive letter on the way
+      // through `resources::normalize`, leaving it on whichever drive that
+      // directory happens to be
+      bundle_settings.resources = Some(vec!["Cargo.toml".into()]);
       bundle_settings.file_associations = Some(vec![FileAssociation {
         ext: vec![AssociationExt("myext".into())],
         content_types: None,

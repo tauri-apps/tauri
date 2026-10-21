@@ -33,16 +33,27 @@ impl<E> Default for ScopedEventListeners<E> {
 }
 
 impl<E> ScopedEventListeners<E> {
-  /// Creates the listener list of a new window or webview with the given label,
-  /// replacing whatever a previous instance with that label left behind.
+  /// Creates the listener list of a new window or webview with the given label.
+  ///
+  /// A previous instance's list is removed once it is closed, so one still registered here
+  /// means two instances were attached under the same label - e.g. built concurrently, both
+  /// passing the label check before either was inserted. The newer one wins, as in the
+  /// window and webview stores, but the older one silently losing its listeners is surfaced.
   pub(crate) fn register(&self, label: &str) -> Weak<Listeners<E>> {
     let listeners = Arc::new(Listeners::default());
     let weak = Arc::downgrade(&listeners);
-    self
+    let replaced = self
       .listeners
       .lock()
       .expect("poisoned scoped listeners")
       .insert(label.to_string(), listeners);
+    if replaced.is_some() {
+      log::warn!(
+        "replacing the event listeners of `{label}`, which is still open: \
+         a window or webview with this label was likely created twice concurrently, \
+         and the older one will no longer receive its events"
+      );
+    }
     weak
   }
 

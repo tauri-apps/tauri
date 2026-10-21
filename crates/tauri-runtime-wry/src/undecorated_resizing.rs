@@ -546,12 +546,6 @@ mod gtk {
     }
   }
 
-  /// Only the beginning of a touch sequence may start a resize drag, the
-  /// update, end and cancel events of the same sequence must not.
-  fn starts_touch_resize(event_type: gtk::gdk::EventType) -> bool {
-    event_type == gtk::gdk::EventType::TouchBegin
-  }
-
   fn resizable_window(webview: &webkit2gtk::WebView) -> Option<gtk::Window> {
     // The webview may be nested at any depth (e.g. reparented into a GtkPaned), so resolve its toplevel
     let window = webview.toplevel()?.downcast::<gtk::Window>().ok()?;
@@ -638,7 +632,7 @@ mod gtk {
         // Start the resize drag once per touch sequence. Issuing it for every
         // touch event re-sends `xdg_toplevel.resize` with a serial the compositor
         // already consumed, which can crash the session (e.g. gnome-shell).
-        if !starts_touch_resize(event.event_type()) {
+        if event.event_type() != gtk::gdk::EventType::TouchBegin {
           return Propagation::Proceed;
         }
         let Some(window) = resizable_window(webview).and_then(|w| w.window()) else {
@@ -667,19 +661,5 @@ mod gtk {
         Propagation::Proceed
       },
     );
-  }
-
-  #[cfg(test)]
-  mod tests {
-    use super::starts_touch_resize;
-    use gtk::gdk::EventType;
-
-    #[test]
-    fn only_touch_begin_starts_resize() {
-      assert!(starts_touch_resize(EventType::TouchBegin));
-      assert!(!starts_touch_resize(EventType::TouchUpdate));
-      assert!(!starts_touch_resize(EventType::TouchEnd));
-      assert!(!starts_touch_resize(EventType::TouchCancel));
-    }
   }
 }

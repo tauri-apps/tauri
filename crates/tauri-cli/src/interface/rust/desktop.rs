@@ -30,6 +30,10 @@ pub struct DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
+    // flag the kill first: the exit handler reads it as soon as a killed process exits,
+    // which can be before we are done killing the rest
+    self.manually_killed_app.store(true, Ordering::SeqCst);
+
     // `winapp run` is spawned by the CLI rather than by cargo, so it is not in the dev
     // child's tree and needs killing on its own. It launches the app through an alias,
     // which would otherwise outlive it.
@@ -40,7 +44,6 @@ impl DevProcess for DevChild {
 
     kill_tree(self.dev_child.id());
     self.dev_child.kill()?;
-    self.manually_killed_app.store(true, Ordering::SeqCst);
     Ok(())
   }
 

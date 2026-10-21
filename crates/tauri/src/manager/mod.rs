@@ -690,10 +690,24 @@ impl<R: Runtime> AppManager<R> {
   }
 
   #[cfg(desktop)]
-  pub(crate) fn on_webview_close(&self, label: &str) {
-    self.webview.webviews_lock().remove(label);
+  pub(crate) fn on_webview_close(&self, webview: &Webview<R>) {
+    let label = webview.label();
+    {
+      let mut webviews = self.webview.webviews_lock();
+      // a handle that outlived its webview must not tear down a later one reusing the label
+      if !webviews
+        .get(label)
+        .is_some_and(|w| w.event_listeners.ptr_eq(&webview.event_listeners))
+      {
+        return;
+      }
+      webviews.remove(label);
+    }
     self.listeners().remove_webview_listeners(label);
-    self.webview.scoped_event_listeners.remove(label);
+    self
+      .webview
+      .scoped_event_listeners
+      .remove_instance(label, &webview.event_listeners);
     self
       .state
       .get::<crate::ipc::channel::ChannelDataIpcQueue>()

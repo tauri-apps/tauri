@@ -1480,7 +1480,7 @@ pub struct Webview<R: Runtime = crate::DynRuntime> {
   /// DevTools preference from webview creation (`Some(false)` means inspector disabled).
   pub(crate) devtools: Option<bool>,
   /// The listeners registered through [`Webview::on_webview_event`].
-  event_listeners: Weak<Listeners<WebviewEvent>>,
+  pub(crate) event_listeners: Weak<Listeners<WebviewEvent>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
@@ -1692,7 +1692,7 @@ impl<R: Runtime> Webview<R> {
   /// Closes this webview.
   pub fn close(&self) -> crate::Result<()> {
     self.webview.dispatcher.close()?;
-    self.manager().on_webview_close(self.label());
+    self.manager().on_webview_close(self);
     Ok(())
   }
 

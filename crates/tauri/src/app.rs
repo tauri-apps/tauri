@@ -3145,6 +3145,41 @@ mod tests {
   }
 
   #[test]
+  fn closing_a_stale_webview_handle_spares_the_webview_reusing_its_label() {
+    use crate::{webview::WebviewBuilder, window::WindowBuilder};
+
+    let app = mock_app();
+    let window = WindowBuilder::new(&app, "main").build().unwrap();
+    let add_webview = || {
+      window
+        .add_child(WebviewBuilder::new("main-webview", Default::default()))
+        .unwrap()
+    };
+
+    let old = add_webview();
+    old.close().unwrap();
+    let new = add_webview();
+
+    let count = Arc::new(Mutex::new(0));
+    let count_ = count.clone();
+    new.on_webview_event(move |_| *count_.lock().unwrap() += 1);
+
+    // closing the old handle again must not tear down the new webview
+    old.close().unwrap();
+    assert!(app.manager().get_webview("main-webview").is_some());
+
+    on_event_loop_event(
+      app.handle(),
+      RuntimeRunEvent::WebviewEvent {
+        label: "main-webview".into(),
+        event: RuntimeWebviewEvent::DragDrop(DragDropEvent::Leave),
+      },
+      app.manager(),
+    );
+    assert_eq!(*count.lock().unwrap(), 1);
+  }
+
+  #[test]
   fn webview_event_listeners_are_removed_with_the_window() {
     use crate::{webview::WebviewBuilder, window::WindowBuilder};
 

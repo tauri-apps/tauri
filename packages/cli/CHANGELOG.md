@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0-alpha.6]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@3.0.0-alpha.6`
+
 ## [3.0.0-alpha.5]
 
 ### New Features

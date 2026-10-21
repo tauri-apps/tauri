@@ -104,9 +104,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     create_icns_file(&output_path, settings).context("failed to create the dmg volume icon")?;
   if let Some(volume_icon) = &volume_icon {
     // `bundle_dmg.sh` also runs `SetFile -a C` on the volume root so Finder
-    // picks this up. That flag lives in the root folder's Finder info, which
-    // genisoimage does not emit for directories, so the file is present but
-    // still needs an HFS-aware writer to take effect.
+    // picks this up. That flag lives in the root folder's catalog record,
+    // which no Linux tool sets, so it is patched in after the copy.
     fs_utils::copy_file(volume_icon, &staging_path.join(".VolumeIcon.icns"))
       .context("failed to copy the dmg volume icon")?;
   }

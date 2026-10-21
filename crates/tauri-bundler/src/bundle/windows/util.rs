@@ -256,28 +256,47 @@ pub fn processor_architecture<'a>() -> Option<&'a str> {
 /// CI runners and build agents installed as Windows services usually run as, WOW64 file system
 /// redirection makes those tools look for their own files in `C:\Windows\SysWOW64` instead, and
 /// bundling fails with errors like `Unable to start child process, error 0x2`. In that case the
-/// tools are stored in the project output directory instead.
-pub fn tauri_tools_path(settings: &Settings) -> PathBuf {
-  if let Some(local_tools_directory) = settings.local_tools_directory() {
-    return local_tools_directory.join(".tauri");
-  }
+/// tools are stored in the project output directory instead, and if that is inside the system
+/// directory too, this returns an error.
+pub fn tauri_tools_path(settings: &Settings) -> crate::Result<PathBuf> {
+  let system_dir = wow64_redirected_system_directory();
+  let is_redirected = |path: &Path| {
+    system_dir
+      .as_deref()
+      .is_some_and(|system_dir| starts_with_ignore_ascii_case(path, system_dir))
+  };
 
-  let cache_dir = dirs::cache_dir().unwrap().join("tauri");
+  let tools_path = if let Some(local_tools_directory) = settings.local_tools_directory() {
+    local_tools_directory.join(".tauri")
+  } else {
+    let cache_dir = dirs::cache_dir().unwrap().join("tauri");
+    if is_redirected(&cache_dir) {
+      let tools_path = settings.project_out_directory().join(".tauri");
+      log::warn!(
+        "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. Set `bundle > useLocalToolsDir` to `true` to silence this warning.",
+        cache_dir.display(),
+        tools_path.display()
+      );
+      tools_path
+    } else {
+      cache_dir
+    }
+  };
 
-  #[cfg(target_os = "windows")]
-  if let Some(system_dir) = wow64_redirected_system_directory()
-    && starts_with_ignore_ascii_case(&cache_dir, &system_dir)
-  {
-    let tools_path = settings.project_out_directory().join(".tauri");
-    log::warn!(
-      "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. Set `bundle > useLocalToolsDir` to `true` to silence this warning.",
-      cache_dir.display(),
+  if is_redirected(&tools_path) {
+    return Err(crate::Error::GenericError(format!(
+      "The bundler tools directory {} is inside the Windows system directory, where WOW64 file system redirection stops 32-bit programs like NSIS and WiX from finding files. Move the project and its target directory out of the system directory.",
       tools_path.display()
-    );
-    return tools_path;
+    )));
   }
 
-  cache_dir
+  Ok(tools_path)
+}
+
+/// There's no WOW64 file system redirection outside of Windows.
+#[cfg(not(target_os = "windows"))]
+fn wow64_redirected_system_directory() -> Option<PathBuf> {
+  None
 }
 
 /// Returns the Windows system directory (usually `C:\Windows\System32`) if 32-bit processes
@@ -300,7 +319,6 @@ fn wow64_redirected_system_directory() -> Option<PathBuf> {
 }
 
 /// Like [`Path::starts_with`] but ignores ASCII case, since Windows paths are case insensitive.
-#[cfg(target_os = "windows")]
 fn starts_with_ignore_ascii_case(path: &Path, base: &Path) -> bool {
   let mut path = path.components();
   base.components().all(|base| {

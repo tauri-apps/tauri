@@ -1018,3 +1018,293 @@ fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> c
   output.write_all(content.as_ref())?;
   Ok(())
 }
+
+/// Compiles the NSIS template with makensis, which is the only thing that knows
+/// NSIS's own rules.
+///
+/// `installer.nsi` and every file it includes share one flat, case-insensitive
+/// namespace, so makensis aborts with `variable "x" already declared` when two
+/// of them declare the same name and with `name "x" in use by constant` when
+/// one of them takes a name NSIS already uses. Reading a variable that was
+/// never declared is only a warning, which the template here turns into an
+/// error as well.
+///
+/// Declarations behind `!if` and language files only reach the compiler when a
+/// configuration pulls them in, so one build cannot see all of them. The
+/// configurations below are picked to take every branch of the template at
+/// least once.
+///
+/// Windows only: everywhere else makensis has to be installed by hand, while
+/// here the bundler downloads and caches the toolset itself on first run, the
+/// same way it does when bundling an app.
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+  use super::*;
+  use crate::bundle::settings::{
+    BundleBinary, BundleSettings, NsisSettings, PackageSettings, SettingsBuilder, WindowsSettings,
+  };
+  use tauri_utils::config::{AssociationExt, DeepLinkProtocol, FileAssociation};
+
+  /// A template configuration to compile.
+  struct Configuration {
+    name: &'static str,
+    target: &'static str,
+    install_mode: NSISInstallerMode,
+    webview_install_mode: WebviewInstallMode,
+    minimum_webview2_version: Option<&'static str>,
+    allow_downgrades: bool,
+    compression: NsisCompression,
+    /// Every built-in language rather than just English, which is the only way
+    /// the compiler reads the other language files at all.
+    all_languages: bool,
+    display_language_selector: bool,
+    /// A hook file defining all four `NSIS_HOOK_*` macros, for the
+    /// `!ifmacrodef` branches.
+    installer_hooks: bool,
+    /// A homepage, a license, a start menu folder, a file association, a deep
+    /// link protocol, a resource and a second binary.
+    optional_content: bool,
+  }
+
+  /// Takes every branch of the template at least once.
+  ///
+  /// `offlineInstaller` is the one branch left out: it declares nothing
+  /// `embedBootstrapper` does not and would download the whole WebView2 runtime,
+  /// which is far too big for a test.
+  fn configurations() -> Vec<Configuration> {
+    vec![
+      // Nothing optional configured, which is also the only configuration where
+      // the WebView2 section is skipped entirely
+      Configuration {
+        name: "minimal",
+        target: "i686-pc-windows-msvc",
+        install_mode: NSISInstallerMode::CurrentUser,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: false,
+      },
+      // Everything optional configured at once
+      Configuration {
+        name: "full",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::Both,
+        webview_install_mode: WebviewInstallMode::DownloadBootstrapper { silent: true },
+        minimum_webview2_version: Some("110.0.1531.0"),
+        allow_downgrades: false,
+        compression: NsisCompression::Lzma,
+        all_languages: true,
+        display_language_selector: true,
+        installer_hooks: true,
+        optional_content: true,
+      },
+      // `perMachine` with the WebView2 section present but no minimum version,
+      // which is the pair the two configurations above never compile together
+      Configuration {
+        name: "per-machine",
+        target: "aarch64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::DownloadBootstrapper { silent: false },
+        minimum_webview2_version: None,
+        allow_downgrades: false,
+        compression: NsisCompression::Lzma,
+        all_languages: true,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: true,
+      },
+      // `currentUser` with a minimum version but no hooks, for the remaining
+      // install mode and minimum version pair, and the `embedBootstrapper` arm
+      Configuration {
+        name: "current-user",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::CurrentUser,
+        webview_install_mode: WebviewInstallMode::EmbedBootstrapper { silent: true },
+        minimum_webview2_version: Some("110.0.1531.0"),
+        allow_downgrades: true,
+        compression: NsisCompression::Lzma,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: true,
+        optional_content: false,
+      },
+    ]
+  }
+
+  /// Writes the template the bundler ships with the `!pragma`s that turn a
+  /// reference to a variable that was never declared (warning 6000) and a
+  /// variable nothing reads or writes (warning 6001) into errors, and returns it
+  /// as a custom template. NSIS prints the name instead of a value for the first
+  /// one, so without this the installer ships a broken string.
+  fn template_with_fatal_warnings(dir: &Path) -> PathBuf {
+    let path = dir.join("template.nsi");
+    fs::write(
+      &path,
+      format!(
+        "!pragma warning error 6000\n!pragma warning error 6001\n{}",
+        include_str!("./installer.nsi")
+      ),
+    )
+    .unwrap();
+    path
+  }
+
+  /// Every language the bundler ships a file for, so that the compiler reads all
+  /// of them rather than only the ones a default build configures.
+  ///
+  /// `Persian` is left out because it does not compile: `MUI_LANGUAGE` loads
+  /// `Contrib/Language files/<name>.nlf` from the NSIS toolset and NSIS calls
+  /// that language `Farsi`, so there is no `Persian.nlf` to load and
+  /// `languages/Persian.nsh` reads a `${LANG_PERSIAN}` nothing defines. Put it
+  /// back once the bundler ships it under the name NSIS uses.
+  fn all_languages() -> Vec<String> {
+    [
+      "Arabic",
+      "Bulgarian",
+      "Dutch",
+      "English",
+      "French",
+      "German",
+      "Hebrew",
+      "Italian",
+      "Japanese",
+      "Korean",
+      "Norwegian",
+      "Portuguese",
+      "PortugueseBR",
+      "Russian",
+      "SimpChinese",
+      "Spanish",
+      "SpanishInternational",
+      "Swedish",
+      "TradChinese",
+      "Turkish",
+      "Ukrainian",
+      "Vietnamese",
+    ]
+    .iter()
+    .map(|language| language.to_string())
+    .collect()
+  }
+
+  fn compile(configuration: &Configuration) {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("out");
+    fs::create_dir_all(&out).unwrap();
+
+    // makensis only needs the files to exist, not to be real executables
+    fs::write(out.join("app.exe"), b"main binary").unwrap();
+
+    let mut binaries = vec![BundleBinary::new("app".into(), true)];
+    let mut bundle_settings = BundleSettings {
+      identifier: Some("com.tauri.nsis-template-test".into()),
+      publisher: Some("Tauri".into()),
+      copyright: Some("Tauri".into()),
+      ..Default::default()
+    };
+
+    if configuration.optional_content {
+      fs::write(out.join("helper.exe"), b"second binary").unwrap();
+      binaries.push(BundleBinary::new("helper".into(), false));
+
+      let resource = dir.path().join("resource.txt");
+      fs::write(&resource, b"resource").unwrap();
+
+      let license = dir.path().join("LICENSE.txt");
+      fs::write(&license, b"license").unwrap();
+
+      bundle_settings.homepage = Some("https://tauri.app".into());
+      bundle_settings.license_file = Some(license);
+      bundle_settings.resources = Some(vec![resource.to_string_lossy().into_owned()]);
+      bundle_settings.file_associations = Some(vec![FileAssociation {
+        ext: vec![AssociationExt("myext".into())],
+        content_types: None,
+        name: Some("MyExt".into()),
+        description: Some("My extension".into()),
+        role: Default::default(),
+        mime_type: None,
+        rank: Default::default(),
+        exported_type: None,
+        android_intent_action_filters: None,
+      }]);
+      bundle_settings.deep_link_protocols = Some(vec![DeepLinkProtocol {
+        schemes: vec!["mydeeplink".into()],
+        domains: Vec::new(),
+        name: Some("My deep link".into()),
+        role: Default::default(),
+      }]);
+    }
+
+    let installer_hooks = configuration.installer_hooks.then(|| {
+      let path = dir.path().join("hooks.nsh");
+      fs::write(
+        &path,
+        "!macro NSIS_HOOK_PREINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_POSTINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_PREUNINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_POSTUNINSTALL\n!macroend\n",
+      )
+      .unwrap();
+      path
+    });
+
+    bundle_settings.windows = WindowsSettings {
+      webview_install_mode: configuration.webview_install_mode.clone(),
+      allow_downgrades: configuration.allow_downgrades,
+      minimum_webview2_version: configuration
+        .minimum_webview2_version
+        .map(|version| version.to_string()),
+      nsis: Some(NsisSettings {
+        template: Some(template_with_fatal_warnings(dir.path())),
+        install_mode: configuration.install_mode,
+        compression: configuration.compression,
+        display_language_selector: configuration.display_language_selector,
+        languages: configuration.all_languages.then(all_languages),
+        start_menu_folder: configuration
+          .optional_content
+          .then(|| "Tauri Tests".to_string()),
+        installer_hooks,
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+
+    let settings = SettingsBuilder::new()
+      .project_out_directory(&out)
+      .package_settings(PackageSettings {
+        product_name: "NSIS Template Test".into(),
+        version: "1.0.0".into(),
+        description: "NSIS template test".into(),
+        homepage: bundle_settings.homepage.clone(),
+        authors: None,
+        default_run: None,
+      })
+      .binaries(binaries)
+      .target(configuration.target.into())
+      .bundle_settings(bundle_settings)
+      // makensis warnings only reach the log at this level
+      .log_level(log::Level::Debug)
+      .no_sign(true)
+      .binary_patching(false)
+      .build()
+      .unwrap();
+
+    if let Err(error) = bundle_project(&settings, false) {
+      panic!(
+        "the `{}` configuration of the NSIS template does not compile: {error}",
+        configuration.name
+      );
+    }
+  }
+
+  #[test]
+  fn template_compiles_in_every_configuration() {
+    for configuration in configurations() {
+      compile(&configuration);
+    }
+  }
+}

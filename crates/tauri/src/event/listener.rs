@@ -25,7 +25,10 @@ enum Pending {
     handler: Handler,
   },
   Emit(EmitArgs),
-  RemoveForTarget(EventTarget),
+  RemoveForTarget {
+    target: EventTarget,
+    registered_before: EventId,
+  },
 }
 
 /// Stored in [`Listeners`] to be called upon, when the event that stored it, is triggered.
@@ -129,7 +132,10 @@ impl Listeners {
         Pending::Unlisten(id) => self.unlisten(id),
         Pending::Listen { id, event, handler } => self.listen_with_id(id, event, handler),
         Pending::Emit(args) => self.emit(args)?,
-        Pending::RemoveForTarget(target) => self.remove_listeners_for_target(target),
+        Pending::RemoveForTarget {
+          target,
+          registered_before,
+        } => self.remove_listeners_for_target(target, registered_before),
       }
     }
 
@@ -188,16 +194,20 @@ impl Listeners {
     }
   }
 
-  /// Removes every Rust-side event listener registered for the exact given target.
+  /// Removes every Rust-side event listener registered for the exact given target
+  /// with an id lower than `registered_before`.
   ///
   /// Called when a window or webview is destroyed so its listeners don't leak.
   /// Global targets such as [`EventTarget::App`], [`EventTarget::Any`] and [`EventTarget::AnyLabel`] are never matched here.
-  fn remove_listeners_for_target(&self, target: EventTarget) {
+  fn remove_listeners_for_target(&self, target: EventTarget, registered_before: EventId) {
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::RemoveForTarget(target)),
+      Err(_) => self.insert_pending(Pending::RemoveForTarget {
+        target,
+        registered_before,
+      }),
       Ok(mut lock) => {
         for handlers in lock.values_mut() {
-          handlers.retain(|_, handler| handler.target != target);
+          handlers.retain(|id, handler| handler.target != target || *id >= registered_before);
         }
         lock.retain(|_, handlers| !handlers.is_empty());
       }
@@ -282,13 +292,16 @@ impl Listeners {
   /// Removes all event listeners associated with a destroyed webview.
   pub(crate) fn remove_webview_listeners(&self, label: &str) {
     self.remove_webview_js_listeners(label);
-    self.remove_listeners_for_target(EventTarget::webview(label));
+    self.remove_listeners_for_target(EventTarget::webview(label), EventId::MAX);
   }
 
   /// Removes all event listeners associated with a destroyed window.
-  pub(crate) fn remove_window_listeners(&self, label: &str) {
-    self.remove_listeners_for_target(EventTarget::window(label));
-    self.remove_listeners_for_target(EventTarget::webview_window(label));
+  ///
+  /// Only those registered before `registered_before` (see [`Self::next_event_id`]) are removed,
+  /// as later ones may belong to a new window reusing the label.
+  pub(crate) fn remove_window_listeners(&self, label: &str, registered_before: EventId) {
+    self.remove_listeners_for_target(EventTarget::window(label), registered_before);
+    self.remove_listeners_for_target(EventTarget::webview_window(label), registered_before);
   }
 
   pub(crate) fn has_js_listener<F: Fn(&EventTarget) -> bool>(

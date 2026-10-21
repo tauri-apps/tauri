@@ -1674,8 +1674,10 @@ pub struct BundleConfig {
   /// If true, tools will be cached in `target/.tauri/`.
   /// If false, tools will be cached in the current user's platform-specific cache directory.
   ///
-  /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),
-  /// because the Window system's app data directory is restricted.
+  /// When building this application as the Windows `SYSTEM` user (e.g., AWS EC2 workloads or CI runners installed as a service),
+  /// that cache directory is inside `C:\Windows\System32`, where the 32-bit NSIS and WiX tools can't find their own files,
+  /// so they are cached in the build's output directory (e.g., `target/release/.tauri/`) instead.
+  /// Setting this to `true` in that case shares them across build profiles and targets.
   #[serde(default, alias = "use-local-tools-dir")]
   pub use_local_tools_dir: bool,
   /// A list of—either absolute or relative—paths to binaries to embed with your application.

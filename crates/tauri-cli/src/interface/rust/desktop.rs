@@ -219,7 +219,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         }
         Err(e) => {
           log::error!("{e:#}");
-          on_exit(None, ExitReason::NormalExit);
+          on_exit(Some(1), ExitReason::NormalExit);
           return;
         }
       }

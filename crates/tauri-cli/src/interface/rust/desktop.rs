@@ -37,14 +37,16 @@ impl DevProcess for DevChild {
     // `winapp run` is spawned by the CLI rather than by cargo, so it is not in the dev
     // child's tree and needs killing on its own. It launches the app through an alias,
     // which would otherwise outlive it.
-    if let Some(app_child) = self.app_child.lock().unwrap().clone() {
+    let app_child = self.app_child.lock().unwrap().clone();
+    // a failure here must not leave cargo running, so it is only reported at the end
+    let app_killed = app_child.map_or(Ok(()), |app_child| {
       kill_tree(app_child.id());
-      app_child.kill()?;
-    }
+      app_child.kill()
+    });
 
     kill_tree(self.dev_child.id());
     self.dev_child.kill()?;
-    Ok(())
+    app_killed
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {

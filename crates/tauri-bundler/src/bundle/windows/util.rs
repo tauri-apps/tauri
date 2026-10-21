@@ -247,7 +247,8 @@ pub fn processor_architecture<'a>() -> Option<&'a str> {
   }
 }
 
-/// Returns the directory where the NSIS and WiX toolsets and the WebView2 installers are cached.
+/// Returns the directory where the NSIS and WiX toolsets are cached, along with the WebView2
+/// installers that the NSIS bundler downloads.
 ///
 /// This is `<local tools directory>/.tauri` when `bundle > useLocalToolsDir` is enabled,
 /// and `<cache dir>/tauri` otherwise.

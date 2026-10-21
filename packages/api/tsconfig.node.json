@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["rollup.config.ts", "eslint.config.js"]
+}

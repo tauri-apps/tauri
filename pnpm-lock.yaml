@@ -317,8 +317,8 @@ importers:
   packages/cli:
     devDependencies:
       '@napi-rs/cli':
-        specifier: 3.9.0
-        version: 3.9.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.11.0)(supports-color@10.2.2)
+        specifier: 3.10.8
+        version: 3.10.8(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.11.0)(supports-color@10.2.2)
       '@types/node':
         specifier: ^24.11.0
         version: 24.11.0
@@ -1225,8 +1225,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@napi-rs/cli@3.9.0':
-    resolution: {integrity: sha512-ZlerYOCLgVdaqbVDt8+uQxmU9j8bKMVFcYo6zRHJJHTO9jN5060+y953aIVc/0zkVSKq+fHjDAtTGOrbxpeZCw==}
+  '@napi-rs/cli@3.10.8':
+    resolution: {integrity: sha512-hg7m8VwECTIIHxNzajDG8QgtTOEVAKiIVLCLCW90Th6Z5R/ijWjh16iaQrRvXj4ve/S2fcXYo5cctCWJ8aVxIg==}
     engines: {node: ^20.17.0 || ^22.13.0 || >= 23.5.0}
     hasBin: true
     peerDependencies:
@@ -3651,10 +3651,6 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
-  js-yaml@4.3.2:
-    resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
-    hasBin: true
-
   js-yaml@5.4.3:
     resolution: {integrity: sha512-yzzNtgczwgoVHNigCyKTXcQJU4Y8t/ikU4UxXW0BvrLfHTGWZhsNcOT2s/a7vn81/4KqVnNmHjaUEPlvWnNwVw==}
     hasBin: true
@@ -5850,7 +5846,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@napi-rs/cli@3.9.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.11.0)(supports-color@10.2.2)':
+  '@napi-rs/cli@3.10.8(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.11.0)(supports-color@10.2.2)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@24.11.0)
       '@napi-rs/cross-toolchain': 1.0.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(supports-color@10.2.2)
@@ -5859,8 +5855,8 @@ snapshots:
       clipanion: 4.0.0-rc.4(typanion@3.14.0)
       colorette: 2.0.20
       es-toolkit: 1.49.0
-      js-yaml: 4.3.2
-      obug: 2.1.4
+      js-yaml: 5.4.3
+      obug: 3.0.0
       semver: 7.8.5
       typanion: 3.14.0
       typescript: 6.0.3
@@ -8286,10 +8282,6 @@ snapshots:
   jiti@2.6.1: {}
 
   js-tokens@4.0.0: {}
-
-  js-yaml@4.3.2:
-    dependencies:
-      argparse: 2.0.1
 
   js-yaml@5.4.3:
     dependencies:

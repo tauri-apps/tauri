@@ -1064,13 +1064,22 @@ mod tests {
     /// A homepage, a license, a start menu folder, a file association, a deep
     /// link protocol, a resource and a second binary.
     optional_content: bool,
+    images: Images,
   }
 
-  /// Takes every branch of the template at least once.
-  ///
-  /// `offlineInstaller` is the one branch left out: it declares nothing
-  /// `embedBootstrapper` does not and would download the whole WebView2 runtime,
-  /// which is far too big for a test.
+  /// Which of the five icon and image settings a configuration sets. The
+  /// uninstaller header image stands on its own because the template has an arm
+  /// for it being the only one set.
+  enum Images {
+    None,
+    AllButUninstallerHeader,
+    OnlyUninstallerHeader,
+  }
+
+  /// Takes every branch of the template at least once, bar two that declare
+  /// nothing and cost too much to reach: `offlineInstaller`, which would
+  /// download the whole WebView2 runtime, and the uninstaller signing command,
+  /// which needs a signing tool for makensis to run.
   fn configurations() -> Vec<Configuration> {
     vec![
       // Nothing optional configured, which is also the only configuration where
@@ -1087,8 +1096,10 @@ mod tests {
         display_language_selector: false,
         installer_hooks: false,
         optional_content: false,
+        images: Images::None,
       },
-      // Everything optional configured at once
+      // Everything optional configured at once, bar the uninstaller header
+      // image, which the `current-user` configuration takes on its own
       Configuration {
         name: "full",
         target: "x86_64-pc-windows-msvc",
@@ -1101,6 +1112,7 @@ mod tests {
         display_language_selector: true,
         installer_hooks: true,
         optional_content: true,
+        images: Images::AllButUninstallerHeader,
       },
       // `perMachine` with the WebView2 section present but no minimum version,
       // which is the pair the two configurations above never compile together
@@ -1116,9 +1128,11 @@ mod tests {
         display_language_selector: false,
         installer_hooks: false,
         optional_content: true,
+        images: Images::None,
       },
       // `currentUser` with a minimum version but no hooks, for the remaining
-      // install mode and minimum version pair, and the `embedBootstrapper` arm
+      // install mode and minimum version pair, the `embedBootstrapper` arm and
+      // the uninstaller header image on its own
       Configuration {
         name: "current-user",
         target: "x86_64-pc-windows-msvc",
@@ -1131,6 +1145,7 @@ mod tests {
         display_language_selector: false,
         installer_hooks: true,
         optional_content: false,
+        images: Images::OnlyUninstallerHeader,
       },
     ]
   }
@@ -1191,8 +1206,30 @@ mod tests {
     .collect()
   }
 
-  fn compile(configuration: &Configuration) {
-    let dir = tempfile::tempdir().unwrap();
+  /// A one pixel, 32 bit icon: an icon directory with a single entry, a bitmap
+  /// header, one opaque pixel and an empty mask. `MUI_ICON` becomes NSIS's
+  /// `Icon` command, which reads the file and rejects anything that is not an
+  /// icon.
+  const ICON: &[u8] = &[
+    0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 32, 0, 48, 0, 0, 0, 22, 0, 0, 0, 40, 0, 0, 0, 1, 0, 0, 0,
+    2, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0,
+  ];
+
+  /// A one pixel, 24 bit bitmap. The images only have to exist, since NSIS packs
+  /// them into the installer without reading them.
+  const BITMAP: &[u8] = &[
+    0x42, 0x4D, 58, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+    24, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ];
+
+  fn compile(configuration: &Configuration) -> crate::Result<()> {
+    // The name goes in the directory makensis prints as it compiles, which is
+    // the only thing tying its output to a configuration
+    let dir = tempfile::Builder::new()
+      .prefix(&format!("nsis-{}-", configuration.name))
+      .tempdir()
+      .unwrap();
     let out = dir.path().join("out");
     fs::create_dir_all(&out).unwrap();
 
@@ -1252,6 +1289,14 @@ mod tests {
       path
     });
 
+    let image = |name: &str, bytes: &[u8]| {
+      let path = dir.path().join(name);
+      fs::write(&path, bytes).unwrap();
+      path
+    };
+    let all_but_uninstaller_header =
+      matches!(configuration.images, Images::AllButUninstallerHeader);
+
     bundle_settings.windows = WindowsSettings {
       webview_install_mode: configuration.webview_install_mode.clone(),
       allow_downgrades: configuration.allow_downgrades,
@@ -1268,6 +1313,12 @@ mod tests {
           .optional_content
           .then(|| "Tauri Tests".to_string()),
         installer_hooks,
+        installer_icon: all_but_uninstaller_header.then(|| image("icon.ico", ICON)),
+        header_image: all_but_uninstaller_header.then(|| image("header.bmp", BITMAP)),
+        sidebar_image: all_but_uninstaller_header.then(|| image("sidebar.bmp", BITMAP)),
+        uninstaller_icon: all_but_uninstaller_header.then(|| image("uninstaller.ico", ICON)),
+        uninstaller_header_image: matches!(configuration.images, Images::OnlyUninstallerHeader)
+          .then(|| image("uninstaller-header.bmp", BITMAP)),
         ..Default::default()
       }),
       ..Default::default()
@@ -1293,18 +1344,38 @@ mod tests {
       .build()
       .unwrap();
 
-    if let Err(error) = bundle_project(&settings, false) {
-      panic!(
-        "the `{}` configuration of the NSIS template does not compile: {error}",
-        configuration.name
-      );
-    }
+    bundle_project(&settings, false)?;
+
+    Ok(())
   }
 
+  // Serial because the mirror tests of `http_utils` set the environment
+  // variable that redirects the toolset download, and environment variables
+  // belong to the whole process
   #[test]
+  #[serial_test::serial]
   fn template_compiles_in_every_configuration() {
-    for configuration in configurations() {
-      compile(&configuration);
-    }
+    let configurations = configurations();
+
+    // Every configuration is compiled even after one has failed, so that the
+    // failure names all of the broken ones rather than only the first
+    let failures = configurations
+      .iter()
+      .filter_map(|configuration| {
+        compile(configuration)
+          .err()
+          .map(|error| format!("  `{}`: {error}", configuration.name))
+      })
+      .collect::<Vec<_>>();
+
+    assert!(
+      failures.is_empty(),
+      // The makensis output says why, and names the temporary directory of the
+      // configuration it belongs to
+      "the NSIS template does not compile in {} of {} configurations:\n{}",
+      failures.len(),
+      configurations.len(),
+      failures.join("\n")
+    );
   }
 }

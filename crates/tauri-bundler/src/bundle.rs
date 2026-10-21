@@ -271,7 +271,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
-  #[cfg(target_os = "macos")]
+  // Cross-compiling macOS bundles from Linux leaves the intermediate .app
+  // behind for the same reason the native path does, so clean it up there too.
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
   {
     // Clean up .app if only building dmg or updater
     if !package_types.contains(&PackageType::MacOsBundle) {

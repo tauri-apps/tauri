@@ -163,11 +163,11 @@ pub enum Error {
   #[error("{0}")]
   RpmError(#[from] rpm::Error),
   /// Failed to notarize application.
-  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  #[cfg(target_os = "macos")]
   #[error("failed to notarize app: {0}")]
   AppleNotarization(#[from] NotarizeAuthError),
   /// Failed to codesign application.
-  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  #[cfg(target_os = "macos")]
   #[error("failed codesign application: {0}")]
   AppleCodesign(#[from] Box<tauri_macos_sign::Error>),
   /// Handlebars template error.
@@ -178,7 +178,7 @@ pub enum Error {
   SemverError(#[from] semver::Error),
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "macos")]
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, thiserror::Error)]
 pub enum NotarizeAuthError {

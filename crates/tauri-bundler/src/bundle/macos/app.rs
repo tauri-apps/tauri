@@ -22,10 +22,12 @@
 // Currently, cargo-bundle does not support Frameworks, nor does it support placing arbitrary
 // files into the `Contents` directory of the bundle.
 
+use super::SignTarget;
 use super::icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file};
-use super::sign::SignTarget;
 #[cfg(target_os = "macos")]
 use super::sign::{notarize, notarize_auth, notarize_without_stapling, sign};
+#[cfg(not(target_os = "macos"))]
+use crate::bundle::settings::Arch;
 #[cfg(target_os = "macos")]
 use crate::error::NotarizeAuthError;
 use crate::{
@@ -156,9 +158,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     }
   }
 
-  #[cfg(not(target_os = "macos"))]
-  let _ = sign_paths;
-
   Ok(vec![app_bundle_path])
 }
 
@@ -176,7 +175,12 @@ fn sign_with_rcodesign(app_bundle_path: &Path, settings: &Settings) -> crate::Re
   let rcodesign = match super::tools::resolve(settings, "rcodesign", "TAURI_BUNDLER_RCODESIGN") {
     Ok(path) => path,
     Err(error) => {
-      log::warn!("{error}; skipping ad-hoc signing");
+      let hint = if matches!(settings.binary_arch(), Arch::AArch64 | Arch::Universal) {
+        "the resulting arm64 app will not launch on Apple Silicon"
+      } else {
+        "the app might not launch on macOS"
+      };
+      log::warn!("{error}; skipping ad-hoc signing, {hint}");
       return Ok(());
     }
   };
@@ -190,8 +194,29 @@ fn sign_with_rcodesign(app_bundle_path: &Path, settings: &Settings) -> crate::Re
   }
 
   log::info!(action = "Signing"; "{} (ad-hoc)", app_bundle_path.display());
-  Command::new(rcodesign)
-    .arg("sign")
+
+  let (_entitlements_temp_file, entitlements_path) = match settings.macos().entitlements.as_ref() {
+    Some(crate::Entitlements::Path(path)) => (None, Some(path.to_path_buf())),
+    Some(crate::Entitlements::Plist(plist)) => {
+      let mut temp_file = tempfile::NamedTempFile::new()?;
+      plist::to_writer_xml(temp_file.as_file_mut(), plist)?;
+      let path = temp_file.path().to_path_buf();
+      (Some(temp_file), Some(path))
+    }
+    None => (None, None),
+  };
+
+  let mut command = Command::new(rcodesign);
+  command.arg("sign");
+  if let Some(entitlements_path) = entitlements_path {
+    command
+      .arg("--entitlements-xml-file")
+      .arg(entitlements_path);
+  }
+  if settings.macos().hardened_runtime {
+    command.arg("--code-signature-flags").arg("runtime");
+  }
+  command
     .arg(app_bundle_path)
     .output_ok()
     .context("failed to ad-hoc sign app bundle")?;

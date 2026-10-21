@@ -93,7 +93,9 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     staging_path.join("Applications"),
   )?;
 
-  let iso_path = staging_path.join("dmg-staging.iso");
+  // The ISO must live outside the staging directory, otherwise genisoimage
+  // would include its own output in the image.
+  let iso_path = output_path.join("dmg-staging.iso");
   let genisoimage = super::super::tools::resolve(settings, "genisoimage", GENISOIMAGE_ENV)?;
 
   log::info!(action = "Running"; "{}", genisoimage.display());
@@ -114,6 +116,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .arg(&dmg_path)
     .output_ok()
     .with_context(|| format!("failed to run {}", dmg_tool.display()))?;
+
+  fs::remove_file(&iso_path).fs_context("failed to remove dmg staging image", &iso_path)?;
 
   if !dmg_path.is_file() {
     return Err(crate::Error::GenericError(format!(
@@ -142,7 +146,41 @@ fn volume_name(product_name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-  use super::volume_name;
+  use super::{bundle_project, volume_name};
+  use crate::{
+    PackageType, Settings,
+    bundle::{
+      Bundle, BundleBinary, BundleSettings, MacOsSettings, PackageSettings, SettingsBuilder,
+    },
+  };
+  use std::{fs, path::Path};
+
+  fn settings(project_dir: &Path, no_sign: bool) -> Settings {
+    SettingsBuilder::new()
+      .project_out_directory(project_dir)
+      .package_settings(PackageSettings {
+        product_name: "Test".into(),
+        version: "0.1.0".into(),
+        description: "test".into(),
+        homepage: None,
+        authors: None,
+        default_run: None,
+      })
+      .bundle_settings(BundleSettings {
+        macos: MacOsSettings::default(),
+        ..Default::default()
+      })
+      .target("aarch64-apple-darwin".into())
+      .no_sign(no_sign)
+      .build()
+      .expect("failed to build settings")
+  }
+
+  fn write_binary(project_dir: &Path) {
+    let executable = project_dir.join("Test");
+    fs::create_dir_all(executable.parent().unwrap()).unwrap();
+    fs::write(&executable, b"#!/bin/sh\n").unwrap();
+  }
 
   #[test]
   fn volume_name_is_limited_to_iso_bytes() {
@@ -155,5 +193,83 @@ mod tests {
       volume_name("网络工具网络工具网络工具网络工具网络工具"),
       "网络工具网络工具网络"
     );
+  }
+
+  #[test]
+  fn builds_dmg_from_an_existing_app_bundle() {
+    if which::which("genisoimage").is_err() || which::which("dmg").is_err() {
+      eprintln!("skipping dmg bundling test: genisoimage or dmg is missing");
+      return;
+    }
+
+    let project_dir = tempfile::tempdir().unwrap();
+    write_binary(project_dir.path());
+    let app_path = project_dir.path().join("bundle/macos/Test.app");
+    fs::create_dir_all(app_path.join("Contents/MacOS")).unwrap();
+    fs::write(app_path.join("Contents/MacOS/Test"), b"#!/bin/sh\n").unwrap();
+    let bundles = vec![Bundle {
+      package_type: PackageType::MacOsBundle,
+      bundle_paths: vec![app_path],
+    }];
+
+    let bundled = bundle_project(&settings(project_dir.path(), true), &bundles).unwrap();
+
+    assert_eq!(bundled.dmg.len(), 1);
+    let dmg_path = &bundled.dmg[0];
+    assert_eq!(
+      dmg_path.file_name().unwrap().to_string_lossy(),
+      "Test_0.1.0_aarch64.dmg"
+    );
+    let bytes = fs::read(dmg_path).unwrap();
+    assert!(!bytes.is_empty());
+    // UDIF images end with the `koly` trailer.
+    assert_eq!(&bytes[bytes.len() - 512..bytes.len() - 508], b"koly");
+
+    // The intermediate ISO must not leak into the output directory.
+    assert!(!dmg_path.with_file_name("dmg-staging.iso").exists());
+  }
+
+  #[test]
+  fn builds_app_bundle_and_dmg_from_scratch() {
+    if which::which("genisoimage").is_err() || which::which("dmg").is_err() {
+      eprintln!("skipping dmg bundling test: genisoimage or dmg is missing");
+      return;
+    }
+
+    let project_dir = tempfile::tempdir().unwrap();
+    write_binary(project_dir.path());
+
+    let settings = SettingsBuilder::new()
+      .project_out_directory(project_dir.path())
+      .package_settings(PackageSettings {
+        product_name: "Test".into(),
+        version: "0.1.0".into(),
+        description: "test".into(),
+        homepage: None,
+        authors: None,
+        default_run: None,
+      })
+      .bundle_settings(BundleSettings {
+        macos: MacOsSettings::default(),
+        ..Default::default()
+      })
+      .binaries(vec![BundleBinary::with_path(
+        "Test".into(),
+        true,
+        Some("src/main.rs".into()),
+      )])
+      .target("aarch64-apple-darwin".into())
+      .no_sign(true)
+      .build()
+      .expect("failed to build settings");
+
+    // No prebuilt bundles: the dmg path has to build the app itself.
+    let bundled = bundle_project(&settings, &[]).unwrap();
+
+    assert_eq!(bundled.app.len(), 1);
+    let app_path = &bundled.app[0];
+    assert!(app_path.join("Contents/Info.plist").is_file());
+    assert!(app_path.join("Contents/MacOS/Test").is_file());
+    assert_eq!(bundled.dmg.len(), 1);
   }
 }

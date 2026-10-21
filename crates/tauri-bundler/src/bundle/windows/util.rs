@@ -8,6 +8,7 @@ use std::{
   fs,
   io::Write,
   path::{Path, PathBuf},
+  sync::Once,
 };
 use ureq::ResponseExt;
 
@@ -272,11 +273,15 @@ pub fn tauri_tools_path(settings: &Settings) -> crate::Result<PathBuf> {
     let cache_dir = dirs::cache_dir().unwrap().join("tauri");
     if is_redirected(&cache_dir) {
       let tools_path = settings.project_out_directory().join(".tauri");
-      log::warn!(
-        "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. Set `bundle > useLocalToolsDir` to `true` to silence this warning.",
-        cache_dir.display(),
-        tools_path.display()
-      );
+      // both the NSIS and the MSI bundlers, and their updater variants, ask for this directory
+      static WARNING: Once = Once::new();
+      WARNING.call_once(|| {
+        log::warn!(
+          "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. To share them across build profiles and targets in `target/.tauri` and silence this warning, set `bundle > useLocalToolsDir` to `true`.",
+          cache_dir.display(),
+          tools_path.display()
+        )
+      });
       tools_path
     } else {
       cache_dir

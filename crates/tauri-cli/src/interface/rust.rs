@@ -220,7 +220,7 @@ impl Rust {
         &options,
         &run_args,
         &self.app_settings,
-        dirs.tauri,
+        dirs,
       )?))
     } else {
       None

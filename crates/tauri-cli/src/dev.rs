@@ -92,7 +92,7 @@ pub struct Options {
   /// share targets, app URI handlers, Windows App SDK) work during development.
   ///
   /// Requires Microsoft's `winapp` CLI (`npm i -D @microsoft/winappcli`) and a
-  /// `Package.appxmanifest` in the Tauri directory, created by `winapp init`.
+  /// `Package.appxmanifest` in the Tauri directory or the project root, created by `winapp init`.
   #[clap(long)]
   pub packaged: bool,
   /// Specify port for the built-in dev server for static files. Defaults to 1430.

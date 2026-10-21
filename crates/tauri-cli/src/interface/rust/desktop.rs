@@ -6,6 +6,7 @@ use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, Rustu
 use crate::{
   CommandExt, Error,
   error::{Context, ErrorExt},
+  helpers::app_paths::Dirs,
 };
 
 use shared_child::SharedChild;
@@ -263,21 +264,14 @@ impl WinappLauncher {
     options: &Options,
     run_args: &[String],
     app_settings: &RustAppSettings,
-    tauri_dir: &Path,
+    dirs: &Dirs,
   ) -> crate::Result<Self> {
     if !matches!(app_settings.target_platform, TargetPlatform::Windows) {
       crate::error::bail!("`--packaged` is only supported when targeting Windows");
     }
 
-    let manifest = tauri_dir.join("Package.appxmanifest");
-    if !manifest.exists() {
-      crate::error::bail!(
-        "`--packaged` needs a package manifest at {}. Create one with `winapp init` (https://github.com/microsoft/winappCli).",
-        manifest.display()
-      );
-    }
-
-    let bin_path = app_settings.app_binary_path(options, tauri_dir)?;
+    let manifest = winapp_manifest(dirs)?;
+    let bin_path = app_settings.app_binary_path(options, dirs.tauri)?;
     let out_dir = bin_path
       .parent()
       .expect("app binary path has no parent directory");
@@ -339,6 +333,23 @@ impl WinappLauncher {
       error,
     })
   }
+}
+
+/// Finds the package manifest `winapp init` created, in the Tauri directory or in the project
+/// root, which is where it lands when `winapp init` runs next to `package.json`. The file names
+/// are the ones `winapp` itself looks for, in the same order.
+fn winapp_manifest(dirs: &Dirs) -> crate::Result<PathBuf> {
+  [dirs.tauri, dirs.frontend]
+    .into_iter()
+    .flat_map(|dir| ["Package.appxmanifest", "appxmanifest.xml"].map(|name| dir.join(name)))
+    .find(|path| path.exists())
+    .with_context(|| {
+      format!(
+        "`--packaged` needs a `Package.appxmanifest` in {} or {}. Create one with `winapp init` (https://github.com/microsoft/winappCli).",
+        dirs.tauri.display(),
+        dirs.frontend.display()
+      )
+    })
 }
 
 /// Hard links `from` at `to`, replacing any file there, or copies it where links are not supported.

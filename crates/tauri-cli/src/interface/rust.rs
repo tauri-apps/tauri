@@ -25,7 +25,9 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
+use tauri_utils::config::{
+  BundleConfig, DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file,
+};
 
 use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
@@ -229,10 +231,16 @@ impl Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, &run_args, launcher, move |status, reason| {
-        on_exit(status, reason);
-        tx.send(()).unwrap();
-      })?;
+      self.run_dev(
+        options,
+        &run_args,
+        launcher,
+        &config.bundle,
+        move |status, reason| {
+          on_exit(status, reason);
+          tx.send(()).unwrap();
+        },
+      )?;
 
       rx.recv().unwrap();
       Ok(())
@@ -242,13 +250,14 @@ impl Rust {
         config,
         &options.additional_watch_folders,
         &merge_configs,
-        |rust: &mut Rust, _config| {
+        |rust: &mut Rust, config| {
           let on_exit = on_exit.clone();
           rust
             .run_dev(
               options.clone(),
               &run_args,
               launcher.clone(),
+              &config.bundle,
               move |status, reason| on_exit(status, reason),
             )
             .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
@@ -518,12 +527,14 @@ impl Rust {
     options: Options,
     run_args: &[String],
     launcher: Option<Arc<desktop::WinappLauncher>>,
+    bundle: &BundleConfig,
     on_exit: F,
   ) -> crate::Result<desktop::DevChild> {
     desktop::run_dev(
       options,
       run_args,
       launcher,
+      bundle,
       &mut self.available_targets,
       self.config_features.clone(),
       on_exit,

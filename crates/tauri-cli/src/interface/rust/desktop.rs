@@ -20,7 +20,11 @@ use std::{
     atomic::{AtomicBool, Ordering},
   },
 };
-use tauri_utils::platform::Target as TargetPlatform;
+use tauri_utils::{
+  config::{BundleConfig, BundleResources, WebviewInstallMode},
+  platform::Target as TargetPlatform,
+  resources::{ResourcePaths, external_binaries},
+};
 
 pub struct DevChild {
   manually_killed_app: Arc<AtomicBool>,
@@ -106,10 +110,14 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   options: Options,
   run_args: &[String],
   launcher: Option<Arc<WinappLauncher>>,
+  bundle: &BundleConfig,
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
 ) -> crate::Result<DevChild> {
+  // the files staged with the app come from the config, which can change between runs
+  let launcher = launcher.map(|launcher| (launcher, bundle.clone()));
+
   // under package identity cargo only builds; `winapp run` launches the app from a
   // registered loose layout package, because identity is tied to the activation path.
   let mut dev_cmd = cargo_command(
@@ -190,7 +198,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   std::thread::spawn(move || {
     let mut status = dev_child_.wait().expect("failed to build app");
 
-    if let (true, Some(launcher)) = (status.success(), &launcher) {
+    if let (true, Some((launcher, bundle))) = (status.success(), &launcher) {
       // hold the lock until the child is stored: `kill()` flags the kill before taking it,
       // so it either finds the child or the launch sees the flag and is skipped
       let mut app_child = app_child_.lock().unwrap();
@@ -199,7 +207,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         return;
       }
 
-      match launcher.spawn() {
+      match launcher.spawn(bundle) {
         Ok(child) => {
           let child = Arc::new(child);
           app_child.replace(child.clone());
@@ -248,11 +256,12 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
 /// Launches the built app under Windows package identity with Microsoft's `winapp` CLI.
 ///
 /// `winapp run` copies its input folder into a loose layout package, so we stage just the
-/// binary instead of pointing it at the whole cargo target directory.
+/// app files instead of pointing it at the whole cargo target directory.
 ///
 /// Resolved once per dev session, since resolving the binary path runs `cargo metadata`.
 pub struct WinappLauncher {
   bin_path: PathBuf,
+  target_triple: String,
   staging_dir: PathBuf,
   appx_dir: PathBuf,
   manifest: PathBuf,
@@ -294,24 +303,30 @@ impl WinappLauncher {
       // kept out of the staging directory, otherwise each run would copy the previous layout
       appx_dir: out_dir.join("winapp-dev-appx"),
       bin_path,
+      target_triple: app_settings.target_triple.clone(),
       manifest,
       app_args: run_args.to_vec(),
     })
   }
 
-  fn spawn(&self) -> crate::Result<SharedChild> {
+  fn spawn(&self, bundle: &BundleConfig) -> crate::Result<SharedChild> {
+    let out_dir = self
+      .bin_path
+      .parent()
+      .expect("app binary path has no parent directory");
     let exe_name = self
       .bin_path
       .file_name()
       .expect("app binary path has no file name");
 
-    fs::create_dir_all(&self.staging_dir).fs_context(
-      "failed to create winapp staging directory",
-      &self.staging_dir,
-    )?;
-    let staged_bin = self.staging_dir.join(exe_name);
-    link_or_copy(&self.bin_path, &staged_bin)
-      .fs_context("failed to stage app binary for winapp", &self.bin_path)?;
+    // the app looks up its resources and sidecars next to its executable, where tauri-build
+    // copies them, so they are staged along with it
+    for file in std::iter::once(PathBuf::from(exe_name)).chain(self.bundled_files(bundle)?) {
+      let (from, to) = (out_dir.join(&file), self.staging_dir.join(&file));
+      let to_dir = to.parent().expect("staged file has no parent directory");
+      fs::create_dir_all(to_dir).fs_context("failed to create winapp staging directory", to_dir)?;
+      link_or_copy(&from, &to).fs_context("failed to stage app file for winapp", &from)?;
+    }
 
     // `Command` only looks for `winapp.exe`, which the winget install provides, while npm
     // installs a `winapp.cmd` shim; `which` resolves both through `PATHEXT`
@@ -345,6 +360,47 @@ impl WinappLauncher {
       command: "winapp".into(),
       error,
     })
+  }
+
+  /// The files tauri-build copies next to the app binary, relative to the target directory.
+  fn bundled_files(&self, bundle: &BundleConfig) -> crate::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+
+    if let Some(external_bin) = &bundle.external_bin {
+      let paths = external_binaries(external_bin, &self.target_triple, &TargetPlatform::Windows);
+      for path in ResourcePaths::new(&paths, true) {
+        let path = path.context("failed to resolve external binary")?;
+        let file_name = path
+          .file_name()
+          .expect("failed to extract external binary filename")
+          .to_string_lossy()
+          .replace(&format!("-{}", self.target_triple), "");
+        files.push(file_name.into());
+      }
+    }
+
+    let mut resources = bundle
+      .resources
+      .clone()
+      .unwrap_or(BundleResources::List(Vec::new()));
+    if let WebviewInstallMode::FixedRuntime { path } = &bundle.windows.webview_install_mode {
+      resources.push(path.display().to_string());
+    }
+    let resources = match &resources {
+      BundleResources::List(list) => ResourcePaths::new(list, true),
+      BundleResources::Map(map) => ResourcePaths::from_map(map, true),
+    };
+    for resource in resources.iter() {
+      let resource = resource.context("failed to resolve resource")?;
+      files.push(resource.target().to_path_buf());
+    }
+
+    // copied for `-gnu` targets, which load the WebView2 loader dynamically
+    if self.bin_path.with_file_name("WebView2Loader.dll").exists() {
+      files.push("WebView2Loader.dll".into());
+    }
+
+    Ok(files)
   }
 }
 
@@ -664,7 +720,9 @@ mod terminal {
 
 #[cfg(test)]
 mod tests {
-  use super::cargo_bin;
+  use super::{WinappLauncher, cargo_bin};
+  use std::{collections::HashMap, fs, path::PathBuf};
+  use tauri_utils::config::{BundleConfig, BundleResources};
 
   fn args(args: &[&str]) -> Vec<String> {
     args.iter().map(|arg| arg.to_string()).collect()
@@ -676,5 +734,47 @@ mod tests {
     assert_eq!(cargo_bin(&args(&["--release", "--bin=app"])), Some("app"));
     assert_eq!(cargo_bin(&args(&["--bins", "--release"])), None);
     assert_eq!(cargo_bin(&args(&["--bin"])), None);
+  }
+
+  #[test]
+  fn bundled_files_match_tauri_build_layout() {
+    let triple = "x86_64-pc-windows-msvc";
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src");
+    let out_dir = dir.path().join("target");
+    fs::create_dir_all(src.join("binaries")).unwrap();
+    fs::create_dir_all(src.join("assets/nested")).unwrap();
+    fs::create_dir_all(&out_dir).unwrap();
+    fs::write(src.join(format!("binaries/sidecar-{triple}.exe")), "").unwrap();
+    fs::write(src.join("assets/nested/data.json"), "").unwrap();
+    fs::write(out_dir.join("WebView2Loader.dll"), "").unwrap();
+
+    let launcher = WinappLauncher {
+      bin_path: out_dir.join("app.exe"),
+      target_triple: triple.into(),
+      staging_dir: out_dir.join("winapp-dev"),
+      appx_dir: out_dir.join("winapp-dev-appx"),
+      manifest: src.join("Package.appxmanifest"),
+      app_args: Vec::new(),
+    };
+    let bundle = BundleConfig {
+      external_bin: Some(vec![src.join("binaries/sidecar").display().to_string()]),
+      resources: Some(BundleResources::Map(HashMap::from([(
+        src.join("assets").display().to_string(),
+        "res".into(),
+      )]))),
+      ..Default::default()
+    };
+
+    let mut files = launcher.bundled_files(&bundle).unwrap();
+    files.sort();
+    assert_eq!(
+      files,
+      [
+        PathBuf::from("WebView2Loader.dll"),
+        PathBuf::from("res/nested/data.json"),
+        PathBuf::from("sidecar.exe"),
+      ]
+    );
   }
 }

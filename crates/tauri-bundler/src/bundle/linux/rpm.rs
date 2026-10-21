@@ -17,13 +17,8 @@ use super::freedesktop;
 /// Converts a SemVer version string to the RPM `Version` tag format.
 ///
 /// RPM reserves `-` as the separator between `Version` and `Release`, and the
-/// `rpm` crate (since 0.30) refuses a `Version` that contains it. SemVer
-/// separates the pre-release with `-`, so `1.0.0-alpha` becomes `1.0.0~alpha`:
-/// `~` is RPM's "sorts before" marker, which keeps the ordering SemVer
-/// defines (`1.0.0~alpha < 1.0.0`). A `-` inside the pre-release or the build
-/// metadata is rewritten to `.`, so `1.0.0-rc-1` and `1.0.0-rc.1` produce the
-/// same output. Inputs that don't parse as SemVer, or carry neither a
-/// pre-release nor build metadata, are returned unchanged.
+/// `rpm` crate (since v0.20) refuses a `Version` that contains it, so it is
+/// replaced with `~`.
 fn to_rpm_version(version: &str) -> String {
   match semver::Version::parse(version) {
     Ok(v) if !v.pre.is_empty() || !v.build.is_empty() => {

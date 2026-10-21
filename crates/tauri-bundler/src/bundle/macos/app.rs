@@ -22,14 +22,12 @@
 // Currently, cargo-bundle does not support Frameworks, nor does it support placing arbitrary
 // files into the `Contents` directory of the bundle.
 
+use super::SignTarget;
 use super::icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file};
-use super::sign::SignTarget;
 #[cfg(target_os = "macos")]
 use super::sign::{notarize, notarize_auth, notarize_without_stapling, sign};
 #[cfg(target_os = "macos")]
 use crate::error::NotarizeAuthError;
-#[cfg(target_os = "macos")]
-use crate::utils::CommandExt;
 use crate::{
   Error::GenericError,
   Settings,
@@ -38,13 +36,16 @@ use crate::{
   utils::fs_utils,
 };
 
-#[cfg(target_os = "macos")]
-use std::process::Command;
 use std::{
   ffi::OsStr,
   fs,
   path::{Path, PathBuf},
 };
+
+#[cfg(target_os = "macos")]
+use crate::utils::CommandExt;
+#[cfg(target_os = "macos")]
+use std::process::Command;
 
 const NESTED_CODE_FOLDER: [&str; 6] = [
   "MacOS",
@@ -117,6 +118,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
+  #[cfg(not(target_os = "macos"))]
+  sign_adhoc(&app_bundle_path, settings)?;
+
   #[cfg(target_os = "macos")]
   if settings.no_sign() {
     log::warn!("Skipping signing due to --no-sign flag.",);
@@ -156,10 +160,65 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     }
   }
 
-  #[cfg(not(target_os = "macos"))]
-  let _ = sign_paths;
-
   Ok(vec![app_bundle_path])
+}
+
+/// Ad-hoc signs the bundle when bundling on a non-macOS host.
+///
+/// Cross-compiled arm64 binaries need at least an ad-hoc signature to launch on
+/// Apple Silicon. Certificate-based signing is left to macOS or a custom
+/// pipeline for now.
+#[cfg(not(target_os = "macos"))]
+fn sign_adhoc(app_bundle_path: &Path, settings: &Settings) -> crate::Result<()> {
+  if settings.no_sign() {
+    return Ok(());
+  }
+
+  if let Some(identity) = settings.macos().signing_identity.as_deref() {
+    if identity != "-" {
+      log::warn!(
+        "code signing identity signing is not supported on Linux hosts; signing ad-hoc instead"
+      );
+    }
+  }
+
+  log::info!(action = "Signing"; "{} (ad-hoc)", app_bundle_path.display());
+
+  let mut signing_settings = apple_codesign::SigningSettings::default();
+  if let Some(entitlements) = settings.macos().entitlements.as_ref() {
+    let mut xml = Vec::new();
+    match entitlements {
+      crate::Entitlements::Path(path) => {
+        xml = fs::read(path)
+          .map_err(|error| GenericError(format!("failed to read {path:?}: {error}")))?;
+      }
+      crate::Entitlements::Plist(plist) => {
+        plist::to_writer_xml(&mut xml, plist)
+          .map_err(|error| GenericError(format!("failed to encode entitlements: {error}")))?;
+      }
+    }
+    let xml = String::from_utf8(xml)
+      .map_err(|_| GenericError("entitlements are not valid UTF-8".into()))?;
+    signing_settings
+      .set_entitlements_xml(apple_codesign::SettingsScope::Main, xml)
+      .map_err(|error| GenericError(format!("failed to set entitlements: {error}")))?;
+  }
+  if settings.macos().hardened_runtime {
+    signing_settings.set_code_signature_flags(
+      apple_codesign::SettingsScope::Main,
+      apple_codesign::CodeSignatureFlags::RUNTIME,
+    );
+  }
+
+  let mut signer = apple_codesign::BundleSigner::new_from_path(app_bundle_path)
+    .map_err(|error| GenericError(format!("failed to read app bundle: {error}")))?;
+  signer
+    .collect_nested_bundles()
+    .map_err(|error| GenericError(format!("failed to collect nested bundles: {error}")))?;
+  signer
+    .write_signed_bundle(app_bundle_path, &signing_settings)
+    .map_err(|error| GenericError(format!("failed to ad-hoc sign app bundle: {error}")))?;
+  Ok(())
 }
 
 #[cfg(target_os = "macos")]

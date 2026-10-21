@@ -83,6 +83,11 @@ opt-level = "s"
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
+# apple-xar 0.20 (pulled in by apple-codesign) still binds the old `xz2` crate,
+# whose `lzma-sys` declares `links = "lzma"` and therefore conflicts with
+# `liblzma-sys` from the `rpm` crate. The upstream git version moved to
+# `liblzma`, but no release with that fix exists yet.
+apple-codesign = { git = "https://github.com/indygreg/apple-platform-rs" }
 
 [workspace.lints.clippy]
 # TODO: Update in next PR to keep changes small, see https://github.com/tauri-apps/tauri/pull/16029

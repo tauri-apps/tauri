@@ -448,7 +448,7 @@ fn run_build(
       if !(options.archive_only || options.no_sign) {
         let mut build_config = BuildConfig::new().allow_provisioning_updates();
         if let Some(credentials) = &credentials {
-          build_config = build_config.authentication_credentials(credentials.clone());
+          build_config = build_config.authentication_credentials(credentials.credentials.clone());
         }
         if skip_signing {
           build_config = build_config.skip_codesign();
@@ -461,7 +461,7 @@ fn run_build(
 
       let mut archive_config = ArchiveConfig::new().allow_provisioning_updates();
       if let Some(credentials) = &credentials {
-        archive_config = archive_config.authentication_credentials(credentials.clone());
+        archive_config = archive_config.authentication_credentials(credentials.credentials.clone());
       }
       if skip_signing {
         archive_config = archive_config.skip_codesign();
@@ -573,7 +573,7 @@ fn run_build(
 
         let mut export_config = ExportConfig::new().allow_provisioning_updates();
         if let Some(credentials) = &credentials {
-          export_config = export_config.authentication_credentials(credentials.clone());
+          export_config = export_config.authentication_credentials(credentials.credentials.clone());
         }
 
         target
@@ -657,22 +657,46 @@ fn create_ipa(app_path: &Path, ipa_path: &Path) -> Result<()> {
   Ok(())
 }
 
-fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCredentials>> {
-  match (
-    var("APPLE_API_KEY"),
-    var("APPLE_API_ISSUER"),
-    var_os("APPLE_API_KEY_PATH").map(PathBuf::from),
-  ) {
-    (Ok(key_id), Ok(key_issuer_id), Some(key_path)) => {
-      Ok(Some(cargo_mobile2::apple::AuthCredentials {
-        key_path,
-        key_id,
-        key_issuer_id,
+/// App Store Connect API credentials, keeping the temporary key file
+/// written from `APPLE_API_KEY_CONTENT` alive.
+struct AuthCredentials {
+  credentials: cargo_mobile2::apple::AuthCredentials,
+  _key_dir: Option<tempfile::TempDir>,
+}
+
+fn auth_credentials_from_env() -> Result<Option<AuthCredentials>> {
+  let key_path = var_os("APPLE_API_KEY_PATH").map(PathBuf::from);
+  let key_content = var_os("APPLE_API_KEY_CONTENT");
+  match (var("APPLE_API_KEY"), var("APPLE_API_ISSUER")) {
+    (Ok(key_id), Ok(key_issuer_id)) if key_path.is_some() || key_content.is_some() => {
+      let (key_path, key_dir) = match (key_path, key_content) {
+        (Some(key_path), _) => (key_path, None),
+        (None, Some(content)) => {
+          let tauri_macos_sign::ApiKey::Raw(key) =
+            tauri_macos_sign::ApiKey::from_content(&content).map_err(Box::new)?
+          else {
+            unreachable!()
+          };
+          let key_dir = tempfile::tempdir().context("failed to create temporary directory")?;
+          // xcodebuild requires the key file name to follow the AuthKey_<KEY_ID>.p8 format
+          let key_path = key_dir.path().join(format!("AuthKey_{key_id}.p8"));
+          fs::write(&key_path, key).fs_context("failed to write API key", key_path.clone())?;
+          (key_path, Some(key_dir))
+        }
+        (None, None) => unreachable!(),
+      };
+      Ok(Some(AuthCredentials {
+        credentials: cargo_mobile2::apple::AuthCredentials {
+          key_path,
+          key_id,
+          key_issuer_id,
+        },
+        _key_dir: key_dir,
       }))
     }
-    (Err(_), Err(_), None) => Ok(None),
+    (Err(_), Err(_)) if key_path.is_none() && key_content.is_none() => Ok(None),
     _ => crate::error::bail!(
-      "APPLE_API_KEY, APPLE_API_ISSUER and APPLE_API_KEY_PATH must be provided for code signing"
+      "APPLE_API_KEY, APPLE_API_ISSUER and APPLE_API_KEY_PATH (or APPLE_API_KEY_CONTENT) must be provided for code signing"
     ),
   }
 }

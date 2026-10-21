@@ -116,6 +116,9 @@ rand = "0.10"
 zip = { version = "9", default-features = false, features = ["deflate"] }
 which = "8"
 rayon = "1.10"
+tauri-macos-sign = { workspace = true }
+# signs App Store Connect API tokens (ES256)
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
 
 [dev-dependencies]
 serial_test = "3.5"
@@ -136,7 +139,6 @@ libc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
-tauri-macos-sign = { workspace = true }
 object = { version = "0.39", default-features = false, features = [
   "macho",
   "read_core",

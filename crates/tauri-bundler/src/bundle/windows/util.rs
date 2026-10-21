@@ -305,14 +305,15 @@ fn wow64_redirected_system_directory() -> Option<PathBuf> {
   None
 }
 
-/// Returns the Windows system directory (usually `C:\Windows\System32`) if 32-bit processes
-/// are redirected away from it, that is, on every Windows that isn't a 32-bit x86 one.
+/// Returns the Windows system directory (usually `C:\Windows\System32`) if the 32-bit x86 NSIS and
+/// WiX see a different one than this process, that is, unless this is a 32-bit x86 build too,
+/// which is either redirected the same way or runs on a 32-bit Windows that doesn't redirect.
 #[cfg(target_os = "windows")]
 fn wow64_redirected_system_directory() -> Option<PathBuf> {
   use std::{ffi::OsString, os::windows::ffi::OsStringExt};
   use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
 
-  if processor_architecture() == Some("x86") {
+  if cfg!(target_arch = "x86") {
     return None;
   }
 
@@ -369,9 +370,9 @@ mod tests {
   }
 
   #[test]
-  fn system_directory_is_redirected_on_64_bit_windows() {
+  fn system_directory_is_redirected_unless_this_is_an_x86_build() {
     let system_dir = wow64_redirected_system_directory();
-    if processor_architecture() == Some("x86") {
+    if cfg!(target_arch = "x86") {
       assert_eq!(system_dir, None);
     } else {
       let system_dir = system_dir.expect("failed to get the system directory");

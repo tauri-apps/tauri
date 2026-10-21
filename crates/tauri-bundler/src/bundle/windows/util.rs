@@ -261,18 +261,31 @@ pub fn processor_architecture<'a>() -> Option<&'a str> {
 /// tools are stored in the project output directory instead, as they are when there's no cache
 /// dir, and if that is inside the system directory too, this returns an error.
 pub fn tools_directory(settings: &Settings) -> crate::Result<PathBuf> {
-  let system_dir = wow64_redirected_system_directory();
+  select_tools_directory(
+    settings.local_tools_directory(),
+    dirs::cache_dir(),
+    settings.project_out_directory(),
+    wow64_redirected_system_directory().as_deref(),
+  )
+}
+
+/// Picks the [`tools_directory`]. `system_dir` is the Windows system directory if NSIS and WiX are
+/// redirected away from it.
+fn select_tools_directory(
+  local_tools_directory: Option<&Path>,
+  cache_dir: Option<PathBuf>,
+  project_out_directory: &Path,
+  system_dir: Option<&Path>,
+) -> crate::Result<PathBuf> {
   let is_redirected = |path: &Path| {
-    system_dir
-      .as_deref()
-      .is_some_and(|system_dir| starts_with_ignore_ascii_case(path, system_dir))
+    system_dir.is_some_and(|system_dir| starts_with_ignore_ascii_case(path, system_dir))
   };
 
-  let tools_path = match (settings.local_tools_directory(), dirs::cache_dir()) {
+  let tools_path = match (local_tools_directory, cache_dir) {
     (Some(local_tools_directory), _) => local_tools_directory.join(".tauri"),
     (None, Some(cache_dir)) if !is_redirected(&cache_dir) => cache_dir.join("tauri"),
     (None, cache_dir) => {
-      let tools_path = settings.project_out_directory().join(".tauri");
+      let tools_path = project_out_directory.join(".tauri");
       if let Some(cache_dir) = cache_dir {
         // both the NSIS and the MSI bundlers, and their updater variants, ask for this directory
         static WARNING: Once = Once::new();
@@ -366,6 +379,89 @@ mod tests {
         "{path}"
       );
     }
+  }
+
+  const SYSTEM_DIR: &str = r"C:\Windows\System32";
+  const SYSTEM_CACHE_DIR: &str = r"C:\Windows\System32\config\systemprofile\AppData\Local";
+  const USER_CACHE_DIR: &str = r"C:\Users\runneradmin\AppData\Local";
+  const OUT_DIR: &str = r"C:\app\target\release";
+
+  fn select(
+    local_tools_directory: Option<&str>,
+    cache_dir: Option<&str>,
+    project_out_directory: &str,
+    system_dir: Option<&str>,
+  ) -> crate::Result<PathBuf> {
+    select_tools_directory(
+      local_tools_directory.map(Path::new),
+      cache_dir.map(PathBuf::from),
+      Path::new(project_out_directory),
+      system_dir.map(Path::new),
+    )
+  }
+
+  #[test]
+  fn local_tools_directory_takes_precedence() {
+    let tools_dir = select(
+      Some(r"C:\app\target"),
+      Some(SYSTEM_CACHE_DIR),
+      OUT_DIR,
+      Some(SYSTEM_DIR),
+    );
+    assert_eq!(tools_dir.unwrap(), Path::new(r"C:\app\target\.tauri"));
+  }
+
+  #[test]
+  fn user_cache_dir_is_used() {
+    let tools_dir = select(None, Some(USER_CACHE_DIR), OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\Users\runneradmin\AppData\Local\tauri")
+    );
+  }
+
+  #[test]
+  fn system_profile_cache_dir_falls_back_to_the_project_out_directory() {
+    let tools_dir = select(None, Some(SYSTEM_CACHE_DIR), OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\app\target\release\.tauri")
+    );
+  }
+
+  #[test]
+  fn system_profile_cache_dir_is_used_without_redirection() {
+    let tools_dir = select(None, Some(SYSTEM_CACHE_DIR), OUT_DIR, None);
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(SYSTEM_CACHE_DIR).join("tauri")
+    );
+  }
+
+  #[test]
+  fn missing_cache_dir_falls_back_to_the_project_out_directory() {
+    let tools_dir = select(None, None, OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\app\target\release\.tauri")
+    );
+  }
+
+  #[test]
+  fn tools_directory_inside_the_system_directory_is_an_error() {
+    let system_profile_target =
+      r"C:\Windows\System32\config\systemprofile\Jenkins\workspace\app\target";
+    let system_profile_out_dir = format!(r"{system_profile_target}\release");
+    assert!(
+      select(
+        None,
+        Some(SYSTEM_CACHE_DIR),
+        &system_profile_out_dir,
+        Some(SYSTEM_DIR)
+      )
+      .is_err()
+    );
+    assert!(select(Some(system_profile_target), None, OUT_DIR, Some(SYSTEM_DIR)).is_err());
   }
 
   #[test]

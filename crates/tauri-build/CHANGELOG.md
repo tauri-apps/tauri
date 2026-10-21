@@ -1,5 +1,145 @@
 # Changelog
 
+## [2.7.4]
+
+### Bug Fixes
+
+- [`d6de22ef9`](https://www.github.com/tauri-apps/tauri/commit/d6de22ef9288fbc17cccc34459f0ab172975e438) ([#16326](https://www.github.com/tauri-apps/tauri/pull/16326) by [@jay-tau](https://www.github.com/tauri-apps/tauri/../../jay-tau)) Don't watch the `capabilities` directory when it doesn't exist and the configuration lists capabilities in `app > security > capabilities`. Cargo treats a missing watched path as changed, so these apps re-ran the build script and recompiled on every build.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.7.4`
+
+## [2.7.3]
+
+### Enhancements
+
+- [`e140a1c8f`](https://www.github.com/tauri-apps/tauri/commit/e140a1c8f958ecb820c43effd99468ccb25b63c3) ([#16280](https://www.github.com/tauri-apps/tauri/pull/16280)) Build-time ACL validation now suggests the closest known identifier when a capability references an unknown permission that looks like a typo of an existing one, for example `Permission fs:allow-read-text-fil not found (did you mean "fs:allow-read-text-file"?), expected one of ...`. Typos in the plugin namespace and a missing `allow-` prefix are also covered; unrelated identifiers keep the previous message.
+
+### Bug Fixes
+
+- [`225fb205a`](https://www.github.com/tauri-apps/tauri/commit/225fb205a9b13e87bb71b599d896cdd9dbe7a672) ([#16247](https://www.github.com/tauri-apps/tauri/pull/16247)) Switch back to `static_vcruntime` crate, this fixes a linking error when the crate using `tauri_build::build` is used as library.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-codegen@2.7.3`
+
+## [2.7.2]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.7.2`
+
+## [2.7.1]
+
+### Bug Fixes
+
+- [`793f0c4a4`](https://www.github.com/tauri-apps/tauri/commit/793f0c4a460a2566b60873be9ea59efa0da239e5) ([#16164](https://www.github.com/tauri-apps/tauri/pull/16164) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix copying `WebView2Loader.dll` for Windows GNU targets when using Cargo's new build directory layout on nightly.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+- Upgraded to `tauri-codegen@2.7.1`
+
+## [2.7.0]
+
+### New Features
+
+- [`4e36f6725`](https://www.github.com/tauri-apps/tauri/commit/4e36f67251ec63a81fee23a524bf2c8b61064dea) ([#15306](https://www.github.com/tauri-apps/tauri/pull/15306)) Added `Attributes::config_path` to customize config path, deprecated `CodegenContext::config_path` in favor of this
+- [`f6c1eb253`](https://www.github.com/tauri-apps/tauri/commit/f6c1eb2533a0445e081c334931d67fee3e354c6f) ([#15401](https://www.github.com/tauri-apps/tauri/pull/15401)) Added `tauri_build::WindowsAttributes::static_vc_runtime` to control MSVC static runtime linking from build scripts.
+
+### Enhancements
+
+- [`19215f638`](https://www.github.com/tauri-apps/tauri/commit/19215f638a5889afef4333b2e5a402051f21b891) ([#15629](https://www.github.com/tauri-apps/tauri/pull/15629)) Emit a `cargo:rerun-if-changed` for each resource directory (and glob base directory), so that adding or removing a file inside a resource directory re-runs the build script and copies the new files. Previously only the individual files present at build time were watched, so newly added files were silently ignored until an unrelated rebuild.
+- [`459fc315e`](https://www.github.com/tauri-apps/tauri/commit/459fc315eb790d9aa2d2cea693c20c8978f4b1b0) ([#15711](https://www.github.com/tauri-apps/tauri/pull/15711)) Fix different build and runtime debug assertion profiles on the tauri-utils crate can resulting in compilation errors.
+
+### Bug Fixes
+
+- [`d203f74a2`](https://www.github.com/tauri-apps/tauri/commit/d203f74a2359b8839e0eb7376118fb20af3b807c) ([#15274](https://www.github.com/tauri-apps/tauri/pull/15274)) The `.ico` from `bundle > icon` (or the `icons/icon.ico` fallback) embedded as the Windows application icon is now resolved relative to the config file directory instead of the build script's working directory, so it works with `Attributes::config_path`.
+- [`dd6befda9`](https://www.github.com/tauri-apps/tauri/commit/dd6befda925845fc74ca595d6d42de6c49580dd8) ([#15918](https://www.github.com/tauri-apps/tauri/pull/15918)) Emit an absolute path for the capabilities directory `cargo:rerun-if-changed`. Cargo resolves a relative watch path against the package owning the build script, while the capabilities glob is resolved against the process working directory, so callers that change the current directory before `try_build`/`try_build_context` ended up watching a non-existent directory — which is always dirty and re-ran the build script (and recompiled everything downstream) on every build.
+- [`c0bd0d5a6`](https://www.github.com/tauri-apps/tauri/commit/c0bd0d5a61eedba5c4783add24455c5028c6f390) ([#15831](https://www.github.com/tauri-apps/tauri/pull/15831)) Resolve the target directory by walking up from `OUT_DIR` to the `build` directory instead of assuming it is exactly three levels up. Recent nightly toolchains add another level to `OUT_DIR`, which made sidecars and resources land in `target/debug/build` instead of `target/debug`.
+- [`fc3a8108e`](https://www.github.com/tauri-apps/tauri/commit/fc3a8108e9e942982f8d4809af43b238e4f97a3f) ([#16074](https://www.github.com/tauri-apps/tauri/pull/16074)) Validate the capabilities inlined in the `app > security > capabilities` configuration value, which previously skipped the build script validation and only failed later with a generic `failed to resolve ACL` panic when a permission identifier was unknown.
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`ce3f13b91`](https://www.github.com/tauri-apps/tauri/commit/ce3f13b91a75cb723f229f56a3e82eb5f2d3f644) ([#15887](https://www.github.com/tauri-apps/tauri/pull/15887)) Lock unstable tauri crates to minor versions.
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+- Upgraded to `tauri-codegen@2.7.0`
+- [`e2e585ad1`](https://www.github.com/tauri-apps/tauri/commit/e2e585ad1196c9572f86ef39aae01ef4c3b1a762) ([#15828](https://www.github.com/tauri-apps/tauri/pull/15828)) On Android, updated the template to use Gradle v9.6.1 (`com.android.tools.build:gradle` v9.3.1) and Kotlin v2.2. Use `tauri android init` to apply the change.
+- [`2bb4fdbd0`](https://www.github.com/tauri-apps/tauri/commit/2bb4fdbd0252ca414e28bdc9f0284ac4ff108f26) ([#15592](https://www.github.com/tauri-apps/tauri/pull/15592)) Updated `cargo_toml` crate to `1`
+
+## \[2.6.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+- Upgraded to `tauri-codegen@2.6.3`
+
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+- Upgraded to `tauri-codegen@2.6.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+- Upgraded to `tauri-codegen@2.6.1`
+
+## \[2.6.0]
+
+### New Features
+
+- [`b7a0ff030`](https://www.github.com/tauri-apps/tauri/commit/b7a0ff03087a73fce6888361562faf9738afc829) ([#15263](https://www.github.com/tauri-apps/tauri/pull/15263)) Allow users to append extra `.rc` content by `append_rc_content` in `WindowsAttributes`.
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Implement file association for Android and iOS.
+
+### Enhancements
+
+- [`d730770bb`](https://www.github.com/tauri-apps/tauri/commit/d730770bb93d77358cfc6f1286f10187cef37362) ([#15117](https://www.github.com/tauri-apps/tauri/pull/15117)) Simplify async-sync code boundaries, no externally visible changes
+- [`b3f2d12b8`](https://www.github.com/tauri-apps/tauri/commit/b3f2d12b89daefe528e562b93871db62f77973b9) ([#15289](https://www.github.com/tauri-apps/tauri/pull/15289)) Preserve a numeric semver build identifier such as `1.2.3+42` in the 4th segment of the Windows `FILEVERSION` fixed field when it fits in the Windows version format.
+
+### Bug Fixes
+
+- [`a30dca482`](https://www.github.com/tauri-apps/tauri/commit/a30dca4820d0ad681f04737a1819e6a6fab9fe84) ([#15288](https://www.github.com/tauri-apps/tauri/pull/15288)) Set the correct Windows `FileVersion` and `ProductVersion` string values using the version from the Tauri config.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+- Upgraded to `tauri-codegen@2.6.0`
+
+## \[2.5.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+- Upgraded to `tauri-codegen@2.5.5`
+
+## \[2.5.5]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.5.4`
+
+## \[2.5.4]
+
+### Enhancements
+
+- [`2d28e3143`](https://www.github.com/tauri-apps/tauri/commit/2d28e3143ee3d97d7570ea03877aa00a0d6e47d0) ([#14632](https://www.github.com/tauri-apps/tauri/pull/14632) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Small code refactors for improved code readability. No user facing changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- Upgraded to `tauri-codegen@2.5.3`
+
 ## \[2.5.3]
 
 ### Dependencies

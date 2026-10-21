@@ -9,11 +9,11 @@ use clap::{ArgAction, Parser};
 
 use super::{device_prompt, env};
 use crate::{
-  error::Context,
-  helpers::config::{get_config as get_tauri_config, ConfigMetadata},
-  interface::{DevProcess, Interface, WatcherOptions},
-  mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
+  error::Context,
+  helpers::config::{ConfigMetadata, get_config as get_tauri_config},
+  interface::{DevProcess, WatcherOptions},
+  mobile::{DevChild, TargetDevice},
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -26,7 +26,7 @@ pub struct Options {
   #[clap(short, long)]
   pub release: bool,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
@@ -76,11 +76,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let mut built_application = super::build::command(
+  let mut built_application = super::build::run(
     super::build::Options {
       debug: !options.release,
       targets: Some(vec![]), /* skips IPA build since there's no target */
-      features: Vec::new(),
+      features: options.features,
       config: options.config.clone(),
       build_number: None,
       open: options.open,
@@ -88,6 +88,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       export_method: None,
       args: options.args,
       ignore_version_mismatches: options.ignore_version_mismatches,
+      no_sign: false,
+      archive_only: false,
       target_device: device.as_ref().map(|d| TargetDevice {
         id: d.id().to_string(),
         name: d.name().to_string(),

@@ -23,15 +23,15 @@
 // files into the `Contents` directory of the bundle.
 
 use super::{
-  icon::create_icns_file,
-  sign::{notarize, notarize_auth, notarize_without_stapling, sign, SignTarget},
+  icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file},
+  sign::{SignTarget, notarize, notarize_auth, notarize_without_stapling, sign},
 };
 use crate::{
-  bundle::settings::PlistKind,
-  error::{Context, ErrorExt, NotarizeAuthError},
-  utils::{fs_utils, CommandExt},
   Error::GenericError,
   Settings,
+  bundle::settings::PlistKind,
+  error::{Context, ErrorExt, NotarizeAuthError},
+  utils::{CommandExt, fs_utils},
 };
 
 use std::{
@@ -76,11 +76,19 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let bin_dir = bundle_directory.join("MacOS");
   let mut sign_paths = Vec::new();
 
-  let bundle_icon_file: Option<PathBuf> =
-    { create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")? };
+  let bundle_icon_file =
+    create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")?;
 
-  create_info_plist(&bundle_directory, bundle_icon_file, settings)
-    .with_context(|| "Failed to create Info.plist")?;
+  let assets_car_file = create_assets_car_file(&resources_dir, settings)
+    .with_context(|| "Failed to create app Assets.car")?;
+
+  create_info_plist(
+    &bundle_directory,
+    bundle_icon_file,
+    assets_car_file,
+    settings,
+  )
+  .with_context(|| "Failed to create Info.plist")?;
 
   let framework_paths = copy_frameworks_to_bundle(&bundle_directory, settings)
     .with_context(|| "Failed to bundle frameworks")?;
@@ -136,7 +144,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         if matches!(e, NotarizeAuthError::MissingTeamId) {
           return Err(e.into());
         } else {
-          log::warn!("skipping app notarization, {}", e.to_string());
+          log::warn!("skipping app notarization, {e}");
         }
       }
     }
@@ -204,6 +212,7 @@ fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> 
 fn create_info_plist(
   bundle_dir: &Path,
   bundle_icon_file: Option<PathBuf>,
+  assets_car_file: Option<PathBuf>,
   settings: &Settings,
 ) -> crate::Result<()> {
   let mut plist = plist::Dictionary::new();
@@ -213,17 +222,6 @@ fn create_info_plist(
     "CFBundleExecutable".into(),
     settings.main_binary_name()?.into(),
   );
-  if let Some(path) = bundle_icon_file {
-    plist.insert(
-      "CFBundleIconFile".into(),
-      path
-        .file_name()
-        .expect("No file name")
-        .to_string_lossy()
-        .into_owned()
-        .into(),
-    );
-  }
   plist.insert(
     "CFBundleIdentifier".into(),
     settings.bundle_identifier().into(),
@@ -264,102 +262,36 @@ fn create_info_plist(
   }
 
   if let Some(associations) = settings.file_associations() {
-    let exported_associations = associations
-      .iter()
-      .filter_map(|association| {
-        association.exported_type.as_ref().map(|exported_type| {
-          let mut dict = plist::Dictionary::new();
-
-          dict.insert(
-            "UTTypeIdentifier".into(),
-            exported_type.identifier.clone().into(),
-          );
-          if let Some(description) = &association.description {
-            dict.insert("UTTypeDescription".into(), description.clone().into());
-          }
-          if let Some(conforms_to) = &exported_type.conforms_to {
-            dict.insert(
-              "UTTypeConformsTo".into(),
-              plist::Value::Array(conforms_to.iter().map(|s| s.clone().into()).collect()),
-            );
-          }
-
-          let mut specification = plist::Dictionary::new();
-          specification.insert(
-            "public.filename-extension".into(),
-            plist::Value::Array(
-              association
-                .ext
-                .iter()
-                .map(|s| s.to_string().into())
-                .collect(),
-            ),
-          );
-          if let Some(mime_type) = &association.mime_type {
-            specification.insert("public.mime-type".into(), mime_type.clone().into());
-          }
-
-          dict.insert("UTTypeTagSpecification".into(), specification.into());
-
-          plist::Value::Dictionary(dict)
-        })
-      })
-      .collect::<Vec<_>>();
-
-    if !exported_associations.is_empty() {
-      plist.insert(
-        "UTExportedTypeDeclarations".into(),
-        plist::Value::Array(exported_associations),
-      );
+    if let Some(file_associations_plist) =
+      tauri_utils::config::file_associations_plist(associations)
+    {
+      if let Some(plist_dict) = file_associations_plist.as_dictionary() {
+        for (key, value) in plist_dict {
+          plist.insert(key.clone(), value.clone());
+        }
+      }
     }
+  }
 
+  if let Some(path) = bundle_icon_file {
     plist.insert(
-      "CFBundleDocumentTypes".into(),
-      plist::Value::Array(
-        associations
-          .iter()
-          .map(|association| {
-            let mut dict = plist::Dictionary::new();
-
-            if !association.ext.is_empty() {
-              dict.insert(
-                "CFBundleTypeExtensions".into(),
-                plist::Value::Array(
-                  association
-                    .ext
-                    .iter()
-                    .map(|ext| ext.to_string().into())
-                    .collect(),
-                ),
-              );
-            }
-
-            if let Some(content_types) = &association.content_types {
-              dict.insert(
-                "LSItemContentTypes".into(),
-                plist::Value::Array(content_types.iter().map(|s| s.to_string().into()).collect()),
-              );
-            }
-
-            dict.insert(
-              "CFBundleTypeName".into(),
-              association
-                .name
-                .as_ref()
-                .unwrap_or(&association.ext[0].0)
-                .to_string()
-                .into(),
-            );
-            dict.insert(
-              "CFBundleTypeRole".into(),
-              association.role.to_string().into(),
-            );
-            dict.insert("LSHandlerRank".into(), association.rank.to_string().into());
-            plist::Value::Dictionary(dict)
-          })
-          .collect(),
-      ),
+      "CFBundleIconFile".into(),
+      path
+        .file_name()
+        .expect("No file name")
+        .to_string_lossy()
+        .into_owned()
+        .into(),
     );
+  }
+
+  if let Some(assets_car_file) = assets_car_file {
+    if let Some(icon_name) = app_icon_name_from_assets_car(&assets_car_file) {
+      // only set CFBundleIconName for the Assets.car, CFBundleIconFile is the fallback icns file
+      plist.insert("CFBundleIconName".into(), icon_name.into());
+    } else {
+      log::warn!("Failed to get icon name from Assets.car file");
+    }
   }
 
   if let Some(protocols) = settings.deep_link_protocols() {
@@ -386,11 +318,9 @@ fn create_info_plist(
               protocol
                 .name
                 .clone()
-                .unwrap_or(format!(
-                  "{} {}",
-                  settings.bundle_identifier(),
-                  protocol.schemes[0]
-                ))
+                .unwrap_or_else(|| {
+                  format!("{} {}", settings.bundle_identifier(), protocol.schemes[0])
+                })
                 .into(),
             );
             dict.insert("CFBundleTypeRole".into(), protocol.role.to_string().into());
@@ -651,7 +581,7 @@ mod tests {
     let src_file = tmp_dir.path().join("sample.txt");
     fs::write(&src_file, b"hello tauri").expect("failed to write sample file");
 
-    let files_map = HashMap::from([(PathBuf::from("Resources/sample.txt"), src_file.clone())]);
+    let files_map = HashMap::from([(PathBuf::from("Resources/sample.txt"), src_file)]);
 
     let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
 
@@ -673,7 +603,7 @@ mod tests {
     let nested_file = src_dir.join("nested.txt");
     fs::write(&nested_file, b"nested").expect("failed to write nested file");
 
-    let files_map = HashMap::from([(PathBuf::from("MyAssets"), src_dir.clone())]);
+    let files_map = HashMap::from([(PathBuf::from("MyAssets"), src_dir)]);
 
     let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
 
@@ -722,11 +652,13 @@ mod tests {
 
     let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
     assert!(result.is_err());
-    assert!(result
-      .err()
-      .unwrap()
-      .to_string()
-      .contains("Failed to copy directory"));
+    assert!(
+      result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("Failed to copy directory")
+    );
   }
 
   #[test]
@@ -739,10 +671,12 @@ mod tests {
 
     let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
     assert!(result.is_err());
-    assert!(result
-      .err()
-      .unwrap()
-      .to_string()
-      .contains("is not a file or directory."));
+    assert!(
+      result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("is not a file or directory.")
+    );
   }
 }

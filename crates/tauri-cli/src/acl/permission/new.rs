@@ -7,13 +7,13 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use crate::{
-  acl::FileFormat,
+  Result,
+  acl::{FileFormat, validate_permission_identifier},
   error::{Context, ErrorExt},
   helpers::{app_paths::resolve_tauri_dir, prompts},
-  Result,
 };
 
-use tauri_utils::acl::{manifest::PermissionFile, Commands, Permission};
+use tauri_utils::acl::{Commands, Permission, manifest::PermissionFile};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Create a new permission file")]
@@ -24,10 +24,10 @@ pub struct Options {
   #[clap(long)]
   description: Option<String>,
   /// List of commands to allow
-  #[clap(short, long, use_value_delimiter = true)]
+  #[clap(short, long, value_delimiter = ',')]
   allow: Option<Vec<String>>,
   /// List of commands to deny
-  #[clap(short, long, use_value_delimiter = true)]
+  #[clap(short, long, value_delimiter = ',')]
   deny: Option<Vec<String>>,
   /// Output file format.
   #[clap(long, default_value_t = FileFormat::Json)]
@@ -42,11 +42,12 @@ pub fn command(options: Options) -> Result<()> {
     Some(i) => i,
     None => prompts::input("What's the permission identifier?", None, false, false)?.unwrap(),
   };
+  validate_permission_identifier(&identifier)?;
 
   let description = match options.description {
     Some(d) => Some(d),
     None => prompts::input::<String>("What's the permission description?", None, false, true)?
-      .and_then(|d| if d.is_empty() { None } else { Some(d) }),
+      .filter(|d| !d.is_empty()),
   };
 
   let allow: Vec<String> = options
@@ -68,9 +69,8 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let path = match options.out {
-    Some(o) => o
-      .canonicalize()
-      .fs_context("failed to canonicalize permission file path", o.clone())?,
+    // the file may not exist yet, so it cannot be canonicalized
+    Some(o) => o,
     None => {
       let dir = match resolve_tauri_dir() {
         Some(t) => t,

@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 mod category;
-#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod kmp;
 #[cfg(target_os = "linux")]
 mod linux;
@@ -15,66 +14,89 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
-use tauri_utils::{display_path, platform::Target as TargetPlatform};
-
-#[cfg(any(target_os = "linux", target_os = "windows"))]
-const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
-/// Patch a binary with bundle type information
-#[cfg(any(target_os = "linux", target_os = "windows"))]
-fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
-  let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
-
-  if let Some(bundle_var_index) = kmp::index_of(BUNDLE_VAR_TOKEN, &file_data) {
-    #[cfg(target_os = "linux")]
-    let bundle_type = match package_type {
-      crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
-      crate::PackageType::Rpm => b"__TAURI_BUNDLE_TYPE_VAR_RPM",
-      crate::PackageType::AppImage => b"__TAURI_BUNDLE_TYPE_VAR_APP",
-      _ => {
-        return Err(crate::Error::InvalidPackageType(
-          package_type.short_name().to_owned(),
-          "Linux".to_owned(),
-        ))
-      }
-    };
-    #[cfg(target_os = "windows")]
-    let bundle_type = match package_type {
-      crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
-      crate::PackageType::WindowsMsi => b"__TAURI_BUNDLE_TYPE_VAR_MSI",
-      _ => {
-        return Err(crate::Error::InvalidPackageType(
-          package_type.short_name().to_owned(),
-          "Windows".to_owned(),
-        ))
-      }
-    };
-
-    file_data[bundle_var_index..bundle_var_index + BUNDLE_VAR_TOKEN.len()]
-      .copy_from_slice(bundle_type);
-
-    std::fs::write(binary, &file_data)
-      .map_err(|e| crate::Error::BinaryWriteError(e.to_string()))?;
-  } else {
-    return Err(crate::Error::MissingBundleTypeVar);
-  }
-  Ok(())
-}
-
-pub use self::{
-  category::AppCategory,
-  settings::{
-    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, Entitlements, IosSettings, MacOsSettings, PackageSettings, PackageType, PlistKind,
-    Position, RpmSettings, Settings, SettingsBuilder, Size, UpdaterSettings,
-  },
-};
-pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
-
+use crate::error::ErrorExt;
+use anyhow::Context;
+use bytesize::ByteSize;
 use std::{
   fmt::Write,
   io::{Seek, SeekFrom},
   path::PathBuf,
 };
+use tauri_utils::{display_path, platform::Target as TargetPlatform};
+
+pub use {
+  category::AppCategory,
+  settings::{
+    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
+    DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings, PackageSettings,
+    PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
+  },
+};
+
+#[cfg(windows)]
+pub use windows::vswhere_path;
+
+const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
+/// Patch a binary with bundle type information
+fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
+  #[cfg(target_os = "linux")]
+  let bundle_type = match package_type {
+    crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
+    crate::PackageType::Rpm => b"__TAURI_BUNDLE_TYPE_VAR_RPM",
+    crate::PackageType::AppImage => b"__TAURI_BUNDLE_TYPE_VAR_APP",
+    // NSIS installers can be built in linux using cargo-xwin
+    crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "Linux".to_owned(),
+      ));
+    }
+  };
+  #[cfg(target_os = "windows")]
+  let bundle_type = match package_type {
+    crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
+    crate::PackageType::WindowsMsi => b"__TAURI_BUNDLE_TYPE_VAR_MSI",
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "Windows".to_owned(),
+      ));
+    }
+  };
+  #[cfg(target_os = "macos")]
+  let bundle_type = match package_type {
+    // NSIS installers can be built in macOS using cargo-xwin
+    crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
+    crate::PackageType::MacOsBundle | crate::PackageType::Dmg => {
+      // skip patching for macOS-native bundles
+      return Ok(());
+    }
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "macOS".to_owned(),
+      ));
+    }
+  };
+
+  log::info!(
+    "Patching {} with bundle type information: {}",
+    display_path(binary),
+    package_type.short_name()
+  );
+
+  let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
+  let bundle_var_index =
+    kmp::index_of(BUNDLE_VAR_TOKEN, &file_data).ok_or(crate::Error::MissingBundleTypeVar)?;
+  file_data[bundle_var_index..bundle_var_index + BUNDLE_VAR_TOKEN.len()]
+    .copy_from_slice(bundle_type);
+
+  std::fs::write(binary, &file_data).map_err(|e| crate::Error::BinaryWriteError(e.to_string()))?;
+
+  Ok(())
+}
 
 /// Generated bundle metadata.
 #[derive(Debug)]
@@ -98,17 +120,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let target_os = settings.target_platform();
 
   if *target_os != TargetPlatform::current() {
-    log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+    log::warn!(
+      "Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility."
+    );
   }
 
   // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
   sign_binaries_if_needed(settings, target_os)?;
 
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|b| b.main())
-    .expect("Main binary missing in settings");
+  let main_binary = settings.main_binary()?;
   let main_binary_path = settings.binary_path(main_binary);
 
   // We make a copy of the unsigned main_binary so that we can restore it after each package_type step.
@@ -118,9 +138,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   //      (re)signing is performed after every `patch_binary()` operation
   //  - signing an already-signed binary can result in multiple signatures, causing verification errors
   // TODO: change this to work on a copy while preserving the main binary unchanged
-  let mut main_binary_copy = tempfile::tempfile()?;
-  let mut main_binary_orignal = std::fs::File::open(&main_binary_path)?;
-  std::io::copy(&mut main_binary_orignal, &mut main_binary_copy)?;
+  let mut main_binary_copy =
+    tempfile::tempfile().context("failed to create temp file for main binary copy")?;
+  let mut main_binary_original = std::fs::File::open(&main_binary_path)
+    .fs_context("can't open main binary", &main_binary_path)?;
+  std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
 
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
@@ -129,9 +151,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
-    if let Err(e) = patch_binary(&main_binary_path, package_type) {
-      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+    if settings.binary_patching() {
+      if let Err(e) = patch_binary(&main_binary_path, package_type) {
+        log::warn!(
+          "Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues"
+        );
+      }
+    } else {
+      log::warn!(
+        "Skipping binary patching for {} due to --no-binary-patching flag.",
+        main_binary_path.display()
+      );
     }
 
     // sign main binary for every package type after patch
@@ -159,7 +189,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(settings, false)?,
-      // note: don't restrict to windows as NSIS installers can be built in linux using cargo-xwin
+      // don't restrict to windows as NSIS installers can be built in linux+macOS using cargo-xwin
       PackageType::Nsis => windows::nsis::bundle_project(settings, false)?,
 
       #[cfg(target_os = "linux")]
@@ -189,38 +219,50 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   }
 
   if let Some(updater) = settings.updater() {
-    if package_types.iter().any(|package_type| {
-      if updater.v1_compatible {
+    // Targets the legacy v1 updater can consume once they are wrapped in a tar.gz / zip.
+    let has_v1_target = updater.v1_compatible
+      && package_types.iter().any(|package_type| {
         matches!(
           package_type,
           PackageType::AppImage
             | PackageType::MacOsBundle
             | PackageType::Nsis
             | PackageType::WindowsMsi
-            | PackageType::Deb
         )
-      } else {
-        matches!(package_type, PackageType::MacOsBundle)
-      }
-    }) {
+      });
+    // Targets the v2 updater plugin installs directly, no wrapping needed.
+    let has_self_contained_target = package_types.iter().any(|package_type| {
+      matches!(
+        package_type,
+        PackageType::AppImage
+          | PackageType::Nsis
+          | PackageType::WindowsMsi
+          | PackageType::Deb
+          | PackageType::Rpm
+      )
+    });
+
+    // the macOS app bundle is always archived, the other v1 targets only for the legacy updater
+    if package_types.contains(&PackageType::MacOsBundle) || has_v1_target {
       let updater_paths = updater_bundle::bundle_project(settings, &bundles)?;
       bundles.push(Bundle {
         package_type: PackageType::Updater,
         bundle_paths: updater_paths,
       });
-    } else if updater.v1_compatible
-      || !package_types.iter().any(|package_type| {
-        // Self contained updater, no need to zip
-        matches!(
-          package_type,
-          PackageType::AppImage | PackageType::Nsis | PackageType::WindowsMsi | PackageType::Deb
-        )
-      })
-    {
-      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
+    } else if updater.v1_compatible {
+      log::warn!(
+        "No v1 compatible updater artifact was created: the legacy updater only supports the app, appimage, msi and nsis targets. deb and rpm bundles can only be installed by the v2 updater plugin."
+      );
+    } else if !has_self_contained_target {
+      log::warn!(
+        "The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, deb, rpm, msi, nsis"
+      );
     }
+
     if updater.v1_compatible {
-      log::warn!("Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin");
+      log::warn!(
+        "Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin"
+      );
     }
   }
 
@@ -274,13 +316,30 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         ""
       };
       let path_display = display_path(path);
-      writeln!(printable_paths, "        {path_display}{note}").unwrap();
+      let size = bundle_size(path)
+        .map(|bytes| format!(" ({:.2})", ByteSize::b(bytes).display()))
+        .unwrap_or_default();
+      writeln!(printable_paths, "        {path_display}{note}{size}").unwrap();
     }
   }
 
   log::info!(action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
 
   Ok(bundles)
+}
+
+/// Total size in bytes of a bundle path, recursing into directories (e.g. macOS `.app`).
+fn bundle_size(path: &std::path::Path) -> crate::Result<u64> {
+  let metadata = std::fs::symlink_metadata(path)?;
+  if metadata.is_dir() {
+    let mut total = 0;
+    for entry in walkdir::WalkDir::new(path) {
+      total += entry?.metadata()?.len();
+    }
+    Ok(total)
+  } else {
+    Ok(metadata.len())
+  }
 }
 
 fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> crate::Result<()> {
@@ -321,7 +380,9 @@ fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> c
       }
     } else {
       #[cfg(not(target_os = "windows"))]
-      log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+      log::warn!(
+        "Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer..."
+      );
     }
   }
 

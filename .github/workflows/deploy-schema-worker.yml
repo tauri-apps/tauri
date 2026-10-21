@@ -12,12 +12,15 @@ on:
       - '.github/workflows/deploy-schema-worker.yml'
       - 'crates/tauri-schema-worker/**'
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: cloudflare/wrangler-action@v3
+      - uses: actions/checkout@v6
+      - uses: cloudflare/wrangler-action@v4
         with:
           command: deploy
           workingDirectory: 'crates/tauri-schema-worker'

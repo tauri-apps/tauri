@@ -5,7 +5,10 @@
 #[cfg(windows)]
 mod windows;
 
-pub fn error<S: AsRef<str>>(err: S) {
+// Takes a `&'static str` here since we convert clickable hyperlinks,
+// DO NOT pass in untrusted input
+#[cfg_attr(not(windows), allow(unused))]
+pub fn error(err: &'static str) {
   #[cfg(windows)]
   windows::error(err);
 

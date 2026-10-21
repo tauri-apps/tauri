@@ -7,8 +7,8 @@ use std::{fmt::Display, path::Path};
 use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::{
-  error::{Context, ErrorExt},
   Result,
+  error::{Context, ErrorExt},
 };
 
 mod android;

@@ -43,14 +43,13 @@ impl AsRef<str> for AssetKey {
 
 impl<P: AsRef<Path>> From<P> for AssetKey {
   fn from(path: P) -> Self {
-    // TODO: change this to utilize `Cow` to prevent allocating an intermediate `PathBuf` when not necessary
-    let path = path.as_ref().to_owned();
+    let path = path.as_ref();
 
     // add in root to mimic how it is used from a server url
     let path = if path.has_root() {
-      path
+      Cow::Borrowed(path)
     } else {
-      Path::new(&Component::RootDir).join(path)
+      Cow::Owned(Path::new(&Component::RootDir).join(path))
     };
 
     let buf = if cfg!(windows) {
@@ -168,27 +167,18 @@ impl EmbeddedAssets {
   /// Get an asset by key.
   #[cfg(feature = "compression")]
   pub fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
-    self
-      .assets
-      .get(key.as_ref())
-      .map(|&(mut asdf)| {
-        // with the exception of extremely small files, output should usually be
-        // at least as large as the compressed version.
-        let mut buf = Vec::with_capacity(asdf.len());
-        brotli::BrotliDecompress(&mut asdf, &mut buf).map(|()| buf)
-      })
-      .and_then(Result::ok)
-      .map(Cow::Owned)
+    let &(mut asdf) = self.assets.get(key.as_ref())?;
+    // with the exception of extremely small files, output should usually be
+    // at least as large as the compressed version.
+    let mut buf = Vec::with_capacity(asdf.len());
+    brotli::BrotliDecompress(&mut asdf, &mut buf).ok()?;
+    Some(Cow::Owned(buf))
   }
 
   /// Get an asset by key.
   #[cfg(not(feature = "compression"))]
   pub fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
-    self
-      .assets
-      .get(key.as_ref())
-      .copied()
-      .map(|a| Cow::Owned(a.to_vec()))
+    Some(Cow::Borrowed(self.assets.get(key.as_ref())?))
   }
 
   /// Iterate on the assets.

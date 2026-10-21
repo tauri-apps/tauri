@@ -9,7 +9,7 @@ send_metrics = false
 
 # The minor version of worker-build must match worker/worker-macros in Cargo.toml!
 [build]
-command = "cargo install -q worker-build@^0.7 && worker-build --release"
+command = "cargo install -q worker-build@^0.8 && worker-build --release"
 
 [observability]
 enabled = true

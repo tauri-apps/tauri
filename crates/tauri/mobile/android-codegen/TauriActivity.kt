@@ -8,44 +8,53 @@ package {{package}}
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Bundle
 import app.tauri.plugin.PluginManager
 
 abstract class TauriActivity : WryActivity() {
-  var pluginManager: PluginManager = PluginManager(this)
   override val handleBackNavigation: Boolean = false
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    PluginManager.onCreate(this)
+  }
+
+  fun getPluginManager(): PluginManager {
+    return PluginManager
+  }
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
-    pluginManager.onNewIntent(intent)
-  }
-
-  override fun onResume() {
-    super.onResume()
-    pluginManager.onResume()
-  }
-
-  override fun onPause() {
-    super.onPause()
-    pluginManager.onPause()
+    PluginManager.onNewIntent(intent)
   }
 
   override fun onRestart() {
     super.onRestart()
-    pluginManager.onRestart()
+    PluginManager.onRestart(this)
+  }
+
+  override fun onResume() {
+    super.onResume()
+    PluginManager.onResume(this)
+  }
+
+  override fun onPause() {
+    super.onPause()
+    PluginManager.onPause(this)
   }
 
   override fun onStop() {
     super.onStop()
-    pluginManager.onStop()
+    PluginManager.onStop(this)
   }
 
   override fun onDestroy() {
     super.onDestroy()
-    pluginManager.onDestroy()
+    PluginManager.onDestroy(this)
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
     super.onConfigurationChanged(newConfig)
-    pluginManager.onConfigurationChanged(newConfig)
+    PluginManager.onConfigurationChanged(newConfig)
   }
 }

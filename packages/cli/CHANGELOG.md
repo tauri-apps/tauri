@@ -1,5 +1,50 @@
 # Changelog
 
+## [2.12.4]
+
+### Bug Fixes
+
+- [`136a28eaa`](https://www.github.com/tauri-apps/tauri/commit/136a28eaa879e8aa706f9b2e05a050c46dcc1f4f) ([#16305](https://www.github.com/tauri-apps/tauri/pull/16305) by [@Chaosnico9000](https://www.github.com/tauri-apps/tauri/../../Chaosnico9000)) Skip the `--target` validation when `rustup target list` fails, e.g. when `rustup` is on `PATH` but has no toolchain installed, instead of rejecting every target as missing.
+- [`52081e04a`](https://www.github.com/tauri-apps/tauri/commit/52081e04a0309620d3eb8121e5ca9b66312f9857) ([#16333](https://www.github.com/tauri-apps/tauri/pull/16333) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Rename the misspelled `choowHowToInstall` NSIS language string to `chooseHowToInstall`. A custom language file in `bundle.windows.nsis.customLanguageFiles` that only defines the old name keeps working for now, but users should migrate to the new name.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.12.4`
+- [`4a6f51251`](https://www.github.com/tauri-apps/tauri/commit/4a6f512519286ff9862b2e86c67ef39f4562aee5) ([#16317](https://www.github.com/tauri-apps/tauri/pull/16317) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Updated `zip` to v9 to fix RUSTSEC-2026-0367, RUSTSEC-2026-0368 and RUSTSEC-2026-0369.
+
+## [2.12.3]
+
+### Bug Fixes
+
+- [`c95be4615`](https://www.github.com/tauri-apps/tauri/commit/c95be4615a432b1d12409d3684c960e8aa718ada) ([#16287](https://www.github.com/tauri-apps/tauri/pull/16287)) Fix `tauri ios xcode-script` failing to find the Tauri project when Xcode inherits package manager environment variables from `tauri ios dev --open`, or when pnpm runs the CLI directly from the `gen/apple` folder.
+- [`d62e5d9c0`](https://www.github.com/tauri-apps/tauri/commit/d62e5d9c0878b6fb327543cc9be50aa1696ee23c) ([#16184](https://www.github.com/tauri-apps/tauri/pull/16184)) Fix NSIS installer leaving `uninstall.exe` and the installation directory behind when uninstalling an existing installation from the installer.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.12.3`
+- [`5a2953e55`](https://www.github.com/tauri-apps/tauri/commit/5a2953e555b4444bed68bd5324ea13ad85a6c06e) ([#16237](https://www.github.com/tauri-apps/tauri/pull/16237)) Updated NSIS to 3.13
+
+## [2.12.2]
+
+### Bug Fixes
+
+- [`c48e1ca89`](https://www.github.com/tauri-apps/tauri/commit/c48e1ca891a3b82770b6b03f87eba740344cf2f1) ([#16246](https://www.github.com/tauri-apps/tauri/pull/16246)) On iOS, mark the Swift `@_cdecl` entry points that Rust links against as `public` (in the iOS API and in the plugin templates), so release builds made with Xcode 27 keep them global and link.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.12.2`
+- [`fd319dd43`](https://www.github.com/tauri-apps/tauri/commit/fd319dd432e36748483ae93e6cdea1c44a66fe79) Update `base64` to 0.23.
+
+## [2.12.1]
+
+### Enhancements
+
+- [`64bfdd909`](https://www.github.com/tauri-apps/tauri/commit/64bfdd909c5c3f0828371e4995b69ad5ed685126) ([#16165](https://www.github.com/tauri-apps/tauri/pull/16165) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Ignore `src-tauri` in `tauri plugin init` example template
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.12.1`
+
 ## [2.12.0]
 
 ### New Features

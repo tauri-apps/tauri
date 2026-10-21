@@ -348,17 +348,25 @@ mod tests {
     let count = Arc::new(Mutex::new(0));
 
     let old = listeners.register("a");
+    let count_ = count.clone();
+    old
+      .upgrade()
+      .unwrap()
+      .add(Box::new(move |_| *count_.lock().unwrap() += 1));
     listeners.remove("a");
     assert!(old.upgrade().is_none());
 
-    // the label is reused by a new instance, which must not see the old one's listeners
-    let _new = listeners.register("a");
-    if let Some(old) = old.upgrade() {
-      let count = count.clone();
-      old.add(Box::new(move |_| *count.lock().unwrap() += 1));
-    }
-
+    // the label is reused by a new instance: the old handle must not resolve to it,
+    // and the old instance's listeners must not fire for it
+    let new = listeners.register("a");
+    assert!(old.upgrade().is_none());
     listeners.dispatch("a", &1);
     assert_eq!(*count.lock().unwrap(), 0);
+
+    // nor can the old instance take the new one's listeners down with it
+    assert!(listeners.remove_instance("a", &old).is_none());
+    assert!(new.upgrade().is_some());
+    assert!(listeners.remove_instance("a", &new).is_some());
+    assert!(new.upgrade().is_none());
   }
 }

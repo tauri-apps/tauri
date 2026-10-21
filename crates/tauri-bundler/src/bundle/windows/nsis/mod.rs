@@ -461,7 +461,15 @@ fn build_nsis_app_installer(
   let languages = nsis
     .and_then(|nsis| nsis.languages.clone())
     .unwrap_or_else(|| vec!["English".into()]);
-  data.insert("languages", to_json(languages.clone()));
+  data.insert(
+    "languages",
+    to_json(
+      languages
+        .iter()
+        .map(|language| nsis_language_name(language))
+        .collect::<Vec<_>>(),
+    ),
+  );
 
   data.insert(
     "display_language_selector",
@@ -926,6 +934,29 @@ fn generate_estimated_size(
   Ok(size / 1024)
 }
 
+/// The name NSIS knows a language by, which is not always the name of the
+/// language in English.
+///
+/// `MUI_LANGUAGE` loads `Contrib/Language files/<name>.nlf` from the toolset and
+/// defines `LANG_<NAME>` from it, so a name the toolset does not ship is a
+/// language table that never loads and a `LANG_<NAME>` nothing defines.
+fn nsis_language_name(language: &str) -> &str {
+  // NSIS ships this language as `Farsi`, which is what its `Farsi.nsh` declares
+  // with `!insertmacro LANGFILE "Farsi" "Persian" ...`: `Farsi` is the
+  // identifier and `Persian` only the English name. The bundler accepted
+  // `Persian` before it shipped the translation under the right name, so it is
+  // kept as a deprecated alias rather than silently breaking those configs.
+  // TODO(v3): remove the `persian` alias
+  if language.eq_ignore_ascii_case("persian") {
+    log::warn!(
+      "`{language}` is not a language NSIS knows, it calls this language `Farsi`. Rename it to `Farsi` in `bundle > windows > nsis > languages`, the old name will stop working in the next major version."
+    );
+    "Farsi"
+  } else {
+    language
+  }
+}
+
 fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
   let path = format!("{lang}.nsh");
   let content: &[u8] = match lang.to_lowercase().as_str() {
@@ -944,7 +975,10 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "french" => include_bytes!("./languages/French.nsh"),
     "spanish" => include_bytes!("./languages/Spanish.nsh"),
     "spanishinternational" => include_bytes!("./languages/SpanishInternational.nsh"),
-    "persian" => include_bytes!("./languages/Persian.nsh"),
+    // `persian` is kept as a deprecated alias so existing configurations keep
+    // building, see `nsis_language_name`
+    // TODO(v3): remove the `persian` alias
+    "farsi" | "persian" => include_bytes!("./languages/Farsi.nsh"),
     "turkish" => include_bytes!("./languages/Turkish.nsh"),
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),

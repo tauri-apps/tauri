@@ -2749,7 +2749,7 @@ fn on_event_loop_event<R: Runtime>(
   event: RuntimeRunEvent<EventLoopMessage>,
   manager: &AppManager<R>,
 ) -> RunEvent {
-  let destroyed_window_listeners = if let RuntimeRunEvent::WindowEvent {
+  let closed_window = if let RuntimeRunEvent::WindowEvent {
     label,
     event: RuntimeWindowEvent::Destroyed,
   } = &event
@@ -2859,15 +2859,22 @@ fn on_event_loop_event<R: Runtime>(
   // through `Window::on_window_event` / `Webview::on_webview_event`
   match &event {
     RunEvent::WindowEvent {
+      label,
       event: WindowEvent::Destroyed,
-      ..
     } => {
       // the window is gone for good, so nothing else can arrive for it: its listeners
       // were detached along with it before running them one last time, so a window
       // recreated under the same label - by a plugin above, from one of them, or from
       // another thread - registers into its own list rather than one this sweeps out
-      if let Some(listeners) = destroyed_window_listeners {
-        listeners.dispatch(&WindowEvent::Destroyed);
+      if let Some(closed) = closed_window {
+        if let Some(listeners) = closed.scoped_event_listeners {
+          listeners.dispatch(&WindowEvent::Destroyed);
+        }
+        // purge the window's Rust listeners only after `tauri://destroyed` was delivered to
+        // them, sparing any a window recreated under the label registered since it was closed
+        manager
+          .listeners()
+          .remove_window_listeners(label, closed.event_listeners_before);
       }
     }
     RunEvent::WindowEvent { label, event } => {
@@ -3045,6 +3052,50 @@ mod tests {
       RuntimeWindowEvent::Resized(PhysicalSize::new(1, 1)),
     );
     assert_eq!(*resizes.lock().unwrap(), 1);
+  }
+
+  #[test]
+  fn window_recreated_from_its_destroyed_listener_keeps_its_rust_event_listeners() {
+    use crate::{
+      Emitter, Listener,
+      test::{mock_builder, mock_context, noop_assets},
+      window::WindowBuilder,
+    };
+
+    let recreated = Mutex::new(false);
+    let old_destroyed = Arc::new(Mutex::new(0));
+    let new_events = Arc::new(Mutex::new(0));
+
+    let new_events_ = new_events.clone();
+    let app = mock_builder()
+      .on_window_event(move |window, event| {
+        if matches!(event, WindowEvent::Destroyed)
+          && !std::mem::replace(&mut *recreated.lock().unwrap(), true)
+        {
+          let new_events = new_events_.clone();
+          WindowBuilder::new(window.app_handle(), "main")
+            .build()
+            .unwrap()
+            .listen("foo", move |_| *new_events.lock().unwrap() += 1);
+        }
+      })
+      .build(mock_context(noop_assets()))
+      .unwrap();
+
+    let old = WindowBuilder::new(&app, "main").build().unwrap();
+    let old_destroyed_ = old_destroyed.clone();
+    old.listen("tauri://destroyed", move |_| {
+      *old_destroyed_.lock().unwrap() += 1
+    });
+
+    dispatch_window_event(&app, "main", RuntimeWindowEvent::Destroyed);
+    // the old window's listeners still saw `tauri://destroyed` before being purged
+    assert_eq!(*old_destroyed.lock().unwrap(), 1);
+
+    app.emit("foo", ()).unwrap();
+    app.emit("tauri://destroyed", ()).unwrap();
+    assert_eq!(*new_events.lock().unwrap(), 1);
+    assert_eq!(*old_destroyed.lock().unwrap(), 1);
   }
 
   #[test]

@@ -253,6 +253,16 @@ pub(crate) enum EmitPayload<'a, S: Serialize> {
   Str(String),
 }
 
+/// What [`AppManager::on_window_close`] leaves of a destroyed window, to be dropped once
+/// [`crate::WindowEvent::Destroyed`] has been delivered to it.
+pub(crate) struct ClosedWindow {
+  /// The window's scoped event listeners, already detached from its label.
+  pub(crate) scoped_event_listeners: Option<Arc<scoped_listener::Listeners<crate::WindowEvent>>>,
+  /// Rust event listeners targeting the window's label from this id on were registered after
+  /// it was closed, for a later window reusing the label.
+  pub(crate) event_listeners_before: EventId,
+}
+
 impl<R: Runtime> AppManager<R> {
   #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
@@ -654,19 +664,19 @@ impl<R: Runtime> AppManager<R> {
   }
 
   /// Note that this runs *before* [`crate::WindowEvent::Destroyed`] is dispatched, so
-  /// the window's own scoped event listeners are detached here, along with the window, and
-  /// handed back to deliver that event to them: a window recreated under the same label in
-  /// the meantime registers its own, which neither receive the event nor get dropped with
-  /// the old window's. Webviews have no equivalent event, so theirs are simply dropped.
-  pub(crate) fn on_window_close(
-    &self,
-    label: &str,
-  ) -> Option<Arc<scoped_listener::Listeners<crate::WindowEvent>>> {
+  /// the window's own listeners must outlive it until that event has been delivered. They are
+  /// handed back instead, marked at this point: a window recreated under the same label in the
+  /// meantime registers its own, which neither receive the event nor get dropped with the old
+  /// window's. Webviews have no equivalent event, so theirs are simply dropped.
+  pub(crate) fn on_window_close(&self, label: &str) -> Option<ClosedWindow> {
     let window = self.window.windows_lock().remove(label)?;
-    let listeners = self
-      .window
-      .scoped_event_listeners
-      .remove_instance(label, &window.event_listeners);
+    let closed = ClosedWindow {
+      scoped_event_listeners: self
+        .window
+        .scoped_event_listeners
+        .remove_instance(label, &window.event_listeners),
+      event_listeners_before: self.listeners().next_event_id(),
+    };
     for webview in window.webviews() {
       self.webview.webviews_lock().remove(webview.label());
       self.listeners().remove_webview_listeners(webview.label());
@@ -676,9 +686,7 @@ impl<R: Runtime> AppManager<R> {
         .get::<crate::ipc::channel::ChannelDataIpcQueue>()
         .remove_webview_entries(webview.label());
     }
-    // window listeners are removed by the window's own event handler after it emits `tauri://destroyed`,
-    // since the run callback (which calls this function) runs before the window event handlers
-    listeners
+    Some(closed)
   }
 
   #[cfg(desktop)]

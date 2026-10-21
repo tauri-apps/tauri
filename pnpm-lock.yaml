@@ -164,7 +164,6 @@ settings:
 
 overrides:
   axios@<1.20.0: ^1.20.0
-  follow-redirects@>=1.16.0 <1.16.1: ^1.16.1
   morgan@<1.12.0: ^1.12.0
   serialize-javascript@<7.0.5: ^7.0.5
   sharp@<0.35.5: ^0.35.5

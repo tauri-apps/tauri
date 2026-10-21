@@ -278,7 +278,7 @@ fn volume_name(product_name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-  use super::{bundle_project, volume_name};
+  use super::{DMG_ENV, HFSPLUS_ENV, MKFS_HFSPLUS_ENV, bundle_project, volume_name};
   use crate::{
     PackageType, Settings,
     bundle::{
@@ -340,9 +340,12 @@ mod tests {
   }
 
   fn tooling_available() -> bool {
-    which::which("mkfs.hfsplus").is_ok()
-      && which::which("hfsplus").is_ok()
-      && which::which("dmg").is_ok()
+    // Use the same lookup the bundler uses so the cache and the env overrides
+    // are honoured here too.
+    let settings = settings(Path::new("."), true);
+    crate::bundle::macos::tools::resolve(&settings, "mkfs.hfsplus", MKFS_HFSPLUS_ENV).is_ok()
+      && crate::bundle::macos::tools::resolve(&settings, "hfsplus", HFSPLUS_ENV).is_ok()
+      && crate::bundle::macos::tools::resolve(&settings, "dmg", DMG_ENV).is_ok()
   }
 
   #[test]
@@ -475,15 +478,12 @@ mod tests {
 
     // `hfsplus` reports the Unix mode as a 6-digit prefix, which shows both the
     // preserved executable bit and that the symlink was not copied as a file.
-    let listing = std::process::Command::new(
-      std::env::var_os("TAURI_BUNDLER_HFSPLUS")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::path::PathBuf::from("hfsplus")),
-    )
-    .arg(&image)
-    .args(["ls", "/Test.app/Contents/MacOS"])
-    .output()
-    .unwrap();
+    let hfsplus = crate::bundle::macos::tools::resolve(&settings, "hfsplus", HFSPLUS_ENV).unwrap();
+    let listing = std::process::Command::new(hfsplus)
+      .arg(&image)
+      .args(["ls", "/Test.app/Contents/MacOS"])
+      .output()
+      .unwrap();
     let listing = String::from_utf8_lossy(&listing.stdout);
     assert!(listing.contains("100755"), "{listing}");
     assert!(listing.contains("120644"), "{listing}");

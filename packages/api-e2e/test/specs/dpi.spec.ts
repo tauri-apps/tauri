@@ -35,6 +35,19 @@ describeApi('dpi', () => {
     expect(result.logical).toEqual({ x: 5, y: 10 })
   })
 
+  it('toPhysical rounds to whole pixels like the Rust conversion', async () => {
+    const result = await tauri((api) => {
+      const size = new api.dpi.LogicalSize(301, 201).toPhysical(1.5)
+      const position = new api.dpi.LogicalPosition(-101, 84.17).toPhysical(1.5)
+      return {
+        size: { width: size.width, height: size.height },
+        position: { x: position.x, y: position.y }
+      }
+    })
+    expect(result.size).toEqual({ width: 452, height: 302 })
+    expect(result.position).toEqual({ x: -152, y: 126 })
+  })
+
   it('Size and Position wrappers delegate conversions', async () => {
     const result = await tauri((api) => {
       const size = new api.dpi.Size(

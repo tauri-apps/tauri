@@ -29,6 +29,10 @@
 
 import { SERIALIZE_TO_IPC_FN } from './core'
 
+function roundToPixel(value: number): number {
+  return value < 0 ? -Math.round(-value) : Math.round(value)
+}
+
 /**
  * A size represented in logical pixels.
  * Logical pixels are scaled according to the window's DPI scale.
@@ -82,7 +86,10 @@ class LogicalSize {
    * @since 2.0.0
    */
   toPhysical(scaleFactor: number): PhysicalSize {
-    return new PhysicalSize(this.width * scaleFactor, this.height * scaleFactor)
+    return new PhysicalSize(
+      roundToPixel(this.width * scaleFactor),
+      roundToPixel(this.height * scaleFactor)
+    )
   }
 
   [SERIALIZE_TO_IPC_FN]() {
@@ -300,7 +307,10 @@ class LogicalPosition {
    * @since 2.0.0
    */
   toPhysical(scaleFactor: number): PhysicalPosition {
-    return new PhysicalPosition(this.x * scaleFactor, this.y * scaleFactor)
+    return new PhysicalPosition(
+      roundToPixel(this.x * scaleFactor),
+      roundToPixel(this.y * scaleFactor)
+    )
   }
 
   [SERIALIZE_TO_IPC_FN]() {

@@ -654,23 +654,31 @@ impl<R: Runtime> AppManager<R> {
   }
 
   /// Note that this runs *before* [`crate::WindowEvent::Destroyed`] is dispatched, so
-  /// the window's own scoped event listeners outlive it - they are dropped once that
-  /// event has been delivered. Webviews have no equivalent event, so theirs go here.
-  pub(crate) fn on_window_close(&self, label: &str) {
-    let window = self.window.windows_lock().remove(label);
-    if let Some(window) = window {
-      for webview in window.webviews() {
-        self.webview.webviews_lock().remove(webview.label());
-        self.listeners().remove_webview_listeners(webview.label());
-        self.webview.scoped_event_listeners.remove(webview.label());
-        self
-          .state
-          .get::<crate::ipc::channel::ChannelDataIpcQueue>()
-          .remove_webview_entries(webview.label());
-      }
+  /// the window's own scoped event listeners are detached here, along with the window, and
+  /// handed back to deliver that event to them: a window recreated under the same label in
+  /// the meantime registers its own, which neither receive the event nor get dropped with
+  /// the old window's. Webviews have no equivalent event, so theirs are simply dropped.
+  pub(crate) fn on_window_close(
+    &self,
+    label: &str,
+  ) -> Option<Arc<scoped_listener::Listeners<crate::WindowEvent>>> {
+    let window = self.window.windows_lock().remove(label)?;
+    let listeners = self
+      .window
+      .scoped_event_listeners
+      .remove_instance(label, &window.event_listeners);
+    for webview in window.webviews() {
+      self.webview.webviews_lock().remove(webview.label());
+      self.listeners().remove_webview_listeners(webview.label());
+      self.webview.scoped_event_listeners.remove(webview.label());
+      self
+        .state
+        .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+        .remove_webview_entries(webview.label());
     }
     // window listeners are removed by the window's own event handler after it emits `tauri://destroyed`,
     // since the run callback (which calls this function) runs before the window event handlers
+    listeners
   }
 
   #[cfg(desktop)]

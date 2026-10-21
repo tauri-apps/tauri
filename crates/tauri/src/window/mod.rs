@@ -1013,7 +1013,7 @@ pub struct Window<R: Runtime = crate::DynRuntime> {
   pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
   /// The listeners registered through [`Window::on_window_event`].
-  event_listeners: Weak<Listeners<WindowEvent>>,
+  pub(crate) event_listeners: Weak<Listeners<WindowEvent>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {

@@ -2749,13 +2749,15 @@ fn on_event_loop_event<R: Runtime>(
   event: RuntimeRunEvent<EventLoopMessage>,
   manager: &AppManager<R>,
 ) -> RunEvent {
-  if let RuntimeRunEvent::WindowEvent {
+  let destroyed_window_listeners = if let RuntimeRunEvent::WindowEvent {
     label,
     event: RuntimeWindowEvent::Destroyed,
   } = &event
   {
-    manager.on_window_close(label);
-  }
+    manager.on_window_close(label)
+  } else {
+    None
+  };
 
   let event = match event {
     RuntimeRunEvent::Exit => RunEvent::Exit,
@@ -2857,14 +2859,14 @@ fn on_event_loop_event<R: Runtime>(
   // through `Window::on_window_event` / `Webview::on_webview_event`
   match &event {
     RunEvent::WindowEvent {
-      label,
       event: WindowEvent::Destroyed,
+      ..
     } => {
       // the window is gone for good, so nothing else can arrive for it: its listeners
-      // are detached before running them one last time, so a window recreated under the
-      // same label - even from one of them - registers into its own list rather than
-      // one this sweeps out from under it
-      if let Some(listeners) = manager.window.scoped_event_listeners.remove(label) {
+      // were detached along with it before running them one last time, so a window
+      // recreated under the same label - by a plugin above, from one of them, or from
+      // another thread - registers into its own list rather than one this sweeps out
+      if let Some(listeners) = destroyed_window_listeners {
         listeners.dispatch(&WindowEvent::Destroyed);
       }
     }
@@ -3043,6 +3045,52 @@ mod tests {
       RuntimeWindowEvent::Resized(PhysicalSize::new(1, 1)),
     );
     assert_eq!(*resizes.lock().unwrap(), 1);
+  }
+
+  #[test]
+  fn window_recreated_by_a_plugin_on_destroyed_keeps_its_listeners() {
+    use crate::{
+      plugin::Builder as PluginBuilder,
+      test::{mock_builder, mock_context, noop_assets},
+      window::WindowBuilder,
+    };
+
+    let recreated = Mutex::new(false);
+    let events = Arc::new(Mutex::new(Vec::new()));
+
+    let events_ = events.clone();
+    let app = mock_builder()
+      .plugin(
+        PluginBuilder::<MockRuntime>::new("recreate")
+          .on_event(move |app, event| {
+            if matches!(
+              event,
+              RunEvent::WindowEvent {
+                event: WindowEvent::Destroyed,
+                ..
+              }
+            ) && !std::mem::replace(&mut *recreated.lock().unwrap(), true)
+            {
+              let events = events_.clone();
+              WindowBuilder::new(app, "main")
+                .build()
+                .unwrap()
+                .on_window_event(move |event| events.lock().unwrap().push(format!("{event:?}")));
+            }
+          })
+          .build(),
+      )
+      .build(mock_context(noop_assets()))
+      .unwrap();
+
+    WindowBuilder::new(&app, "main").build().unwrap();
+    dispatch_window_event(&app, "main", RuntimeWindowEvent::Destroyed);
+    assert!(app.manager().get_window("main").is_some());
+
+    // the recreated window neither receives the old window's Destroyed event
+    // nor loses its listeners to it
+    dispatch_window_event(&app, "main", RuntimeWindowEvent::Focused(true));
+    assert_eq!(*events.lock().unwrap(), vec!["Focused(true)"]);
   }
 
   #[test]

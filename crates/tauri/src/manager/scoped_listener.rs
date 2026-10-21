@@ -68,6 +68,24 @@ impl<E> ScopedEventListeners<E> {
     let mut listeners = self.listeners.lock().expect("poisoned scoped listeners");
     listeners.remove(label)
   }
+
+  /// Like [`Self::remove`], but only if the listeners registered for the given label
+  /// still are the given instance's, rather than those of a later one reusing the label.
+  pub(crate) fn remove_instance(
+    &self,
+    label: &str,
+    instance: &Weak<Listeners<E>>,
+  ) -> Option<Arc<Listeners<E>>> {
+    let mut listeners = self.listeners.lock().expect("poisoned scoped listeners");
+    if listeners
+      .get(label)
+      .is_some_and(|listeners| std::ptr::eq(Arc::as_ptr(listeners), instance.as_ptr()))
+    {
+      listeners.remove(label)
+    } else {
+      None
+    }
+  }
 }
 
 /// The listeners of a single window or webview instance.

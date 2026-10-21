@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.10.2]
+
+### Bug Fixes
+
+- [`141d1c0d6`](https://www.github.com/tauri-apps/tauri/commit/141d1c0d6f3a746f7f34618d00c2676c902dca67) ([#16199](https://www.github.com/tauri-apps/tauri/pull/16199)) Fix the `failed to read plugin permissions` build error when the Cargo target directory is moved after the first build, for example when it is restored from a CI cache at a different path. Permission files generated inside `OUT_DIR` are now listed relative to it.
+
+## [2.10.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
 ## [2.10.0]
 
 ### New Features

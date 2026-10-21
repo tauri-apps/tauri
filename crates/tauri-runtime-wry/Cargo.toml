@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.12.0"
+version = "2.12.3"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
@@ -28,7 +28,6 @@ log = "0.4.21"
 [target."cfg(windows)".dependencies]
 webview2-com = "0.39"
 softbuffer = { version = "0.4", default-features = false }
-once_cell = "1.20"
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.62"
@@ -64,6 +63,7 @@ jni = "0.21"
 default = ["x11", "dbus"]
 devtools = ["wry/devtools", "tauri-runtime/devtools"]
 x11 = ["tao/x11", "wry/x11"]
+# TODO: Remove in v3 - wry does not have this feature anymore
 macos-private-api = ["tauri-runtime/macos-private-api"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []

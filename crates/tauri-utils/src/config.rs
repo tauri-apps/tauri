@@ -1056,9 +1056,13 @@ pub struct WindowsConfig {
   /// The installation mode for the Webview2 runtime.
   #[serde(default, alias = "webview-install-mode")]
   pub webview_install_mode: WebviewInstallMode,
-  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  /// Whether an older version can be installed when a newer one is already installed.
   ///
-  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  /// For instance, if `1.2.1` is installed and this is set to `false`:
+  ///
+  /// - The MSI installer won't install version `1.2.0` or `1.1.5`.
+  /// - The NSIS installer won't install them over `1.2.1` in silent, passive or update mode.
+  ///   The interactive installer only lets the user install them after uninstalling `1.2.1` first.
   ///
   /// The default value of this flag is `true`.
   #[serde(default = "default_true", alias = "allow-downgrades")]
@@ -1956,7 +1960,7 @@ pub struct WindowConfig {
   ///
   /// ## Example:
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
@@ -2058,10 +2062,6 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS**: Requires the `macos-private-api` Cargo feature, which is enabled by setting
-  ///   `app > macOSPrivateApi` to `true` in the configuration file.
-  ///   **WARNING:** Using private APIs on macOS prevents your application from being accepted to the App Store.
-  ///   If you only need a translucent background, use `windowEffects` instead, which relies on public APIs.
   /// - **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
   #[serde(default)]
   pub transparent: bool,
@@ -3357,7 +3357,7 @@ pub struct AppConfig {
   ///
   /// and use it like this
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
@@ -3373,6 +3373,8 @@ pub struct AppConfig {
   #[serde(alias = "tray-icon")]
   pub tray_icon: Option<TrayIconConfig>,
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
+  ///
+  /// No-op in Tauri 2.12.1+ because the APIs are always enabled now.
   #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
   pub macos_private_api: bool,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
@@ -3453,11 +3455,12 @@ pub struct AppConfig {
   /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
   /// before building the app:
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// use tauri::utils::config::AppDirectoriesOverride;
   ///
   /// fn main() {
-  ///   let mut context = tauri::generate_context!();
+  ///   // on an actual app, remove the string argument
+  ///   let mut context = tauri::generate_context!("../tauri/test/fixture/src-tauri/tauri.conf.json");
   ///
   ///   if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
   ///     context.config_mut().app.app_directories_override =
@@ -3514,6 +3517,7 @@ impl AppConfig {
   pub fn all_features() -> Vec<&'static str> {
     vec![
       "tray-icon",
+      // TODO: Remove in v3
       "macos-private-api",
       "protocol-asset",
       "isolation",
@@ -3526,6 +3530,7 @@ impl AppConfig {
     if self.tray_icon.is_some() {
       features.push("tray-icon");
     }
+    // TODO: Remove in v3
     if self.macos_private_api {
       features.push("macos-private-api");
     }

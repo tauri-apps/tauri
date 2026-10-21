@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.12.3]
+
+### Bug Fixes
+
+- [`9d0ab831f`](https://www.github.com/tauri-apps/tauri/commit/9d0ab831fe38566157e3296ac00fa1b6323e44e4) ([#15513](https://www.github.com/tauri-apps/tauri/pull/15513) by [@papercupai](https://www.github.com/tauri-apps/tauri/../../papercupai)) Fix undecorated window resizing on Linux when the webview was moved into another GTK container (e.g. a `GtkPaned`).
+
+### Dependencies
+
+- [`1d7b93fc5`](https://www.github.com/tauri-apps/tauri/commit/1d7b93fc5927c013e20613e45e7b84602efb0ee9) ([#16321](https://www.github.com/tauri-apps/tauri/pull/16321) by [@FalkWoldmann](https://www.github.com/tauri-apps/tauri/../../FalkWoldmann)) Replace `once_cell` with the `std::sync` equivalents, removing it from the direct dependencies.
+
+## [2.12.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-runtime@2.12.2`
+
+## [2.12.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+- Upgraded to `tauri-runtime@2.12.1`
+
 ## [2.12.0]
 
 ### New Features

@@ -23,6 +23,8 @@ mod frame_navigation;
 /// The languages the user asked their operating system for.
 mod locale;
 mod macros;
+mod offscreen;
+pub use offscreen::{CursorHandler, Offscreen, OffscreenView};
 mod platform;
 mod popup;
 mod runtime;

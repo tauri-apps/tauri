@@ -23,6 +23,8 @@
     "build:cli:debug": "pnpm run --filter \"@tauri-apps/cli\" build:debug",
     "test": "pnpm run -r test",
     "test:api-e2e": "pnpm run --filter \"@tauri-apps/api-e2e\" e2e",
+    "test:api-e2e:android": "pnpm run --filter \"@tauri-apps/api-e2e\" e2e:android",
+    "test:api-e2e:ios": "pnpm run --filter \"@tauri-apps/api-e2e\" e2e:ios",
     "test:api-e2e:cef": "pnpm run --filter \"@tauri-apps/api-e2e\" e2e:cef",
     "test:cef-e2e": "pnpm run --filter \"cef-example\" e2e",
     "example:api:dev": "pnpm run --filter \"api\" tauri dev"
@@ -31,5 +33,5 @@
     "prettier": "^3.8.1"
   },
   "minimumReleaseAge": 4320,
-  "packageManager": "pnpm@12.3.4"
+  "packageManager": "pnpm@12.4.2"
 }

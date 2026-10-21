@@ -171,7 +171,8 @@ pub fn setup(
 
   if config.identifier == "com.tauri.dev" {
     crate::error::bail!(
-      "You must change the bundle identifier in `{bundle_identifier_source} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+      "You must change the bundle identifier in `{} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+      bundle_identifier_source.to_string_lossy()
     );
   }
 

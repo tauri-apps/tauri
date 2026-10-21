@@ -92,11 +92,17 @@ wrap_with_args! {
     frame_navigation_state: crate::FrameNavigationState,
     popup_family: Weak<crate::popup::PopupFamily>,
     opener: Option<crate::popup::PopupRequest>,
+    render_handler: Option<cef::RenderHandler>,
+    cursor_handler: Option<Arc<crate::CursorHandler>>,
     pub(crate) handlers: TauriCefBrowserClientHandlers<T>,
     sender: Sender<Message<T>>,
   }
 
   impl Client {
+    fn render_handler(&self) -> Option<RenderHandler> {
+      self.render_handler.clone()
+    }
+
     fn frame_handler(&self) -> Option<FrameHandler> {
       self.handlers.frame_event_handler.as_ref().map(|handler| {
         frame::TauriCefFrameHandler::new(Some(handler.clone()))
@@ -160,6 +166,8 @@ wrap_with_args! {
           frame_navigation_state: state,
           popup_family: family.clone(),
           opener: Some(opener),
+          render_handler: None,
+          cursor_handler: None,
           handlers: TauriCefBrowserClientHandlers {
             // Only the internal navigation observer, never the opener's app
             // observer. A popup is a separate native browser that navigates
@@ -224,9 +232,12 @@ wrap_with_args! {
 
     fn display_handler(&self) -> Option<DisplayHandler> {
       Some(TauriCefDisplayHandler::build(TauriCefDisplayHandlerArgs {
+        webview_id: self.webview_id,
+        context: self.context.clone(),
         document_title_changed_handler: self.handlers.document_title_changed_handler.clone(),
         frame_event_handler: self.handlers.frame_event_handler.clone(),
         console_message_handler: self.handlers.console_message_handler.clone(),
+        cursor_handler: self.cursor_handler.clone(),
         frame_navigation_state: self.frame_navigation_state.clone(),
       }))
     }
@@ -249,6 +260,8 @@ wrap_with_args! {
 
     fn command_handler(&self) -> Option<CommandHandler> {
       Some(TauriCefCommandHandler::build(TauriCefCommandHandlerArgs {
+        webview_id: self.webview_id,
+        context: self.context.clone(),
         devtools_enabled: self.devtools_enabled,
         zoom_hotkeys_enabled: self.zoom_hotkeys_enabled,
         allowed_chrome_commands: self.allowed_chrome_commands.clone(),

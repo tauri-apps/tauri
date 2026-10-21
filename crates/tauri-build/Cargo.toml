@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "3.0.0-alpha.1"
+version = "3.0.0-alpha.4"
 description = "build time code to pair with https://crates.io/crates/tauri"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
@@ -38,6 +38,8 @@ semver = "1"
 dirs = "7"
 glob = "0.3"
 schemars = { version = "1", features = ["preserve_order"] }
+static_vcruntime = "3.0"
+strsim = "0.11"
 
 [features]
 default = ["config-json"]

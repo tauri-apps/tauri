@@ -41,6 +41,7 @@ pub struct RuntimeConfig {
   allow_chromium_command_line_args: bool,
   autoplay_without_gesture: bool,
   remote_debugging_port: Option<u16>,
+  offscreen: bool,
   cache_path: PathBuf,
   log_file: PathBuf,
   cef_api_version: i32,
@@ -121,6 +122,9 @@ impl RuntimeConfig {
       // process and every helper process the entry point runs — have to agree on
       // it, and they do here because they are the same executable.
       cef_api_version: CEF_API_VERSION_LAST,
+      // Off-screen rendering (see `offscreen`), which needs a process-wide CEF
+      // setting CEF advises against when nothing renders off-screen.
+      offscreen: env_is(&env("CEF_EXAMPLE_OFFSCREEN"), "on"),
       log_file: cache_path.join("cef.log"),
       cache_path,
     }
@@ -129,6 +133,11 @@ impl RuntimeConfig {
   /// The CEF API version the runtime was told to declare.
   pub fn cef_api_version(&self) -> i32 {
     self.cef_api_version
+  }
+
+  /// Whether off-screen windows can be opened in this run.
+  pub fn offscreen(&self) -> bool {
+    self.offscreen
   }
 
   /// The runtime attributes handed to `tauri::Builder::runtime`.
@@ -181,7 +190,23 @@ impl RuntimeConfig {
       .deep_link_schemes([DEEP_LINK_SCHEME])
       // The escape hatch for anything `Cef` has no method for: the `cef::Settings`
       // struct as CEF receives it. Session cookies normally die with the process.
-      .with_settings(|settings| settings.persist_session_cookies = 1);
+      // Only the last callback is kept, so everything goes in this one.
+      .with_settings({
+        let offscreen = self.offscreen;
+        move |settings| {
+          settings.persist_session_cookies = 1;
+          // Lets a browser be created windowless; see `crate::offscreen`.
+          settings.windowless_rendering_enabled = i32::from(offscreen);
+        }
+      });
+
+    // The native events an off-screen browser's input and presentation come
+    // from. Observes every window; the runtime still handles each event after.
+    let cef = if self.offscreen {
+      cef.on_window_event(crate::offscreen::on_window_event)
+    } else {
+      cef
+    };
 
     // A raw Chromium switch, applied to the browser process only, and the one
     // knob here that is observable as behaviour rather than as a reported value:
@@ -246,6 +271,11 @@ impl RuntimeConfig {
           None => "Disabled".into(),
         },
         "CEF_EXAMPLE_REMOTE_DEBUGGING_PORT=<port>, which the e2e suite attaches Playwright to",
+      ),
+      ConfiguredValue::new(
+        "settings.windowless_rendering_enabled",
+        self.offscreen.to_string(),
+        "CEF_EXAMPLE_OFFSCREEN=on|off, which off-screen windows need",
       ),
       ConfiguredValue::new(
         "root_cache_path",

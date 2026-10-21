@@ -56,6 +56,7 @@ impl GlobalRuntime {
   }
 
   #[track_caller]
+  /// Runs the provided function on an executor dedicated to blocking operations.
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
     F: FnOnce() -> R + Send + 'static,
@@ -185,6 +186,26 @@ impl RuntimeHandle {
 
   #[track_caller]
   /// Runs the provided function on an executor dedicated to blocking operations.
+  ///
+  /// Use this instead of [`Self::spawn`] for code that blocks the thread it runs on
+  /// (synchronous file or network I/O, heavy computation, FFI calls) so the async executor
+  /// is not blocked. The returned [`JoinHandle`] resolves to the closure's return value.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle().clone();
+  ///     tauri::async_runtime::handle().spawn_blocking(move || {
+  ///       let contents = std::fs::read_to_string("file.txt").unwrap_or_default();
+  ///       handle.package_info().name.len() + contents.len()
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
     F: FnOnce() -> R + Send + 'static,

@@ -127,11 +127,7 @@ impl<R: Runtime> WebviewManager<R> {
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let app_manager = manager.manager();
 
-    let plugin_init_scripts = app_manager
-      .plugins
-      .lock()
-      .expect("poisoned plugin store")
-      .initialization_script();
+    let plugin_init_scripts = app_manager.plugins.initialization_script();
 
     let pattern_init = PatternJavascript {
       pattern: (&*app_manager.pattern).into(),
@@ -270,6 +266,11 @@ impl<R: Runtime> WebviewManager<R> {
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
+      // The asset and isolation protocols below take the origin too.
+      #[cfg_attr(
+        not(any(feature = "protocol-asset", feature = "isolation")),
+        allow(clippy::redundant_clone)
+      )]
       let protocol = crate::protocol::tauri::get(
         manager.manager_owned(),
         window_origin.clone(),
@@ -302,11 +303,7 @@ impl<R: Runtime> WebviewManager<R> {
             on_page_load(&w, &payload);
           }
 
-          app_manager_
-            .plugins
-            .lock()
-            .unwrap()
-            .on_page_load(&w, &payload);
+          app_manager_.plugins.on_page_load(&w, &payload);
         }
 
         if let Some(handler) = &on_page_load_handler {
@@ -580,12 +577,11 @@ impl<R: Runtime> WebviewManager<R> {
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = manager.path().resolve(
-        &app_manager.config.identifier,
-        crate::path::BaseDirectory::LocalData,
-      );
-      if let Ok(user_data_dir) = local_app_data {
-        pending.webview_attributes.data_directory = Some(user_data_dir);
+      match manager.path().app_local_data_dir() {
+        Ok(user_data_dir) => pending.webview_attributes.data_directory = Some(user_data_dir),
+        Err(e) => log::error!(
+          "failed to resolve the app local data directory, the webview falls back to its default data directory: {e}"
+        ),
       }
     }
 
@@ -644,11 +640,7 @@ impl<R: Runtime> WebviewManager<R> {
       }
       let webview = app_manager.webview.webviews_lock().get(&label).cloned();
       if let Some(w) = webview {
-        app_manager
-          .plugins
-          .lock()
-          .expect("poisoned plugin store")
-          .on_navigation(&w, url)
+        app_manager.plugins.on_navigation(&w, url)
       } else {
         true
       }
@@ -685,13 +677,9 @@ impl<R: Runtime> WebviewManager<R> {
     // let plugins know that a new webview has been added to the manager
     let manager = webview.manager_owned();
     let webview_ = webview.clone();
-    // run on main thread so the plugin store doesn't dead lock with the event loop handler in App
+    // plugins receive the created hooks on the main thread
     let _ = webview.run_on_main_thread(move || {
-      manager
-        .plugins
-        .lock()
-        .expect("poisoned plugin store")
-        .webview_created(webview_);
+      manager.plugins.webview_created(webview_);
     });
 
     #[cfg(target_os = "ios")]

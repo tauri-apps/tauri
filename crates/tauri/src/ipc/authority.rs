@@ -370,10 +370,11 @@ impl RuntimeAuthority {
     }
 
     // Resolve against the raw ACL (materializes the authority) before taking `&mut` below.
-    let resolved = Resolved::resolve(
+    let resolved = Resolved::resolve_with_base_scope_id(
       &self.inner().acl,
       capabilities,
       tauri_utils::platform::Target::current(),
+      self.scope_manager().last_scope_id(),
     )
     .unwrap();
 
@@ -389,6 +390,20 @@ impl RuntimeAuthority {
       inner.scope_manager.global_scope_cache = StateManager::new();
     }
 
+    // fill command scope
+    // the scope ids were assigned past the existing ones, so these are all new entries
+    for (scope_id, command_scope) in resolved.command_scope {
+      inner
+        .scope_manager
+        .command_cache
+        .entry(scope_id)
+        .or_insert_with(StateManager::new);
+      inner
+        .scope_manager
+        .command_scope
+        .insert(scope_id, command_scope);
+    }
+
     // denied commands
     for (cmd_key, resolved_cmds) in resolved.denied_commands {
       let entry = inner.denied_commands.entry(cmd_key).or_default();
@@ -397,28 +412,6 @@ impl RuntimeAuthority {
 
     // allowed commands
     for (cmd_key, resolved_cmds) in resolved.allowed_commands {
-      // fill command scope
-      for resolved_cmd in &resolved_cmds {
-        if let Some(scope_id) = resolved_cmd.scope_id {
-          let command_scope = resolved.command_scope.get(&scope_id).unwrap();
-
-          let command_scope_entry = inner
-            .scope_manager
-            .command_scope
-            .entry(scope_id)
-            .or_default();
-          command_scope_entry
-            .allow
-            .extend(command_scope.allow.clone());
-          command_scope_entry.deny.extend(command_scope.deny.clone());
-
-          inner
-            .scope_manager
-            .command_cache
-            .insert(scope_id, StateManager::new());
-        }
-      }
-
       let entry = inner.allowed_commands.entry(cmd_key).or_default();
       entry.extend(resolved_cmds);
     }
@@ -547,10 +540,15 @@ impl RuntimeAuthority {
     // Materialize the authority once; everything below reads the resolved ACL.
     let inner = self.inner();
 
-    if let Some(resolved) = inner.denied_commands.get(&command) {
+    let denied_on_origin = inner
+      .denied_on(&command, origin)
+      .cloned()
+      .collect::<Vec<_>>();
+
+    if !denied_on_origin.is_empty() {
       format!(
         "{command_pretty_name} explicitly denied on origin {origin}\n\nreferenced by: {}",
-        print_references(resolved)
+        print_references(&denied_on_origin)
       )
     } else {
       let command_matches = inner.allowed_commands.get(&command);
@@ -662,6 +660,9 @@ impl RuntimeAuthority {
   }
 
   /// Checks if the given IPC execution is allowed and returns the [`ResolvedCommand`] if it is.
+  ///
+  /// A command is denied when a capability that denies it matches the given origin
+  /// (execution context), window and webview labels are not taken into account for denial.
   pub fn resolve_access(
     &self,
     command: &str,
@@ -672,37 +673,58 @@ impl RuntimeAuthority {
     // First command dispatch blocks here if the resolved ACL is still building on the
     // background thread (see `RuntimeAuthority::new_async`); subsequent calls are cached.
     let inner = self.inner();
-    // the `allow-*`/`deny-*` wildcard permissions resolve to a single `*` command (per manifest)
+    if inner.is_denied(command, origin) {
+      return None;
+    }
+    // the `allow-*` wildcard permission resolves to a single `*` command (per manifest)
     // instead of one entry per command, so we also look the command up under its wildcard key.
     let wildcard = wildcard_command(command);
-    if inner
-      .denied_commands
+    let resolved_cmds = inner
+      .allowed_commands
       .get(command)
-      .or_else(|| inner.denied_commands.get(&wildcard))
-      .map(|resolved| resolved.iter().any(|cmd| origin.matches(&cmd.context)))
-      .is_some()
-    {
+      .into_iter()
+      .chain(inner.allowed_commands.get(&wildcard))
+      .flatten()
+      .filter(|cmd| {
+        origin.matches(&cmd.context)
+          && (cmd.webviews.iter().any(|w| w.matches(webview))
+            || cmd.windows.iter().any(|w| w.matches(window)))
+      })
+      .cloned()
+      .collect::<Vec<_>>();
+    if resolved_cmds.is_empty() {
       None
     } else {
-      let resolved_cmds = inner
-        .allowed_commands
-        .get(command)
-        .into_iter()
-        .chain(inner.allowed_commands.get(&wildcard))
-        .flatten()
-        .filter(|cmd| {
-          origin.matches(&cmd.context)
-            && (cmd.webviews.iter().any(|w| w.matches(webview))
-              || cmd.windows.iter().any(|w| w.matches(window)))
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-      if resolved_cmds.is_empty() {
-        None
-      } else {
-        Some(resolved_cmds)
-      }
+      Some(resolved_cmds)
     }
+  }
+}
+
+impl RuntimeAuthorityInner {
+  /// Returns the deny entries of the given command whose execution context matches the given origin.
+  ///
+  /// Deny entries carry the [`ExecutionContext`] of the capability that defined them,
+  /// so a command denied by a remote capability is not denied for the local app and vice-versa.
+  ///
+  /// The `deny-*` wildcard permission resolves to a single `*` command (per manifest),
+  /// so the command is also looked up under its wildcard key.
+  fn denied_on<'a>(
+    &'a self,
+    command: &str,
+    origin: &'a Origin,
+  ) -> impl Iterator<Item = &'a ResolvedCommand> + use<'a> {
+    self
+      .denied_commands
+      .get(command)
+      .into_iter()
+      .chain(self.denied_commands.get(&wildcard_command(command)))
+      .flatten()
+      .filter(move |cmd| origin.matches(&cmd.context))
+  }
+
+  /// Checks if the given command is explicitly denied for the given origin.
+  fn is_denied(&self, command: &str, origin: &Origin) -> bool {
+    self.denied_on(command, origin).next().is_some()
   }
 }
 
@@ -981,6 +1003,12 @@ pub trait ScopeObjectMatch: ScopeObject {
 }
 
 impl ScopeManager {
+  /// The highest assigned command scope id, or `0` if there are none.
+  #[cfg(feature = "dynamic-acl")]
+  fn last_scope_id(&self) -> ScopeKey {
+    self.command_scope.keys().next_back().copied().unwrap_or(0)
+  }
+
   pub(crate) fn get_global_scope_typed<R: Runtime, T: ScopeObject>(
     &self,
     app: &AppHandle<R>,
@@ -1331,6 +1359,271 @@ mod tests {
     );
   }
 
+  #[test]
+  fn denied_command_is_scoped_to_the_execution_context() {
+    let url = "https://tauri.app";
+    let command = "my-command";
+    let window = "main";
+    let webview = "main";
+    let windows = vec![Pattern::new(window).unwrap()];
+
+    // the command is allowed on both the local app and the remote URL
+    let allowed_commands = [(
+      command.to_string(),
+      vec![
+        ResolvedCommand {
+          windows: windows.clone(),
+          ..Default::default()
+        },
+        ResolvedCommand {
+          windows: windows.clone(),
+          context: ExecutionContext::Remote {
+            url: url.parse().unwrap(),
+          },
+          ..Default::default()
+        },
+      ],
+    )]
+    .into_iter()
+    .collect();
+
+    // but it is only denied on the remote URL
+    let denied_commands = [(
+      command.to_string(),
+      vec![ResolvedCommand {
+        windows,
+        context: ExecutionContext::Remote {
+          url: url.parse().unwrap(),
+        },
+        ..Default::default()
+      }],
+    )]
+    .into_iter()
+    .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        denied_commands,
+        ..Default::default()
+      },
+    );
+
+    // the remote origin the deny entry was defined for is denied
+    assert!(
+      authority
+        .resolve_access(
+          command,
+          window,
+          webview,
+          &Origin::Remote {
+            url: url.parse().unwrap()
+          }
+        )
+        .is_none()
+    );
+
+    // the local app must not be affected by a deny entry of a remote capability
+    let resolved = authority
+      .resolve_access(command, window, webview, &Origin::Local)
+      .expect("local origin must not be denied by a remote capability");
+    assert_eq!(resolved.len(), 1);
+    assert_eq!(resolved[0].context, ExecutionContext::Local);
+  }
+
+  #[test]
+  fn denied_command_on_local_context_does_not_deny_remote() {
+    let url = "https://tauri.app";
+    let command = "my-command";
+    let window = "main";
+    let webview = "main";
+    let windows = vec![Pattern::new(window).unwrap()];
+
+    // the command is allowed on both the local app and the remote URL
+    let allowed_commands = [(
+      command.to_string(),
+      vec![
+        ResolvedCommand {
+          windows: windows.clone(),
+          ..Default::default()
+        },
+        ResolvedCommand {
+          windows: windows.clone(),
+          context: ExecutionContext::Remote {
+            url: url.parse().unwrap(),
+          },
+          ..Default::default()
+        },
+      ],
+    )]
+    .into_iter()
+    .collect();
+
+    // but it is only denied on the local app
+    let denied_commands = [(
+      command.to_string(),
+      vec![ResolvedCommand {
+        windows,
+        ..Default::default()
+      }],
+    )]
+    .into_iter()
+    .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        denied_commands,
+        ..Default::default()
+      },
+    );
+
+    // the remote origin must not be affected by a deny entry of a local capability
+    let resolved = authority
+      .resolve_access(
+        command,
+        window,
+        webview,
+        &Origin::Remote {
+          url: url.parse().unwrap(),
+        },
+      )
+      .expect("remote origin must not be denied by a local capability");
+    assert_eq!(resolved.len(), 1);
+    assert_eq!(
+      resolved[0].context,
+      ExecutionContext::Remote {
+        url: url.parse().unwrap()
+      }
+    );
+
+    // the local app is denied even though it has an allow entry
+    assert!(
+      authority
+        .resolve_access(command, window, webview, &Origin::Local)
+        .is_none()
+    );
+  }
+
+  #[cfg(debug_assertions)]
+  #[test]
+  fn resolve_access_message_denied_on_origin() {
+    use tauri_utils::acl::resolved::ResolvedCommandReference;
+
+    let plugin_name = "myplugin";
+    let command_name = "my-command";
+    let command = format!("plugin:{plugin_name}|{command_name}");
+    let window = "main";
+    let webview = "main";
+    let remote_url = "http://localhost:8080";
+    let windows = vec![Pattern::new(window).unwrap()];
+
+    let remote_context = ExecutionContext::Remote {
+      url: remote_url.parse().unwrap(),
+    };
+
+    let allowed_commands = [(
+      command.clone(),
+      vec![
+        ResolvedCommand {
+          windows: windows.clone(),
+          referenced_by: ResolvedCommandReference {
+            capability: "maincap".to_string(),
+            permission: "allow-command".to_string(),
+          },
+          ..Default::default()
+        },
+        ResolvedCommand {
+          windows: windows.clone(),
+          context: remote_context.clone(),
+          referenced_by: ResolvedCommandReference {
+            capability: "remotecap".to_string(),
+            permission: "allow-command".to_string(),
+          },
+          ..Default::default()
+        },
+      ],
+    )]
+    .into_iter()
+    .collect();
+
+    // one capability denies the command locally, another denies it on the remote URL
+    let denied_commands = [(
+      command,
+      vec![
+        ResolvedCommand {
+          windows: windows.clone(),
+          referenced_by: ResolvedCommandReference {
+            capability: "localcap".to_string(),
+            permission: "deny-command".to_string(),
+          },
+          ..Default::default()
+        },
+        ResolvedCommand {
+          windows,
+          context: remote_context,
+          referenced_by: ResolvedCommandReference {
+            capability: "remotecap".to_string(),
+            permission: "deny-command".to_string(),
+          },
+          ..Default::default()
+        },
+      ],
+    )]
+    .into_iter()
+    .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        denied_commands,
+        ..Default::default()
+      },
+    );
+
+    // only the capability denying the local context is referenced
+    assert_eq!(
+      authority.resolve_access_message(plugin_name, command_name, window, webview, &Origin::Local),
+      "myplugin.my-command explicitly denied on origin local\n\nreferenced by: capability: localcap, permission: deny-command"
+    );
+
+    // only the capability denying the remote URL is referenced
+    assert_eq!(
+      authority.resolve_access_message(
+        plugin_name,
+        command_name,
+        window,
+        webview,
+        &Origin::Remote {
+          url: remote_url.parse().unwrap()
+        }
+      ),
+      "myplugin.my-command explicitly denied on origin remote: http://localhost:8080/\n\nreferenced by: capability: remotecap, permission: deny-command"
+    );
+
+    // a remote URL that matches no deny entry is not reported as explicitly denied
+    let message = authority.resolve_access_message(
+      plugin_name,
+      command_name,
+      window,
+      webview,
+      &Origin::Remote {
+        url: "http://localhost:123".parse().unwrap(),
+      },
+    );
+    assert!(
+      !message.contains("explicitly denied"),
+      "unexpected message: {message}"
+    );
+    assert!(
+      message.starts_with("myplugin.my-command not allowed"),
+      "unexpected message: {message}"
+    );
+  }
+
   #[cfg(debug_assertions)]
   #[test]
   fn resolve_access_message() {
@@ -1479,6 +1772,139 @@ mod tests {
       ),
       "myplugin.my-command-webview-window not allowed on window \"main-*\", webview \"webview-*\", URL: http://localhost:123/\n\nallowed on: [windows: \"main-*\", webviews: \"webview-*\", URL: local], [windows: \"main-*\", webviews: \"webview-*\", URL: http://localhost:8080]\n\nreferenced by: capability: maincap, permission: allow-command || capability: maincap, permission: allow-command"
     );
+  }
+
+  #[cfg(feature = "dynamic-acl")]
+  #[test]
+  fn add_capability_assigns_fresh_scope_ids() {
+    use serde_json::json;
+    use std::collections::{BTreeMap, BTreeSet};
+    use tauri_utils::acl::{
+      Permission,
+      capability::{Capability, CapabilityFile},
+      manifest::Manifest,
+    };
+
+    fn manifest(permission: serde_json::Value) -> Manifest {
+      let permission: Permission = serde_json::from_value(permission).unwrap();
+      Manifest {
+        permissions: [(permission.identifier.clone(), permission)].into(),
+        ..Default::default()
+      }
+    }
+
+    fn capability(identifier: &str, permission: &str) -> Capability {
+      serde_json::from_value(json!({
+        "identifier": identifier,
+        "windows": ["main"],
+        "permissions": [permission]
+      }))
+      .unwrap()
+    }
+
+    fn scope_ids(authority: &RuntimeAuthority, command: &str) -> BTreeSet<u64> {
+      authority.inner().allowed_commands[command]
+        .iter()
+        .filter_map(|cmd| cmd.scope_id)
+        .collect()
+    }
+
+    // the scope values the command resolves to, see `CommandScope::resolve`
+    fn allowed_scope(authority: &RuntimeAuthority, command: &str) -> Vec<serde_json::Value> {
+      scope_ids(authority, command)
+        .iter()
+        .flat_map(|id| &authority.scope_manager().command_scope[id].allow)
+        .cloned()
+        .map(serde_json::Value::from)
+        .collect()
+    }
+
+    let acl: BTreeMap<String, Manifest> = [
+      (
+        "opener".to_string(),
+        manifest(json!({
+          "identifier": "allow-open-path",
+          "commands": { "allow": ["open_path"] },
+          "scope": { "allow": [{ "path": "/tmp/**" }] }
+        })),
+      ),
+      (
+        "http".to_string(),
+        manifest(json!({
+          "identifier": "allow-fetch",
+          "commands": { "allow": ["fetch", "fetch_send"] },
+          "scope": { "allow": [{ "url": "https://example.com" }] }
+        })),
+      ),
+    ]
+    .into();
+
+    // build time ACL, the opener scope gets id 1
+    let baked = Resolved::resolve(
+      &acl,
+      [(
+        "baked".to_string(),
+        capability("baked", "opener:allow-open-path"),
+      )]
+      .into(),
+      tauri_utils::platform::Target::current(),
+    )
+    .unwrap();
+    let mut authority = RuntimeAuthority::new(acl, baked);
+    assert_eq!(scope_ids(&authority, "plugin:opener|open_path"), [1].into());
+
+    // a runtime capability for another plugin must not be merged into scope 1
+    authority
+      .add_capability_inner(CapabilityFile::Capability(capability(
+        "runtime",
+        "http:allow-fetch",
+      )))
+      .unwrap();
+
+    assert_eq!(
+      authority
+        .scope_manager()
+        .command_scope
+        .keys()
+        .copied()
+        .collect::<Vec<_>>(),
+      vec![1, 2]
+    );
+    assert!(authority.scope_manager().command_cache.contains_key(&2));
+    assert_eq!(
+      allowed_scope(&authority, "plugin:opener|open_path"),
+      vec![json!({ "path": "/tmp/**" })]
+    );
+    // fetch and fetch_send share the scope, and it must not be duplicated
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch"), [2].into());
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch_send"), [2].into());
+    assert_eq!(
+      allowed_scope(&authority, "plugin:http|fetch"),
+      vec![json!({ "url": "https://example.com" })]
+    );
+
+    // the next runtime capability continues past the previous one
+    authority
+      .add_capability_inner(CapabilityFile::Capability(capability(
+        "runtime-2",
+        "opener:allow-open-path",
+      )))
+      .unwrap();
+    assert_eq!(
+      authority
+        .scope_manager()
+        .command_scope
+        .keys()
+        .copied()
+        .collect::<Vec<_>>(),
+      vec![1, 2, 3]
+    );
+    assert!(authority.scope_manager().command_cache.contains_key(&3));
+    assert_eq!(
+      scope_ids(&authority, "plugin:opener|open_path"),
+      [1, 3].into()
+    );
+    assert_eq!(scope_ids(&authority, "plugin:http|fetch"), [2].into());
   }
 
   // ============================================================================

@@ -66,6 +66,7 @@ mod window_effects {
   #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
   #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
   #[serde(rename_all = "camelCase")]
+  #[non_exhaustive]
   /// Platform-specific window effects
   pub enum WindowEffect {
     /// A default material appropriate for the view's effectiveAppearance. **macOS 10.14-**
@@ -114,6 +115,10 @@ mod window_effects {
     UnderWindowBackground,
     /// **macOS 10.14+**
     UnderPageBackground,
+    /// **macOS 26.0+**
+    LiquidGlassRegular,
+    /// **macOS 26.0+**
+    LiquidGlassClear,
     /// Mica effect that matches the system dark preference **Windows 11 Only**
     Mica,
     /// Mica effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**

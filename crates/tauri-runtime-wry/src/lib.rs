@@ -928,22 +928,6 @@ impl WindowBuilder for WindowBuilderWrapper {
       }
     }
 
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    {
-      window = window.transparent(config.transparent);
-    }
-    #[cfg(all(
-      target_os = "macos",
-      not(feature = "macos-private-api"),
-      debug_assertions
-    ))]
-    if config.transparent {
-      eprintln!(
-        "The window is set to be transparent but the `macos-private-api` is not enabled.
-        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://v2.tauri.app/reference/config/#macosprivateapi>
-      ");
-    }
-
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1002,7 +986,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       .closable(config.closable)
       .maximizable(config.maximizable)
       .minimizable(config.minimizable)
-      .shadow(config.shadow);
+      .shadow(config.shadow)
+      .transparent(config.transparent);
 
     let mut constraints = WindowSizeConstraints::default();
 
@@ -1166,7 +1151,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   fn transparent(mut self, transparent: bool) -> Self {
     self.inner = self.inner.with_transparent(transparent);
     self
@@ -1460,10 +1444,12 @@ pub enum WindowMessage {
   IsClosable(Sender<bool>),
   IsVisible(Sender<bool>),
   Title(Sender<String>),
-  CurrentMonitor(Sender<Option<MonitorHandle>>),
-  PrimaryMonitor(Sender<Option<MonitorHandle>>),
-  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
-  AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  // Monitors are converted on the main thread: on iOS tao's `MonitorHandle`
+  // can only be queried (and dropped) there.
+  CurrentMonitor(Sender<Option<Monitor>>),
+  PrimaryMonitor(Sender<Option<Monitor>>),
+  MonitorFromPoint(Sender<Option<Monitor>>, (f64, f64)),
+  AvailableMonitors(Sender<Vec<Monitor>>),
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1610,9 +1596,10 @@ pub enum WebviewMessage {
 
 pub enum EventLoopWindowTargetMessage {
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
-  PrimaryMonitor(Sender<Option<MonitorHandle>>),
-  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
-  AvailableMonitors(Sender<Vec<MonitorHandle>>),
+  // See `WindowMessage::CurrentMonitor`.
+  PrimaryMonitor(Sender<Option<Monitor>>),
+  MonitorFromPoint(Sender<Option<Monitor>>, (f64, f64)),
+  AvailableMonitors(Sender<Vec<Monitor>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
 }
@@ -2090,11 +2077,11 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::CurrentMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+    window_getter!(self, WindowMessage::CurrentMonitor)
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+    window_getter!(self, WindowMessage::PrimaryMonitor)
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
@@ -2105,20 +2092,11 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       WindowMessage::MonitorFromPoint(tx, (x, y)),
     ));
 
-    Ok(
-      rx.recv()
-        .map_err(|_| crate::Error::FailedToReceiveMessage)?
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-    Ok(
-      window_getter!(self, WindowMessage::AvailableMonitors)?
-        .into_iter()
-        .map(|m| MonitorHandleWrapper(m).into())
-        .collect(),
-    )
+    window_getter!(self, WindowMessage::AvailableMonitors)
   }
 
   fn theme(&self) -> Result<Theme> {
@@ -2842,10 +2820,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(
-      event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor)?
-        .map(|m| MonitorHandleWrapper(m).into()),
-    )
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor)
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
@@ -2855,18 +2830,11 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .send_user_message(Message::EventLoopWindowTarget(
         EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y)),
       ))?;
-    Ok(rx.recv().unwrap().map(|m| MonitorHandleWrapper(m).into()))
+    Ok(rx.recv().unwrap())
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-    event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors).map(
-      |monitors| {
-        monitors
-          .into_iter()
-          .map(|m| MonitorHandleWrapper(m).into())
-          .collect()
-      },
-    )
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors)
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
@@ -3506,14 +3474,35 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::IsClosable(tx) => tx.send(window.is_closable()).unwrap(),
           WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
           WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
-          WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
-          WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
-          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
-            tx.send(window.monitor_from_point(x, y)).unwrap()
-          }
-          WindowMessage::AvailableMonitors(tx) => {
-            tx.send(window.available_monitors().collect()).unwrap()
-          }
+          WindowMessage::CurrentMonitor(tx) => tx
+            .send(
+              window
+                .current_monitor()
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::PrimaryMonitor(tx) => tx
+            .send(
+              window
+                .primary_monitor()
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::MonitorFromPoint(tx, (x, y)) => tx
+            .send(
+              window
+                .monitor_from_point(x, y)
+                .map(|m| MonitorHandleWrapper(m).into()),
+            )
+            .unwrap(),
+          WindowMessage::AvailableMonitors(tx) => tx
+            .send(
+              window
+                .available_monitors()
+                .map(|m| MonitorHandleWrapper(m).into())
+                .collect(),
+            )
+            .unwrap(),
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -4251,14 +4240,31 @@ fn handle_user_message<T: UserEvent>(
         sender.send(pos).unwrap();
       }
       EventLoopWindowTargetMessage::PrimaryMonitor(sender) => {
-        sender.send(event_loop.primary_monitor()).unwrap();
+        sender
+          .send(
+            event_loop
+              .primary_monitor()
+              .map(|m| MonitorHandleWrapper(m).into()),
+          )
+          .unwrap();
       }
       EventLoopWindowTargetMessage::MonitorFromPoint(sender, (x, y)) => {
-        sender.send(event_loop.monitor_from_point(x, y)).unwrap();
+        sender
+          .send(
+            event_loop
+              .monitor_from_point(x, y)
+              .map(|m| MonitorHandleWrapper(m).into()),
+          )
+          .unwrap();
       }
       EventLoopWindowTargetMessage::AvailableMonitors(sender) => {
         sender
-          .send(event_loop.available_monitors().collect())
+          .send(
+            event_loop
+              .available_monitors()
+              .map(|m| MonitorHandleWrapper(m).into())
+              .collect(),
+          )
           .unwrap();
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {

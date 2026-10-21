@@ -10,9 +10,10 @@ use windows::Win32::{
   Graphics::Gdi::MapWindowPoints,
   UI::Shell::{DefSubclassProc, SetWindowSubclass},
   UI::WindowsAndMessaging::{
-    DestroyWindow, GetParent, GetWindowRect, HWND_TOP, IsWindow, IsWindowVisible, SW_HIDE, SW_SHOW,
-    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow,
-    WINDOWPOS, WM_WINDOWPOSCHANGING,
+    DestroyWindow, GWL_STYLE, GetParent, GetWindowLongPtrW, GetWindowRect, HWND_TOP, IsWindow,
+    IsWindowVisible, SW_HIDE, SW_SHOW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+    SWP_NOZORDER, SetParent, SetWindowLongPtrW, SetWindowPos, ShowWindow, WINDOW_STYLE, WINDOWPOS,
+    WM_WINDOWPOSCHANGING, WS_CLIPSIBLINGS,
   },
 };
 
@@ -58,6 +59,9 @@ impl AppWebview {
   }
 
   pub(crate) fn bounds(&self) -> Option<Rect> {
+    if let Some(view) = &self.offscreen {
+      return Some(view.bounds());
+    }
     let hwnd = self.hwnd();
 
     let mut rect = RECT::default();
@@ -97,6 +101,46 @@ impl AppWebview {
   pub(crate) fn reparent(&self, parent: &AppWindow) {
     let parent = parent.hwnd();
     let _ = unsafe { SetParent(self.hwnd(), Some(parent)) };
+    // The new parent brings a new set of siblings to blend against.
+    self.unclip_siblings();
+  }
+
+  /// Lets this webview blend with the webviews stacked beneath it.
+  ///
+  /// Views puts WS_CLIPSIBLINGS on every widget it creates, unconditionally
+  /// and with no opt-out reachable through the CEF API (see
+  /// `CalculateWindowStylesFromInitParams` in
+  /// `ui/views/widget/widget_hwnd_utils.cc`). The style makes overlapping
+  /// siblings mutually exclusive rectangles: only the topmost one paints
+  /// there, so a translucent webview laid over another one has nothing left to
+  /// composite against except the window itself, and punches a hole straight
+  /// through the webview below it. Dropping the style is what puts the lower
+  /// webview's pixels back under the upper one's alpha.
+  ///
+  /// This cannot be gated on either webview being transparent: a webview can
+  /// be reparented onto any window at any time, so which ones end up stacked
+  /// is not known when they are created.
+  pub(crate) fn unclip_siblings(&self) {
+    let hwnd = self.hwnd();
+    unsafe {
+      let style = WINDOW_STYLE(GetWindowLongPtrW(hwnd, GWL_STYLE) as u32);
+      if (style & WS_CLIPSIBLINGS).0 == 0 {
+        return;
+      }
+      SetWindowLongPtrW(hwnd, GWL_STYLE, (style & !WS_CLIPSIBLINGS).0 as isize);
+
+      // Styles changed after creation do not reach the frame until the
+      // window is told to recalculate it.
+      let _ = SetWindowPos(
+        hwnd,
+        None,
+        0,
+        0,
+        0,
+        0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+      );
+    }
   }
 
   pub(crate) fn apply_visible(&self, visible: bool) {

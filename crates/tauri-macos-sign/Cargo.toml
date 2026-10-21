@@ -1,8 +1,8 @@
 [package]
 name = "tauri-macos-sign"
-version = "3.0.0-alpha.1"
+version = "3.0.0-alpha.3"
 authors = ["Tauri Programme within The Commons Conservancy"]
-license = "Apache-2.0 OR MIT"
+license = "(Apache-2.0 OR MIT) AND MPL-2.0"
 keywords = ["codesign", "signing", "macos", "ios", "tauri"]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Code signing utilities for macOS and iOS apps"
@@ -23,10 +23,18 @@ plist = "1"
 rand = "0.10"
 dirs = "7"
 log = { version = "0.4.21", features = ["kv"] }
-apple-codesign = { version = "0.29", default-features = false }
+# apple-codesign = { version = "0.29", default-features = false }
 chrono = "0.4"
 p12 = "0.6"
-base64 = "0.22"
+base64 = "0.23"
+
+# apple-codesign
+rsa = "0.9"
+rand08 = { package = "rand", version = "0.8" }
+hex = "0.4"
+bcder = "0.7"
+bytes = "1"
+pkcs8 = { version = "0.10.2", features = ["alloc", "std"] }
 
 [lints]
 workspace = true

@@ -9,8 +9,16 @@
 declare global {
   interface Window {
     __TAURI__: {
+      core: {
+        invoke<T>(command: string, args?: Record<string, unknown>): Promise<T>
+      }
       webview: {
         getAllWebviews(): Promise<{ label: string }[]>
+        getCurrentWebview(): { hide(): Promise<void>; show(): Promise<void> }
+      }
+      window: {
+        LogicalSize: new (width: number, height: number) => unknown
+        getCurrentWindow(): { setSize(size: unknown): Promise<void> }
       }
     }
   }

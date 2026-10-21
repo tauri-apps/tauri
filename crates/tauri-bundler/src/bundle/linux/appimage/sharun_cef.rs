@@ -67,7 +67,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let data = download(
     "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
   )?;
-  write_and_make_executable(&quick_sharun, data)?;
+  write_and_make_executable(&quick_sharun, &data)?;
 
   // This should come after the download or users will think it's stuck on the download step.
   log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());

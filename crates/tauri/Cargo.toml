@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "3.0.0-alpha.2"
+version = "3.0.0-alpha.5"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 links = "Tauri"
@@ -116,6 +116,7 @@ plist = "1"
 objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "std",
   "NSData",
+  "NSEnumerator",
   "NSThread",
 ] }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = [
@@ -133,11 +134,12 @@ objc2-web-kit = { version = "0.3.2", default-features = false, features = [
   "WKWebViewConfiguration",
   "WKUserContentController",
 ] }
-window-vibrancy = "0.6"
+window-vibrancy = "0.8.1"
 
 # windows
 [target."cfg(windows)".dependencies]
-window-vibrancy = "0.6"
+webview2-com = { version = "0.39", optional = true }
+window-vibrancy = "0.8.1"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_UI",
@@ -153,7 +155,7 @@ jni = "0.21"
 # UIKit, i.e. iOS/tvOS/watchOS/visionOS
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
-swift-rs = "1.0.8"
+swift-rs = "1.0.9"
 objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIApplication",
   "UIResponder",
@@ -192,8 +194,6 @@ test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 gtk3 = ["dep:gtk", "muda/gtk3"]
 gtk4 = ["dep:gtk4", "muda/gtk4"]
-# TODO: Remove in v3 - wry does not have this feature anymore
-objc-exception = []
 linux-libxdo = ["tray-icon?/muda-libxdo", "muda/libxdo"]
 linux-libappindicator = ["tray-icon?/libappindicator"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
@@ -207,8 +207,6 @@ devtools = ["tauri-runtime/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
-# the runtime crate (e.g. `tauri-runtime-wry`) must also enable its `macos-private-api` feature
-macos-private-api = ["tauri-runtime/macos-private-api"]
 webview-data-url = ["data-url", "tauri-utils/html-manipulation-2"]
 protocol-asset = ["http-range"]
 config-json5 = ["tauri-macros/config-json5"]

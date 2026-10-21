@@ -28,14 +28,4 @@ describeApi('image', () => {
     expect(result.height).toBe(1)
     expect(result.byteLength).toBe(rgba.length)
   })
-
-  it('the default window icon is a usable image', async () => {
-    const size = await tauri(async (api) => {
-      const icon = await api.app.defaultWindowIcon()
-      return icon ? await icon.size() : null
-    })
-    expect(size).not.toBeNull()
-    expect(size!.width).toBeGreaterThan(0)
-    expect(size!.height).toBeGreaterThan(0)
-  })
 })

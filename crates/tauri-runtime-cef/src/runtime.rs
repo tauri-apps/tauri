@@ -70,6 +70,12 @@ use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(windows)]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 
+/// Native events for application rendering and input forwarding, on the event-loop thread.
+/// `Destroyed` is delivered before the runtime releases the window, including on exit.
+pub type NativeWindowEventHandler = dyn Fn(&str, &dyn ActiveEventLoop, Arc<dyn winit::window::Window>, &WinitWindowEvent)
+  + Send
+  + Sync;
+
 /// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
 type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
 
@@ -492,6 +498,7 @@ pub struct Cef {
   sandbox: SandboxPolicy,
   downgrade: DowngradePolicy,
   settings_callback: Option<Box<SettingsCallback>>,
+  window_event_handler: Option<Arc<NativeWindowEventHandler>>,
 }
 
 impl fmt::Debug for Cef {
@@ -530,11 +537,30 @@ impl fmt::Debug for Cef {
       .field("sandbox", &self.sandbox)
       .field("downgrade", &self.downgrade)
       .field("settings_callback", &self.settings_callback.is_some())
+      .field("window_event_handler", &self.window_event_handler.is_some())
       .finish()
   }
 }
 
 impl Cef {
+  /// Observes native input, resize and redraw events without replacing Tauri's handling.
+  ///
+  /// Runs before Tauri handles the event. Offscreen embedders forward input, focus and IME
+  /// to CEF and present their own GPU surface here.
+  /// Release GPU resources and retained native window references on `Destroyed`.
+  /// Registering this callback does not enable OSR or forward input automatically.
+  #[must_use]
+  pub fn on_window_event<F>(mut self, handler: F) -> Self
+  where
+    F: Fn(&str, &dyn ActiveEventLoop, Arc<dyn winit::window::Window>, &WinitWindowEvent)
+      + Send
+      + Sync
+      + 'static,
+  {
+    self.window_event_handler = Some(Arc::new(handler));
+    self
+  }
+
   /// Sets a callback to customize the settings passed to [`cef::initialize`].
   ///
   /// If called more than once, only the last callback is used.
@@ -620,7 +646,11 @@ impl Cef {
   }
 
   /// CEF API version this process declares (`cef_api_hash`), defaulting to
-  /// `cef::sys::CEF_API_VERSION_LAST`.
+  /// `cef::sys::CEF_API_VERSION_LAST`. Child processes declare the same one.
+  ///
+  /// The Rust bindings are compiled for `CEF_API_VERSION_LAST` whatever is declared
+  /// here. Declaring another version is only sound if the API the application uses is
+  /// the same in both.
   #[must_use]
   pub fn cef_api_version(mut self, version: i32) -> Self {
     self.api_version = Some(version);
@@ -1222,6 +1252,7 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   /// Whether [`Cef::devtools`] lets this application open DevTools at all. Combined with
   /// the per-webview `WebviewAttributes::devtools`, which can only narrow it further.
   pub(crate) devtools_allowed: bool,
+  window_event_handler: Option<Arc<NativeWindowEventHandler>>,
 }
 
 /// Scoped access to the current winit callback state.
@@ -1424,6 +1455,26 @@ impl<T: UserEvent> RuntimeContext<T> {
     std::thread::current().id() == self.main_thread_id
   }
 
+  /// Waits for the result of a `CreateWindow` or `CreateWebview` message just sent.
+  ///
+  /// On the main thread outside a winit callback the message is queued, not handled
+  /// inline, and blocking on it would deadlock the loop that has to handle it. CEF calls
+  /// back from its external message pump that way: a new-window handler building a window
+  /// from `on_before_popup` would freeze the app. The creation then completes on the
+  /// loop's next pass and a failure is only logged (see `Message::CreateWindow`).
+  pub(crate) fn wait_for_creation(&self, result_rx: Receiver<Result<()>>) -> Result<()> {
+    if self.is_main_thread() {
+      return match result_rx.try_recv() {
+        Ok(result) => result,
+        Err(mpsc::TryRecvError::Empty) => Ok(()),
+        Err(mpsc::TryRecvError::Disconnected) => Err(Error::FailedToReceiveMessage),
+      };
+    }
+    result_rx
+      .recv()
+      .map_err(|_| Error::FailedToReceiveMessage)?
+  }
+
   /// Run `f` on the main (event-loop) thread.
   ///
   /// When called from the main thread we execute `f` inline instead of posting
@@ -1493,6 +1544,18 @@ pub(crate) enum Message<T: UserEvent> {
   Window {
     window_id: WindowId,
     message: WindowMessage,
+  },
+  /// A page entered or left HTML fullscreen (`DisplayHandler::on_fullscreen_mode_change`).
+  /// Keyed by the webview alone: the window id its handlers were built with is stale once
+  /// it is reparented.
+  PageFullscreen {
+    webview_id: u32,
+    fullscreen: bool,
+  },
+  /// F11 (`IDC_FULLSCREEN`) in a webview whose page is not in HTML fullscreen, sent to
+  /// whichever window holds the webview now.
+  ToggleFullscreen {
+    webview_id: u32,
   },
   Webview {
     window_id: WindowId,
@@ -1781,7 +1844,13 @@ impl<T: UserEvent> WinitCefApp<T> {
             .iter()
             .position(|child| child.webview_id == webview_id)
             .map(|index| {
+              // A page that took the window fullscreen gives it back as it goes.
+              appwindow.set_page_fullscreen(webview_id, false);
               let child = appwindow.children.remove(index);
+              if let Some(view) = &child.offscreen {
+                view.visible.store(false, Ordering::Relaxed);
+                view.request_redraw();
+              }
               (*id, child, appwindow.children.is_empty())
             })
         });
@@ -1854,7 +1923,10 @@ impl<T: UserEvent> WinitCefApp<T> {
           pending,
           after_window_creation,
         );
-        let _ = result_tx.send(result);
+        // The caller stopped waiting: see `RuntimeContext::wait_for_creation`.
+        if let Err(mpsc::SendError(Err(error))) = result_tx.send(result) {
+          log::error!("failed to create window: {error}");
+        }
       }
       Message::CreateWebview {
         window_id,
@@ -1862,10 +1934,38 @@ impl<T: UserEvent> WinitCefApp<T> {
         pending,
         result_tx,
       } => {
-        let _ = result_tx.send(self.create_webview(window_id, webview_id, *pending));
+        let result = self.create_webview(window_id, webview_id, *pending);
+        if let Err(mpsc::SendError(Err(error))) = result_tx.send(result) {
+          log::error!("failed to create webview: {error}");
+        }
       }
       Message::Window { window_id, message } => {
         self.handle_window_message(event_loop, window_id, message)
+      }
+      Message::PageFullscreen {
+        webview_id,
+        fullscreen,
+      } => {
+        if let Some(appwindow) = self.state.windows.values_mut().find(|appwindow| {
+          appwindow
+            .children
+            .iter()
+            .any(|child| child.webview_id == webview_id)
+        }) {
+          appwindow.set_page_fullscreen(webview_id, fullscreen);
+        }
+      }
+      Message::ToggleFullscreen { webview_id } => {
+        let window_id = self.state.windows.iter().find_map(|(id, appwindow)| {
+          appwindow
+            .children
+            .iter()
+            .any(|child| child.webview_id == webview_id)
+            .then_some(*id)
+        });
+        if let Some(window_id) = window_id {
+          self.handle_window_message(event_loop, window_id, WindowMessage::ToggleFullscreen);
+        }
       }
       Message::Webview {
         window_id,
@@ -2046,6 +2146,19 @@ impl<T: UserEvent> WinitCefApp<T> {
     let Some(appwindow) = self.state.windows.remove(&window_id) else {
       return;
     };
+    for child in &appwindow.children {
+      if let Some(view) = &child.offscreen {
+        view.visible.store(false, Ordering::Relaxed);
+      }
+    }
+    if let Some(handler) = self.context.window_event_handler.clone() {
+      handler(
+        &appwindow.label,
+        event_loop,
+        appwindow.window.clone(),
+        &WinitWindowEvent::Destroyed,
+      );
+    }
     self
       .state
       .winid_id_to_window_id_map
@@ -2234,6 +2347,18 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     let Some(window_id) = self.state.winid_id_to_window_id_map.get(&winit_id).copied() else {
       return;
     };
+    if !matches!(event, WinitWindowEvent::Destroyed)
+      && let (Some(handler), Some((label, window))) = (
+        self.context.window_event_handler.clone(),
+        self
+          .state
+          .windows
+          .get(&window_id)
+          .map(|window| (window.label.clone(), window.window.clone())),
+      )
+    {
+      handler(&label, event_loop, window, &event);
+    }
     let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
@@ -2257,6 +2382,12 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
           .surface_size()
           .unwrap_or_else(|_| appwindow.window.surface_size());
         webview::layout_app_window(appwindow);
+        // A windowed browser follows its native view to the new display; an
+        // offscreen one only re-reads `screen_info` when told to.
+        for child in appwindow.children.iter().filter(|c| c.offscreen.is_some()) {
+          child.host.notify_screen_info_changed();
+          child.host.was_resized();
+        }
         self.emit_window_event(
           window_id,
           WindowEvent::ScaleFactorChanged {
@@ -2483,6 +2614,9 @@ wrap_with_args! {
     // supplied through `Cef::command_line_arg` - goes here. The application's own
     // switches are appended last so they win over the runtime's defaults.
     browser_command_line_args: Vec<(String, Option<String>)>,
+    // The `Cef::cef_api_version` override, passed on to child processes. See
+    // `API_VERSION_SWITCH`.
+    api_version: Option<i32>,
     // Names merged into `--disable-features` and `--enable-features` rather than
     // appended over them.
     //
@@ -2504,6 +2638,7 @@ wrap_with_args! {
         self.context.clone(),
         self.context_initialized.clone(),
         self.deep_link_schemes.clone(),
+        self.api_version,
       ))
     }
 
@@ -2554,6 +2689,55 @@ wrap_with_args! {
   }
 }
 
+/// Switch that passes the browser process's CEF API version to its child processes.
+///
+/// A child must declare its version before any other CEF call, and it never sees the
+/// `Cef` builder, so it reads the version from its own command line. The browser
+/// process appends the switch in
+/// `BrowserProcessHandler::on_before_child_process_launch`.
+///
+/// Not an environment variable: that would also be inherited by anything else the
+/// application spawns, including other CEF applications.
+///
+/// Only appended when [`Cef::cef_api_version`] was called.
+///
+/// Only children launched through `on_before_child_process_launch` get it: the
+/// processes Chromium starts itself (renderer, GPU, utility and, on Linux, the
+/// zygote). A process CEF starts another way, such as the crashpad handler if crash
+/// reporting is enabled, falls back to `CEF_API_VERSION_LAST`.
+///
+/// On macOS, child processes run the `tauri-cef-helper` binary the bundler compiles
+/// (`crates/tauri-bundler/cef-helper/main.rs`), which parses this switch itself. Keep
+/// both in sync.
+pub(crate) const API_VERSION_SWITCH: &str = "tauri-cef-api-version";
+
+/// The CEF API version the browser process passed to this child process.
+///
+/// `None` if this is not a child process (no `--type=` switch), if no version was
+/// passed, or if the value is not a number. The last occurrence wins.
+///
+/// Must not call CEF: nothing may be called before the version is declared.
+fn child_process_api_version<I>(args: I) -> Option<i32>
+where
+  I: IntoIterator<Item = std::ffi::OsString>,
+{
+  let prefix = format!("--{API_VERSION_SWITCH}=");
+  let mut is_child_process = false;
+  let mut version = None;
+  // Non-Unicode arguments are skipped; `std::env::args` would panic on them.
+  for arg in args {
+    let Some(arg) = arg.to_str() else {
+      continue;
+    };
+    if arg.starts_with("--type=") {
+      is_child_process = true;
+    } else if let Some(value) = arg.strip_prefix(&prefix) {
+      version = value.parse().ok();
+    }
+  }
+  version.filter(|_| is_child_process)
+}
+
 pub fn run_cef_helper_process() {
   let args = cef::args::Args::new();
 
@@ -2574,7 +2758,13 @@ pub fn run_cef_helper_process() {
     loader
   };
 
-  let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+  // Declare the version the browser process passed, if any.
+  let version = child_process_api_version(std::env::args_os()).unwrap_or(sys::CEF_API_VERSION_LAST);
+  // `cef_api_hash` returns NULL if the loaded libcef does not support the version, and
+  // the next CEF call would crash.
+  if cef::api_hash(version, 0).is_null() {
+    panic!("the loaded CEF library does not support CEF API version {version}");
+  }
   let mut app = TauriCefHelperApp::new();
   let _ = cef::execute_process(
     Some(args.as_main_args()),
@@ -2861,11 +3051,21 @@ impl<T: UserEvent> CefRuntime<T> {
     // The CEF API version table must be initialized before any other CEF call
     // (e.g. `args.as_cmd_line()` below), otherwise the process crashes with no
     // diagnostics.
-    let version = runtime_args
-      .runtime_init_attrs
-      .api_version
+    //
+    // Child processes normally never get here: `#[cef_entry_point]` sends them to
+    // `run_cef_helper_process` first. An app that does not use the macro runs its
+    // children through this path, and they use the version the browser process
+    // passed.
+    let api_version = runtime_args.runtime_init_attrs.api_version;
+    let version = child_process_api_version(std::env::args_os())
+      .or(api_version)
       .unwrap_or(sys::CEF_API_VERSION_LAST);
-    let _ = cef::api_hash(version, 0);
+    // `cef_api_hash` returns NULL if the loaded libcef does not support the version.
+    // Log the details and return the same error as for a missing runtime.
+    if cef::api_hash(version, 0).is_null() {
+      log::error!("the loaded CEF library does not support CEF API version {version}");
+      return Err(Error::WebviewRuntimeNotInstalled);
+    }
 
     // Handle CEF subprocesses (renderer/GPU/utility) before any browser-only
     // setup such as building the event loop, creating cache directories, or the
@@ -2916,6 +3116,7 @@ impl<T: UserEvent> CefRuntime<T> {
       sandbox: sandbox_policy,
       downgrade: downgrade_policy,
       settings_callback,
+      window_event_handler,
       // Already applied, above, before the first CEF call.
       api_version: _,
     } = runtime_args.runtime_init_attrs;
@@ -3164,6 +3365,7 @@ impl<T: UserEvent> CefRuntime<T> {
       crate::platform::macos::MainThreadWake::new(move || slot.deliver_wake(&proxy))
     };
     let context = RuntimeContext {
+      window_event_handler,
       sender: sender.clone(),
       #[cfg(not(target_os = "macos"))]
       proxy,
@@ -3207,6 +3409,7 @@ impl<T: UserEvent> CefRuntime<T> {
       restore_deep_link_arguments: command_line_args_disabled,
       internal_command_line_args,
       browser_command_line_args,
+      api_version,
       disabled_features,
       enabled_features,
     });
@@ -3671,6 +3874,110 @@ mod configuration_tests {
       [serde_json::json!(false), serde_json::json!(true)],
       "both are kept, in call order, so the application's last word wins"
     );
+  }
+}
+
+#[cfg(test)]
+mod child_process_api_version_tests {
+  use super::{API_VERSION_SWITCH, child_process_api_version};
+
+  fn version(args: &[&str]) -> Option<i32> {
+    child_process_api_version(args.iter().map(std::ffi::OsString::from))
+  }
+
+  #[test]
+  fn reads_the_version_the_browser_process_passed() {
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15101",
+        "--lang=en-US"
+      ]),
+      Some(15101)
+    );
+    // Order relative to `--type` must not matter.
+    assert_eq!(
+      version(&["app", "--tauri-cef-api-version=15101", "--type=zygote"]),
+      Some(15101)
+    );
+  }
+
+  #[test]
+  fn the_switch_is_spelled_the_way_it_is_appended() {
+    let arg = format!("--{API_VERSION_SWITCH}=15101");
+    assert_eq!(version(&["app", "--type=gpu-process", &arg]), Some(15101));
+  }
+
+  #[test]
+  fn absent_means_the_default() {
+    assert_eq!(version(&[]), None);
+    assert_eq!(version(&["app", "--type=renderer"]), None);
+    // A switch with a longer name is a different switch.
+    assert_eq!(
+      version(&["app", "--type=renderer", "--tauri-cef-api-version-x=15101"]),
+      None
+    );
+  }
+
+  #[test]
+  fn garbage_means_the_default() {
+    for value in ["", "latest", "15101x", "1.5", "99999999999", " 15101"] {
+      let arg = format!("--tauri-cef-api-version={value}");
+      assert_eq!(
+        version(&["app", "--type=renderer", &arg]),
+        None,
+        "{value:?}"
+      );
+    }
+    // A bare switch has no value.
+    assert_eq!(
+      version(&["app", "--type=renderer", "--tauri-cef-api-version"]),
+      None
+    );
+  }
+
+  #[test]
+  fn the_last_occurrence_wins() {
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15000",
+        "--tauri-cef-api-version=15101"
+      ]),
+      Some(15101)
+    );
+    assert_eq!(
+      version(&[
+        "app",
+        "--type=renderer",
+        "--tauri-cef-api-version=15101",
+        "--tauri-cef-api-version=latest"
+      ]),
+      None
+    );
+  }
+
+  #[test]
+  fn a_browser_process_ignores_the_switch() {
+    // Not a child process, so the switch is ignored. Users must not be able to set
+    // the version from the command line.
+    assert_eq!(version(&["app", "--tauri-cef-api-version=15101"]), None);
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn an_argument_that_is_not_unicode_is_skipped() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let args = vec![
+      std::ffi::OsString::from("app"),
+      std::ffi::OsString::from_vec(vec![0xff, 0xfe]),
+      std::ffi::OsString::from("--type=renderer"),
+      std::ffi::OsString::from("--tauri-cef-api-version=15101"),
+    ];
+    assert_eq!(child_process_api_version(args), Some(15101));
   }
 }
 

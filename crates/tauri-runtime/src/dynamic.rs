@@ -231,7 +231,6 @@ enum WindowBuilderOp {
   Focusable(bool),
   Maximized(bool),
   Visible(bool),
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   Transparent(bool),
   Decorations(bool),
   AlwaysOnBottom(bool),
@@ -301,7 +300,6 @@ impl fmt::Debug for WindowBuilderOp {
       Self::Focusable(v) => f.debug_tuple("Focusable").field(v).finish(),
       Self::Maximized(v) => f.debug_tuple("Maximized").field(v).finish(),
       Self::Visible(v) => f.debug_tuple("Visible").field(v).finish(),
-      #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
       Self::Transparent(v) => f.debug_tuple("Transparent").field(v).finish(),
       Self::Decorations(v) => f.debug_tuple("Decorations").field(v).finish(),
       Self::AlwaysOnBottom(v) => f.debug_tuple("AlwaysOnBottom").field(v).finish(),
@@ -409,7 +407,6 @@ impl DynWindowBuilder {
         WindowBuilderOp::Focusable(v) => builder.focusable(v),
         WindowBuilderOp::Maximized(v) => builder.maximized(v),
         WindowBuilderOp::Visible(v) => builder.visible(v),
-        #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
         WindowBuilderOp::Transparent(v) => builder.transparent(v),
         WindowBuilderOp::Decorations(v) => builder.decorations(v),
         WindowBuilderOp::AlwaysOnBottom(v) => builder.always_on_bottom(v),
@@ -552,7 +549,6 @@ impl WindowBuilder for DynWindowBuilder {
     self.push(WindowBuilderOp::Visible(visible))
   }
 
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   fn transparent(self, transparent: bool) -> Self {
     self.push(WindowBuilderOp::Transparent(transparent))
   }

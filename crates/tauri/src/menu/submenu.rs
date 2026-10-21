@@ -102,11 +102,14 @@ impl<R: Runtime> Submenu<R> {
     let handle = manager.app_handle();
     let app_handle = handle.clone();
     let text = text.as_ref().to_owned();
-    let icon_data = icon.map(|i| (i.rgba().to_vec(), i.width(), i.height()));
+    let icon: Option<MudaIcon> = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
     let submenu = handle.run_on_main_thread_blocking(move || {
       let submenu = muda::Submenu::new(text, enabled);
-      if let Some((rgba, width, height)) = icon_data {
-        submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
+      if icon.is_some() {
+        submenu.set_icon(icon);
       }
       SubmenuInner::new(app_handle, submenu)
     })?;
@@ -166,11 +169,14 @@ impl<R: Runtime> Submenu<R> {
     let app_handle = handle.clone();
     let id = id.into();
     let text = text.as_ref().to_owned();
-    let icon_data = icon.map(|i| (i.rgba().to_vec(), i.width(), i.height()));
+    let icon: Option<MudaIcon> = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
     let submenu = handle.run_on_main_thread_blocking(move || {
       let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
-      if let Some((rgba, width, height)) = icon_data {
-        submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
+      if icon.is_some() {
+        submenu.set_icon(icon);
       }
       SubmenuInner::new(app_handle, submenu)
     })?;
@@ -228,8 +234,13 @@ impl<R: Runtime> Submenu<R> {
   /// Add a menu item to the end of this submenu.
   pub fn append(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
+    let self_ = self.clone();
     self
-      .with_inner_blocking(move |i| i.append(kind.inner().inner_muda()))?
+      .with_inner_blocking(move |i| {
+        i.append(kind.inner().inner_muda())?;
+        self_.0.items.lock().unwrap().push(kind);
+        Ok::<_, muda::Error>(())
+      })?
       .map_err(Into::into)
   }
 
@@ -245,8 +256,13 @@ impl<R: Runtime> Submenu<R> {
   /// Add a menu item to the beginning of this submenu.
   pub fn prepend(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
+    let self_ = self.clone();
     self
-      .with_inner_blocking(move |i| i.prepend(kind.inner().inner_muda()))?
+      .with_inner_blocking(move |i| {
+        i.prepend(kind.inner().inner_muda())?;
+        self_.0.items.lock().unwrap().insert(0, kind);
+        Ok::<_, muda::Error>(())
+      })?
       .map_err(Into::into)
   }
 
@@ -258,8 +274,13 @@ impl<R: Runtime> Submenu<R> {
   /// Insert a menu item at the specified `position` in this submenu.
   pub fn insert(&self, item: &dyn IsMenuItem<R>, position: usize) -> crate::Result<()> {
     let kind = item.kind();
+    let self_ = self.clone();
     self
-      .with_inner_blocking(move |i| i.insert(kind.inner().inner_muda(), position))?
+      .with_inner_blocking(move |i| {
+        i.insert(kind.inner().inner_muda(), position)?;
+        self_.0.items.lock().unwrap().insert(position, kind);
+        Ok::<_, muda::Error>(())
+      })?
       .map_err(Into::into)
   }
 
@@ -275,17 +296,27 @@ impl<R: Runtime> Submenu<R> {
   /// Remove a menu item from this submenu.
   pub fn remove(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
+    let self_ = self.clone();
     self
-      .with_inner_blocking(move |i| i.remove(kind.inner().inner_muda()))?
+      .with_inner_blocking(move |i| {
+        i.remove(kind.inner().inner_muda())?;
+        self_
+          .0
+          .items
+          .lock()
+          .unwrap()
+          .retain(|i| i.id() != kind.id());
+        Ok::<_, muda::Error>(())
+      })?
       .map_err(Into::into)
   }
 
   /// Remove the menu item at the specified position from this submenu and returns it.
   pub fn remove_at(&self, position: usize) -> crate::Result<Option<MenuItemKind<R>>> {
-    let app_handle = self.app_handle().clone();
+    let self_ = self.clone();
     self.with_inner_blocking(move |i| {
-      i.remove_at(position)
-        .map(|i| MenuItemKind::from_muda(app_handle, i))
+      i.remove_at(position)?;
+      Some(self_.0.items.lock().unwrap().remove(position))
     })
   }
 
@@ -296,21 +327,18 @@ impl<R: Runtime> Submenu<R> {
     MenuId: PartialEq<&'a I>,
   {
     self
-      .items()
-      .unwrap_or_default()
-      .into_iter()
+      .0
+      .items
+      .lock()
+      .unwrap()
+      .iter()
       .find(|i| i.id() == &id)
+      .cloned()
   }
 
   /// Returns a list of menu items that has been added to this submenu.
   pub fn items(&self) -> crate::Result<Vec<MenuItemKind<R>>> {
-    let app_handle = self.app_handle().clone();
-    self.with_inner_blocking(move |i| {
-      i.items()
-        .into_iter()
-        .map(|i| MenuItemKind::from_muda(app_handle.clone(), i))
-        .collect::<Vec<_>>()
-    })
+    Ok(self.0.items.lock().unwrap().clone())
   }
 
   /// Get the text for this submenu.

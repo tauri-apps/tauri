@@ -32,6 +32,9 @@ fn to_rpm_version(version: &str) -> String {
   }
 }
 
+/// The compression used when none is configured, which matches rpm's own default.
+const DEFAULT_COMPRESSION: RpmCompression = RpmCompression::Zstd { level: 19 };
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -78,17 +81,29 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let license = settings.license().unwrap_or_default();
   let name = heck::AsKebabCase(settings.product_name()).to_string();
 
-  let compression = settings
-    .rpm()
-    .compression
-    .map(|c| match c {
-      RpmCompression::Gzip { level } => rpm::CompressionWithLevel::Gzip(level),
-      RpmCompression::Zstd { level } => rpm::CompressionWithLevel::Zstd(level),
-      RpmCompression::Xz { level } => rpm::CompressionWithLevel::Xz(level),
-      RpmCompression::Bzip2 { level } => rpm::CompressionWithLevel::Bzip2(level),
-      _ => rpm::CompressionWithLevel::None,
-    })
-    .unwrap_or_default();
+  let compression = settings.rpm().compression.unwrap_or(DEFAULT_COMPRESSION);
+  let mut level = compression.level().unwrap_or_default();
+
+  if let Some(min_level) = compression.min_level()
+    && let Some(max_level) = compression.max_level()
+  {
+    let clamped = level.clamp(min_level, max_level);
+    if clamped != level {
+      log::warn!(
+        "rpm compression level {level} is outside the range {min_level} - {max_level} supported by this algorithm, clamping to {clamped}"
+      );
+      level = clamped;
+    }
+  }
+
+  let compression = match compression {
+    RpmCompression::Zstd { .. } => rpm::CompressionWithLevel::Zstd(level),
+    RpmCompression::Xz { .. } => rpm::CompressionWithLevel::Xz(level as u32),
+    RpmCompression::Bzip2 { .. } => rpm::CompressionWithLevel::Bzip2(level as u32),
+    RpmCompression::None => rpm::CompressionWithLevel::None,
+    // gzip, which unknown algorithms also fall back to
+    _ => rpm::CompressionWithLevel::Gzip(level as u32),
+  };
 
   let build_config = rpm::BuildConfig::default().compression(compression);
 

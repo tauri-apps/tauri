@@ -16,5 +16,5 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["wdio.conf.ts", "test/**/*.ts"]
+  "include": ["wdio.*.ts", "test/**/*.ts"]
 }

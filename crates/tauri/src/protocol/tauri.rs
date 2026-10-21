@@ -228,7 +228,15 @@ async fn proxy_dev_request(
       if let Some(s) = e.status() {
         format!("status code: {}", s.as_u16())
       } else if cfg!(target_os = "ios") {
-        ", did you grant local network permissions? That is required to reach the development server. Please grant the permission via the prompt or in `Settings > Privacy & Security > Local Network` and restart the app. See https://support.apple.com/en-us/102229 for more information.".to_string()
+        let is_localhost = url::Url::parse(&url)
+          .ok()
+          .and_then(|u| u.host_str().map(|h| matches!(h, "localhost" | "127.0.0.1" | "[::1]")))
+          .unwrap_or(false);
+        if is_localhost {
+          ", the development server URL points to localhost, which on a physical device resolves to the device itself rather than your machine. Run `tauri ios dev --host` to expose the development server on your network address (it must be configured to listen on the `TAURI_DEV_HOST` address). If you are running on a simulator, make sure the development server is running.".to_string()
+        } else {
+          ", did you grant local network permissions? That is required to reach the development server. Please grant the permission via the prompt or in `Settings > Privacy & Security > Local Network` and restart the app. See https://support.apple.com/en-us/102229 for more information.".to_string()
+        }
       } else {
         "".to_string()
       }

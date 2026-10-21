@@ -15,6 +15,6 @@ class ExamplePlugin: Plugin {
 }
 
 @_cdecl("init_plugin_{{ plugin_name_snake_case }}")
-func initPlugin() -> Plugin {
+public func initPlugin() -> Plugin {
   return ExamplePlugin()
 }

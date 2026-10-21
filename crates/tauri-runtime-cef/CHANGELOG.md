@@ -1,5 +1,64 @@
 # Changelog
 
+## [3.0.0-alpha.6]
+
+### New Features
+
+- [`a7b81d993`](https://www.github.com/tauri-apps/tauri/commit/a7b81d993da706e5c94b64cecb91815b517627b3) ([#16225](https://www.github.com/tauri-apps/tauri/pull/16225) by [@mayocream](https://www.github.com/tauri-apps/tauri/../../mayocream)) Allow CEF windowless browsers with an application-provided render handler and native window event callback. Applications provide painting, input, IME, cursor handling and composition.
+
+### Bug Fixes
+
+- [`d78cc6085`](https://www.github.com/tauri-apps/tauri/commit/d78cc6085b9ab8a036d4e6430d1f20e9c0cf1889) ([#16241](https://www.github.com/tauri-apps/tauri/pull/16241) by [@beanow-at-crabnebula](https://www.github.com/tauri-apps/tauri/../../beanow-at-crabnebula)) Fixed CEF child processes ignoring `Cef::cef_api_version`. Renderer, GPU and utility processes now declare the same CEF API version as the browser process, which passes it on each child's command line as `--tauri-cef-api-version=<n>`.
+- [`6a2cb9688`](https://www.github.com/tauri-apps/tauri/commit/6a2cb9688b7d28daf7c76b9beffc872477164a72) Fixed the app reopening hidden copies of its previous run's windows, which kept the process alive after every app window was closed. After a crash or a kill, Chromium's session restore reopened the last session's tabs in Chrome browser windows the runtime does not own. The runtime now sets the `session.restore_on_startup` profile preference to open the New Tab page, which restores nothing. `Cef::profile_preference_value` can still override it.
+- [`c6b974b8a`](https://www.github.com/tauri-apps/tauri/commit/c6b974b8acd0083b35dce37a2d3792ed95cb85c6) ([#16275](https://www.github.com/tauri-apps/tauri/pull/16275) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Fix overlay titlebars intercepting webview mouse events on macOS.
+- [`a5e3a697e`](https://www.github.com/tauri-apps/tauri/commit/a5e3a697e48f50273982dca658e90402cd977a9f) ([#16240](https://www.github.com/tauri-apps/tauri/pull/16240) by [@beanow-at-crabnebula](https://www.github.com/tauri-apps/tauri/../../beanow-at-crabnebula)) Report an unsupported CEF API version instead of crashing. The runtime now checks the result of `cef_api_hash`: the browser process logs the version and fails with `Error::WebviewRuntimeNotInstalled`, and a helper process panics with the same message.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.4`
+- Upgraded to `tauri-runtime@3.0.0-alpha.4`
+- Upgraded to `tauri-macros@3.0.0-alpha.4`
+- Upgraded to `tauri@3.0.0-alpha.5`
+- [`370ea9769`](https://www.github.com/tauri-apps/tauri/commit/370ea97696ae280db894a81aea97e917f293e6db) Bump CEF to 154.5.0+154.0.34.
+
+## [3.0.0-alpha.5]
+
+### Bug Fixes
+
+- [`70541fe28`](https://www.github.com/tauri-apps/tauri/commit/70541fe283b980712b1b3d1c75147cd5ad155310) Fix the docs.rs build: the documentation is now built with the `cef/dox` feature, which skips downloading the CEF binary distribution in the network-less docs.rs sandbox, for the Linux, Windows and macOS targets.
+
+### Dependencies
+
+- Upgraded to `tauri@3.0.0-alpha.4`
+- Upgraded to `tauri-utils@3.0.0-alpha.3`
+- Upgraded to `tauri-runtime@3.0.0-alpha.3`
+- Upgraded to `tauri-macros@3.0.0-alpha.3`
+
+### Breaking Changes
+
+- [`b9a77ebb8`](https://www.github.com/tauri-apps/tauri/commit/b9a77ebb8ab57480a354ec47aa45c6898ec9bfda) Removed the `macos-private-api` Cargo feature and the `app > macOSPrivateApi` configuration option. Window transparency and the `fullScreenEnabled` preference no longer rely on macOS private APIs, so they are always available.
+
+## [3.0.0-alpha.4]
+
+### Bug Fixes
+
+- [`6246cdd3f`](https://www.github.com/tauri-apps/tauri/commit/6246cdd3f9e1dbce1f9bd8f6b762206fcd6d51c0) ([#16086](https://www.github.com/tauri-apps/tauri/pull/16086) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Fixed Chrome style webviews never admitting a document on Linux and Windows, which left `WebviewSnapshot::document` always `None` and `NativeDialogObservation` silent: CEF keeps listing a frame parked in the back/forward cache, such as the internal initial document the runtime loads before the app's URL, and the final admission check now compares only the frames attached to a renderer.
+
+## [3.0.0-alpha.3]
+
+### Bug Fixes
+
+- [`a5e9d3aa9`](https://www.github.com/tauri-apps/tauri/commit/a5e9d3aa936251834d0ac8282aece199e668a5e7) ([#16084](https://www.github.com/tauri-apps/tauri/pull/16084)) Fixed `Window::set_fullscreen` and `set_fullscreen_on_monitor` going wrong on macOS when called while the window was still animating its previous fullscreen transition: AppKit drops the toggle then, leaving the runtime's idea of the fullscreen state out of step with the window (a request to leave fullscreen was lost, and the next request to enter left it instead). Requests made during a transition are now applied once it ended.
+- [`a5e9d3aa9`](https://www.github.com/tauri-apps/tauri/commit/a5e9d3aa936251834d0ac8282aece199e668a5e7) ([#16084](https://www.github.com/tauri-apps/tauri/pull/16084)) Custom protocol handlers, the `ipc` handler included, now run on the main thread like they do with the wry runtime, instead of on a thread per request. Commands that wait on the main thread — creating a menu or a menu item, for one — deadlocked with the event loop delivering run events, and commands that dropped main-thread-only objects, such as removing a tray icon on macOS, crashed the app.
+- [`c39bba557`](https://www.github.com/tauri-apps/tauri/commit/c39bba55772b497873c397cd8e8061c28e39d242) Fix runtime crates failing to compile when feature unification enables `tauri-runtime/macos-private-api` but not the runtime crate's own `macos-private-api` feature. `WindowBuilder::transparent` is no longer gated on the feature; on macOS, runtimes implement it as a no-op unless their own `macos-private-api` feature is enabled, so the private API is never referenced without it.
+
+### Dependencies
+
+- Upgraded to `tauri@3.0.0-alpha.3`
+- Upgraded to `tauri-utils@3.0.0-alpha.2`
+- Upgraded to `tauri-runtime@3.0.0-alpha.2`
+- Upgraded to `tauri-macros@3.0.0-alpha.2`
+
 ## [3.0.0-alpha.2]
 
 ### New Features

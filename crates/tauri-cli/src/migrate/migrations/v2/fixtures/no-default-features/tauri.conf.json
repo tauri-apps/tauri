@@ -1,0 +1,6 @@
+{
+  "identifier": "com.tauri.app",
+  "app": {
+    "windows": []
+  }
+}

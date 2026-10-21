@@ -5,21 +5,49 @@
 use std::sync::Arc;
 
 use cef::*;
+use tauri_runtime::UserEvent;
 
 use crate::macros::wrap_with_args;
+use crate::runtime::{Message, RuntimeContext};
 use crate::webview::INITIAL_LOAD_URL;
+
+#[cfg(target_os = "macos")]
+type CefCursorHandle = *mut u8;
+#[cfg(not(target_os = "macos"))]
+type CefCursorHandle = cef::sys::cef_cursor_handle_t;
 
 wrap_with_args! {
   wrap_display_handler => TauriCefDisplayHandlerArgs;
 
-  pub struct TauriCefDisplayHandler {
+  pub struct TauriCefDisplayHandler<T: UserEvent> {
+    webview_id: u32,
+    context: RuntimeContext<T>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
     console_message_handler: Option<Arc<crate::ConsoleMessageHandler>>,
     frame_navigation_state: crate::FrameNavigationState,
+    cursor_handler: Option<Arc<crate::CursorHandler>>,
   }
 
   impl DisplayHandler {
+    fn on_cursor_change(
+      &self,
+      browser: Option<&mut Browser>,
+      _cursor: CefCursorHandle,
+      type_: CursorType,
+      info: Option<&CursorInfo>,
+    ) -> i32 {
+      if let Some(handler) = &self.cursor_handler
+        && browser.is_some_and(|browser| {
+          self.frame_navigation_state.has_browser_id(browser.identifier())
+        })
+      {
+        handler(type_, info);
+        return 1;
+      }
+      0
+    }
+
     fn on_title_change(
       &self,
       _browser: Option<&mut Browser>,
@@ -82,6 +110,28 @@ wrap_with_args! {
 
       // 0 leaves CEF's own logging of the message exactly as it was.
       0
+    }
+
+    fn on_fullscreen_mode_change(
+      &self,
+      browser: Option<&mut Browser>,
+      fullscreen: ::std::os::raw::c_int,
+    ) {
+      let Some(browser) = browser else {
+        return;
+      };
+      // Popup clients carry the opener's webview id despite owning a separate browser.
+      if browser.is_popup() != 0
+        || !self.frame_navigation_state.has_browser_id(browser.identifier())
+      {
+        return;
+      }
+
+      let _ = self.context.sender.send(Message::PageFullscreen {
+        webview_id: self.webview_id,
+        fullscreen: fullscreen != 0,
+      });
+      self.context.wake_event_loop();
     }
   }
 }

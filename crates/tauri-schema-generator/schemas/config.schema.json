@@ -2248,7 +2248,7 @@
           ]
         },
         "useLocalToolsDir": {
-          "description": "Whether to use the project's `target` directory, for caching build tools (e.g., Wix and NSIS) when building this application. Defaults to `false`.\n\n If true, tools will be cached in `target/.tauri/`.\n If false, tools will be cached in the current user's platform-specific cache directory.\n\n An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),\n because the Window system's app data directory is restricted.",
+          "description": "Whether to use the project's `target` directory, for caching build tools (e.g., Wix and NSIS) when building this application. Defaults to `false`.\n\n If true, tools will be cached in `target/.tauri/`.\n If false, tools will be cached in the current user's platform-specific cache directory.\n\n When building this application as the Windows `SYSTEM` user (e.g., AWS EC2 workloads or CI runners installed as a service),\n that cache directory is inside `C:\\Windows\\System32`, where the 32-bit NSIS and WiX tools can't find their own files,\n so they are cached in the build's output directory (e.g., `target/release/.tauri/`) instead.\n Setting this to `true` in that case shares them across build profiles and targets.",
           "default": false,
           "type": "boolean"
         },

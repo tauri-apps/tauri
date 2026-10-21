@@ -161,9 +161,6 @@ fn color_to_argb(color: Color) -> u32 {
 ///   feature (`OverlayScrollbar`), reachable through `Cef::enable_features`.
 /// - `background_throttling`: Chromium throttles hidden pages process-wide;
 ///   `--disable-background-timer-throttling` turns that off for every webview.
-/// - `transparent` on a windowed browser: a background alpha of 0 falls back to
-///   `CefSettings.background_color`; transparent painting exists only in
-///   off-screen rendering, where `offscreen` maps it below.
 /// - `accept_first_mouse`: Chromium's own view decides whether the click that
 ///   activates a window reaches the page.
 /// - `browser_extensions_enabled`, `extensions_path`: CEF removed its extension
@@ -202,10 +199,13 @@ fn browser_settings_from_webview_attributes(
     } else {
       cef::sys::cef_state_t::STATE_DISABLED
     }),
-    background_color: match webview_attributes.background_color {
-      Some(color) => color_to_argb(color),
-      None if offscreen && !webview_attributes.transparent => 0xFFFF_FFFF,
-      None => 0,
+    background_color: match (
+      webview_attributes.background_color,
+      webview_attributes.transparent,
+    ) {
+      (Some(color), _) => color_to_argb(color),
+      (None, true) => 0x00_00_00_00,
+      (None, false) => 0xFF_FF_FF_FF,
     },
     // Browser chrome a Tauri window has no business showing: the status bubble is
     // the link target that slides in over the bottom-left of the page on hover,
@@ -230,13 +230,6 @@ fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes
       "webview {label:?} sets additional_browser_args, which the CEF runtime does not support: \
        Chromium's command line is per process, not per webview. Use `Cef::command_line_arg` \
        to pass switches to the browser process."
-    );
-  }
-  if attributes.transparent && !offscreen {
-    log::warn!(
-      "webview {label:?} asks to be transparent, which the CEF runtime does not support: a \
-       windowed Chromium browser paints an opaque background, and transparent painting exists \
-       only in off-screen rendering."
     );
   }
   if attributes.accept_first_mouse {
@@ -693,6 +686,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // and bury an overlay webview under the one that fills the window.
     #[cfg(windows)]
     if child.offscreen.is_none() {
+      child.unclip_siblings();
       child.raise_to_top();
     } else {
       appwindow.background_surface = None;

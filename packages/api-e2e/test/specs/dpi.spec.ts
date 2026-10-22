@@ -35,16 +35,21 @@ describeApi('dpi', () => {
     expect(result.logical).toEqual({ x: 5, y: 10 })
   })
 
-  it('toPhysical rounds to whole pixels like the Rust conversion', async () => {
+  it('PhysicalSize.round and PhysicalPosition.round round half away from zero like Rust', async () => {
     const result = await tauri((api) => {
       const size = new api.dpi.LogicalSize(301, 201).toPhysical(1.5)
-      const position = new api.dpi.LogicalPosition(-101, 84.17).toPhysical(1.5)
+      const roundedSize = size.round()
+      const position = new api.dpi.LogicalPosition(-101, 84.17)
+        .toPhysical(1.5)
+        .round()
       return {
         size: { width: size.width, height: size.height },
+        roundedSize: { width: roundedSize.width, height: roundedSize.height },
         position: { x: position.x, y: position.y }
       }
     })
-    expect(result.size).toEqual({ width: 452, height: 302 })
+    expect(result.size).toEqual({ width: 451.5, height: 301.5 })
+    expect(result.roundedSize).toEqual({ width: 452, height: 302 })
     expect(result.position).toEqual({ x: -152, y: 126 })
   })
 

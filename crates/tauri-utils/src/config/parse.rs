@@ -390,9 +390,34 @@ fn do_parse_toml<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, Confi
 }
 
 /// Helper function to wrap IO errors from [`std::fs::read_to_string`] into a [`ConfigError`].
+///
+/// A leading UTF-8 BOM is stripped before the contents are handed to the parser.
 fn read_to_string(path: &Path) -> Result<String, ConfigError> {
-  std::fs::read_to_string(path).map_err(|error| ConfigError::Io {
+  let mut content = std::fs::read_to_string(path).map_err(|error| ConfigError::Io {
     path: path.into(),
     error,
-  })
+  })?;
+
+  if content.starts_with('\u{feff}') {
+    content.remove(0);
+  }
+
+  Ok(content)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn read_to_string_strips_a_leading_utf8_bom() {
+    let path = std::env::temp_dir().join("tauri-utils-bom.json");
+    std::fs::write(&path, "\u{feff}{\"productName\":\"test\"}").unwrap();
+
+    let raw = read_to_string(&path).unwrap();
+
+    assert!(do_parse_json::<serde_json::Value>(&raw, &path).is_ok());
+
+    std::fs::remove_file(&path).unwrap();
+  }
 }

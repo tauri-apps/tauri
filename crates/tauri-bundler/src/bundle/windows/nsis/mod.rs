@@ -1096,13 +1096,10 @@ mod tests {
     NestedResource,
   }
 
-  /// Takes every branch of the template, bar two that nothing the bundler can
-  /// be configured with reaches:
-  ///
-  /// - the `!ifdef SHCNE_ASSOCCHANGED` and `!ifdef SHCNF_FLUSH` guards of
-  ///   `includes/FileAssociation.nsh`, which only take their branch if
-  ///   something defined those names first, and nothing the bundler ships does.
-  /// - `languages/Persian.nsh`, for the reason [`all_languages`] gives.
+  /// Takes every branch of the template, bar the `!ifdef SHCNE_ASSOCCHANGED`
+  /// and `!ifdef SHCNF_FLUSH` guards of `includes/FileAssociation.nsh`, which
+  /// only take their branch if something defined those names first, and nothing
+  /// the bundler ships does.
   ///
   /// The install mode and the architecture are picked together, because the
   /// default install directory and the MultiUser setup both branch on the
@@ -1252,18 +1249,13 @@ mod tests {
 
   /// Every language the bundler ships a file for, so that the compiler reads all
   /// of them rather than only the ones a default build configures.
-  ///
-  /// `Persian` is left out because it does not compile: `MUI_LANGUAGE` loads
-  /// `Contrib/Language files/<name>.nlf` from the NSIS toolset and NSIS calls
-  /// that language `Farsi`, so there is no `Persian.nlf` to load and
-  /// `languages/Persian.nsh` reads a `${LANG_PERSIAN}` nothing defines. Put it
-  /// back once the bundler ships it under the name NSIS uses.
   fn all_languages() -> Vec<String> {
     [
       "Arabic",
       "Bulgarian",
       "Dutch",
       "English",
+      "Farsi",
       "French",
       "German",
       "Hebrew",

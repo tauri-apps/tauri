@@ -10,7 +10,7 @@ use crate::{
       sign::{should_sign, sign_command, try_sign},
       util::{
         NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
-        download_webview2_offline_installer, vc_runtime_dlls,
+        download_webview2_offline_installer, tools_directory, vc_runtime_dlls,
       },
     },
   },
@@ -36,9 +36,10 @@ use std::{
 // URLS for the NSIS toolchain.
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
-  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip";
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.13/nsis-3.13.zip";
 #[cfg(target_os = "windows")]
-const NSIS_SHA1: &str = "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D";
+const NSIS_SHA1: &str = "DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E";
+const NSIS_EXE_SHA1: &str = "6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2";
 const NSIS_TAURI_UTILS_URL: &str = "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
@@ -78,10 +79,7 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
-  let tauri_tools_path = settings
-    .local_tools_directory()
-    .map(|d| d.join(".tauri"))
-    .unwrap_or_else(|| dirs::cache_dir().unwrap().join("tauri"));
+  let tauri_tools_path = tools_directory(settings)?;
 
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
@@ -92,6 +90,21 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     .any(|p| !nsis_toolset_path.join(p).exists())
   {
     log::warn!("NSIS directory is missing some files. Recreating it.");
+    std::fs::remove_dir_all(&nsis_toolset_path)?;
+    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
+  } else if let Err(e) = verify_file_hash(
+    nsis_toolset_path.join("NSIS.exe"),
+    NSIS_EXE_SHA1,
+    HashAlgorithm::Sha1,
+  ) {
+    log::warn!(
+      "NSIS.exe is {}. Recreating it.",
+      if matches!(e, Error::HashError) {
+        "outdated"
+      } else {
+        "missing"
+      }
+    );
     std::fs::remove_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else {
@@ -127,7 +140,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
     crate::utils::http_utils::extract_zip(&data, _tauri_tools_path)?;
-    fs::rename(_tauri_tools_path.join("nsis-3.11"), nsis_toolset_path)?;
+    fs::rename(_tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
   }
 
   // download additional plugins
@@ -408,7 +421,7 @@ fn build_nsis_app_installer(
     if let Some(minimum_webview2_version) = nsis
       .minimum_webview2_version
       .as_ref()
-      .or(settings.windows().minimum_webview2_version.as_ref())
+      .or_else(|| settings.windows().minimum_webview2_version.as_ref())
     {
       data.insert(
         "minimum_webview2_version",
@@ -445,7 +458,15 @@ fn build_nsis_app_installer(
   let languages = nsis
     .and_then(|nsis| nsis.languages.clone())
     .unwrap_or_else(|| vec!["English".into()]);
-  data.insert("languages", to_json(languages.clone()));
+  data.insert(
+    "languages",
+    to_json(
+      languages
+        .iter()
+        .map(|language| nsis_language_name(language))
+        .collect::<Vec<_>>(),
+    ),
+  );
 
   data.insert(
     "display_language_selector",
@@ -479,7 +500,7 @@ fn build_nsis_app_installer(
         language_files_paths.push(path);
       } else {
         log::warn!(
-          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`"
+          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`"
         );
       }
     }
@@ -910,6 +931,29 @@ fn generate_estimated_size(
   Ok(size / 1024)
 }
 
+/// The name NSIS knows a language by, which is not always the name of the
+/// language in English.
+///
+/// `MUI_LANGUAGE` loads `Contrib/Language files/<name>.nlf` from the toolset and
+/// defines `LANG_<NAME>` from it, so a name the toolset does not ship is a
+/// language table that never loads and a `LANG_<NAME>` nothing defines.
+fn nsis_language_name(language: &str) -> &str {
+  // NSIS ships this language as `Farsi`, which is what its `Farsi.nsh` declares
+  // with `!insertmacro LANGFILE "Farsi" "Persian" ...`: `Farsi` is the
+  // identifier and `Persian` only the English name. The bundler accepted
+  // `Persian` before it shipped the translation under the right name, so it is
+  // kept as a deprecated alias rather than silently breaking those configs.
+  // TODO(v3): remove the `persian` alias
+  if language.eq_ignore_ascii_case("persian") {
+    log::warn!(
+      "`{language}` is not a language NSIS knows, it calls this language `Farsi`. Rename it to `Farsi` in `bundle > windows > nsis > languages`, the old name will stop working in the next major version."
+    );
+    "Farsi"
+  } else {
+    language
+  }
+}
+
 fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
   let path = format!("{lang}.nsh");
   let content: &[u8] = match lang.to_lowercase().as_str() {
@@ -918,6 +962,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "dutch" => include_bytes!("./languages/Dutch.nsh"),
     "english" => include_bytes!("./languages/English.nsh"),
     "german" => include_bytes!("./languages/German.nsh"),
+    "hebrew" => include_bytes!("./languages/Hebrew.nsh"),
     "italian" => include_bytes!("./languages/Italian.nsh"),
     "japanese" => include_bytes!("./languages/Japanese.nsh"),
     "korean" => include_bytes!("./languages/Korean.nsh"),
@@ -928,7 +973,10 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "french" => include_bytes!("./languages/French.nsh"),
     "spanish" => include_bytes!("./languages/Spanish.nsh"),
     "spanishinternational" => include_bytes!("./languages/SpanishInternational.nsh"),
-    "persian" => include_bytes!("./languages/Persian.nsh"),
+    // `persian` is kept as a deprecated alias so existing configurations keep
+    // building, see `nsis_language_name`
+    // TODO(v3): remove the `persian` alias
+    "farsi" | "persian" => include_bytes!("./languages/Farsi.nsh"),
     "turkish" => include_bytes!("./languages/Turkish.nsh"),
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),

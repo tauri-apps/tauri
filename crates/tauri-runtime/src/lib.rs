@@ -91,6 +91,15 @@ pub enum UserAttentionType {
   Informational,
 }
 
+/// Defines which device events (raw input from mice, keyboards and other HID devices that is not
+/// bound to a specific window) the event loop should deliver to the application.
+///
+/// Listening to device events can be expensive, so the runtime filters them out by default
+/// while the application has no focused window. See [`crate::Runtime::set_device_event_filter`].
+///
+/// ## Platform-specific
+///
+/// - **Linux / macOS / iOS / Android**: Unsupported, device events are always filtered out.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "type")]
 pub enum DeviceEventFilter {
@@ -116,6 +125,12 @@ pub enum ResizeDirection {
   West,
 }
 
+/// Errors returned by the webview runtime.
+///
+/// These are surfaced to Tauri applications wrapped in
+/// [`tauri::Error::Runtime`](https://docs.rs/tauri/latest/tauri/enum.Error.html).
+///
+/// This enum is `#[non_exhaustive]`: new variants can be added in minor releases.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {

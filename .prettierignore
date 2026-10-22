@@ -38,3 +38,8 @@ CHANGELOG.md
 # examples /gen directory
 examples/**/src-tauri/gen
 bench/**/src-tauri/gen
+
+# Android generated files directory
+crates/tauri/mobile/android/build
+examples/api/src-tauri/tauri-plugin-sample/android/build
+examples/api/src-tauri/tauri-plugin-sample/android/.tauri

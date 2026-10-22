@@ -66,8 +66,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           # One entry per platform with tauri-cli's dependencies built in the dev profile on
-          # the 1.90 toolchain. This job saves it; test-cli-js, test-api-e2e and test-android
-          # restore it (same shared-key, same CARGO_*/RUST* env, same toolchain).
+          # the 1.90 toolchain. This job saves it; test-cli-js and test-android restore it
+          # (same shared-key, same CARGO_*/RUST* env, same toolchain).
           shared-key: tauri-cli
           # Only `dev` writes to the cache: an entry saved from a pull request lives on its
           # merge ref, where nothing else can restore it, and every write evicts a `dev`

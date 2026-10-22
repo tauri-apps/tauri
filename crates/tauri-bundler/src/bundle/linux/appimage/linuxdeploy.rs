@@ -206,47 +206,54 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
 fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<PathBuf> {
+  const LINUXDEPLOY_COMMIT_HASH: &str = "07333c6";
+
   let apprun = tools_path.join(format!("AppRun-{arch}"));
   if !apprun.exists() {
     let data = download(&format!(
       "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-{arch}"
     ))?;
-    write_and_make_executable(&apprun, data)?;
+    write_and_make_executable(&apprun, &data)?;
   }
 
   let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
-  let linuxdeploy = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}.AppImage"));
+  let linuxdeploy = tools_path.join(format!(
+    "linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}-{linuxdeploy_arch}.AppImage"
+  ));
   if !linuxdeploy.exists() {
     let data = download(&format!(
-      "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"
+      "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}/linuxdeploy-{linuxdeploy_arch}.AppImage"
     ))?;
-    write_and_make_executable(&linuxdeploy, data)?;
+    write_and_make_executable(&linuxdeploy, &data)?;
   }
 
-  let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
-  if !gtk.exists() {
-    let data = download(
-      "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh",
-    )?;
-    write_and_make_executable(&gtk, data)?;
-  }
-
-  let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
-  if !gstreamer.exists() {
-    let data = download(
-      "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh",
-    )?;
-    write_and_make_executable(&gstreamer, data)?;
+  // The plugin scripts are embedded, so rewrite them whenever the cached copy differs:
+  // a copy left behind by an older CLI would otherwise be used forever.
+  for (name, data) in [
+    (
+      "linuxdeploy-plugin-gtk.sh",
+      include_bytes!("./linuxdeploy-plugin-gtk.sh").as_slice(),
+    ),
+    (
+      "linuxdeploy-plugin-gstreamer.sh",
+      include_bytes!("./linuxdeploy-plugin-gstreamer.sh").as_slice(),
+    ),
+  ] {
+    let path = tools_path.join(name);
+    if fs::read(&path).ok().as_deref() != Some(data) {
+      write_and_make_executable(&path, data)?;
+    }
   }
 
   let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");
   if !appimage.exists() {
     // This is optional, linuxdeploy will fall back to its built-in version if the download failed.
+    // Since switching to linuxdeploy-07333c6 this shouldn't be necessary anymore, but we keep it here for now just for fun.
     let data = download(&format!(
       "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"
     ));
     match data {
-      Ok(data) => write_and_make_executable(&appimage, data)?,
+      Ok(data) => write_and_make_executable(&appimage, &data)?,
       Err(err) => {
         log::error!("Download of AppImage plugin failed. Using older built-in version instead.");
         if verbose {

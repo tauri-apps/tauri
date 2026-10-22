@@ -74,8 +74,8 @@ impl<R: Runtime> IconMenuItem<R> {
       None => None,
     };
 
-    let item = run_main_thread!(handle, || {
-      let item = muda::IconMenuItem::with_id(id.clone(), text, enabled, icon, accelerator);
+    let item = run_main_thread!(handle, move || {
+      let item = muda::IconMenuItem::with_id(id, text, enabled, icon, accelerator);
       IconMenuItemInner::new(app_handle, item)
     })?;
 
@@ -145,9 +145,8 @@ impl<R: Runtime> IconMenuItem<R> {
     let icon = native_icon.map(Into::into);
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
 
-    let item = run_main_thread!(handle, || {
-      let item =
-        muda::IconMenuItem::with_id_and_native_icon(id.clone(), text, enabled, icon, accelerator);
+    let item = run_main_thread!(handle, move || {
+      let item = muda::IconMenuItem::with_id_and_native_icon(id, text, enabled, icon, accelerator);
       IconMenuItemInner::new(app_handle, item)
     })?;
 

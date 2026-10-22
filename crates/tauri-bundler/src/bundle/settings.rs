@@ -488,7 +488,7 @@ pub struct NsisSettings {
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
   /// To allow the user to select the language, set [`Self::display_language_selector`] to `true`.
   ///
-  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
   /// An key-value pair where the key is the language and the
   /// value is the path to a custom `.nsi` file that holds the translated text for tauri's custom messages.
@@ -583,11 +583,15 @@ pub struct WindowsSettings {
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,
-  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  /// Whether an older version can be installed when a newer one is already installed.
   ///
-  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  /// For instance, if `1.2.1` is installed and this is set to `false`:
   ///
-  /// /// The default value of this flag is `true`.
+  /// - The MSI installer won't install version `1.2.0` or `1.1.5`.
+  /// - The NSIS installer won't install them over `1.2.1` in silent, passive or update mode.
+  ///   The interactive installer only lets the user install them after uninstalling `1.2.1` first.
+  ///
+  /// The default value of this flag is `true`.
   pub allow_downgrades: bool,
 
   /// Specify a custom command to sign the binaries.

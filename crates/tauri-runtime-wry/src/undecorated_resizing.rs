@@ -547,7 +547,8 @@ mod gtk {
   }
 
   fn resizable_window(webview: &webkit2gtk::WebView) -> Option<gtk::Window> {
-    let window = webview.parent()?.parent()?.downcast::<gtk::Window>().ok()?;
+    // The webview may be nested at any depth (e.g. reparented into a GtkPaned), so resolve its toplevel
+    let window = webview.toplevel()?.downcast::<gtk::Window>().ok()?;
     (!window.is_decorated() && window.is_resizable() && !window.is_maximized()).then_some(window)
   }
 
@@ -585,18 +586,22 @@ mod gtk {
 
     webview.connect_motion_notify_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventMotion| {
-        let Some(window) = resizable_window(webview).and_then(|_| webview.window()) else {
+        let Some(window) = resizable_window(webview).and_then(|w| w.window()) else {
+          return Propagation::Proceed;
+        };
+        let Some(webview_window) = webview.window() else {
           return Propagation::Proceed;
         };
 
-        let (x, y) = event.position();
-        let result = hit_test_window(&window, x, y);
+        // hit test against the toplevel like the button press handler, the webview may not fill it
+        let (root_x, root_y) = event.root();
+        let result = hit_test_window_root(&window, root_x, root_y);
         if matches!(result, HitTestResult::Client | HitTestResult::NoWhere) {
           return Propagation::Proceed;
         }
 
-        let cursor = result.to_cursor(&window.display());
-        window.set_cursor(cursor.as_ref());
+        let cursor = result.to_cursor(&webview_window.display());
+        webview_window.set_cursor(cursor.as_ref());
         Propagation::Stop
       },
     );
@@ -624,6 +629,12 @@ mod gtk {
 
     webview.connect_touch_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::Event| {
+        // Start the resize drag once per touch sequence. Issuing it for every
+        // touch event re-sends `xdg_toplevel.resize` with a serial the compositor
+        // already consumed, which can crash the session (e.g. gnome-shell).
+        if event.event_type() != gtk::gdk::EventType::TouchBegin {
+          return Propagation::Proceed;
+        }
         let Some(window) = resizable_window(webview).and_then(|w| w.window()) else {
           return Propagation::Proceed;
         };

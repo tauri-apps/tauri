@@ -1,6 +1,6 @@
 [package]
 name = "tauri-codegen"
-version = "2.6.3"
+version = "2.7.4"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
@@ -13,7 +13,7 @@ rust-version.workspace = true
 
 [dependencies]
 sha2 = "0.10"
-base64 = "0.22"
+base64 = "0.23"
 proc-macro2 = "1"
 quote = "1"
 syn = "2"
@@ -27,7 +27,7 @@ brotli = { version = "9", optional = true, default-features = false, features = 
 ] }
 uuid = { version = "1", features = ["v4"] }
 semver = "1"
-ico = "0.5"
+ico = "0.6"
 png = "0.18"
 json-patch = "4"
 url = "2"

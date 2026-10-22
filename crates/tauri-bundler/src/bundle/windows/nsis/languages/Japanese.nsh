@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_JAPANESE} "${PRODUCTNAME} ${VERSION} は�
 LangString appRunning ${LANG_JAPANESE} "{{product_name}} は動作中です。動作中のプログラムを終了し、もう一度やり直してください。"
 LangString appRunningOkKill ${LANG_JAPANESE} "{{product_name}} は動作中です。$\n「OK」を押すと動作中のプログラムを終了します。"
 LangString chooseMaintenanceOption ${LANG_JAPANESE} "メンテナンスオプションを選択して実行します。"
-LangString choowHowToInstall ${LANG_JAPANESE} "${PRODUCTNAME} のインストール方法を選択してください。"
+LangString chooseHowToInstall ${LANG_JAPANESE} "${PRODUCTNAME} のインストール方法を選択してください。"
 LangString createDesktop ${LANG_JAPANESE} "デスクトップショートカットを作成する"
 LangString dontUninstall ${LANG_JAPANESE} "アンインストールしない"
 LangString dontUninstallDowngrade ${LANG_JAPANESE} "アンインストールしない (このインストーラーでは、アンインストールをせずにダウングレードすることはできません)"

@@ -400,11 +400,33 @@ impl<'a> From<Image<'a>> for crate::runtime::Icon<'a> {
   }
 }
 
+/// Ensures the RGBA buffer matches the image dimensions.
+///
+/// The Linux backends of `muda` and `tray-icon` do not validate this,
+/// so a mismatch would panic when the icon is rendered.
+#[cfg(desktop)]
+fn check_rgba_size(img: &Image<'_>) -> crate::Result<()> {
+  let expected = (img.width as u64) * (img.height as u64) * 4;
+  if img.rgba.len() as u64 != expected {
+    return Err(crate::Error::InvalidIcon(std::io::Error::new(
+      std::io::ErrorKind::InvalidInput,
+      format!(
+        "RGBA buffer has {} bytes but a {}x{} image needs {expected}",
+        img.rgba.len(),
+        img.width,
+        img.height
+      ),
+    )));
+  }
+  Ok(())
+}
+
 #[cfg(desktop)]
 impl TryFrom<Image<'_>> for muda::Icon {
   type Error = crate::Error;
 
   fn try_from(img: Image<'_>) -> Result<Self, Self::Error> {
+    check_rgba_size(&img)?;
     muda::Icon::from_rgba(img.rgba.into_owned(), img.width, img.height).map_err(Into::into)
   }
 }
@@ -414,6 +436,7 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
   type Error = crate::Error;
 
   fn try_from(img: Image<'_>) -> Result<Self, Self::Error> {
+    check_rgba_size(&img)?;
     tray_icon::Icon::from_rgba(img.rgba.into_owned(), img.width, img.height).map_err(Into::into)
   }
 }

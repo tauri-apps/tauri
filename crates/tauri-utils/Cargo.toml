@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.9.3"
+version = "2.10.2"
 description = "Utilities for Tauri"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
@@ -54,13 +54,13 @@ http = "1"
 plist = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-swift-rs = { version = "1.0.8", optional = true, features = ["build"] }
+swift-rs = { version = "1.0.9", optional = true, features = ["build"] }
 
 [dev-dependencies]
 getrandom = { version = "0.3", features = ["std"] }
 serial_test = "3.5"
 # For doc tests
-tauri = { workspace = true }
+tauri = { path = "../tauri", default-features = false, features = ["wry"] }
 tempfile = "3.15.0"
 
 [features]

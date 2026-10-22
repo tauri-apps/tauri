@@ -19,6 +19,7 @@ use std::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
   },
+  time::Duration,
 };
 use tauri_utils::{
   config::{BundleConfig, BundleResources, WebviewInstallMode},
@@ -39,9 +40,9 @@ impl DevProcess for DevChild {
     // which can be before we are done killing the rest
     self.manually_killed_app.store(true, Ordering::SeqCst);
 
-    // `winapp run` is spawned by the CLI rather than by cargo, so it is not in the dev
-    // child's tree and needs killing on its own. It launches the app through an alias,
-    // which would otherwise outlive it.
+    // `winapp run` is spawned by the CLI rather than by cargo, so killing cargo does not
+    // reach it. It launches the app through an alias, so its whole tree is killed or the
+    // app would outlive it.
     let app_child = self.app_child.lock().unwrap().clone();
     // a failure here must not leave cargo running, so it is only reported at the end
     let app_killed = app_child.map_or(Ok(()), |app_child| {
@@ -49,7 +50,6 @@ impl DevProcess for DevChild {
       app_child.kill()
     });
 
-    kill_tree(self.dev_child.id());
     self.dev_child.kill()?;
     app_killed
   }
@@ -69,41 +69,13 @@ impl DevProcess for DevChild {
   }
 }
 
-/// Kills `pid` along with every process it spawned.
+/// Kills `pid` along with every process it spawned. Only used for `winapp`, so Windows only.
 fn kill_tree(pid: u32) {
-  #[cfg(windows)]
-  {
-    // `/T` terminates the whole process tree, `/F` forces it
-    let pid = pid.to_string();
-    let _ = Command::new("taskkill")
-      .args(["/T", "/F", "/PID", pid.as_str()])
-      .status();
-  }
-
-  #[cfg(not(windows))]
-  {
-    // collect the whole tree first, then kill the root before its descendants
-    // so it cannot respawn them in the meantime
-    const KILL_TREE: &str = r#"
-descendants() {
-  for child in $(pgrep -P "$1" 2>/dev/null); do
-    echo "$child"
-    descendants "$child"
-  done
-}
-tree=$(descendants "$1")
-kill -9 "$1" 2>/dev/null
-for p in $tree; do
-  kill -9 "$p" 2>/dev/null
-done
-true
-"#;
-
-    let pid = pid.to_string();
-    let _ = Command::new("sh")
-      .args(["-c", KILL_TREE, "sh", pid.as_str()])
-      .status();
-  }
+  // `/T` terminates the whole process tree, `/F` forces it
+  let pid = pid.to_string();
+  let _ = Command::new("taskkill")
+    .args(["/T", "/F", "/PID", pid.as_str()])
+    .status();
 }
 
 pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
@@ -179,11 +151,14 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let dev_child = Arc::new(dev_child);
   let dev_child_stderr = dev_child.take_stderr().unwrap();
   let mut stderr = BufReader::new(dev_child_stderr);
-  let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-  let stderr_lines_ = stderr_lines.clone();
+  // only the last line is needed to detect cargo compilation errors
+  let last_stderr_line = Arc::new(Mutex::new(None::<String>));
+  let last_stderr_line_ = last_stderr_line.clone();
+  // dropped when the reader thread finishes
+  let (stderr_done_tx, stderr_done_rx) = std::sync::mpsc::channel::<()>();
   std::thread::spawn(move || {
+    let _stderr_done_tx = stderr_done_tx;
     let mut buf = Vec::new();
-    let mut lines = stderr_lines_.lock().unwrap();
     let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
@@ -191,7 +166,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         break;
       }
       let _ = io_stderr.write_all(&buf);
-      lines.push(String::from_utf8_lossy(&buf).into_owned());
+      *last_stderr_line_.lock().unwrap() = Some(String::from_utf8_lossy(&buf).into_owned());
     }
   });
   let dev_child_ = dev_child.clone();
@@ -225,13 +200,15 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     if status.success() {
       on_exit(status.code(), ExitReason::NormalExit);
     } else {
-      let is_cargo_compile_error = stderr_lines
+      // give the reader a moment to consume the remaining output,
+      // without blocking forever if a grandchild process keeps stderr open
+      let _ = stderr_done_rx.recv_timeout(Duration::from_secs(1));
+      let is_cargo_compile_error = last_stderr_line
         .lock()
         .unwrap()
-        .last()
+        .take()
         .map(|l| l.contains("could not compile"))
         .unwrap_or_default();
-      stderr_lines.lock().unwrap().clear();
 
       on_exit(
         status.code(),
@@ -554,7 +531,7 @@ fn cargo_command(
     build_cmd.arg(features.join(","));
   }
 
-  if !options.debug && !options.args.contains(&"--profile".to_string()) {
+  if !options.debug && super::get_cargo_option(&options.args, "--profile").is_none() {
     build_cmd.arg("--release");
   }
 
@@ -567,7 +544,9 @@ fn cargo_command(
 }
 
 fn fetch_available_targets() -> Option<Vec<RustupTarget>> {
-  if let Ok(output) = Command::new("rustup").args(["target", "list"]).output() {
+  if let Ok(output) = Command::new("rustup").args(["target", "list"]).output()
+    && output.status.success()
+  {
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     Some(
       stdout
@@ -720,12 +699,31 @@ mod terminal {
 
 #[cfg(test)]
 mod tests {
-  use super::{WinappLauncher, cargo_bin};
+  use super::{Options, WinappLauncher, cargo_bin, cargo_command};
   use std::{collections::HashMap, fs, path::PathBuf};
   use tauri_utils::config::{BundleConfig, BundleResources};
 
   fn args(args: &[&str]) -> Vec<String> {
     args.iter().map(|arg| arg.to_string()).collect()
+  }
+
+  fn release_args(args: &[&str]) -> Vec<String> {
+    let options = Options {
+      args: args.iter().map(ToString::to_string).collect(),
+      ..Default::default()
+    };
+    cargo_command(false, options, &mut None, Vec::new())
+      .unwrap()
+      .get_args()
+      .map(|a| a.to_string_lossy().into_owned())
+      .collect()
+  }
+
+  #[test]
+  fn release_flag_respects_profile() {
+    assert!(release_args(&[]).contains(&"--release".to_string()));
+    assert!(!release_args(&["--profile", "custom"]).contains(&"--release".to_string()));
+    assert!(!release_args(&["--profile=custom"]).contains(&"--release".to_string()));
   }
 
   #[test]

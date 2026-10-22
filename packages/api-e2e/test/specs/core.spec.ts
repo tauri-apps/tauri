@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect } from '@wdio/globals'
-import { tauri, tauriError, describeApi } from '../helpers/index.js'
+import { tauri, tauriError, describeApi, itOn } from '../helpers/index.js'
 
 describeApi('core', () => {
   it('isTauri reports true inside the app', async () => {
@@ -82,6 +82,82 @@ describeApi('core', () => {
     expect(result.ordered).toBe(true)
     expect(result.last).toBe(1000)
   })
+
+  it('Channel keeps delivering messages after its handler throws', async () => {
+    const result = await tauri(
+      (api, count) =>
+        new Promise<{ length: number; last: number; reported: number }>(
+          (resolve, reject) => {
+            const received: number[] = []
+            // The handler errors are rethrown as uncaught errors. Count them
+            // rather than match them: WebKit reports errors from the IPC
+            // callback as a muted "Script error." without the Error object.
+            // Inline listener gated by a flag: a named function would be
+            // wrapped in esbuild's `__name` helper, which the webview lacks.
+            const listening = { active: true, reported: 0 }
+            window.addEventListener('error', (event: ErrorEvent) => {
+              if (listening.active) {
+                listening.reported += 1
+                event.preventDefault()
+              }
+            })
+            const timeout = setTimeout(() => {
+              listening.active = false
+              reject(
+                new Error(
+                  `only received ${received.length} of ${count} messages`
+                )
+              )
+            }, 15000)
+            const channel = new api.core.Channel<number>()
+            channel.onmessage = (value: number) => {
+              received.push(value)
+              if (received.length === count) {
+                clearTimeout(timeout)
+                // let the asynchronously rethrown errors reach the listener
+                setTimeout(() => {
+                  listening.active = false
+                  resolve({
+                    length: received.length,
+                    last: received[received.length - 1],
+                    reported: listening.reported
+                  })
+                }, 100)
+              }
+              if (value === 1 || value === 500) {
+                throw new Error(`boom ${value}`)
+              }
+            }
+            api.core.invoke('spam', { channel }).catch((error: unknown) => {
+              clearTimeout(timeout)
+              listening.active = false
+              reject(error instanceof Error ? error : new Error(String(error)))
+            })
+          }
+        ),
+      1000
+    )
+    expect(result.length).toBe(1000)
+    expect(result.last).toBe(1000)
+    expect(result.reported).toBe(2)
+  })
+
+  itOn(
+    ['android', 'ios'],
+    'a mobile plugin resolves JSArray and JSObject values as JSON arrays and objects',
+    async () => {
+      // On Android, the sample plugin's `jsValues` goes through
+      // `Invoke.resolveObject`, i.e. the plugin JSON mapper rather than
+      // org.json's own `toString`.
+      const values = await tauri((api) =>
+        api.core.invoke('plugin:sample|js_values')
+      )
+      expect(values).toEqual({
+        array: ['a', 1, true],
+        obj: { kind: 'object', nested: [1, 2] }
+      })
+    }
+  )
 
   it('convertFileSrc builds a platform-appropriate asset URL', async () => {
     const url = await tauri((api) =>

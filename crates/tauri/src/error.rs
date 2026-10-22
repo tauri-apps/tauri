@@ -132,6 +132,9 @@ pub enum Error {
   #[cfg(not(target_os = "android"))]
   #[error("unknown path")]
   UnknownPath,
+  /// The `app > appDirectoriesOverride` config contains a path that cannot be resolved.
+  #[error("invalid `app > appDirectoriesOverride` path `{path}`: {reason}", path = .0.display(), reason = .1)]
+  InvalidAppDirectoriesOverride(std::path::PathBuf, String),
   /// Failed to invoke mobile plugin.
   #[cfg(target_os = "android")]
   #[error(transparent)]

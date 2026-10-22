@@ -10,9 +10,8 @@ mod imp {}
 
 #[cfg(windows)]
 mod imp {
-  use std::{iter::once, os::windows::ffi::OsStrExt};
+  use std::{iter::once, os::windows::ffi::OsStrExt, sync::LazyLock};
 
-  use once_cell::sync::Lazy;
   use windows::{
     Win32::{
       Foundation::*,
@@ -59,12 +58,12 @@ mod imp {
   type GetSystemMetricsForDpi =
     unsafe extern "system" fn(nindex: SYSTEM_METRICS_INDEX, dpi: u32) -> i32;
 
-  static GET_DPI_FOR_WINDOW: Lazy<Option<GetDpiForWindow>> =
-    Lazy::new(|| get_function!("user32.dll", GetDpiForWindow));
-  static GET_DPI_FOR_MONITOR: Lazy<Option<GetDpiForMonitor>> =
-    Lazy::new(|| get_function!("shcore.dll", GetDpiForMonitor));
-  static GET_SYSTEM_METRICS_FOR_DPI: Lazy<Option<GetSystemMetricsForDpi>> =
-    Lazy::new(|| get_function!("user32.dll", GetSystemMetricsForDpi));
+  static GET_DPI_FOR_WINDOW: LazyLock<Option<GetDpiForWindow>> =
+    LazyLock::new(|| get_function!("user32.dll", GetDpiForWindow));
+  static GET_DPI_FOR_MONITOR: LazyLock<Option<GetDpiForMonitor>> =
+    LazyLock::new(|| get_function!("shcore.dll", GetDpiForMonitor));
+  static GET_SYSTEM_METRICS_FOR_DPI: LazyLock<Option<GetSystemMetricsForDpi>> =
+    LazyLock::new(|| get_function!("user32.dll", GetSystemMetricsForDpi));
 
   #[allow(non_snake_case)]
   pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {

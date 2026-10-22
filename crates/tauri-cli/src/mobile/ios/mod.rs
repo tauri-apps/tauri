@@ -556,10 +556,11 @@ pub fn synchronize_project_config(
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config.identifier.clone();
+  // use the same sanitized identifier as the Xcode project template and export options
+  let identifier = config.app().identifier();
   let product_name = tauri_config.product_name.clone();
 
-  let manual_signing = project_config.code_sign_identity.is_some()
+  let project_manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();
 
   if let Some(xc_configuration_list) = pbxproj
@@ -569,31 +570,31 @@ pub fn synchronize_project_config(
     .find(|l| l.comment.contains("_iOS"))
   {
     for build_configuration_ref in xc_configuration_list.build_configurations {
-      if manual_signing {
+      if project_manual_signing {
         pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_STYLE", "Manual");
       }
 
       if let Some(team) = config.development_team() {
-        let team = format!("\"{team}\"");
+        let team = pbxproj::quote(team);
         pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", &team);
       }
 
       pbxproj.set_build_settings(
         &build_configuration_ref.id,
         "PRODUCT_BUNDLE_IDENTIFIER",
-        &identifier,
+        identifier,
       );
 
       if let Some(product_name) = &product_name {
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
           "PRODUCT_NAME",
-          &format!("\"{product_name}\""),
+          &pbxproj::quote(product_name),
         );
       }
 
       if let Some(identity) = &project_config.code_sign_identity {
-        let identity = format!("\"{identity}\"");
+        let identity = pbxproj::quote(identity);
         pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_IDENTITY", &identity);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
@@ -603,7 +604,7 @@ pub fn synchronize_project_config(
       }
 
       if let Some(id) = &project_config.team_id {
-        let id = format!("\"{id}\"");
+        let id = pbxproj::quote(id);
         pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", &id);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
@@ -613,7 +614,7 @@ pub fn synchronize_project_config(
       }
 
       if let Some(profile_uuid) = &project_config.provisioning_profile_uuid {
-        let profile_uuid = format!("\"{profile_uuid}\"");
+        let profile_uuid = pbxproj::quote(profile_uuid);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
           "PROVISIONING_PROFILE_SPECIFIER",
@@ -653,52 +654,267 @@ pub fn synchronize_project_config(
   };
 
   if let Some(build_configuration) = build_configuration {
-    if let Some(style) = build_configuration.get_build_setting("CODE_SIGN_STYLE") {
-      export_options_plist.insert(
-        "signingStyle".to_string(),
-        style.value.to_lowercase().into(),
-      );
-    } else {
-      export_options_plist.insert("signingStyle".to_string(), "automatic".into());
-    }
-
-    if manual_signing {
-      if let Some(identity) = build_configuration
-        .get_build_setting("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"")
-        .or_else(|| build_configuration.get_build_setting("CODE_SIGN_IDENTITY"))
-      {
-        export_options_plist.insert(
-          "signingCertificate".to_string(),
-          identity.value.trim_matches('"').into(),
-        );
-      }
-
-      let profile_uuid = project_config
-        .provisioning_profile_uuid
-        .clone()
-        .or_else(|| {
-          build_configuration
-            .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
-            .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
-            .map(|setting| setting.value.trim_matches('"').to_string())
-        });
-      if let Some(profile_uuid) = profile_uuid {
-        let mut provisioning_profiles = plist::Dictionary::new();
-        provisioning_profiles.insert(config.app().identifier().to_string(), profile_uuid.into());
-        export_options_plist.insert(
-          "provisioningProfiles".to_string(),
-          provisioning_profiles.into(),
-        );
-      }
-    }
-
-    if let Some(id) = build_configuration
-      .get_build_setting("\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"")
-      .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
-    {
-      export_options_plist.insert("teamID".to_string(), id.value.trim_matches('"').into());
-    }
+    synchronize_export_options(
+      identifier,
+      build_configuration,
+      export_options_plist,
+      project_config,
+    );
   }
 
   Ok(())
+}
+
+fn synchronize_export_options(
+  identifier: &str,
+  build_configuration: &pbxproj::XCBuildConfiguration,
+  export_options_plist: &mut plist::Dictionary,
+  project_config: &ProjectConfig,
+) {
+  let signing_style = build_configuration
+    .get_build_setting("CODE_SIGN_STYLE")
+    .map(|style| pbxproj::unquote(&style.value).to_lowercase());
+  let manual_signing = project_config.code_sign_identity.is_some()
+    || project_config.provisioning_profile_uuid.is_some()
+    || signing_style.as_deref() == Some("manual");
+
+  export_options_plist.insert(
+    "signingStyle".to_string(),
+    signing_style
+      .unwrap_or_else(|| "automatic".to_string())
+      .into(),
+  );
+
+  if manual_signing {
+    // values coming from the signing environment variables were just written to the pbxproj
+    // and must win, but values only read from the Xcode project must not override
+    // the user's ExportOptions.plist, which may intentionally re-sign the archive for distribution
+    if let Some(identity) = build_configuration
+      .get_build_setting("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"")
+      .or_else(|| build_configuration.get_build_setting("CODE_SIGN_IDENTITY"))
+      && (project_config.code_sign_identity.is_some()
+        || !export_options_plist.contains_key("signingCertificate"))
+    {
+      export_options_plist.insert(
+        "signingCertificate".to_string(),
+        pbxproj::unquote(&identity.value).into(),
+      );
+    }
+
+    let profile_uuid = project_config
+      .provisioning_profile_uuid
+      .clone()
+      .or_else(|| {
+        build_configuration
+          .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
+          .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
+          .map(|setting| pbxproj::unquote(&setting.value))
+      });
+    if let Some(profile_uuid) = profile_uuid {
+      // merge with the existing map so profiles for app extensions are kept
+      let mut provisioning_profiles = export_options_plist
+        .remove("provisioningProfiles")
+        .and_then(|profiles| profiles.into_dictionary())
+        .unwrap_or_default();
+      if project_config.provisioning_profile_uuid.is_some()
+        || !provisioning_profiles.contains_key(identifier)
+      {
+        provisioning_profiles.insert(identifier.to_string(), profile_uuid.into());
+      }
+      export_options_plist.insert(
+        "provisioningProfiles".to_string(),
+        provisioning_profiles.into(),
+      );
+    }
+  }
+
+  if let Some(id) = build_configuration
+    .get_build_setting("\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"")
+    .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
+  {
+    export_options_plist.insert("teamID".to_string(), pbxproj::unquote(&id.value).into());
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{ProjectConfig, synchronize_export_options};
+  use crate::helpers::pbxproj;
+
+  const IDENTIFIER: &str = "com.tauri.test";
+  const RELEASE_CONFIGURATION_ID: &str = "DB_0E254D0FD84970B57F6410";
+
+  /// Parses the fixture with the manual signing settings from the issue written into the release
+  /// configuration, so quoted values with spaces go through the real pbxproj parser.
+  fn manual_signing_pbxproj(dir: &std::path::Path) -> pbxproj::Pbxproj {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+      .join("tests")
+      .join("fixtures")
+      .join("pbxproj")
+      .join("project.pbxproj");
+    let contents = std::fs::read_to_string(fixture).unwrap();
+
+    let release_start = contents
+      .find(&format!("{RELEASE_CONFIGURATION_ID} /* release */ = {{"))
+      .unwrap();
+    let (before, release) = contents.split_at(release_start);
+    let release = release.replacen(
+      "\t\t\t\tCODE_SIGN_IDENTITY = \"iPhone Developer\";\n",
+      "\t\t\t\tCODE_SIGN_IDENTITY = \"Apple Distribution: Name (TEAM)\";\n\t\t\t\tCODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"Profile Name With Spaces\";\n",
+      1,
+    );
+
+    let path = dir.join("project.pbxproj");
+    std::fs::write(&path, format!("{before}{release}")).unwrap();
+    pbxproj::parse(path).unwrap()
+  }
+
+  fn no_env_signing() -> ProjectConfig {
+    ProjectConfig {
+      code_sign_identity: None,
+      team_id: None,
+      provisioning_profile_uuid: None,
+    }
+  }
+
+  fn string<'a>(options: &'a plist::Dictionary, key: &str) -> Option<&'a str> {
+    options.get(key).and_then(|v| v.as_string())
+  }
+
+  fn profile<'a>(options: &'a plist::Dictionary, bundle_id: &str) -> Option<&'a str> {
+    options
+      .get("provisioningProfiles")
+      .and_then(|v| v.as_dictionary())
+      .and_then(|profiles| profiles.get(bundle_id))
+      .and_then(|v| v.as_string())
+  }
+
+  #[test]
+  fn uses_manual_signing_settings_from_pbxproj_for_export_options() {
+    let dir = tempfile::tempdir().unwrap();
+    let pbxproj = manual_signing_pbxproj(dir.path());
+    let build_configuration = &pbxproj.xc_build_configuration[RELEASE_CONFIGURATION_ID];
+
+    let mut export_options = plist::Dictionary::new();
+    synchronize_export_options(
+      IDENTIFIER,
+      build_configuration,
+      &mut export_options,
+      &no_env_signing(),
+    );
+
+    assert_eq!(string(&export_options, "signingStyle"), Some("manual"));
+    assert_eq!(
+      string(&export_options, "signingCertificate"),
+      Some("Apple Distribution: Name (TEAM)")
+    );
+    assert_eq!(string(&export_options, "teamID"), Some("Q93MBH6S2F"));
+    assert_eq!(
+      profile(&export_options, IDENTIFIER),
+      Some("Profile Name With Spaces")
+    );
+  }
+
+  #[test]
+  fn pbxproj_signing_does_not_override_user_export_options() {
+    let dir = tempfile::tempdir().unwrap();
+    let pbxproj = manual_signing_pbxproj(dir.path());
+    let build_configuration = &pbxproj.xc_build_configuration[RELEASE_CONFIGURATION_ID];
+
+    // the user re-signs for distribution and ships an app extension
+    let mut user_profiles = plist::Dictionary::new();
+    user_profiles.insert(IDENTIFIER.into(), "User App Profile".into());
+    user_profiles.insert(format!("{IDENTIFIER}.widget"), "User Widget Profile".into());
+    let mut export_options = plist::Dictionary::new();
+    export_options.insert("signingCertificate".into(), "iOS Distribution".into());
+    export_options.insert("provisioningProfiles".into(), user_profiles.into());
+
+    synchronize_export_options(
+      IDENTIFIER,
+      build_configuration,
+      &mut export_options,
+      &no_env_signing(),
+    );
+
+    assert_eq!(
+      string(&export_options, "signingCertificate"),
+      Some("iOS Distribution")
+    );
+    assert_eq!(
+      profile(&export_options, IDENTIFIER),
+      Some("User App Profile")
+    );
+    assert_eq!(
+      profile(&export_options, &format!("{IDENTIFIER}.widget")),
+      Some("User Widget Profile")
+    );
+  }
+
+  #[test]
+  fn env_signing_overrides_user_export_options() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut pbxproj = manual_signing_pbxproj(dir.path());
+    // synchronize_project_config writes the env signing values to the pbxproj before this runs
+    pbxproj.set_build_settings(
+      RELEASE_CONFIGURATION_ID,
+      "CODE_SIGN_IDENTITY",
+      &pbxproj::quote("Apple Distribution: Env (TEAM)"),
+    );
+    let build_configuration = &pbxproj.xc_build_configuration[RELEASE_CONFIGURATION_ID];
+
+    let mut user_profiles = plist::Dictionary::new();
+    user_profiles.insert(IDENTIFIER.into(), "User App Profile".into());
+    user_profiles.insert(format!("{IDENTIFIER}.widget"), "User Widget Profile".into());
+    let mut export_options = plist::Dictionary::new();
+    export_options.insert("signingCertificate".into(), "iOS Distribution".into());
+    export_options.insert("provisioningProfiles".into(), user_profiles.into());
+
+    synchronize_export_options(
+      IDENTIFIER,
+      build_configuration,
+      &mut export_options,
+      &ProjectConfig {
+        code_sign_identity: Some("Apple Distribution: Env (TEAM)".into()),
+        team_id: None,
+        provisioning_profile_uuid: Some("env-profile-uuid".into()),
+      },
+    );
+
+    assert_eq!(
+      string(&export_options, "signingCertificate"),
+      Some("Apple Distribution: Env (TEAM)")
+    );
+    assert_eq!(
+      profile(&export_options, IDENTIFIER),
+      Some("env-profile-uuid")
+    );
+    assert_eq!(
+      profile(&export_options, &format!("{IDENTIFIER}.widget")),
+      Some("User Widget Profile")
+    );
+  }
+
+  #[test]
+  fn automatic_signing_does_not_export_certificate_or_profiles() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+      .join("tests")
+      .join("fixtures")
+      .join("pbxproj")
+      .join("project.pbxproj");
+    let pbxproj = pbxproj::parse(fixture).unwrap();
+    let build_configuration = &pbxproj.xc_build_configuration[RELEASE_CONFIGURATION_ID];
+
+    let mut export_options = plist::Dictionary::new();
+    synchronize_export_options(
+      IDENTIFIER,
+      build_configuration,
+      &mut export_options,
+      &no_env_signing(),
+    );
+
+    assert_eq!(string(&export_options, "signingStyle"), Some("automatic"));
+    assert!(!export_options.contains_key("signingCertificate"));
+    assert!(!export_options.contains_key("provisioningProfiles"));
+    assert_eq!(string(&export_options, "teamID"), Some("Q93MBH6S2F"));
+  }
 }

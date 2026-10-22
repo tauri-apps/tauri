@@ -61,7 +61,7 @@ fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
-  generate_github_alternative_url(url).unwrap_or((base_ureq_agent(), url.to_owned()))
+  generate_github_alternative_url(url).unwrap_or_else(|| (base_ureq_agent(), url.to_owned()))
 }
 
 pub(crate) fn base_ureq_agent() -> ureq::Agent {

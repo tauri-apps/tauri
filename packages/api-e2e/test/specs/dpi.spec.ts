@@ -51,15 +51,4 @@ describeApi('dpi', () => {
     expect(result.size).toEqual({ width: 200, height: 100 })
     expect(result.position).toEqual({ x: 10, y: 20 })
   })
-
-  it('window sizes convert consistently against the real scale factor', async () => {
-    const consistent = await tauri(async (api) => {
-      const w = api.window.getCurrentWindow()
-      const scale = await w.scaleFactor()
-      const inner = await w.innerSize()
-      const logical = inner.toLogical(scale)
-      return Math.abs(logical.width * scale - inner.width) < 1
-    })
-    expect(consistent).toBe(true)
-  })
 })

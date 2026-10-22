@@ -574,6 +574,28 @@ async function resolveResource(resourcePath: string): Promise<string> {
 }
 
 /**
+ * Resolves the path to a sidecar binary configured in `tauri.conf.json > bundle > externalBin`.
+ *
+ * Sidecars are placed next to the main executable, so this resolves to `${exe_dir}/${name}`,
+ * with the `.exe` extension appended on Windows.
+ *
+ * @example
+ * ```typescript
+ * import { resolveExternalBin } from '@tauri-apps/api/path';
+ * const binPath = await resolveExternalBin('my-sidecar');
+ * ```
+ *
+ * @param name The file name of the sidecar without the target triple suffix,
+ * e.g. `my-sidecar` for a sidecar configured as `binaries/my-sidecar`.
+ * @returns The full path to the sidecar.
+ *
+ * @since 2.13.0
+ */
+async function resolveExternalBin(name: string): Promise<string> {
+  return invoke('plugin:path|resolve_external_bin', { name })
+}
+
+/**
  * Returns the path to the user's runtime directory.
  *
  * #### Platform-specific
@@ -843,6 +865,7 @@ export {
   publicDir,
   resourceDir,
   resolveResource,
+  resolveExternalBin,
   runtimeDir,
   templateDir,
   videoDir,

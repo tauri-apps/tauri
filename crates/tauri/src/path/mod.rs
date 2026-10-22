@@ -311,6 +311,47 @@ impl<R: Runtime> PathResolver<R> {
 
     Ok(p)
   }
+
+  /// Resolves the path to a sidecar binary bundled with the app via
+  /// [`bundle > externalBin`](crate::utils::config::BundleConfig::external_bin).
+  ///
+  /// The `name` is the file name of the sidecar without the target triple suffix,
+  /// e.g. `my-sidecar` for a sidecar configured as `binaries/my-sidecar`.
+  ///
+  /// The bundler places sidecars next to the main executable, so this resolves to `${exe_dir}/${name}`,
+  /// with the `.exe` extension appended on Windows.
+  ///
+  /// # Security
+  ///
+  /// See [`tauri_utils::platform::current_exe`] for possible security implications.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let path = app.path().sidecar_path("my-sidecar")?;
+  ///     std::process::Command::new(path).spawn()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn sidecar_path<P: AsRef<Path>>(&self, name: P) -> Result<PathBuf> {
+    let mut path = tauri_utils::platform::external_bin_dir()?.join(name);
+
+    #[cfg(windows)]
+    if path.extension().is_none_or(|ext| ext != "exe") {
+      // do not use with_extension to retain dots in the file name
+      path.as_mut_os_string().push(".exe");
+    }
+
+    #[cfg(not(windows))]
+    if path.extension().is_some_and(|ext| ext == "exe") {
+      path.set_extension("");
+    }
+
+    Ok(path)
+  }
 }
 
 fn resolve_path<R: Runtime>(

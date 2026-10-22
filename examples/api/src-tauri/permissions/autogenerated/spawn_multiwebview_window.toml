@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-spawn-multiwebview-window"
+description = "Enables the spawn_multiwebview_window command without any pre-configured scope."
+commands.allow = ["spawn_multiwebview_window"]
+
+[[permission]]
+identifier = "deny-spawn-multiwebview-window"
+description = "Denies the spawn_multiwebview_window command without any pre-configured scope."
+commands.deny = ["spawn_multiwebview_window"]

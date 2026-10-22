@@ -656,7 +656,7 @@ impl<R: Runtime> AppManager<R> {
     // since the run callback (which calls this function) runs before the window event handlers
   }
 
-  #[cfg(desktop)]
+  #[cfg(any(desktop, target_os = "android"))]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_listeners(label);

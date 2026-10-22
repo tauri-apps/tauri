@@ -1046,6 +1046,23 @@ interface WebviewOptions {
    * @since 2.11.0
    */
   generalAutofillEnabled?: boolean
+  /**
+   * The name of the Android activity class that hosts the webview when the window already hosts one.
+   *
+   * The activity is started in the window's task, on top of the window's activity, so it belongs to the
+   * same window. On large screens, [activity embedding](https://developer.android.com/develop/ui/views/layout/activity-embedding)
+   * rules can show the two side by side; on phones the activity covers the window's own, and the back button
+   * closes it, which destroys the webview (`tauri://destroyed`). The system lays the webviews out,
+   * so `x`, `y`, `width` and `height` are ignored on Android.
+   *
+   * The activity must extend `TauriActivity` and be declared in `AndroidManifest.xml`
+   * with a launch mode that allows starting it on top of another activity, such as `standard`.
+   *
+   * See the [mobile multiwindow guide](https://tauri.app/learn/mobile-multiwindow/).
+   *
+   * @since 2.13.0
+   */
+  activityName?: string
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

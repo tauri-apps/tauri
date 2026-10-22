@@ -17,6 +17,7 @@
     "allow-perform-request",
     "allow-echo",
     "allow-spam",
+    "allow-spawn-multiwebview-window",
     "app-menu:default",
     "sample:allow-ping-scoped",
     "sample:allow-js-values",
@@ -69,6 +70,8 @@
     "core:window:allow-set-icon",
     "core:window:allow-toggle-maximize",
     "core:webview:allow-create-webview-window",
+    "core:webview:allow-create-webview",
+    "core:webview:allow-webview-close",
     "core:webview:allow-print",
     "core:webview:allow-set-webview-zoom"
   ]

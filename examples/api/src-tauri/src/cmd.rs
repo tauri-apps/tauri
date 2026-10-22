@@ -61,3 +61,62 @@ pub fn spam(channel: Channel<i32>) -> tauri::Result<()> {
   }
   Ok(())
 }
+
+/// Opens a window hosting two webviews, to try the multiwebview API (requires the `unstable` feature).
+///
+/// On Android the window is a task of its own; the first webview lives in the window's activity and the
+/// second one in `EmbeddedWebviewActivity`, started in the window's task, which activity embedding split rules
+/// show side by side when the window is wide enough (`gen/android/app/src/main/res/xml/main_split_config.xml`).
+#[command]
+pub async fn spawn_multiwebview_window<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+) -> Result<String, String> {
+  #[cfg(all(feature = "unstable", any(desktop, target_os = "android")))]
+  {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use tauri::{LogicalPosition, LogicalSize, WebviewUrl, webview::WebviewBuilder};
+
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    let (width, height) = (1000., 700.);
+    // `main-*` so the webviews get the run-app capability
+    let label = format!(
+      "main-multiwebview-{}",
+      COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
+
+    let window = tauri::window::WindowBuilder::new(&app, &label)
+      .title("Multiwebview")
+      .inner_size(width, height)
+      .build()
+      .map_err(|e| e.to_string())?;
+
+    let left = WebviewBuilder::new(format!("{label}-left"), WebviewUrl::default()).auto_resize();
+    window
+      .add_child(
+        left,
+        LogicalPosition::new(0., 0.),
+        LogicalSize::new(width / 2., height),
+      )
+      .map_err(|e| e.to_string())?;
+
+    let right = WebviewBuilder::new(format!("{label}-right"), WebviewUrl::default()).auto_resize();
+    #[cfg(target_os = "android")]
+    let right = right.activity_name("EmbeddedWebviewActivity");
+    window
+      .add_child(
+        right,
+        LogicalPosition::new(width / 2., 0.),
+        LogicalSize::new(width / 2., height),
+      )
+      .map_err(|e| e.to_string())?;
+
+    Ok(label)
+  }
+
+  #[cfg(not(all(feature = "unstable", any(desktop, target_os = "android"))))]
+  {
+    let _ = app;
+    Err("the multiwebview API requires the `unstable` feature on desktop or Android".into())
+  }
+}

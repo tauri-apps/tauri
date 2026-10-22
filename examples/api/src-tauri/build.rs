@@ -18,6 +18,7 @@ fn main() {
         "perform_request",
         "echo",
         "spam",
+        "spawn_multiwebview_window",
       ])),
   )
   .expect("failed to run tauri-build");

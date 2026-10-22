@@ -298,6 +298,8 @@ impl<R: Runtime> AppManager<R> {
         event_listeners: Arc::new(webview_event_listeners),
         invoke_initialization_script,
         invoke_key: invoke_key.clone(),
+        #[cfg(windows)]
+        data_directories: Mutex::default(),
       },
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray: tray::TrayManager {

@@ -157,6 +157,8 @@ mod monitor;
 mod undecorated_resizing;
 mod util;
 mod webview;
+#[cfg(windows)]
+mod webview2_profile;
 mod webview_permissions;
 mod window;
 
@@ -1301,6 +1303,12 @@ pub enum ApplicationMessage {
   FetchDataStoreIdentifiers(Box<dyn FnOnce(Vec<[u8; 16]>) + Send + 'static>),
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   RemoveDataStore([u8; 16], Box<dyn FnOnce(Result<()>) + Send + 'static>),
+  #[cfg(windows)]
+  RemoveProfile(
+    Vec<PathBuf>,
+    [u8; 16],
+    Box<dyn FnOnce(Result<()>) + Send + 'static>,
+  ),
 }
 
 pub enum WindowMessage {
@@ -2729,6 +2737,53 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
         Box::new(cb),
       )))
   }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    self.fetch_data_store_identifiers(cb)
+  }
+
+  #[cfg(windows)]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    cb(webview2_profile::fetch_profile_identifiers(
+      &data_directories,
+    ));
+    Ok(())
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self.remove_data_store(profile_identifier, cb)
+  }
+
+  #[cfg(windows)]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self
+      .context
+      .send_user_message(Message::Application(ApplicationMessage::RemoveProfile(
+        data_directories,
+        profile_identifier,
+        Box::new(cb),
+      )))
+  }
 }
 
 impl<T: UserEvent> Wry<T> {
@@ -3209,6 +3264,10 @@ fn handle_user_message<T: UserEvent>(
         WebView::remove_data_store(&uuid, move |res| {
           cb(res.map_err(|_| Error::FailedToRemoveDataStore))
         })
+      }
+      #[cfg(windows)]
+      ApplicationMessage::RemoveProfile(data_directories, profile_identifier, cb) => {
+        webview2_profile::remove_profile(windows, data_directories, profile_identifier, cb)
       }
     },
     Message::Window(id, window_message) => {
@@ -5038,8 +5097,11 @@ You may have it installed on another user account, but it is not available for t
 
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   {
-    if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
-      webview_builder = webview_builder.with_data_store_identifier(*data_store_identifier);
+    if let Some(profile_identifier) = webview_attributes
+      .profile_identifier
+      .or(webview_attributes.data_store_identifier)
+    {
+      webview_builder = webview_builder.with_data_store_identifier(profile_identifier);
     }
 
     webview_builder =
@@ -5072,6 +5134,20 @@ You may have it installed on another user account, but it is not available for t
           log::error!("failed to borrow windows")
         }
       });
+    }
+  }
+
+  // Windows: use `profile_identifier` as a WebView2 named profile. Webviews that
+  // share the same data directory but use different identifiers get fully isolated
+  // cookies/storage while sharing one browser process.
+  // The deprecated `data_store_identifier` is intentionally not used here, so apps that
+  // already set it don't silently move to a new, empty profile.
+  // See https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+  #[cfg(windows)]
+  {
+    if let Some(profile_identifier) = &webview_attributes.profile_identifier {
+      webview_builder =
+        webview_builder.with_profile_name(webview2_profile::profile_name(profile_identifier));
     }
   }
 

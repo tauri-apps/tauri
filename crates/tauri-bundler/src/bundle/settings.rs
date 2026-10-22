@@ -488,7 +488,7 @@ pub struct NsisSettings {
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
   /// To allow the user to select the language, set [`Self::display_language_selector`] to `true`.
   ///
-  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
   /// An key-value pair where the key is the language and the
   /// value is the path to a custom `.nsi` file that holds the translated text for tauri's custom messages.

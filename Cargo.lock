@@ -10732,8 +10732,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 [[package]]
 name = "wry"
 version = "0.57.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a819957a01b3119af85e638a38d242af76dbc87d130dca67bfd0441072e21ff0"
+source = "git+https://github.com/tauri-apps/wry?branch=fix%2Fgtk-fixed-bounds#4d8526e5a5880f4ea2c212b2fca06b3ff2ba23fb"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.2",

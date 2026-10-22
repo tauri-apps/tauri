@@ -388,6 +388,14 @@ impl<T: UserEvent> Context<T> {
           pending,
           #[cfg(windows)]
           _options.focused_webview,
+          #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ))]
+          _options.gtk_fixed.as_ref(),
         )
       }),
       tx,
@@ -1492,6 +1500,14 @@ pub type CreateWebviewClosure =
 pub struct CreateWebviewOptions {
   #[cfg(windows)]
   pub focused_webview: Arc<Mutex<FocusState>>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub gtk_fixed: Option<gtk::Fixed>,
 }
 
 pub enum Message<T: 'static> {
@@ -2446,6 +2462,15 @@ pub struct WindowWrapper {
   has_children: AtomicBool,
   webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
+  /// Container for child webviews, so they can be positioned absolutely.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  gtk_fixed: Option<gtk::Fixed>,
   #[cfg(windows)]
   background_color: Option<tao::window::RGBA>,
   #[cfg(windows)]
@@ -2915,6 +2940,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           CreateWebviewOptions {
             #[cfg(windows)]
             focused_webview: w.focused_webview.clone(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: w.gtk_fixed.clone(),
           },
         )
       });
@@ -2932,6 +2965,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         pending,
         #[cfg(windows)]
         _options.focused_webview,
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        _options.gtk_fixed.as_ref(),
       )?;
 
       if let Some(w) = self
@@ -3592,6 +3633,19 @@ fn handle_user_message<T: UserEvent>(
             .map(|webview_index| w.webviews.remove(webview_index))
         });
 
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        let new_parent_gtk_fixed = windows
+          .0
+          .borrow()
+          .get(&new_parent_window_id)
+          .and_then(|w| w.gtk_fixed.clone());
+
         if let Some(webview) = webview_handle {
           if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
             .0
@@ -3615,7 +3669,9 @@ fn handle_user_message<T: UserEvent>(
               target_os = "openbsd"
             ))]
             let reparent_result = {
-              if let Some(container) = new_parent_window.default_vbox() {
+              if let Some(fixed) = &new_parent_gtk_fixed {
+                webview.inner.reparent(fixed)
+              } else if let Some(container) = new_parent_window.default_vbox() {
                 webview.inner.reparent(container)
               } else {
                 Err(wry::Error::MessageSender)
@@ -3957,6 +4013,14 @@ fn handle_user_message<T: UserEvent>(
           CreateWebviewOptions {
             #[cfg(windows)]
             focused_webview: w.focused_webview.clone(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: w.gtk_fixed.clone(),
           },
         )
       });
@@ -4025,6 +4089,14 @@ fn handle_user_message<T: UserEvent>(
             inner: Some(window.clone()),
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: None,
             #[cfg(windows)]
             background_color,
             #[cfg(windows)]
@@ -4598,6 +4670,43 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   #[cfg(not(feature = "unstable"))]
   let has_children = false;
 
+  // with the unstable feature every webview is a child webview, so they all live in a GtkFixed,
+  // otherwise the single webview fills the default vbox
+  #[cfg(all(
+    feature = "unstable",
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )
+  ))]
+  let gtk_fixed = {
+    use gtk::prelude::*;
+    let fixed = gtk::Fixed::new();
+    // a GtkFixed requests the extents of its children, which would become the window's minimum size;
+    // a scrolled window with the external policy does not propagate it (and shows no scrollbars)
+    let scrolled = gtk::ScrolledWindow::new(gtk::Adjustment::NONE, gtk::Adjustment::NONE);
+    scrolled.set_policy(gtk::PolicyType::External, gtk::PolicyType::External);
+    scrolled.add(&fixed);
+    let vbox = window.default_vbox().unwrap();
+    vbox.pack_start(&scrolled, true, true, 0);
+    scrolled.show_all();
+    Some(fixed)
+  };
+  #[cfg(all(
+    not(feature = "unstable"),
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )
+  ))]
+  let gtk_fixed: Option<gtk::Fixed> = None;
+
   if let Some(webview) = webview {
     webviews.push(create_webview(
       #[cfg(feature = "unstable")]
@@ -4611,6 +4720,14 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       webview,
       #[cfg(windows)]
       focused_webview.clone(),
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      gtk_fixed.as_ref(),
     )?);
   }
 
@@ -4638,6 +4755,14 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     inner: Some(window),
     webviews,
     window_event_listeners,
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    gtk_fixed,
     #[cfg(windows)]
     background_color,
     #[cfg(windows)]
@@ -4674,6 +4799,14 @@ fn create_webview<T: UserEvent>(
   context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
   #[cfg(windows)] focused_webview: Arc<Mutex<FocusState>>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  gtk_fixed: Option<&gtk::Fixed>,
 ) -> Result<WebviewWrapper> {
   if !context.webview_runtime_installed {
     #[cfg(all(not(debug_assertions), windows))]
@@ -5169,9 +5302,11 @@ You may have it installed on another user account, but it is not available for t
       target_os = "android"
     )))]
     WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
-      let vbox = window.default_vbox().unwrap();
-      webview_builder.build_gtk(vbox)
+      // GtkFixed respects the webview position and size, a GtkBox would stack children
+      match gtk_fixed {
+        Some(fixed) => webview_builder.build_gtk(fixed),
+        None => webview_builder.build_gtk(window.default_vbox().unwrap()),
+      }
     }
     #[cfg(any(
       target_os = "windows",

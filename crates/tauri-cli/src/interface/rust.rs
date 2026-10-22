@@ -40,6 +40,8 @@ use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 mod cargo_config;
 mod desktop;
+#[cfg(target_os = "linux")]
+mod gst_plugin;
 pub mod installation;
 pub mod manifest;
 use crate::helpers::config::custom_sign_settings;
@@ -209,6 +211,15 @@ impl Rust {
       &mut run_args,
       &mut options.features,
       &self.app_settings,
+    );
+
+    // Done once here rather than in `run_dev` so that watcher rebuilds don't repeat it.
+    #[cfg(target_os = "linux")]
+    gst_plugin::install(
+      &self.app_settings,
+      &options,
+      config.bundle.use_local_tools_dir,
+      dirs.tauri,
     );
 
     if options.no_watch {

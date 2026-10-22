@@ -136,6 +136,8 @@ pub enum BundleType {
   Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The Pacman bundle (PKGBUILD and .tar.gz).
+  Pacman,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -153,6 +155,7 @@ impl BundleType {
       BundleType::Deb,
       BundleType::Rpm,
       BundleType::AppImage,
+      BundleType::Pacman,
       BundleType::Msi,
       BundleType::Nsis,
       BundleType::App,
@@ -170,6 +173,7 @@ impl Display for BundleType {
         Self::Deb => "deb",
         Self::Rpm => "rpm",
         Self::AppImage => "appimage",
+        Self::Pacman => "pacman",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",
@@ -198,6 +202,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "deb" => Ok(Self::Deb),
       "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
+      "pacman" => Ok(Self::Pacman),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
@@ -400,6 +405,105 @@ pub struct LinuxConfig {
   /// Configuration for the RPM bundle.
   #[serde(default)]
   pub rpm: RpmConfig,
+  /// Configuration for the Pacman bundle.
+  #[serde(default)]
+  pub pacman: PacmanConfig,
+}
+
+/// Configuration for Pacman bundles.
+///
+/// See <https://wiki.archlinux.org/title/PKGBUILD>
+///
+/// The package license is `bundle > license` (`unknown` when it is not set),
+/// and `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PacmanConfig {
+  /// The package name.
+  ///
+  /// Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for
+  /// packages that ship prebuilt binaries, for instance `my-app-bin`.
+  /// When the name ends with `-bin`, the package also provides and conflicts with the name
+  /// without the suffix.
+  ///
+  /// See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>
+  pub pkgname: Option<String>,
+  /// The package release number, to be incremented when the package changes but the app
+  /// version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.
+  /// Defaults to `1`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>
+  pub pkgrel: Option<String>,
+  /// Forces the package to be seen as newer than any previous version with a lower epoch,
+  /// used when the versioning scheme changes. Must not be decreased.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>
+  pub epoch: Option<u32>,
+  /// The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top
+  /// of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.
+  /// Defaults to the app authors.
+  pub maintainer: Option<String>,
+  /// List of softwares that must be installed for the app to build and run.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>
+  pub depends: Option<Vec<String>>,
+  /// Optional packages that enable additional features of the app, but are not required to run it.
+  /// Each entry is the package name, optionally followed by `: ` and the reason,
+  /// for instance `libappindicator-gtk3: tray icon support`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#optdepends>
+  pub optdepends: Option<Vec<String>>,
+  /// Additional packages that are provided by this app.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+  pub provides: Option<Vec<String>>,
+  /// Packages that conflict or cause problems with the app.
+  /// All these packages and packages providing this item will need to be removed
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>
+  pub conflicts: Option<Vec<String>>,
+  /// Only use if this app replaces some obsolete packages.
+  /// For example, if you rename any package.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
+  pub replaces: Option<Vec<String>>,
+  /// The files to include on the package.
+  /// Maps the path on the package to the path of the file to include (relative to the current working directory).
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+  /// Path to the install script, a bash script that defines any of the `pre_install`,
+  /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
+  /// pacman runs when the package is installed, upgraded or removed.
+  /// It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#install>
+  pub install: Option<PathBuf>,
+  /// Path to the changelog file, shown by `pacman -Qc`.
+  /// It is written next to the PKGBUILD as `<pkgname>.changelog` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#changelog>
+  pub changelog: Option<PathBuf>,
+  /// Source of the package to be stored at PKGBUILD.
+  /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  ///
+  /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
+  /// first entry to its download URL, for instance
+  /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
+  /// `${pkgver}` has `-` (and any `:`, `/` or whitespace) replaced with `_`, `${_pkgver}` is the app version as is.
+  /// The first entry is saved under the archive name and its checksum is written to
+  /// `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).
+  /// Defaults to the local archive file name.
+  ///
+  /// The sources are architecture specific (`source_<arch>`), so the PKGBUILDs generated
+  /// for each target architecture can be merged into one that supports all of them by
+  /// combining their `arch`, `source_<arch>` and `sha512sums_<arch>` entries.
+  pub source: Option<Vec<String>>,
 }
 
 /// Compression algorithms used when bundling RPM packages.
@@ -1584,7 +1688,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "pacman", "nsis", "msi", "app", "dmg"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   #[serde(default)]

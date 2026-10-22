@@ -6,4 +6,5 @@
 pub mod appimage;
 pub mod debian;
 pub mod freedesktop;
+pub mod pacman;
 pub mod rpm;

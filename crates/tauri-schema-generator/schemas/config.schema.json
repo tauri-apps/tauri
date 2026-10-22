@@ -103,6 +103,9 @@
           "deb": {
             "files": {}
           },
+          "pacman": {
+            "files": {}
+          },
           "rpm": {
             "epoch": 0,
             "files": {},
@@ -2234,7 +2237,7 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"pacman\", \"nsis\", \"msi\", \"app\", \"dmg\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
@@ -2385,6 +2388,9 @@
             "deb": {
               "files": {}
             },
+            "pacman": {
+              "files": {}
+            },
             "rpm": {
               "epoch": 0,
               "files": {},
@@ -2496,6 +2502,13 @@
           "type": "string",
           "enum": [
             "appimage"
+          ]
+        },
+        {
+          "description": "The Pacman bundle (PKGBUILD and .tar.gz).",
+          "type": "string",
+          "enum": [
+            "pacman"
           ]
         },
         {
@@ -3380,6 +3393,17 @@
               "$ref": "#/definitions/RpmConfig"
             }
           ]
+        },
+        "pacman": {
+          "description": "Configuration for the Pacman bundle.",
+          "default": {
+            "files": {}
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/PacmanConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -3759,6 +3783,132 @@
           "additionalProperties": false
         }
       ]
+    },
+    "PacmanConfig": {
+      "description": "Configuration for Pacman bundles.\n\n See <https://wiki.archlinux.org/title/PKGBUILD>\n\n The package license is `bundle > license` (`unknown` when it is not set),\n and `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.",
+      "type": "object",
+      "properties": {
+        "pkgname": {
+          "description": "The package name.\n\n Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for\n packages that ship prebuilt binaries, for instance `my-app-bin`.\n When the name ends with `-bin`, the package also provides and conflicts with the name\n without the suffix.\n\n See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pkgrel": {
+          "description": "The package release number, to be incremented when the package changes but the app\n version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.\n Defaults to `1`.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "epoch": {
+          "description": "Forces the package to be seen as newer than any previous version with a lower epoch,\n used when the versioning scheme changes. Must not be decreased.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "maintainer": {
+          "description": "The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top\n of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.\n Defaults to the app authors.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "depends": {
+          "description": "List of softwares that must be installed for the app to build and run.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#depends>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "optdepends": {
+          "description": "Optional packages that enable additional features of the app, but are not required to run it.\n Each entry is the package name, optionally followed by `: ` and the reason,\n for instance `libappindicator-gtk3: tray icon support`.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#optdepends>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "provides": {
+          "description": "Additional packages that are provided by this app.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#provides>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "Packages that conflict or cause problems with the app.\n All these packages and packages providing this item will need to be removed\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "replaces": {
+          "description": "Only use if this app replaces some obsolete packages.\n For example, if you rename any package.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "description": "The files to include on the package.\n Maps the path on the package to the path of the file to include (relative to the current working directory).",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\n Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "install": {
+          "description": "Path to the install script, a bash script that defines any of the `pre_install`,\n `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions\n pacman runs when the package is installed, upgraded or removed.\n It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#install>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "changelog": {
+          "description": "Path to the changelog file, shown by `pacman -Qc`.\n It is written next to the PKGBUILD as `<pkgname>.changelog` and must be published with it.\n\n See : <https://wiki.archlinux.org/title/PKGBUILD#changelog>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "Source of the package to be stored at PKGBUILD.\n PKGBUILD is a bash script, so version can be referred as ${pkgver}\n\n To publish the package to the AUR, upload the generated `.tar.gz` archive and set the\n first entry to its download URL, for instance\n `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.\n `${pkgver}` has `-` (and any `:`, `/` or whitespace) replaced with `_`, `${_pkgver}` is the app version as is.\n The first entry is saved under the archive name and its checksum is written to\n `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).\n Defaults to the local archive file name.\n\n The sources are architecture specific (`source_<arch>`), so the PKGBUILDs generated\n for each target architecture can be merged into one that supports all of them by\n combining their `arch`, `source_<arch>` and `sha512sums_<arch>` entries.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "MacConfig": {
       "description": "Configuration for the macOS bundles.\n\n See more: <https://v2.tauri.app/reference/config/#macconfig>",

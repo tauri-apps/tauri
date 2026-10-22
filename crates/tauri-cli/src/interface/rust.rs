@@ -22,8 +22,8 @@ use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
-  WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, PacmanSettings, Position, RpmSettings, Size,
+  UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
 
@@ -1367,6 +1367,9 @@ fn tauri_config_to_bundle_settings(
   let mut depends_rpm = config.linux.rpm.depends.unwrap_or_default();
 
   #[allow(unused_mut)]
+  let mut depends_pacman = config.linux.pacman.depends.unwrap_or_default();
+
+  #[allow(unused_mut)]
   let mut appimage_files = config.linux.appimage.files;
 
   // set env vars used by the bundler and inject dependencies
@@ -1403,10 +1406,12 @@ fn tauri_config_to_bundle_settings(
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
           depends_deb.push("libayatana-appindicator3-1".into());
+          depends_pacman.push("libayatana-appindicator".into());
           libs.push("libayatana-appindicator3.so.1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
           depends_deb.push("libappindicator3-1".into());
+          depends_pacman.push("libappindicator-gtk3".into());
           libs.push("libappindicator3.so.1".into());
         }
       }
@@ -1421,6 +1426,9 @@ fn tauri_config_to_bundle_settings(
 
     depends_deb.push("libwebkit2gtk-4.1-0".to_string());
     depends_deb.push("libgtk-3-0".to_string());
+
+    depends_pacman.push("webkit2gtk-4.1".to_string());
+    depends_pacman.push("gtk3".to_string());
 
     libs.push("libwebkit2gtk-4.1.so.0".into());
     libs.push("libgtk-3.so.0".into());
@@ -1584,6 +1592,26 @@ fn tauri_config_to_bundle_settings(
       pre_remove_script: config.linux.rpm.pre_remove_script,
       post_remove_script: config.linux.rpm.post_remove_script,
       compression: config.linux.rpm.compression,
+    },
+    pacman: PacmanSettings {
+      pkgname: config.linux.pacman.pkgname,
+      pkgrel: config.linux.pacman.pkgrel,
+      epoch: config.linux.pacman.epoch,
+      maintainer: config.linux.pacman.maintainer,
+      depends: if depends_pacman.is_empty() {
+        None
+      } else {
+        Some(depends_pacman)
+      },
+      optdepends: config.linux.pacman.optdepends,
+      provides: config.linux.pacman.provides,
+      conflicts: config.linux.pacman.conflicts,
+      replaces: config.linux.pacman.replaces,
+      files: config.linux.pacman.files,
+      desktop_template: config.linux.pacman.desktop_template,
+      install: config.linux.pacman.install,
+      changelog: config.linux.pacman.changelog,
+      source: config.linux.pacman.source,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

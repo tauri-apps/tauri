@@ -38,6 +38,8 @@ pub enum PackageType {
   Rpm,
   /// The Linux AppImage bundle (.AppImage).
   AppImage,
+  /// The Linux Pacman bundle (PKGBUILD)
+  Pacman,
   /// The macOS DMG bundle (.dmg).
   Dmg,
   /// The Updater bundle.
@@ -50,6 +52,7 @@ impl From<BundleType> for PackageType {
       BundleType::Deb => Self::Deb,
       BundleType::Rpm => Self::Rpm,
       BundleType::AppImage => Self::AppImage,
+      BundleType::Pacman => Self::Pacman,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
@@ -60,7 +63,7 @@ impl From<BundleType> for PackageType {
 
 impl PackageType {
   /// Maps a short name to a PackageType.
-  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg", "updater".
+  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "pacman", "dmg", "updater".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
     // Other types we may eventually want to support: apk.
     match name {
@@ -71,6 +74,7 @@ impl PackageType {
       "app" => Some(PackageType::MacOsBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
+      "pacman" => Some(PackageType::Pacman),
       "dmg" => Some(PackageType::Dmg),
       "updater" => Some(PackageType::Updater),
       _ => None,
@@ -88,6 +92,7 @@ impl PackageType {
       PackageType::MacOsBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
+      PackageType::Pacman => "pacman",
       PackageType::Dmg => "dmg",
       PackageType::Updater => "updater",
     }
@@ -113,6 +118,7 @@ impl PackageType {
       PackageType::Deb => 0,
       PackageType::Rpm => 0,
       PackageType::AppImage => 0,
+      PackageType::Pacman => 0,
       PackageType::Dmg => 1,
       PackageType::Updater => 2,
     }
@@ -132,6 +138,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::MacOsBundle,
   #[cfg(target_os = "linux")]
   PackageType::Rpm,
+  #[cfg(target_os = "linux")]
+  PackageType::Pacman,
   #[cfg(target_os = "macos")]
   PackageType::Dmg,
   #[cfg(target_os = "linux")]
@@ -315,6 +323,102 @@ pub struct DmgSettings {
 pub struct IosSettings {
   /// The version of the build that identifies an iteration of the bundle.
   pub bundle_version: Option<String>,
+}
+
+/// The Linux Pacman bundle settings.
+///
+/// The package license is `bundle > license` (`unknown` when it is not set),
+/// and `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+/// Must Read https://wiki.archlinux.org/title/PKGBUILD
+#[derive(Clone, Debug, Default)]
+pub struct PacmanSettings {
+  /// The package name.
+  ///
+  /// Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for
+  /// packages that ship prebuilt binaries, for instance `my-app-bin`.
+  /// When the name ends with `-bin`, the package also provides and conflicts with the name
+  /// without the suffix.
+  ///
+  /// See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>
+  pub pkgname: Option<String>,
+  /// The package release number, to be incremented when the package changes but the app
+  /// version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.
+  /// Defaults to `1`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>
+  pub pkgrel: Option<String>,
+  /// Forces the package to be seen as newer than any previous version with a lower epoch,
+  /// used when the versioning scheme changes. Must not be decreased.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>
+  pub epoch: Option<u32>,
+  /// The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top
+  /// of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.
+  /// Defaults to the app authors.
+  pub maintainer: Option<String>,
+  /// List of softwares that must be installed for the app to build and run.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>
+  pub depends: Option<Vec<String>>,
+  /// Optional packages that enable additional features of the app, but are not required to run it.
+  /// Each entry is the package name, optionally followed by `: ` and the reason,
+  /// for instance `libappindicator-gtk3: tray icon support`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#optdepends>
+  pub optdepends: Option<Vec<String>>,
+  /// Additional packages that are provided by this app.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+  pub provides: Option<Vec<String>>,
+  /// Packages that conflict or cause problems with the app.
+  /// All these packages and packages providing this item will need to be removed
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>
+  pub conflicts: Option<Vec<String>>,
+  /// Only use if this app replaces some obsolete packages.
+  /// For example, if you rename any package.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
+  pub replaces: Option<Vec<String>>,
+  /// List of custom files to add to the package.
+  /// Maps the path on the package to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
+  /// ```
+  pub desktop_template: Option<PathBuf>,
+  /// Path to the install script, a bash script that defines any of the `pre_install`,
+  /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
+  /// pacman runs when the package is installed, upgraded or removed.
+  /// It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#install>
+  pub install: Option<PathBuf>,
+  /// Path to the changelog file, shown by `pacman -Qc`.
+  /// It is written next to the PKGBUILD as `<pkgname>.changelog` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#changelog>
+  pub changelog: Option<PathBuf>,
+  /// Source of the package to be stored at PKGBUILD.
+  /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  ///
+  /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
+  /// first entry to its download URL, for instance
+  /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
+  /// `${pkgver}` has `-` (and any `:`, `/` or whitespace) replaced with `_`, `${_pkgver}` is the app version as is.
+  /// The first entry is saved under the archive name and its checksum is written to
+  /// `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).
+  /// Defaults to the local archive file name.
+  ///
+  /// The sources are architecture specific (`source_<arch>`), so the PKGBUILDs generated
+  /// for each target architecture can be merged into one that supports all of them by
+  /// combining their `arch`, `source_<arch>` and `sha512sums_<arch>` entries.
+  pub source: Option<Vec<String>>,
 }
 
 /// The macOS bundle settings.
@@ -716,6 +820,8 @@ pub struct BundleSettings {
   pub deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// Pacman-specific settings.
+  pub pacman: PacmanSettings,
   /// AppImage-specific settings.
   pub appimage: AppImageSettings,
   /// Rpm-specific settings.
@@ -1125,7 +1231,12 @@ impl Settings {
     let platform_types = match target_os {
       TargetPlatform::MacOS => vec![PackageType::MacOsBundle, PackageType::Dmg],
       TargetPlatform::Ios => vec![PackageType::IosBundle],
-      TargetPlatform::Linux => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
+      TargetPlatform::Linux => vec![
+        PackageType::Deb,
+        PackageType::Rpm,
+        PackageType::AppImage,
+        PackageType::Pacman,
+      ],
       TargetPlatform::Windows => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
@@ -1314,6 +1425,10 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+  /// Returns the pacman settings.
+  pub fn pacman(&self) -> &PacmanSettings {
+    &self.bundle_settings.pacman
   }
 
   /// Returns the appimage settings.

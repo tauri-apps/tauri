@@ -77,8 +77,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let (data_dir, _) =
-    generate_data(settings, &package_dir).context("Failed to build data folders and files")?;
+  let (data_dir, _) = generate_data(settings, &package_dir, &settings.deb().desktop_template)
+    .context("Failed to build data folders and files")?;
+  generate_changelog_file(settings, &data_dir)
+    .with_context(|| "Failed to create changelog.gz file")?;
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
     .context("Failed to copy custom files")?;
 
@@ -96,10 +98,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .context("Failed to create debian-binary file")?;
 
   // Apply tar/gzip/ar to create the final package file.
-  let control_tar_gz_path =
-    tar_and_gzip_dir(control_dir).with_context(|| "Failed to tar/gzip control directory")?;
-  let data_tar_gz_path =
-    tar_and_gzip_dir(data_dir).with_context(|| "Failed to tar/gzip data directory")?;
+  let control_tar_gz_path = tar_and_gzip_dir(control_dir, Compression::default())
+    .with_context(|| "Failed to tar/gzip control directory")?;
+  let data_tar_gz_path = tar_and_gzip_dir(data_dir, Compression::default())
+    .with_context(|| "Failed to tar/gzip data directory")?;
   create_archive(
     vec![debian_binary_path, control_tar_gz_path, data_tar_gz_path],
     &package_path,
@@ -112,6 +114,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 pub fn generate_data(
   settings: &Settings,
   package_dir: &Path,
+  desktop_template: &Option<PathBuf>,
 ) -> crate::Result<(PathBuf, Vec<freedesktop::Icon>)> {
   // Generate data files.
   let data_dir = package_dir.join("data");
@@ -132,17 +135,14 @@ pub fn generate_data(
 
   let icons = freedesktop::copy_icon_files(settings, &data_dir)
     .with_context(|| "Failed to create icon files")?;
-  freedesktop::generate_desktop_file(settings, &settings.deb().desktop_template, &data_dir)
+  freedesktop::generate_desktop_file(settings, desktop_template, &data_dir)
     .with_context(|| "Failed to create desktop file")?;
-  generate_changelog_file(settings, &data_dir)
-    .with_context(|| "Failed to create changelog.gz file")?;
-
   Ok((data_dir, icons))
 }
 
 /// Generate the Changelog file by compressing, to be stored at /usr/share/doc/package-name/changelog.gz. See
 /// <https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes>
-fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+pub fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
     let product_name = settings.product_name();
@@ -380,11 +380,17 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 /// Creates a `.tar.gz` file from the given directory (placing the new file
 /// within the given directory's parent directory), then deletes the original
 /// directory and returns the path to the new file.
-fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
+pub fn tar_and_gzip_dir<P: AsRef<Path>>(
+  src_dir: P,
+  compression_level: Compression,
+) -> crate::Result<PathBuf> {
   let src_dir = src_dir.as_ref();
-  let dest_path = src_dir.with_extension("tar.gz");
+  // append the extension instead of replacing it, the directory name might contain dots
+  let mut dest_path = src_dir.as_os_str().to_owned();
+  dest_path.push(".tar.gz");
+  let dest_path = PathBuf::from(dest_path);
   let dest_file = fs_utils::create_file(&dest_path)?;
-  let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
+  let gzip_encoder = GzEncoder::new(dest_file, compression_level);
   let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
   let mut dest_file = gzip_encoder.finish()?;
   dest_file.flush()?;

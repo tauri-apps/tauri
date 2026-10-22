@@ -65,6 +65,8 @@ export enum BundleType {
   Rpm = 'rpm',
   /** Linux AppImage */
   AppImage = 'appimage',
+  /** Linux Pacman package */
+  Pacman = 'pacman',
   /** macOS app bundle */
   App = 'app'
 }

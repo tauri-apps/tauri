@@ -384,6 +384,7 @@ pub fn bundle_type() -> Option<BundleType> {
       "__TAURI_BUNDLE_TYPE_VAR_DEB" => Some(BundleType::Deb),
       "__TAURI_BUNDLE_TYPE_VAR_RPM" => Some(BundleType::Rpm),
       "__TAURI_BUNDLE_TYPE_VAR_APP" => Some(BundleType::AppImage),
+      "__TAURI_BUNDLE_TYPE_VAR_PAC" => Some(BundleType::Pacman),
       "__TAURI_BUNDLE_TYPE_VAR_MSI" => Some(BundleType::Msi),
       "__TAURI_BUNDLE_TYPE_VAR_NSS" => Some(BundleType::Nsis),
       _ => {

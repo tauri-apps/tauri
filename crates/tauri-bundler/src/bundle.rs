@@ -29,7 +29,7 @@ pub use {
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
     DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings, PackageSettings,
-    PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    PackageType, PacmanSettings, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
     UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
   },
 };
@@ -45,6 +45,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
     crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
     crate::PackageType::Rpm => b"__TAURI_BUNDLE_TYPE_VAR_RPM",
     crate::PackageType::AppImage => b"__TAURI_BUNDLE_TYPE_VAR_APP",
+    crate::PackageType::Pacman => b"__TAURI_BUNDLE_TYPE_VAR_PAC",
     // NSIS installers can be built in linux using cargo-xwin
     crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
     _ => {
@@ -198,6 +199,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::Rpm => linux::rpm::bundle_project(settings)?,
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(settings)?,
+      #[cfg(target_os = "linux")]
+      PackageType::Pacman => linux::pacman::bundle_project(settings)?,
       _ => {
         log::warn!("ignoring {}", package_type.short_name());
         continue;

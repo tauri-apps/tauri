@@ -1173,6 +1173,11 @@ fn main() {
   /// ## Warning
   ///
   /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: When `app > androidTauriProtocolHostname` is set, the app itself is always served from
+  ///   `https://<androidTauriProtocolHostname>`; this setting only applies to the other custom protocols.
   #[must_use]
   pub fn use_https_scheme(mut self, enabled: bool) -> Self {
     self.webview_attributes.use_https_scheme = enabled;
@@ -1959,13 +1964,18 @@ tauri::Builder::default()
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
-    let uses_https = current_url.scheme() == "https";
+    // webview serves `http(s)://<protocol>.localhost` on the configured scheme only,
+    // the other scheme goes to the network where `*.localhost` resolves to loopback
+    let uses_https = self.use_https_scheme;
 
     // if from `tauri://` custom protocol
-    ({
-      let protocol_url = self.manager().tauri_protocol_url(uses_https);
-      current_url.scheme() == protocol_url.scheme()
-      && current_url.domain() == protocol_url.domain()
+    (match &self.manager().custom_app_origin {
+      Some(origin) => current_url.origin() == origin.origin(),
+      None => {
+        let protocol_url = self.manager().tauri_protocol_url(uses_https);
+        current_url.scheme() == protocol_url.scheme()
+        && current_url.domain() == protocol_url.domain()
+      }
     }) ||
 
     // or if relative to `devUrl` or `frontendDist`
@@ -1987,12 +1997,14 @@ tauri::Builder::default()
         // so we check using the first part of the domain
         #[cfg(any(windows, target_os = "android"))]
         let local = {
-          let scheme = scheme == self.manager().tauri_protocol_url(uses_https).scheme();
+          // the custom app origin is always https, but other protocols follow `use_https_scheme`
+          let scheme = scheme == if uses_https { "https" } else { "http" };
+          // `tauri` is checked above, and is not served from `tauri.localhost` with a custom app origin
           let protocol = current_url
             .domain()
             .and_then(|d| d.strip_suffix(".localhost"))
-            .map(|protocol| protocols.contains_key(protocol))
-            .unwrap_or_default();
+            .filter(|protocol| *protocol != "tauri")
+            .is_some_and(|protocol| protocols.contains_key(protocol));
 
           scheme && protocol
         };
@@ -2740,7 +2752,23 @@ mod tests {
     assert!(webview.is_local_url(&Url::parse("tauri://localhost/").unwrap()));
 
     #[cfg(any(windows, target_os = "android"))]
-    assert!(webview.is_local_url(&Url::parse("https://tauri.localhost/").unwrap()));
+    {
+      assert!(webview.is_local_url(&Url::parse("http://tauri.localhost/").unwrap()));
+      // wry doesn't serve the other scheme, it reaches whatever listens on loopback
+      assert!(!webview.is_local_url(&Url::parse("https://tauri.localhost/").unwrap()));
+
+      let https = crate::WebviewWindowBuilder::new(
+        &webview.app_handle,
+        "https",
+        crate::WebviewUrl::default(),
+      )
+      .use_https_scheme(true)
+      .build()
+      .unwrap()
+      .webview;
+      assert!(https.is_local_url(&Url::parse("https://tauri.localhost/").unwrap()));
+      assert!(!https.is_local_url(&Url::parse("http://tauri.localhost/").unwrap()));
+    }
   }
 
   // On Windows/Android, custom protocols are served as `https://<name>.localhost/`.
@@ -2765,13 +2793,35 @@ mod tests {
     let url = |s| Url::parse(s).unwrap();
 
     // Legitimate Windows custom protocol URL
-    assert!(webview.is_local_url(&url("https://myproto.localhost/")));
+    assert!(webview.is_local_url(&url("http://myproto.localhost/")));
+
+    // The scheme the webview doesn't use is not served by wry — must NOT be local.
+    assert!(!webview.is_local_url(&url("https://myproto.localhost/")));
 
     // Attacker domain that starts with a registered protocol name — must NOT be local.
-    assert!(!webview.is_local_url(&url("https://myproto.evil.com/")));
+    assert!(!webview.is_local_url(&url("http://myproto.evil.com/")));
 
     // Subdomain of .localhost with unregistered name — must NOT be local
-    assert!(!webview.is_local_url(&url("https://notregistered.localhost/")));
+    assert!(!webview.is_local_url(&url("http://notregistered.localhost/")));
+  }
+
+  /// Invokes the unregistered `any_custom_command` from `url`.
+  fn invoke_custom_command(
+    webview: &crate::WebviewWindow<crate::test::MockRuntime>,
+    url: &str,
+  ) -> Result<crate::ipc::InvokeResponseBody, serde_json::Value> {
+    crate::test::get_ipc_response(
+      webview,
+      crate::webview::InvokeRequest {
+        cmd: "any_custom_command".into(),
+        callback: crate::ipc::CallbackFn(0),
+        error: crate::ipc::CallbackFn(1),
+        url: url.parse().unwrap(),
+        body: crate::ipc::InvokeBody::default(),
+        headers: Default::default(),
+        invoke_key: crate::test::INVOKE_KEY.to_string(),
+      },
+    )
   }
 
   /// Custom (non-plugin) commands must be rejected when the IPC request
@@ -2780,8 +2830,7 @@ mod tests {
   /// custom commands.
   #[test]
   fn remote_origin_blocked_for_custom_commands_without_app_manifest() {
-    use crate::test::{INVOKE_KEY, mock_builder, mock_context, noop_assets};
-    use crate::webview::InvokeRequest;
+    use crate::test::{mock_builder, mock_context, noop_assets};
 
     let app = mock_builder().build(mock_context(noop_assets())).unwrap();
 
@@ -2791,18 +2840,7 @@ mod tests {
 
     // Request from a remote origin for a custom (non-plugin) command
     // - should be rejected even without an AppManifest.
-    let remote_result = crate::test::get_ipc_response(
-      &webview,
-      InvokeRequest {
-        cmd: "any_custom_command".into(),
-        callback: crate::ipc::CallbackFn(0),
-        error: crate::ipc::CallbackFn(1),
-        url: "https://evil.com".parse().unwrap(),
-        body: crate::ipc::InvokeBody::default(),
-        headers: Default::default(),
-        invoke_key: INVOKE_KEY.to_string(),
-      },
-    );
+    let remote_result = invoke_custom_command(&webview, "https://evil.com");
     assert!(
       remote_result.is_err(),
       "custom command should be rejected from a remote origin"
@@ -2811,18 +2849,7 @@ mod tests {
     // Same command from the local origin - should NOT be rejected by the
     // remote-origin guard (it may still fail because the command doesn't
     // exist, but the error message will be different).
-    let local_result = crate::test::get_ipc_response(
-      &webview,
-      InvokeRequest {
-        cmd: "any_custom_command".into(),
-        callback: crate::ipc::CallbackFn(0),
-        error: crate::ipc::CallbackFn(1),
-        url: "tauri://localhost".parse().unwrap(),
-        body: crate::ipc::InvokeBody::default(),
-        headers: Default::default(),
-        invoke_key: INVOKE_KEY.to_string(),
-      },
-    );
+    let local_result = invoke_custom_command(&webview, "tauri://localhost");
     // The local request should either succeed or fail for a reason OTHER
     // than "not allowed from remote context".
     if let Err(e) = &local_result {
@@ -2832,6 +2859,128 @@ mod tests {
         "local origin should not be blocked by the remote-origin guard, got: {msg}"
       );
     }
+  }
+
+  fn android_tauri_protocol_hostname_app(
+    builder: crate::Builder<crate::test::MockRuntime>,
+  ) -> crate::App<crate::test::MockRuntime> {
+    let mut context = crate::test::mock_context(crate::test::noop_assets());
+    context.config_mut().app.android_tauri_protocol_hostname =
+      Some("app.example.com".parse().unwrap());
+    builder.build(context).unwrap()
+  }
+
+  #[test]
+  fn android_tauri_protocol_hostname_serves_app_from_custom_origin() {
+    let app = android_tauri_protocol_hostname_app(crate::test::mock_builder());
+
+    for (label, url, https, expected) in [
+      (
+        "main",
+        crate::WebviewUrl::default(),
+        false,
+        "https://app.example.com/",
+      ),
+      (
+        "https",
+        crate::WebviewUrl::default(),
+        true,
+        "https://app.example.com/",
+      ),
+      (
+        "page",
+        crate::WebviewUrl::App("nested/page.html".into()),
+        false,
+        "https://app.example.com/nested/page.html",
+      ),
+      (
+        "custom-protocol",
+        crate::WebviewUrl::CustomProtocol(
+          Url::parse("tauri://localhost/page.html?q=1#top").unwrap(),
+        ),
+        false,
+        "https://app.example.com/page.html?q=1#top",
+      ),
+    ] {
+      let window = crate::WebviewWindowBuilder::new(&app, label, url)
+        .use_https_scheme(https)
+        .build()
+        .unwrap();
+      assert_eq!(window.url().unwrap().as_str(), expected, "{label}");
+      // the custom app origin doesn't force https on the other protocols
+      assert_eq!(window.webview.use_https_scheme(), https, "{label}");
+    }
+  }
+
+  #[test]
+  fn android_tauri_protocol_hostname_is_local_only_for_exact_origin() {
+    // a user `tauri` protocol must not make `tauri.localhost` local again
+    let app = android_tauri_protocol_hostname_app(
+      crate::test::mock_builder()
+        .register_uri_scheme_protocol("tauri", |_, _| http::Response::new(Vec::new()))
+        .register_uri_scheme_protocol("custom", |_, _| http::Response::new(Vec::new())),
+    );
+    let webview = crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
+      .build()
+      .unwrap()
+      .webview;
+
+    let url = |s| Url::parse(s).unwrap();
+
+    assert!(webview.is_local_url(&url("https://app.example.com/")));
+    assert!(webview.is_local_url(&url("https://APP.example.com:443/index.html?q=1#top")));
+    // userinfo is not part of the origin, wry answers such requests with 403 Forbidden
+    assert!(webview.is_local_url(&url("https://user@app.example.com/")));
+    // other protocols keep their `http(s)://<protocol>.localhost` URLs
+    #[cfg(any(windows, target_os = "android"))]
+    {
+      assert!(webview.is_local_url(&url("http://custom.localhost/")));
+      assert!(!webview.is_local_url(&url("https://custom.localhost/")));
+    }
+
+    for remote in [
+      "http://app.example.com/",
+      "https://app.example.com:8443/",
+      "wss://app.example.com/",
+      "https://sub.app.example.com/",
+      "https://app.example.com.evil.net/",
+      "https://app.example.company/",
+      "https://evil-app.example.com/",
+      "https://tauri.localhost/",
+      "https://tauri.localhost:8443/",
+      "http://tauri.localhost/",
+    ] {
+      assert!(
+        !webview.is_local_url(&url(remote)),
+        "{remote} must be remote"
+      );
+    }
+  }
+
+  #[test]
+  fn android_tauri_protocol_hostname_remote_origin_blocked_for_custom_commands() {
+    let app = android_tauri_protocol_hostname_app(crate::test::mock_builder());
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+    let invoke = |url| invoke_custom_command(&webview, url);
+
+    for remote in ["http://app.example.com", "https://app.example.com:8443"] {
+      let err = invoke(remote).expect_err("custom command must be rejected from a remote origin");
+      assert!(
+        err.to_string().contains("not allowed"),
+        "{remote} must be rejected by the ACL, got: {err}"
+      );
+    }
+
+    // the ACL lets the app origin through, so the unregistered command is looked up and not found
+    let err = invoke("https://app.example.com")
+      .expect_err("unregistered command must fail")
+      .to_string();
+    assert!(
+      err.contains("Command any_custom_command not found"),
+      "the app origin must reach command lookup, got: {err}"
+    );
   }
 
   #[cfg(target_os = "macos")]

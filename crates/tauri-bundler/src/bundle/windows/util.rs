@@ -9,10 +9,11 @@ use std::process::Command;
 use std::{
   fs,
   path::{Path, PathBuf},
+  sync::Once,
 };
 use ureq::ResponseExt;
 
-use crate::bundle::settings::Arch;
+use crate::bundle::settings::{Arch, Settings};
 use crate::utils::http_utils::{base_ureq_agent, download};
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
@@ -241,5 +242,236 @@ pub fn processor_architecture<'a>() -> Option<&'a str> {
     PROCESSOR_ARCHITECTURE_ARM => Some("arm"),
     PROCESSOR_ARCHITECTURE_ARM64 => Some("arm64"),
     _ => None,
+  }
+}
+
+/// Returns the directory where the NSIS and WiX toolsets are cached, along with the WebView2
+/// installers that the NSIS bundler downloads.
+///
+/// This is `<local tools directory>/.tauri` when `bundle > useLocalToolsDir` is enabled,
+/// and `<cache dir>/tauri` otherwise.
+///
+/// NSIS and WiX are 32-bit programs. When the cache dir is inside the Windows system directory,
+/// which is the case for the `SYSTEM` account (`C:\Windows\System32\config\systemprofile`) that
+/// CI runners and build agents installed as Windows services usually run as, WOW64 file system
+/// redirection makes those tools look for their own files in `C:\Windows\SysWOW64` instead, and
+/// bundling fails with errors like `Unable to start child process, error 0x2`. In that case the
+/// tools are stored in the project output directory instead, as they are when there's no cache
+/// dir, and if that is inside the system directory too, this returns an error.
+pub fn tools_directory(settings: &Settings) -> crate::Result<PathBuf> {
+  select_tools_directory(
+    settings.local_tools_directory(),
+    dirs::cache_dir(),
+    settings.project_out_directory(),
+    wow64_redirected_system_directory().as_deref(),
+  )
+}
+
+/// Picks the [`tools_directory`]. `system_dir` is the Windows system directory if NSIS and WiX are
+/// redirected away from it.
+fn select_tools_directory(
+  local_tools_directory: Option<&Path>,
+  cache_dir: Option<PathBuf>,
+  project_out_directory: &Path,
+  system_dir: Option<&Path>,
+) -> crate::Result<PathBuf> {
+  let is_redirected = |path: &Path| {
+    system_dir.is_some_and(|system_dir| starts_with_ignore_ascii_case(path, system_dir))
+  };
+
+  let tools_path = match (local_tools_directory, cache_dir) {
+    (Some(local_tools_directory), _) => local_tools_directory.join(".tauri"),
+    (None, Some(cache_dir)) if !is_redirected(&cache_dir) => cache_dir.join("tauri"),
+    (None, cache_dir) => {
+      let tools_path = project_out_directory.join(".tauri");
+      if let Some(cache_dir) = cache_dir {
+        // both the NSIS and the MSI bundlers, and their updater variants, ask for this directory
+        static WARNING: Once = Once::new();
+        WARNING.call_once(|| {
+          log::warn!(
+            "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. To share them across build profiles and targets in `target/.tauri` and silence this warning, set `bundle > useLocalToolsDir` to `true`.",
+            cache_dir.display(),
+            tools_path.display()
+          )
+        });
+      }
+      tools_path
+    }
+  };
+
+  if is_redirected(&tools_path) {
+    return Err(crate::Error::GenericError(format!(
+      "The bundler tools directory {} is inside the Windows system directory, where WOW64 file system redirection stops 32-bit programs like NSIS and WiX from finding files. Move the project and its target directory out of the system directory.",
+      tools_path.display()
+    )));
+  }
+
+  Ok(tools_path)
+}
+
+/// There's no WOW64 file system redirection outside of Windows.
+#[cfg(not(target_os = "windows"))]
+fn wow64_redirected_system_directory() -> Option<PathBuf> {
+  None
+}
+
+/// Returns the Windows system directory (usually `C:\Windows\System32`) if the 32-bit x86 NSIS and
+/// WiX see a different one than this process, that is, unless this is a 32-bit x86 build too,
+/// which is either redirected the same way or runs on a 32-bit Windows that doesn't redirect.
+#[cfg(target_os = "windows")]
+fn wow64_redirected_system_directory() -> Option<PathBuf> {
+  use std::{ffi::OsString, os::windows::ffi::OsStringExt};
+  use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
+
+  if cfg!(target_arch = "x86") {
+    return None;
+  }
+
+  let mut buffer = [0u16; 260];
+  let len = unsafe { GetSystemDirectoryW(buffer.as_mut_ptr(), buffer.len() as u32) } as usize;
+  if len == 0 || len >= buffer.len() {
+    return None;
+  }
+  Some(PathBuf::from(OsString::from_wide(&buffer[..len])))
+}
+
+/// Like [`Path::starts_with`] but ignores ASCII case, since Windows paths are case insensitive.
+fn starts_with_ignore_ascii_case(path: &Path, base: &Path) -> bool {
+  let mut path = path.components();
+  base.components().all(|base| {
+    path
+      .next()
+      .is_some_and(|path| path.as_os_str().eq_ignore_ascii_case(base.as_os_str()))
+  })
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn system_profile_cache_dir_is_inside_the_system_directory() {
+    let system_dir = Path::new(r"C:\Windows\System32");
+    assert!(starts_with_ignore_ascii_case(
+      Path::new(r"C:\WINDOWS\system32\config\systemprofile\AppData\Local\tauri"),
+      system_dir
+    ));
+    assert!(starts_with_ignore_ascii_case(
+      Path::new(r"c:\windows\system32"),
+      system_dir
+    ));
+  }
+
+  #[test]
+  fn user_cache_dir_is_not_inside_the_system_directory() {
+    let system_dir = Path::new(r"C:\Windows\System32");
+    for path in [
+      r"C:\Users\runneradmin\AppData\Local\tauri",
+      r"C:\Windows\SysWOW64\config\systemprofile\AppData\Local\tauri",
+      r"C:\Windows\System32Extra\tauri",
+      r"C:\Windows",
+      r"D:\Windows\System32\tauri",
+    ] {
+      assert!(
+        !starts_with_ignore_ascii_case(Path::new(path), system_dir),
+        "{path}"
+      );
+    }
+  }
+
+  const SYSTEM_DIR: &str = r"C:\Windows\System32";
+  const SYSTEM_CACHE_DIR: &str = r"C:\Windows\System32\config\systemprofile\AppData\Local";
+  const USER_CACHE_DIR: &str = r"C:\Users\runneradmin\AppData\Local";
+  const OUT_DIR: &str = r"C:\app\target\release";
+
+  fn select(
+    local_tools_directory: Option<&str>,
+    cache_dir: Option<&str>,
+    project_out_directory: &str,
+    system_dir: Option<&str>,
+  ) -> crate::Result<PathBuf> {
+    select_tools_directory(
+      local_tools_directory.map(Path::new),
+      cache_dir.map(PathBuf::from),
+      Path::new(project_out_directory),
+      system_dir.map(Path::new),
+    )
+  }
+
+  #[test]
+  fn local_tools_directory_takes_precedence() {
+    let tools_dir = select(
+      Some(r"C:\app\target"),
+      Some(SYSTEM_CACHE_DIR),
+      OUT_DIR,
+      Some(SYSTEM_DIR),
+    );
+    assert_eq!(tools_dir.unwrap(), Path::new(r"C:\app\target\.tauri"));
+  }
+
+  #[test]
+  fn user_cache_dir_is_used() {
+    let tools_dir = select(None, Some(USER_CACHE_DIR), OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\Users\runneradmin\AppData\Local\tauri")
+    );
+  }
+
+  #[test]
+  fn system_profile_cache_dir_falls_back_to_the_project_out_directory() {
+    let tools_dir = select(None, Some(SYSTEM_CACHE_DIR), OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\app\target\release\.tauri")
+    );
+  }
+
+  #[test]
+  fn system_profile_cache_dir_is_used_without_redirection() {
+    let tools_dir = select(None, Some(SYSTEM_CACHE_DIR), OUT_DIR, None);
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(SYSTEM_CACHE_DIR).join("tauri")
+    );
+  }
+
+  #[test]
+  fn missing_cache_dir_falls_back_to_the_project_out_directory() {
+    let tools_dir = select(None, None, OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\app\target\release\.tauri")
+    );
+  }
+
+  #[test]
+  fn tools_directory_inside_the_system_directory_is_an_error() {
+    let system_profile_target =
+      r"C:\Windows\System32\config\systemprofile\Jenkins\workspace\app\target";
+    let system_profile_out_dir = format!(r"{system_profile_target}\release");
+    assert!(
+      select(
+        None,
+        Some(SYSTEM_CACHE_DIR),
+        &system_profile_out_dir,
+        Some(SYSTEM_DIR)
+      )
+      .is_err()
+    );
+    assert!(select(Some(system_profile_target), None, OUT_DIR, Some(SYSTEM_DIR)).is_err());
+  }
+
+  #[test]
+  fn system_directory_is_redirected_unless_this_is_an_x86_build() {
+    let system_dir = wow64_redirected_system_directory();
+    if cfg!(target_arch = "x86") {
+      assert_eq!(system_dir, None);
+    } else {
+      let system_dir = system_dir.expect("failed to get the system directory");
+      let expected = PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32");
+      assert!(starts_with_ignore_ascii_case(&system_dir, &expected));
+      assert!(starts_with_ignore_ascii_case(&expected, &system_dir));
+    }
   }
 }

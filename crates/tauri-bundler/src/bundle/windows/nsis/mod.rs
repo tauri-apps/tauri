@@ -979,6 +979,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "farsi" | "persian" => include_bytes!("./languages/Farsi.nsh"),
     "turkish" => include_bytes!("./languages/Turkish.nsh"),
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
+    "polish" => include_bytes!("./languages/Polish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),
     "ukrainian" => include_bytes!("./languages/Ukrainian.nsh"),
     "norwegian" => include_bytes!("./languages/Norwegian.nsh"),

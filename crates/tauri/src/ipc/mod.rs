@@ -162,6 +162,14 @@ impl Request<'_> {
   }
 }
 
+#[cfg(feature = "specta")]
+const _: () = {
+  #[derive(specta::Type)]
+  #[specta(remote = Request)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_REQUEST<'a>(std::marker::PhantomData<&'a ()>);
+};
+
 impl<'a, R: Runtime> CommandArg<'a, R> for Request<'a> {
   /// Returns the invoke [`Request`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
@@ -203,6 +211,14 @@ impl Response {
     Self { body: body.into() }
   }
 }
+
+#[cfg(feature = "specta")]
+const _: () = {
+  #[derive(specta::Type)]
+  #[specta(remote = Response)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_RESPONSE(std::marker::PhantomData<()>);
+};
 
 /// The message and resolver given to a custom command.
 ///
@@ -602,5 +618,32 @@ mod tests {
     let values = vec![1, 2, 3, 4, 5, 6, 1];
     let raw = InvokeResponseBody::Raw(values.clone());
     assert_eq!(raw.deserialize::<Vec<u8>>().unwrap(), values);
+  }
+}
+
+#[cfg(all(test, feature = "specta"))]
+mod specta_tests {
+  use super::{Request, Response};
+  use specta::{Type, datatype::DataType};
+
+  /// [`Request`] and [`Response`] are only understood by Tauri's IPC, so their `Type`
+  /// impls export a reference to a stand-in named type. Language exporters (such as
+  /// tauri-specta) match on that name and render their own representation.
+  #[track_caller]
+  fn reference_name<T: Type>() -> String {
+    let mut types = specta::TypeMap::default();
+    let DataType::Reference(reference) = <T as Type>::reference(&mut types, &[]).inner else {
+      panic!(
+        "expected `{}` to export as a reference to a named type",
+        std::any::type_name::<T>()
+      );
+    };
+    reference.name().to_string()
+  }
+
+  #[test]
+  fn request_and_response_export_as_tauri_references() {
+    assert_eq!(reference_name::<Request<'static>>(), "TAURI_REQUEST");
+    assert_eq!(reference_name::<Response>(), "TAURI_RESPONSE");
   }
 }

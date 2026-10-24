@@ -1100,7 +1100,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8210,9 +8210,8 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d12c8607b01516c5d4a37e471a9cfb40b4a25cebce8fecbc6a559e125e51b6b"
+version = "0.37.1"
+source = "git+https://github.com/tauri-apps/tao?branch=feat%2Fmobile-lifecycle-events#46a91302a1f62f441ce66f84fbed4eeb2f768d08"
 dependencies = [
  "bitflags 2.13.0",
  "block2 0.6.2",
@@ -8236,11 +8235,10 @@ dependencies = [
  "objc2-app-kit",
  "objc2-foundation 0.3.2",
  "objc2-ui-kit",
- "once_cell",
  "parking_lot",
  "percent-encoding",
  "raw-window-handle",
- "tao-macros",
+ "tao-macros 0.1.4 (git+https://github.com/tauri-apps/tao?branch=feat%2Fmobile-lifecycle-events)",
  "unicode-segmentation",
  "url",
  "windows 0.62.0",
@@ -8254,6 +8252,16 @@ name = "tao-macros"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f7eeb6d99155545da6150a1795945f16ac9c178deb2a5f2e74d776107bd5849"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "tao-macros"
+version = "0.1.4"
+source = "git+https://github.com/tauri-apps/tao?branch=feat%2Fmobile-lifecycle-events#46a91302a1f62f441ce66f84fbed4eeb2f768d08"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10005,7 +10013,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -10687,7 +10695,7 @@ dependencies = [
  "raw-window-handle",
  "sha2 0.10.8",
  "soup3",
- "tao-macros",
+ "tao-macros 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.21",
  "tracing",
  "url",

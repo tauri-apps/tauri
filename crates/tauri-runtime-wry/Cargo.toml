@@ -16,7 +16,9 @@ wry = { version = "0.57.0", default-features = false, features = [
   "os-webview",
   "linux-body",
 ] }
-tao = { version = "0.37.0", default-features = false, features = ["rwh_06"] }
+tao = { git = "https://github.com/tauri-apps/tao", branch = "feat/mobile-lifecycle-events", default-features = false, features = [
+  "rwh_06",
+] }
 tauri-runtime = { workspace = true }
 tauri-utils = { workspace = true }
 raw-window-handle = "0.6"

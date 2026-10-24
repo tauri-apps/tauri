@@ -149,21 +149,25 @@ pub enum WindowEvent {
   ///
   /// - **Linux**: Not supported.
   ThemeChanged(Theme),
-  /// Emitted when the application has been suspended.
+  /// Emitted when the window has been suspended.
+  ///
+  /// See [`RunEvent::Suspended`] for the application-wide event.
   ///
   /// ## Platform-specific
   ///
-  /// - **Android**: This is triggered by `onPause` method of the Activity.
-  /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
+  /// - **Android**: This is triggered by `onPause` method of the window's Activity.
+  /// - **iOS**: This is triggered by `sceneWillResignActive` of the window's scene.
   /// - **Linux / macOS / Windows**: Unsupported.
   #[cfg(mobile)]
   Suspended,
-  /// Emitted when the application has been resumed.
+  /// Emitted when the window has been resumed.
+  ///
+  /// See [`RunEvent::Resumed`] for the application-wide event.
   ///
   /// ## Platform-specific
   ///
-  /// - **Android**: This is triggered by `onResume` method of the Activity. The first onResume() is ignored to match the iOS implementation, since that is called on activity creation.
-  /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
+  /// - **Android**: This is triggered by `onResume` method of the window's Activity. The first onResume() is ignored to match the iOS implementation, since that is called on activity creation.
+  /// - **iOS**: This is triggered by `sceneWillEnterForeground` of the window's scene.
   /// - **Linux / macOS / Windows**: Unsupported.
   #[cfg(mobile)]
   Resumed,
@@ -248,8 +252,28 @@ pub enum RunEvent {
   },
   /// Application ready.
   Ready,
-  /// Sent if the event loop is being resumed.
+  /// The application has moved back to the foreground after [`RunEvent::Suspended`].
+  ///
+  /// Not emitted when the application launches.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Emitted when the first activity of the application is started after the application was suspended.
+  ///   If all windows were destroyed while the process was kept alive (e.g. by a foreground service),
+  ///   the configured windows are re-created before this event is emitted.
+  /// - **iOS**: Emitted when the application is about to enter the foreground.
+  /// - **Linux / macOS / Windows**: Unsupported.
   Resumed,
+  /// The application has moved to the background.
+  ///
+  /// This is an application-wide event, see [`WindowEvent::Suspended`] for the per-window event.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Emitted when the last started activity of the application is stopped.
+  /// - **iOS**: Emitted when the application enters the background.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  Suspended,
   /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
@@ -2747,7 +2771,26 @@ fn on_event_loop_event<R: Runtime>(
       }
       RunEvent::Ready
     }
-    RuntimeRunEvent::Resumed => RunEvent::Resumed,
+    RuntimeRunEvent::Resumed => {
+      // On Android a foreground service can keep the process alive after the
+      // activity is destroyed, so a relaunch resumes with no webviews and the
+      // activity would stay blank. Re-create the configured windows so the
+      // relaunch behaves like a cold start.
+      #[cfg(target_os = "android")]
+      if manager.window.windows_lock().is_empty() && manager.webview.webviews_lock().is_empty() {
+        for window_config in app_handle.config().app.windows.iter().filter(|w| w.create) {
+          let result = WebviewWindowBuilder::from_config(app_handle, window_config)
+            .and_then(|builder| builder.build());
+
+          if let Err(e) = result {
+            let label = &window_config.label;
+            panic!("Failed to re-create window `{label}` on resume: {e}");
+          }
+        }
+      }
+      RunEvent::Resumed
+    }
+    RuntimeRunEvent::Suspended => RunEvent::Suspended,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => {
       match t {

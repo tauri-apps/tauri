@@ -91,6 +91,25 @@ class LogicalSize {
     return new PhysicalSize(this.width * scaleFactor, this.height * scaleFactor)
   }
 
+  /**
+   * Rounds the width and height to whole pixels, rounding halves away from zero
+   * like Rust's `LogicalSize::cast::<u32>()`.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const size = await appWindow.innerSize(); // PhysicalSize
+   * const logical = size.toLogical(factor).round();
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): LogicalSize {
+    return new LogicalSize(roundToPixel(this.width), roundToPixel(this.height))
+  }
+
   [SERIALIZE_TO_IPC_FN]() {
     return {
       width: this.width,
@@ -331,6 +350,25 @@ class LogicalPosition {
    */
   toPhysical(scaleFactor: number): PhysicalPosition {
     return new PhysicalPosition(this.x * scaleFactor, this.y * scaleFactor)
+  }
+
+  /**
+   * Rounds the coordinates to whole pixels, rounding halves away from zero
+   * like Rust's `LogicalPosition::cast::<i32>()`.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const position = await appWindow.innerPosition(); // PhysicalPosition
+   * const logical = position.toLogical(factor).round();
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): LogicalPosition {
+    return new LogicalPosition(roundToPixel(this.x), roundToPixel(this.y))
   }
 
   [SERIALIZE_TO_IPC_FN]() {

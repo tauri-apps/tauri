@@ -357,6 +357,7 @@ pub fn command(options: Options) -> Result<()> {
     ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
     png(&source, &out_dir, bg_color).context("Failed to generate png icons")?;
+    open_harmony(&source, &out_dir).context("Failed to generate OpenHarmony icon")?;
     android(&source, &input, manifest, &bg_color_string, &out_dir)
       .context("Failed to generate android icons")?;
   } else {
@@ -740,6 +741,22 @@ fn android(
   Ok(())
 }
 
+// Like Android and iOS, write directly to an initialized project's resources.
+fn open_harmony(source: &Source, out_dir: &Path) -> Result<()> {
+  let project_out = out_dir
+    .parent()
+    .unwrap()
+    .join("gen/ohos/AppScope/resources/base/media");
+  let out = if project_out.exists() {
+    project_out
+  } else {
+    out_dir.join("ohos")
+  };
+  create_dir_all(&out).fs_context("Can't create OpenHarmony output directory", &out)?;
+  log::info!(action = "OpenHarmony"; "Creating app_icon.png");
+  resize_and_save_png(source, 512, &out.join("app_icon.png"), None, None)
+}
+
 // Generate .png files in 32x32, 64x64, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
 fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
@@ -1082,6 +1099,63 @@ mod tests {
     // 40x20 opaque red rectangle
     let data = br#"<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="red"/></svg>"#;
     usvg::Tree::from_data(data, &usvg::Options::default()).unwrap()
+  }
+
+  #[test]
+  fn open_harmony_icon_routes_svg_output_and_updates_existing_resources() {
+    let root = tempfile::tempdir().unwrap();
+    let out = root.path().join("icons");
+    let source_path = root.path().join("icon.svg");
+    std::fs::write(&source_path,
+      r#"<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="256" height="512" fill="red"/></svg>"#,
+    ).unwrap();
+    let source = read_source(source_path).unwrap();
+    open_harmony(&source, &out).unwrap();
+    let staged_path = out.join("ohos/app_icon.png");
+    let staged = image::open(&staged_path).unwrap().to_rgba8();
+    assert_eq!(staged.dimensions(), (512, 512));
+    assert_eq!(staged.get_pixel(128, 256).0, [255, 0, 0, 255]);
+    assert_eq!(staged.get_pixel(384, 256).0[3], 0);
+    assert!(!root.path().join("gen").exists());
+
+    let media = root.path().join("gen/ohos/AppScope/resources/base/media");
+    create_dir_all(&media).unwrap();
+    let resource = media.join("app_icon.png");
+    std::fs::write(&resource, b"old icon").unwrap();
+    open_harmony(&source, &out).unwrap();
+    assert_eq!(
+      std::fs::read(&resource).unwrap(),
+      std::fs::read(staged_path).unwrap()
+    );
+    open_harmony(&landscape(512, 512), &out).unwrap();
+    assert_eq!(
+      image::open(resource)
+        .unwrap()
+        .to_rgba8()
+        .get_pixel(384, 256)
+        .0,
+      [255, 0, 0, 255]
+    );
+  }
+
+  #[test]
+  fn custom_png_sizes_do_not_generate_platform_icons() {
+    let root = tempfile::tempdir().unwrap();
+    let input = root.path().join("source.png");
+    ImageBuffer::from_pixel(64, 64, Rgba([255u8, 0, 0, 255]))
+      .save(&input)
+      .unwrap();
+    let out = root.path().join("icons");
+    command(Options {
+      input,
+      output: Some(out.clone()),
+      png: Some(vec![32]),
+      ios_color: "#fff".into(),
+      fit: None,
+    })
+    .unwrap();
+    assert_eq!(image::open(out.join("32x32.png")).unwrap().width(), 32);
+    assert!(!out.join("ohos").exists());
   }
 
   #[test]

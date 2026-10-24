@@ -171,10 +171,11 @@ impl RuntimeAuthority {
       }
     }
 
-    let resolved = Resolved::resolve(
+    let resolved = Resolved::resolve_with_base_scope_id(
       &self.acl,
       capabilities,
       tauri_utils::platform::Target::current(),
+      self.scope_manager.last_scope_id(),
     )
     .unwrap();
 
@@ -188,6 +189,21 @@ impl RuntimeAuthority {
       self.scope_manager.global_scope_cache = StateManager::new();
     }
 
+    // fill command scope
+    // the scope ids were assigned past the existing ones, so these are all new
+    // entries and must not be merged into an already resolved command scope.
+    for (scope_id, command_scope) in resolved.command_scope {
+      self
+        .scope_manager
+        .command_cache
+        .entry(scope_id)
+        .or_insert_with(StateManager::new);
+      self
+        .scope_manager
+        .command_scope
+        .insert(scope_id, command_scope);
+    }
+
     // denied commands
     for (cmd_key, resolved_cmds) in resolved.denied_commands {
       let entry = self.denied_commands.entry(cmd_key).or_default();
@@ -196,28 +212,6 @@ impl RuntimeAuthority {
 
     // allowed commands
     for (cmd_key, resolved_cmds) in resolved.allowed_commands {
-      // fill command scope
-      for resolved_cmd in &resolved_cmds {
-        if let Some(scope_id) = resolved_cmd.scope_id {
-          let command_scope = resolved.command_scope.get(&scope_id).unwrap();
-
-          let command_scope_entry = self
-            .scope_manager
-            .command_scope
-            .entry(scope_id)
-            .or_default();
-          command_scope_entry
-            .allow
-            .extend(command_scope.allow.clone());
-          command_scope_entry.deny.extend(command_scope.deny.clone());
-
-          self
-            .scope_manager
-            .command_cache
-            .insert(scope_id, StateManager::new());
-        }
-      }
-
       let entry = self.allowed_commands.entry(cmd_key).or_default();
       entry.extend(resolved_cmds);
     }
@@ -668,6 +662,19 @@ pub struct ScopeManager {
   global_scope: BTreeMap<String, ResolvedScope>,
   command_cache: BTreeMap<ScopeKey, StateManager>,
   global_scope_cache: StateManager,
+}
+
+impl ScopeManager {
+  /// Highest scope id already assigned, so a runtime-added capability gets
+  /// fresh ids instead of overwriting an unrelated command scope.
+  fn last_scope_id(&self) -> ScopeKey {
+    self
+      .command_scope
+      .keys()
+      .copied()
+      .max()
+      .unwrap_or_default()
+  }
 }
 
 /// Marks a type as a scope object.

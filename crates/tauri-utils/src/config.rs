@@ -1699,6 +1699,9 @@ pub struct BundleConfig {
   /// Android configuration.
   #[serde(default)]
   pub android: AndroidConfig,
+  /// OpenHarmony configuration.
+  #[serde(default, alias = "open-harmony")]
+  pub open_harmony: OpenHarmonyConfig,
 }
 
 /// A tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
@@ -3347,6 +3350,24 @@ fn default_min_sdk_version() -> u32 {
   24
 }
 
+/// General configuration for the OpenHarmony target.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenHarmonyConfig {
+  /// The application version code, between 0 and 2,147,483,647.
+  /// Each published version must have a larger code than its predecessors.
+  ///
+  /// By default, Tauri uses `major * 1000000 + minor * 1000 + patch`.
+  /// Minor and patch must be below 1000 to avoid collisions.
+  /// Prerelease and build metadata do not affect this default; set an explicit
+  /// code to distinguish prereleases or to retain an existing numbering scheme.
+  #[serde(alias = "version-code")]
+  #[cfg_attr(feature = "schema", validate(range(min = 0, max = 2_147_483_647)))]
+  pub version_code: Option<u32>,
+}
+
 /// Defines the URL or assets to embed in the application.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -3738,6 +3759,11 @@ pub struct Config {
   ///    You can set an specific bundle version using [`bundle > iOS > bundleVersion`](IosConfig::bundle_version).
   ///    The `tauri ios build` CLI command has a `--build-number <number>` option that lets you append a build number to the app version.
   /// - **Android**: By default version 1.0 is used. You can set a version code using [`bundle > android > versionCode`](AndroidConfig::version_code).
+  /// - **OpenHarmony**: Used as the application's `versionName`. Prerelease identifiers are
+  ///   appended with a period, build metadata with an underscore, and hyphens in either are
+  ///   replaced with underscores to satisfy OpenHarmony's character restrictions.
+  ///   For example, `1.2.3-4` becomes `1.2.3.4`. You can set a version code using
+  ///   [`bundle > openHarmony > versionCode`](OpenHarmonyConfig::version_code).
   ///
   /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]
@@ -4164,6 +4190,7 @@ mod build {
       let macos = quote!(Default::default());
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
+      let open_harmony = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -4188,7 +4215,8 @@ mod build {
         linux,
         macos,
         ios,
-        android
+        android,
+        open_harmony
       );
     }
   }
@@ -4574,6 +4602,39 @@ mod build {
 mod test {
   use super::*;
 
+  #[test]
+  fn open_harmony_version_code_config() {
+    let defaults: BundleConfig = serde_json::from_str("{}").unwrap();
+    assert_eq!(defaults.open_harmony.version_code, None);
+    for input in [
+      r#"{"openHarmony": {"versionCode": 42}}"#,
+      r#"{"open-harmony": {"version-code": 42}}"#,
+    ] {
+      let bundle: BundleConfig = serde_json::from_str(input).unwrap();
+      assert_eq!(bundle.open_harmony.version_code, Some(42));
+      let serialized = serde_json::to_value(&bundle).unwrap();
+      assert_eq!(serialized["openHarmony"]["versionCode"], 42);
+    }
+    for input in [
+      r#"{"openHarmony": {"versionCode": -1}}"#,
+      r#"{"openHarmony": {"versionCode": 1.5}}"#,
+      r#"{"openHarmony": {"versionCode": "42"}}"#,
+      r#"{"openHarmony": {"versionCode": 4294967296}}"#,
+      r#"{"openHarmony": {"versionCod": 42}}"#,
+    ] {
+      assert!(serde_json::from_str::<BundleConfig>(input).is_err());
+    }
+  }
+
+  #[cfg(feature = "schema")]
+  #[test]
+  fn open_harmony_version_code_schema() {
+    let schema = serde_json::to_value(schemars::schema_for!(OpenHarmonyConfig)).unwrap();
+    let code = &schema["properties"]["versionCode"];
+    assert_eq!(code["minimum"], 0.0);
+    assert_eq!(code["maximum"], 2_147_483_647.0);
+  }
+
   // TODO: create a test that compares a config to a json config
 
   #[test]
@@ -4644,6 +4705,7 @@ mod test {
       windows: Default::default(),
       ios: Default::default(),
       android: Default::default(),
+      open_harmony: Default::default(),
     };
 
     // test the configs

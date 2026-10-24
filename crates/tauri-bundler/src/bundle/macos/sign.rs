@@ -121,6 +121,16 @@ pub fn notarize_auth() -> Result<tauri_macos_sign::AppleNotarizationCredentials,
             issuer,
           })
         }
+        (Some(key_id), Some(issuer), Err(_)) if var_os("APPLE_API_KEY_CONTENT").is_some() => {
+          let content = var_os("APPLE_API_KEY_CONTENT").unwrap();
+          let key = tauri_macos_sign::ApiKey::from_content(&content)
+            .map_err(|e| NotarizeAuthError::InvalidApiKeyContent(e.to_string()))?;
+          Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey {
+            key_id,
+            key,
+            issuer,
+          })
+        }
         (Some(key_id), Some(issuer), Err(_)) => {
           let mut api_key_file_name = OsString::from("AuthKey_");
           api_key_file_name.push(&key_id);

@@ -49,6 +49,7 @@ mod check_java_gradle_versions;
 mod dev;
 pub(crate) mod project;
 mod run;
+pub(crate) mod signing;
 
 const NDK_VERSION: &str = "29.0.13846066";
 const SDK_VERSION: u8 = 37;

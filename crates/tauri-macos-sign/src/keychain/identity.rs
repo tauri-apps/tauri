@@ -24,6 +24,19 @@ fn get_pem_list(keychain_path: &Path, name_substr: &str) -> Result<std::process:
     })
 }
 
+/// Common name prefixes of Apple code signing certificates.
+pub(crate) const CERTIFICATE_PREFIXES: &[&str] = &[
+  "iOS Distribution:",
+  "iPhone Distribution:",
+  "Apple Distribution:",
+  "Developer ID Application:",
+  "Mac App Distribution:",
+  "Apple Development:",
+  "iOS App Development:",
+  "iPhone Developer:",
+  "Mac Development:",
+];
+
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Team {
   pub name: String,
@@ -86,17 +99,7 @@ impl Team {
 pub fn list(keychain_path: &Path) -> Result<Vec<Team>> {
   let certs = {
     let mut certs = Vec::new();
-    for cert_prefix in [
-      "iOS Distribution:",
-      "iPhone Distribution:",
-      "Apple Distribution:",
-      "Developer ID Application:",
-      "Mac App Distribution:",
-      "Apple Development:",
-      "iOS App Development:",
-      "iPhone Developer:",
-      "Mac Development:",
-    ] {
+    for cert_prefix in CERTIFICATE_PREFIXES {
       let pem_list_out = get_pem_list(keychain_path, cert_prefix)?;
       let cert_list = X509Certificate::from_pem_multiple(pem_list_out.stdout)
         .map_err(|error| Error::X509Certificate { error })?;

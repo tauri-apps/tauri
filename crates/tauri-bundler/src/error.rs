@@ -187,11 +187,13 @@ pub enum NotarizeAuthError {
   )]
   MissingTeamId,
   #[error(
-    "could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {file_name} file"
+    "could not find API key file. Please set the APPLE_API_KEY_PATH environment variable to the path to the {file_name} file, or APPLE_API_KEY_CONTENT to its contents"
   )]
   MissingApiKey { file_name: String },
+  #[error("invalid APPLE_API_KEY_CONTENT environment variable: {0}")]
+  InvalidApiKeyContent(String),
   #[error(
-    "no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found"
+    "no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH (or APPLE_API_KEY_CONTENT) environment variables found"
   )]
   MissingCredentials,
 }

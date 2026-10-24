@@ -3699,7 +3699,7 @@ fn default_min_sdk_version() -> u32 {
 }
 
 /// Defines the URL or assets to embed in the application.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged, deny_unknown_fields)]
 #[non_exhaustive]
@@ -3710,6 +3710,24 @@ pub enum FrontendDist {
   Directory(PathBuf),
   /// An array of files to embed in the app.
   Files(Vec<PathBuf>),
+}
+
+impl<'de> Deserialize<'de> for FrontendDist {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    UntaggedEnumVisitor::new()
+      .string(|string| {
+        Ok(match Url::parse(string) {
+          // a single letter scheme is a Windows drive letter (`C:\dist`), not a URL
+          Ok(url) if url.scheme().len() > 1 => Self::Url(url),
+          _ => Self::Directory(PathBuf::from(string)),
+        })
+      })
+      .seq(|seq| seq.deserialize().map(Self::Files))
+      .deserialize(deserializer)
+  }
 }
 
 impl std::fmt::Display for FrontendDist {
@@ -5496,6 +5514,37 @@ mod test {
     assert_eq!(
       HeaderSource::List(vec!["https://a.example".into(), "https://b.example".into()]).to_string(),
       "https://a.example, https://b.example"
+    );
+  }
+
+  #[test]
+  fn frontend_dist_deserialize() {
+    let de = |s: &str| serde_json::from_str::<FrontendDist>(s).unwrap();
+
+    assert_eq!(
+      de(r#""https://tauri.app""#),
+      FrontendDist::Url("https://tauri.app".parse().unwrap())
+    );
+    assert_eq!(
+      de(r#""../dist""#),
+      FrontendDist::Directory(PathBuf::from("../dist"))
+    );
+    // a Windows drive letter is not a URL scheme
+    assert_eq!(
+      de(r#""D:\\some\\dist""#),
+      FrontendDist::Directory(PathBuf::from(r"D:\some\dist"))
+    );
+    assert_eq!(
+      de(r#""c:/some/dist""#),
+      FrontendDist::Directory(PathBuf::from("c:/some/dist"))
+    );
+    assert_eq!(
+      de(r#""\\\\?\\D:\\some\\dist""#),
+      FrontendDist::Directory(PathBuf::from(r"\\?\D:\some\dist"))
+    );
+    assert_eq!(
+      de(r#"["a.html","b.html"]"#),
+      FrontendDist::Files(vec!["a.html".into(), "b.html".into()])
     );
   }
 

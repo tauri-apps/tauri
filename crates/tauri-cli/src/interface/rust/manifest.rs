@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::{Context, ErrorExt},
+  error::{Context, Error, ErrorExt},
   helpers::config::{Config, PatternKind},
 };
 
@@ -13,6 +13,7 @@ use toml_edit::{Array, DocumentMut, InlineTable, Item, TableLike, Value};
 use std::{
   collections::{HashMap, HashSet},
   path::Path,
+  process::Command,
 };
 
 #[derive(Default)]
@@ -47,9 +48,59 @@ impl Manifest {
     f
   }
 
-  pub fn all_enabled_features(&self, enabled_features: &[String]) -> Vec<String> {
+  fn tauri_features_for_target(&self, target_triple: &str) -> crate::Result<HashSet<String>> {
+    let mut tauri_features = self.tauri_features.clone();
+
+    let manifest = self.inner.as_table();
+    let mut tauri_dependencies: Vec<&Item> = manifest
+      .get("dependencies")
+      .and_then(|deps| deps.get("tauri"))
+      .into_iter()
+      .collect();
+    let target_tauri_dependencies: Vec<(&str, &Item)> = manifest
+      .get("target")
+      .and_then(|targets| targets.as_table_like())
+      .map(|targets| {
+        targets
+          .iter()
+          .filter_map(|(target, value)| Some((target, value.get("dependencies")?.get("tauri")?)))
+          .collect()
+      })
+      .unwrap_or_default();
+    if !target_tauri_dependencies.is_empty() {
+      let target_cfg = target_cfg(target_triple)?;
+      tauri_dependencies.extend(
+        target_tauri_dependencies
+          .into_iter()
+          .filter(|(target, _)| target_matches(target, target_triple, &target_cfg))
+          .map(|(_, tauri)| tauri),
+      );
+    }
+
+    for tauri in tauri_dependencies {
+      // features are not rewritten if dependency uses workspace inheritance
+      if tauri
+        .get("workspace")
+        .and_then(|v| v.as_bool())
+        .unwrap_or_default()
+      {
+        continue;
+      }
+      if let Some(features) = tauri.get("features").and_then(|f| f.as_array()) {
+        tauri_features.extend(features.iter().filter_map(|f| f.as_str()).map(String::from));
+      }
+    }
+
+    Ok(tauri_features)
+  }
+
+  pub fn all_enabled_features(
+    &self,
+    enabled_features: &[String],
+    target_triple: &str,
+  ) -> crate::Result<Vec<String>> {
     let mut all_enabled_features: Vec<String> = self
-      .tauri_features
+      .tauri_features_for_target(target_triple)?
       .iter()
       .map(|f| format!("tauri/{f}"))
       .collect();
@@ -59,8 +110,70 @@ impl Manifest {
       all_enabled_features.extend(get_enabled_features(&manifest_features, f));
     }
 
-    all_enabled_features
+    Ok(all_enabled_features)
   }
+}
+
+fn target_cfg(target_triple: &str) -> crate::Result<HashSet<String>> {
+  let output = Command::new("rustc")
+    .args(["--print", "cfg", "--target", target_triple])
+    .output()
+    .map_err(|error| Error::CommandFailed {
+      command: format!("rustc --print cfg --target {target_triple}"),
+      error,
+    })?;
+  if !output.status.success() {
+    crate::error::bail!(
+      "failed to get the cfg values of target {target_triple}: {}",
+      String::from_utf8_lossy(&output.stderr).trim()
+    );
+  }
+  Ok(
+    String::from_utf8_lossy(&output.stdout)
+      .lines()
+      .map(String::from)
+      .collect(),
+  )
+}
+
+fn target_matches(target: &str, target_triple: &str, target_cfg: &HashSet<String>) -> bool {
+  let target: String = target.split_whitespace().collect();
+  match target
+    .strip_prefix("cfg(")
+    .and_then(|predicate| predicate.strip_suffix(')'))
+  {
+    Some(predicate) => cfg_matches(predicate, target_cfg),
+    None => target == target_triple,
+  }
+}
+
+fn cfg_matches(predicate: &str, target_cfg: &HashSet<String>) -> bool {
+  if let Some(arguments) = predicate.strip_suffix(')') {
+    if let Some(arguments) = arguments.strip_prefix("all(") {
+      return cfg_arguments(arguments).all(|p| cfg_matches(p, target_cfg));
+    }
+    if let Some(arguments) = arguments.strip_prefix("any(") {
+      return cfg_arguments(arguments).any(|p| cfg_matches(p, target_cfg));
+    }
+    if let Some(argument) = arguments.strip_prefix("not(") {
+      return !cfg_matches(argument, target_cfg);
+    }
+  }
+  target_cfg.contains(predicate)
+}
+
+fn cfg_arguments(arguments: &str) -> impl Iterator<Item = &str> {
+  let mut depth = 0;
+  arguments
+    .split(move |c| {
+      match c {
+        '(' => depth += 1,
+        ')' => depth -= 1,
+        _ => {}
+      }
+      c == ',' && depth == 0
+    })
+    .filter(|argument| !argument.is_empty())
 }
 
 fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> Vec<String> {
@@ -237,15 +350,12 @@ fn inject_features_table<D: TableLike, F: Fn(&str) -> bool>(
 
 fn inject_features(
   manifest: &mut DocumentMut,
-  dependencies: &mut Vec<DependencyAllowlist>,
+  dependencies: &[DependencyAllowlist],
 ) -> crate::Result<bool> {
   let mut persist = false;
   for dependency in dependencies {
     let name = dependency.name.clone();
     let items = find_dependency(manifest, &dependency.name, dependency.kind);
-    // features collected from all matching sections,
-    // each section only gets its own non CLI-managed features
-    let mut all_features = dependency.features.clone();
 
     for item in items {
       // do not rewrite if dependency uses workspace inheritance
@@ -263,17 +373,15 @@ fn inject_features(
         let is_managed_feature: Box<dyn Fn(&str) -> bool> =
           Box::new(move |feature| all_cli_managed_features.contains(&feature));
 
+        // each section only gets its own non CLI-managed features
         let mut features = dependency.features.clone();
         let should_write = write_features(&name, item, is_managed_feature, &mut features)?;
-        all_features.extend(features);
 
         if !persist {
           persist = should_write;
         }
       }
     }
-
-    dependency.features = all_features;
   }
 
   Ok(persist)
@@ -306,16 +414,10 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
       .into_iter()
       .filter(|f| f != &"tray-icon")
       .collect(),
-    features: tauri_features,
+    features: tauri_features.clone(),
   });
 
-  let persist = inject_features(&mut manifest, &mut dependencies)?;
-
-  let tauri_features = dependencies
-    .into_iter()
-    .find(|d| d.name == "tauri")
-    .unwrap()
-    .features;
+  let persist = inject_features(&mut manifest, &dependencies)?;
 
   let new_manifest_str = serialize_manifest(&manifest);
 
@@ -345,7 +447,7 @@ mod tests {
   use super::{DependencyAllowlist, DependencyKind};
   use std::collections::{HashMap, HashSet};
 
-  fn inject_features(toml: &str, mut dependencies: Vec<DependencyAllowlist>) {
+  fn inject_features(toml: &str, dependencies: Vec<DependencyAllowlist>) {
     let mut manifest = toml
       .parse::<toml_edit::DocumentMut>()
       .expect("invalid toml");
@@ -375,7 +477,7 @@ mod tests {
       expected.insert(dep.name.clone(), expected_per_item);
     }
 
-    super::inject_features(&mut manifest, &mut dependencies).expect("failed to migrate manifest");
+    super::inject_features(&mut manifest, &dependencies).expect("failed to migrate manifest");
 
     for dep in dependencies {
       let expected_per_item = expected.get(&dep.name).unwrap();
@@ -498,10 +600,10 @@ mod tests {
         2
       );
 
-      let mut dependencies = vec![tauri_dependency(HashSet::from_iter(vec![
+      let dependencies = vec![tauri_dependency(HashSet::from_iter(vec![
         "isolation".into(),
       ]))];
-      super::inject_features(&mut manifest, &mut dependencies).unwrap();
+      super::inject_features(&mut manifest, &dependencies).unwrap();
 
       let main_features = manifest["dependencies"]["tauri"]["features"]
         .as_array()
@@ -520,6 +622,59 @@ mod tests {
           .any(|f| f.as_str() == Some("isolation"))
       );
     }
+  }
+
+  #[test]
+  fn enabled_features_only_from_matching_targets() {
+    let mut manifest = r#"
+    [dependencies]
+    tauri = { version = "2", features = ["devtools"] }
+
+    [target."cfg(windows)".dependencies]
+    tauri = { version = "2", features = ["tray-icon"] }
+
+    [target."cfg(all(unix, not(target_os = \"macos\")))".dependencies]
+    tauri = { version = "2", features = ["linux-libxdo"] }
+
+    [target.x86_64-unknown-linux-gnu.dependencies]
+    tauri = { version = "2", features = ["unstable"] }
+"#
+    .parse::<toml_edit::DocumentMut>()
+    .unwrap();
+    let tauri_features = HashSet::from_iter(vec!["isolation".into()]);
+    super::inject_features(&mut manifest, &[tauri_dependency(tauri_features.clone())]).unwrap();
+    let manifest = super::Manifest {
+      inner: manifest,
+      tauri_features,
+    };
+
+    let linux_features = manifest
+      .all_enabled_features(&[], "x86_64-unknown-linux-gnu")
+      .unwrap();
+    for feature in [
+      "tauri/isolation",
+      "tauri/devtools",
+      "tauri/linux-libxdo",
+      "tauri/unstable",
+    ] {
+      assert!(
+        linux_features.contains(&feature.to_string()),
+        "{feature} should be enabled on Linux"
+      );
+    }
+    assert!(!linux_features.contains(&"tauri/tray-icon".to_string()));
+
+    let windows_features = manifest
+      .all_enabled_features(&[], "x86_64-pc-windows-msvc")
+      .unwrap();
+    for feature in ["tauri/isolation", "tauri/devtools", "tauri/tray-icon"] {
+      assert!(
+        windows_features.contains(&feature.to_string()),
+        "{feature} should be enabled on Windows"
+      );
+    }
+    assert!(!windows_features.contains(&"tauri/linux-libxdo".to_string()));
+    assert!(!windows_features.contains(&"tauri/unstable".to_string()));
   }
 
   #[test]
@@ -553,7 +708,7 @@ tauri-build = '2.1'
     .parse::<toml_edit::DocumentMut>()
     .unwrap();
 
-    let mut dependencies = vec![
+    let dependencies = vec![
       tauri_dependency(HashSet::from_iter(vec!["isolation".into()])),
       DependencyAllowlist {
         name: "tauri-build".into(),
@@ -562,7 +717,7 @@ tauri-build = '2.1'
         features: HashSet::from_iter(vec!["codegen".into()]),
       },
     ];
-    super::inject_features(&mut manifest, &mut dependencies).unwrap();
+    super::inject_features(&mut manifest, &dependencies).unwrap();
 
     assert_eq!(
       manifest.to_string(),

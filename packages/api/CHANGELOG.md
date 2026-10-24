@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.12.5]
+
+### Bug Fixes
+
+- [`d40c19cfb`](https://www.github.com/tauri-apps/tauri/commit/d40c19cfba459428fcf30e3dc4044d34ac3c2647) ([#16381](https://www.github.com/tauri-apps/tauri/pull/16381) by [@spokodev](https://www.github.com/tauri-apps/tauri/../../spokodev)) Fix `Window.onScaleChanged` passing `size` as a plain object instead of a `PhysicalSize`, so methods such as `toLogical` were missing on it. It is now wrapped the same way as the `onResized` payload.
+
 ## [2.12.4]
 
 ### What's Changed

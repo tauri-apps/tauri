@@ -15,7 +15,8 @@ export default class EntryAbility extends RustAbility {
 
   async onWindowStageCreate(windowStage: window.WindowStage): Promise<void> {
     const window = windowStage.getMainWindowSync();
-    await window.setWindowLayoutFullScreen(false);
+    // Allow content to extend behind the system bars. Web content must handle safe-area insets.
+    await window.setWindowLayoutFullScreen(true);
     super.onWindowStageCreate(windowStage);
   }
 }

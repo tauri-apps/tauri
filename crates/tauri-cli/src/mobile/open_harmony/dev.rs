@@ -14,7 +14,7 @@ use crate::{
     config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
-  interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, MobileOptions, Options as InterfaceOptions},
   mobile::{
     use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
     TargetDevice,
@@ -315,7 +315,18 @@ fn run_dev(
 
       let _handle = write_options(tauri_config, cli_options)?;
 
-      inject_resources(config, tauri_config)?;
+      // Resolve Cargo's fallback again when the version is removed from the
+      // configuration or Cargo.toml changes during development.
+      let package_version = match &tauri_config.version {
+        Some(version) => version.clone(),
+        None => {
+          AppInterface::new(tauri_config, dev_options.target.clone(), dirs.tauri)?
+            .app_settings()
+            .get_package_settings()
+            .version
+        }
+      };
+      inject_resources(config, tauri_config, &package_version)?;
 
       if open {
         open_and_wait(config, &env)

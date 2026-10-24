@@ -13,7 +13,7 @@ use crate::{
     config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
-  interface::{AppInterface, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   ConfigValue, Result,
 };
@@ -99,7 +99,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let tauri_config = get_tauri_config(
-    tauri_utils::platform::Target::Android,
+    tauri_utils::platform::Target::OpenHarmony,
     &options
       .config
       .iter()
@@ -218,7 +218,11 @@ fn run_build(
   };
   let handle = write_options(tauri_config, cli_options)?;
 
-  inject_resources(config, tauri_config)?;
+  inject_resources(
+    config,
+    tauri_config,
+    &app_settings.get_package_settings().version,
+  )?;
 
   let hap_outputs = hap::build(config, env, noise_level, profile).context("failed to build HAP")?;
 

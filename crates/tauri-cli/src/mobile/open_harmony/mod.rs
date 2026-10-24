@@ -44,6 +44,7 @@ mod build;
 mod dev;
 mod dev_eco_studio_script;
 pub(crate) mod project;
+pub(crate) mod version;
 
 #[derive(Deserialize)]
 pub struct AppConfig {
@@ -54,9 +55,6 @@ pub struct AppConfig {
 #[serde(rename_all = "camelCase")]
 pub struct AppConfigObject {
   pub bundle_name: String,
-  // TODO: impl versioning
-  //pub version_code: u32,
-  //pub version_name: String,
 }
 
 #[derive(Parser)]
@@ -305,7 +303,13 @@ fn open_and_wait(config: &OpenHarmonyConfig, env: &Env) -> ! {
   }
 }
 
-fn inject_resources(config: &OpenHarmonyConfig, tauri_config: &TauriConfig) -> Result<()> {
+fn inject_resources(
+  config: &OpenHarmonyConfig,
+  tauri_config: &TauriConfig,
+  package_version: &str,
+) -> Result<()> {
+  version::AppVersion::from_config(tauri_config, package_version)?
+    .synchronize(&config.project_dir())?;
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
   create_dir_all(&asset_dir).fs_context("failed to create asset directory", asset_dir.clone())?;
 

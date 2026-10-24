@@ -127,13 +127,28 @@ impl Resolved {
   /// Resolves the ACL for the given plugin permissions and app capabilities.
   pub fn resolve(
     acl: &BTreeMap<String, Manifest>,
+    capabilities: BTreeMap<String, Capability>,
+    target: Target,
+  ) -> Result<Self, Error> {
+    Self::resolve_with_base_scope_id(acl, capabilities, target, 0)
+  }
+
+  /// Resolves the ACL for the given plugin permissions and app capabilities,
+  /// assigning scope ids starting after `base_scope_id`.
+  ///
+  /// Runtime capability additions share the authority built at boot, so their
+  /// scopes must never reuse an id that is already assigned; otherwise a scope
+  /// is merged into an unrelated command and deserialization fails.
+  pub fn resolve_with_base_scope_id(
+    acl: &BTreeMap<String, Manifest>,
     mut capabilities: BTreeMap<String, Capability>,
     target: Target,
+    base_scope_id: ScopeKey,
   ) -> Result<Self, Error> {
     let mut allowed_commands = BTreeMap::new();
     let mut denied_commands = BTreeMap::new();
 
-    let mut current_scope_id = 0;
+    let mut current_scope_id = base_scope_id;
     let mut command_scope = BTreeMap::new();
     let mut global_scope: BTreeMap<String, Vec<Scopes>> = BTreeMap::new();
 

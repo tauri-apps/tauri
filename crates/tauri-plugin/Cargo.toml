@@ -40,5 +40,9 @@ plist = { version = "1", optional = true }
 [dev-dependencies]
 tempfile = "3.15.0"
 
+[[test]]
+name = "read_only_source"
+required-features = ["build"]
+
 [lints]
 workspace = true

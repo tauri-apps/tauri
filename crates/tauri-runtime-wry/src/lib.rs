@@ -5006,7 +5006,8 @@ You may have it installed on another user account, but it is not available for t
   #[cfg(windows)]
   {
     webview_builder = webview_builder
-      .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled);
+      .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled)
+      .with_browser_accelerator_keys(webview_attributes.browser_accelerator_keys);
   }
 
   #[cfg(any(

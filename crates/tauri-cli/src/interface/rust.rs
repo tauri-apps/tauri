@@ -329,7 +329,10 @@ struct IgnoreMatcher(Vec<Gitignore>);
 impl IgnoreMatcher {
   fn is_ignore(&self, path: &Path, is_dir: bool) -> bool {
     for gitignore in &self.0 {
+      // like git, an ignore file never ignores the directory it lives in,
+      // otherwise a pattern like `/*` would match the root itself
       if path.starts_with(gitignore.path())
+        && path != gitignore.path()
         && gitignore
           .matched_path_or_any_parents(path, is_dir)
           .is_ignore()
@@ -1790,6 +1793,27 @@ mod tests {
         PathBuf::from("src")
       ]
     );
+  }
+
+  #[test]
+  fn ignore_matcher_does_not_ignore_taurignore_root() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dir = temp_dir.path();
+    fs::create_dir_all(dir.join("src")).unwrap();
+    fs::create_dir_all(dir.join("assets")).unwrap();
+    fs::write(dir.join("src/main.rs"), "").unwrap();
+    fs::write(dir.join("Cargo.toml"), "").unwrap();
+    fs::write(dir.join("README.md"), "").unwrap();
+    fs::write(dir.join(".taurignore"), "/*\n!/*.toml\n!/*.rs\n!/src\n").unwrap();
+
+    let ignore_matcher = build_ignore_matcher(dir);
+
+    assert!(!ignore_matcher.is_ignore(dir, true));
+    assert!(!ignore_matcher.is_ignore(&dir.join("src"), true));
+    assert!(!ignore_matcher.is_ignore(&dir.join("src/main.rs"), false));
+    assert!(!ignore_matcher.is_ignore(&dir.join("Cargo.toml"), false));
+    assert!(ignore_matcher.is_ignore(&dir.join("README.md"), false));
+    assert!(ignore_matcher.is_ignore(&dir.join("assets"), true));
   }
 
   #[test]

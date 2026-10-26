@@ -600,7 +600,13 @@ pub struct CommandMetadata {
   pub docs: &'static str,
   /// Whether the command has a deprecated attribute.
   pub deprecated: Option<CommandMetadataDeprecated>,
-  /// The name of the arguments for this command.
+  /// The keys used to deserialize each argument of the command function, in declaration order
+  /// and after `rename_all`. Wildcard (`_`) arguments have an empty key.
+  ///
+  /// Every argument is listed, including the ones Tauri injects instead of reading them from the
+  /// invoke payload (e.g. [`State`](crate::State), [`AppHandle`](crate::AppHandle),
+  /// [`Window`](crate::Window) or [`Request`](crate::ipc::Request)), so the positions match the
+  /// function signature. Filter them by type to get the keys the frontend must pass.
   pub arguments: &'static [&'static str],
 }
 

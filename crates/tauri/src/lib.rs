@@ -77,7 +77,7 @@ pub use swift_rs;
 pub use tauri_macros::include_image;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
-pub use tauri_macros::{command, generate_handler};
+pub use tauri_macros::{command, command_metadata, generate_handler};
 
 use tauri_utils::assets::AssetsIter;
 pub use url::Url;

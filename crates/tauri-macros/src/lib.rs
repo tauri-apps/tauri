@@ -73,6 +73,31 @@ pub fn generate_handler(item: TokenStream) -> TokenStream {
   parse_macro_input!(item as command::Handler).into()
 }
 
+/// Returns the `tauri::ipc::CommandMetadata` of a function annotated with `#[command]`.
+///
+/// The path is resolved like the ones passed to [`generate_handler!`].
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use tauri_macros::{command, command_metadata};
+/// /// Says hello.
+/// #[command]
+/// fn greet(name: String) -> String {
+///   format!("Hello {name}")
+/// }
+/// fn main() {
+///   let metadata = command_metadata!(greet);
+///   assert_eq!(metadata.name, "greet");
+///   assert_eq!(metadata.docs, "Says hello.");
+///   assert_eq!(metadata.arguments, &["name"]);
+/// }
+/// ```
+#[proc_macro]
+pub fn command_metadata(item: TokenStream) -> TokenStream {
+  command::metadata(parse_macro_input!(item as syn::Path)).into()
+}
+
 /// Reads a Tauri config file and generates a `::tauri::Context` based on the content.
 ///
 /// # Stability

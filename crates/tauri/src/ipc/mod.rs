@@ -588,6 +588,7 @@ pub struct CallbackFn(pub u32);
 /// Metadata about a command defined with `#[tauri::command]`.
 ///
 /// This can be used by frameworks built on Tauri to introspect the registered commands.
+/// Use [`command_metadata!`](crate::command_metadata) to get it.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[non_exhaustive]
 pub struct CommandMetadata {

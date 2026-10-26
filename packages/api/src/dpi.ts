@@ -29,6 +29,7 @@
 
 import { SERIALIZE_TO_IPC_FN } from './core'
 
+// Match Rust's `f64::round()` behavior: halfway values round away from zero.
 function roundToPixel(value: number): number {
   return value < 0 ? -Math.round(-value) : Math.round(value)
 }

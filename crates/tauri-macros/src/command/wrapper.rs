@@ -337,12 +337,12 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #[doc(hidden)]
     macro_rules! #wrapper {
       (@metadata) => {
-        #root::ipc::CommandMetadata {
-          name: #command_name_value,
-          docs: #command_metadata_docs,
-          deprecated: #command_metadata_deprecated,
-          arguments: &[#(#command_metadata_arguments),*],
-        }
+        #root::ipc::CommandMetadata::__new(
+          #command_name_value,
+          #command_metadata_docs,
+          #command_metadata_deprecated,
+          &[#(#command_metadata_arguments),*],
+        )
       };
 
       // double braces because the item is expected to be a block expression
@@ -622,10 +622,7 @@ fn parse_deprecated(attrs: &[Attribute], root: &TokenStream2) -> syn::Result<Tok
     .unwrap_or_else(|| quote!(::core::option::Option::None));
 
   Ok(quote! {
-    ::core::option::Option::Some(#root::ipc::CommandMetadataDeprecated {
-      note: #note,
-      since: #since,
-    })
+    ::core::option::Option::Some(#root::ipc::CommandMetadataDeprecated::__new(#note, #since))
   })
 }
 

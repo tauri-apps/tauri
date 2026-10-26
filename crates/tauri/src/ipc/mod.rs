@@ -589,6 +589,7 @@ pub struct CallbackFn(pub u32);
 ///
 /// This can be used by frameworks built on Tauri to introspect the registered commands.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
 pub struct CommandMetadata {
   /// The name of the command, after `#[tauri::command(rename = "...")]`.
   ///
@@ -603,13 +604,38 @@ pub struct CommandMetadata {
   pub arguments: &'static [&'static str],
 }
 
+impl CommandMetadata {
+  #[doc(hidden)]
+  pub const fn __new(
+    name: &'static str,
+    docs: &'static str,
+    deprecated: Option<CommandMetadataDeprecated>,
+    arguments: &'static [&'static str],
+  ) -> Self {
+    Self {
+      name,
+      docs,
+      deprecated,
+      arguments,
+    }
+  }
+}
+
 /// Represents the Rust `#[deprecated]` attribute on a command.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
 pub struct CommandMetadataDeprecated {
   /// Deprecation note for the developer.
   pub note: Option<&'static str>,
   /// Rust version where the item became deprecated.
   pub since: Option<&'static str>,
+}
+
+impl CommandMetadataDeprecated {
+  #[doc(hidden)]
+  pub const fn __new(note: Option<&'static str>, since: Option<&'static str>) -> Self {
+    Self { note, since }
+  }
 }
 
 #[cfg(test)]

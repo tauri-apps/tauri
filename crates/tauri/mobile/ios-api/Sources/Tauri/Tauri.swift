@@ -148,7 +148,7 @@ public func runCommand(
 }
 
 @_cdecl("run_plugin_command_with_context")
-func runCommandWithContext(
+public func runCommandWithContext(
   id: Int,
   name: SRString,
   command: SRString,

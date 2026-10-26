@@ -507,7 +507,7 @@ impl<R: Runtime> PluginHandle<R> {
       command,
       serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
       move |response| {
-        tx.send(response).unwrap();
+        let _ = tx.send(response);
       },
     )?;
 

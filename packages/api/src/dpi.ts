@@ -95,6 +95,8 @@ class LogicalSize {
   /**
    * Rounds the width and height to whole pixels, rounding halves away from zero
    * like Rust's `LogicalSize::cast::<u32>()`.
+   *
+   * Returns a new {@linkcode LogicalSize} and leaves this one unchanged.
    * @example
    * ```typescript
    * import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -183,6 +185,8 @@ class PhysicalSize {
   /**
    * Rounds the width and height to whole pixels, rounding halves away from zero
    * like Rust's `PhysicalSize::cast::<u32>()`.
+   *
+   * Returns a new {@linkcode PhysicalSize} and leaves this one unchanged.
    *
    * APIs that take a physical size, such as `Window.setSize`, only accept whole pixels.
    * @example
@@ -356,6 +360,8 @@ class LogicalPosition {
   /**
    * Rounds the coordinates to whole pixels, rounding halves away from zero
    * like Rust's `LogicalPosition::cast::<i32>()`.
+   *
+   * Returns a new {@linkcode LogicalPosition} and leaves this one unchanged.
    * @example
    * ```typescript
    * import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -442,6 +448,8 @@ class PhysicalPosition {
   /**
    * Rounds the coordinates to whole pixels, rounding halves away from zero
    * like Rust's `PhysicalPosition::cast::<i32>()`.
+   *
+   * Returns a new {@linkcode PhysicalPosition} and leaves this one unchanged.
    *
    * APIs that take a physical position, such as `Window.setPosition`, only accept whole pixels.
    * @example

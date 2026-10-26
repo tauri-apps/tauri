@@ -664,4 +664,58 @@ mod tests {
     let raw = InvokeResponseBody::Raw(values.clone());
     assert_eq!(raw.deserialize::<Vec<u8>>().unwrap(), values);
   }
+
+  /// Greets someone.
+  ///
+  ///   Indented paragraph.
+  #[crate::command(root = "crate")]
+  #[doc = concat!("From ", "a macro.")]
+  #[allow(dead_code)]
+  fn greet(_app: crate::AppHandle<crate::test::MockRuntime>, user_name: String, _: u32) -> String {
+    user_name
+  }
+
+  #[crate::command(root = "crate", rename = "custom_name", rename_all = "snake_case")]
+  #[deprecated(since = "1.2.0", note = "use greet")]
+  #[allow(dead_code, non_snake_case)]
+  fn old_cmd(someArg: String) {
+    let _ = someArg;
+  }
+
+  #[deprecated = "plain note"]
+  #[crate::command(root = "crate")]
+  #[allow(dead_code)]
+  async fn async_cmd() {}
+
+  #[test]
+  #[allow(deprecated)]
+  fn command_metadata() {
+    let greet = crate::command_metadata!(greet);
+    assert_eq!(greet.name, "greet");
+    assert_eq!(
+      greet.docs,
+      "Greets someone.\n\n  Indented paragraph.\nFrom a macro."
+    );
+    assert_eq!(greet.deprecated, None);
+    assert_eq!(greet.arguments, &["app", "userName", ""]);
+
+    let old_cmd = crate::command_metadata!(old_cmd);
+    assert_eq!(old_cmd.name, "custom_name");
+    assert_eq!(old_cmd.docs, "");
+    assert_eq!(
+      old_cmd.deprecated,
+      Some(CommandMetadataDeprecated::__new(
+        Some("use greet"),
+        Some("1.2.0")
+      ))
+    );
+    assert_eq!(old_cmd.arguments, &["some_arg"]);
+
+    let async_cmd = crate::command_metadata!(async_cmd);
+    assert_eq!(
+      async_cmd.deprecated,
+      Some(CommandMetadataDeprecated::__new(Some("plain note"), None))
+    );
+    assert!(async_cmd.arguments.is_empty());
+  }
 }

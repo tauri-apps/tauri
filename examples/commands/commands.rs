@@ -21,6 +21,7 @@ pub fn simple_command(the_argument: String) {
   println!("{the_argument}");
 }
 
+/// Prints the argument and the managed state.
 #[command]
 pub fn stateful_command(the_argument: Option<String>, state: State<'_, super::MyState>) {
   println!("{:?} {:?}", the_argument, state.inner());

@@ -310,16 +310,13 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   } else {
     command_name_value.clone()
   };
-  let mut command_metadata_arguments = Vec::new();
-  // errors are already reported by the command body, so we keep emitting the function and its macros
-  let _ = parse_args(
-    &plugin_name,
-    &function,
-    &message,
-    &acl,
-    &attrs,
-    Some(&mut command_metadata_arguments),
-  );
+  // argument errors are already reported by the command body
+  let command_metadata_arguments = function
+    .sig
+    .inputs
+    .iter()
+    .filter_map(|arg| arg_key(arg, &attrs).ok())
+    .collect::<Vec<_>>();
   let command_metadata_docs = parse_docs(&function.attrs);
   let root = attrs.root;
   let command_metadata_deprecated =
@@ -399,7 +396,7 @@ fn body_async(
     resolver,
     acl,
   } = invoke;
-  parse_args(plugin_name, function, message, acl, attributes, None).map(|args| {
+  parse_args(plugin_name, function, message, acl, attributes).map(|args| {
     #[cfg(feature = "tracing")]
     quote! {
       use tracing::Instrument;
@@ -442,7 +439,7 @@ fn body_blocking(
     resolver,
     acl,
   } = invoke;
-  let args = parse_args(plugin_name, function, message, acl, attributes, None)?;
+  let args = parse_args(plugin_name, function, message, acl, attributes)?;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
@@ -472,23 +469,22 @@ fn parse_args(
   message: &Ident,
   acl: &Ident,
   attributes: &WrapperAttributes,
-  mut key_collector: Option<&mut Vec<String>>,
 ) -> syn::Result<Vec<TokenStream2>> {
-  let mut args = Vec::new();
-
-  for arg in &function.sig.inputs {
-    args.push(parse_arg(
-      plugin_name,
-      &function.sig.ident,
-      arg,
-      message,
-      acl,
-      attributes,
-      key_collector.as_deref_mut(),
-    )?);
-  }
-
-  Ok(args)
+  function
+    .sig
+    .inputs
+    .iter()
+    .map(|arg| {
+      parse_arg(
+        plugin_name,
+        &function.sig.ident,
+        arg,
+        message,
+        acl,
+        attributes,
+      )
+    })
+    .collect()
 }
 
 /// Transform a [`FnArg`] into a command argument.
@@ -499,8 +495,29 @@ fn parse_arg(
   message: &Ident,
   acl: &Ident,
   attributes: &WrapperAttributes,
-  key_collector: Option<&mut Vec<String>>,
 ) -> syn::Result<TokenStream2> {
+  let key = arg_key(arg, attributes)?;
+
+  let root = &attributes.root;
+  let command_name = if let RenamePolicy::Rename(r) = &attributes.rename {
+    quote!(stringify!(#r))
+  } else {
+    quote!(stringify!(#command))
+  };
+
+  Ok(quote!(#root::ipc::CommandArg::from_command(
+    #root::ipc::CommandItem {
+      plugin: #plugin_name,
+      name: #command_name,
+      key: #key,
+      message: &#message,
+      acl: &#acl,
+    }
+  )))
+}
+
+/// The key used to deserialize a [`FnArg`] from the invoke payload.
+fn arg_key(arg: &FnArg, attributes: &WrapperAttributes) -> syn::Result<String> {
   // we have no use for self arguments
   let mut arg = match arg {
     FnArg::Typed(arg) => arg.pat.as_ref().clone(),
@@ -513,7 +530,7 @@ fn parse_arg(
   };
 
   // we only support patterns that allow us to extract some sort of keyed identifier
-  let mut key = match &mut arg {
+  let key = match &mut arg {
     Pat::Ident(arg) => arg.ident.unraw().to_string(),
     Pat::Wild(_) => "".into(), // we always convert to camelCase, so "_" will end up empty anyways
     Pat::Struct(s) => super::path_to_command(&mut s.path).ident.to_string(),
@@ -534,35 +551,10 @@ fn parse_arg(
     ));
   }
 
-  match attributes.argument_case {
-    ArgumentCase::Camel => {
-      key = key.to_lower_camel_case();
-    }
-    ArgumentCase::Snake => {
-      key = key.to_snake_case();
-    }
-  }
-
-  if let Some(keys) = key_collector {
-    keys.push(key.clone());
-  }
-
-  let root = &attributes.root;
-  let command_name = if let RenamePolicy::Rename(r) = &attributes.rename {
-    quote!(stringify!(#r))
-  } else {
-    quote!(stringify!(#command))
-  };
-
-  Ok(quote!(#root::ipc::CommandArg::from_command(
-    #root::ipc::CommandItem {
-      plugin: #plugin_name,
-      name: #command_name,
-      key: #key,
-      message: &#message,
-      acl: &#acl,
-    }
-  )))
+  Ok(match attributes.argument_case {
+    ArgumentCase::Camel => key.to_lower_camel_case(),
+    ArgumentCase::Snake => key.to_snake_case(),
+  })
 }
 
 fn parse_docs(attrs: &[Attribute]) -> String {

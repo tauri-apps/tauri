@@ -1,6 +1,6 @@
 ---
-tauri-macros: minor
-tauri: minor
+"tauri": minor:feat
+"tauri-macros": minor:feat
 ---
 
-feat: IPC Introspection which allows introspecting information about the Tauri commands defined in your Tauri application.
+Added `tauri::command_metadata!` and `tauri::ipc::CommandMetadata` to introspect a command's name, documentation, deprecation and argument names.

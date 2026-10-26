@@ -311,22 +311,19 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     command_name_value.clone()
   };
   let mut command_metadata_arguments = Vec::new();
-  if let Err(error) = parse_args(
+  // errors are already reported by the command body, so we keep emitting the function and its macros
+  let _ = parse_args(
     &plugin_name,
     &function,
     &message,
     &acl,
     &attrs,
     Some(&mut command_metadata_arguments),
-  ) {
-    return error.into_compile_error().into();
-  }
+  );
   let command_metadata_docs = parse_docs(&function.attrs);
   let root = attrs.root;
-  let command_metadata_deprecated = match parse_deprecated(&function.attrs, &root) {
-    Ok(deprecated) => deprecated,
-    Err(error) => return error.into_compile_error().into(),
-  };
+  let command_metadata_deprecated =
+    parse_deprecated(&function.attrs, &root).unwrap_or_else(syn::Error::into_compile_error);
 
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(

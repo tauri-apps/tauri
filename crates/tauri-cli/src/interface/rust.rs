@@ -329,10 +329,7 @@ struct IgnoreMatcher(Vec<Gitignore>);
 impl IgnoreMatcher {
   fn is_ignore(&self, path: &Path, is_dir: bool) -> bool {
     for gitignore in &self.0 {
-      // like git, an ignore file never ignores the directory it lives in,
-      // otherwise a pattern like `/*` would match the root itself
       if path.starts_with(gitignore.path())
-        && path != gitignore.path()
         && gitignore
           .matched_path_or_any_parents(path, is_dir)
           .is_ignore()
@@ -403,6 +400,26 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   for entry in builder.build().flatten() {
     f(entry.file_type().unwrap(), dir.join(entry.path()));
   }
+}
+
+/// The paths the dev watcher watches: the entries of every watch folder that the ignore files
+/// don't exclude. Every folder is walked, even when a pattern such as `/*` matches the folder
+/// itself; ignore rules apply to its entries here and to every change event.
+fn watch_targets(watch_folders: &[PathBuf]) -> Vec<(PathBuf, RecursiveMode)> {
+  let mut targets = Vec::new();
+  for path in watch_folders {
+    lookup(path, |file_type, p| {
+      if p != *path {
+        let mode = if file_type.is_dir() {
+          RecursiveMode::Recursive
+        } else {
+          RecursiveMode::NonRecursive
+        };
+        targets.push((p, mode));
+      }
+    });
+  }
+  targets
 }
 
 fn dev_options(
@@ -536,23 +553,12 @@ impl Rust {
       }
     })
     .unwrap();
-    for path in watch_folders {
-      if !ignore_matcher.is_ignore(&path, true) {
-        log::info!("Watching {} for changes...", display_path(&path));
-        lookup(&path, |file_type, p| {
-          if p != path {
-            log::debug!("Watching {} for changes...", display_path(&p));
-            let _ = watcher.watch(
-              &p,
-              if file_type.is_dir() {
-                RecursiveMode::Recursive
-              } else {
-                RecursiveMode::NonRecursive
-              },
-            );
-          }
-        });
-      }
+    for path in &watch_folders {
+      log::info!("Watching {} for changes...", display_path(path));
+    }
+    for (path, mode) in watch_targets(&watch_folders) {
+      log::debug!("Watching {} for changes...", display_path(&path));
+      let _ = watcher.watch(&path, mode);
     }
 
     while let Ok(events) = rx.recv() {
@@ -1795,8 +1801,7 @@ mod tests {
     );
   }
 
-  #[test]
-  fn ignore_matcher_does_not_ignore_taurignore_root() {
+  fn taurignore_root_fixture() -> tempfile::TempDir {
     let temp_dir = tempfile::tempdir().unwrap();
     let dir = temp_dir.path();
     fs::create_dir_all(dir.join("src")).unwrap();
@@ -1805,10 +1810,33 @@ mod tests {
     fs::write(dir.join("Cargo.toml"), "").unwrap();
     fs::write(dir.join("README.md"), "").unwrap();
     fs::write(dir.join(".taurignore"), "/*\n!/*.toml\n!/*.rs\n!/src\n").unwrap();
+    temp_dir
+  }
+
+  #[test]
+  fn watch_targets_watch_a_folder_whose_taurignore_matches_it() {
+    let temp_dir = taurignore_root_fixture();
+    let dir = temp_dir.path();
+
+    let mut watched: Vec<PathBuf> = watch_targets(&[dir.to_path_buf()])
+      .into_iter()
+      .map(|(path, _)| path.strip_prefix(dir).unwrap().to_path_buf())
+      .collect();
+    watched.sort();
+
+    assert_eq!(
+      watched,
+      vec![PathBuf::from("Cargo.toml"), PathBuf::from("src")]
+    );
+  }
+
+  #[test]
+  fn ignore_matcher_filters_events_under_a_root_wide_pattern() {
+    let temp_dir = taurignore_root_fixture();
+    let dir = temp_dir.path();
 
     let ignore_matcher = build_ignore_matcher(dir);
 
-    assert!(!ignore_matcher.is_ignore(dir, true));
     assert!(!ignore_matcher.is_ignore(&dir.join("src"), true));
     assert!(!ignore_matcher.is_ignore(&dir.join("src/main.rs"), false));
     assert!(!ignore_matcher.is_ignore(&dir.join("Cargo.toml"), false));

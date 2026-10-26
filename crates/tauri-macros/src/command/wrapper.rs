@@ -549,22 +549,28 @@ fn arg_key(arg: &FnArg, attributes: &WrapperAttributes) -> syn::Result<String> {
   })
 }
 
-fn parse_docs(attrs: &[Attribute]) -> String {
-  attrs
+/// Joins the `#[doc]` attributes, keeping macro values like `include_str!` with `concat!`.
+fn parse_docs(attrs: &[Attribute]) -> TokenStream2 {
+  let docs = attrs
     .iter()
     .filter(|attr| attr.path().is_ident("doc"))
     .filter_map(|attr| match &attr.meta {
       Meta::NameValue(value) => match &value.value {
         Expr::Lit(ExprLit {
           lit: Lit::Str(doc), ..
-        }) => Some(doc.value()),
-        _ => None,
+        }) => {
+          let doc = doc.value();
+          let doc = doc.strip_prefix(' ').unwrap_or(&doc);
+          Some(quote!(#doc))
+        }
+        expr => Some(quote!(#expr)),
       },
       _ => None,
     })
-    .map(|doc| doc.strip_prefix(' ').unwrap_or(&doc).to_string())
-    .collect::<Vec<_>>()
-    .join("\n")
+    .enumerate()
+    .map(|(i, doc)| if i == 0 { doc } else { quote!("\n", #doc) });
+
+  quote!(::core::concat!(#(#docs),*))
 }
 
 fn parse_deprecated(attrs: &[Attribute], root: &TokenStream2) -> syn::Result<TokenStream2> {

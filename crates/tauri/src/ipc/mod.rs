@@ -590,8 +590,10 @@ pub struct CallbackFn(pub u32);
 /// This can be used by frameworks built on Tauri to introspect the registered commands.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CommandMetadata {
-  /// The name of the command including the prefix if it's defined within a plugin.
-  /// This can be directly passed to `invoke`.
+  /// The name of the command, after `#[tauri::command(rename = "...")]`.
+  ///
+  /// Commands registered in a plugin's invoke handler are invoked as `plugin:<plugin-name>|<name>`,
+  /// but the plugin is only known where the command is registered so it is not included here.
   pub name: &'static str,
   /// The Rust-doc comments for the command.
   pub docs: &'static str,

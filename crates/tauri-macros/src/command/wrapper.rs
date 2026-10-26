@@ -239,12 +239,9 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     }
   }
 
-  let plugin_name_value = var("CARGO_PKG_NAME")
+  let plugin_name = var("CARGO_PKG_NAME")
     .expect("missing `CARGO_PKG_NAME` environment variable")
     .strip_prefix("tauri-plugin-")
-    .map(String::from);
-  let plugin_name = plugin_name_value
-    .as_deref()
     .map(|name| quote!(::core::option::Option::Some(#name)))
     .unwrap_or_else(|| quote!(::core::option::Option::None));
 
@@ -305,11 +302,6 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     quote!(stringify!(#ident))
   };
 
-  let command_metadata_name = if let Some(plugin_name) = plugin_name_value.as_deref() {
-    quote!(concat!("plugin:", #plugin_name, "|", #command_name_value))
-  } else {
-    command_name_value.clone()
-  };
   // argument errors are already reported by the command body
   let command_metadata_arguments = function
     .sig
@@ -346,7 +338,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     macro_rules! #wrapper {
       (@metadata) => {
         #root::ipc::CommandMetadata {
-          name: #command_metadata_name,
+          name: #command_name_value,
           docs: #command_metadata_docs,
           deprecated: #command_metadata_deprecated,
           arguments: &[#(#command_metadata_arguments),*],

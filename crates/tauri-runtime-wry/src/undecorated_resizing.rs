@@ -629,6 +629,12 @@ mod gtk {
 
     webview.connect_touch_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::Event| {
+        // Start the resize drag once per touch sequence. Issuing it for every
+        // touch event re-sends `xdg_toplevel.resize` with a serial the compositor
+        // already consumed, which can crash the session (e.g. gnome-shell).
+        if event.event_type() != gtk::gdk::EventType::TouchBegin {
+          return Propagation::Proceed;
+        }
         let Some(window) = resizable_window(webview).and_then(|w| w.window()) else {
           return Propagation::Proceed;
         };

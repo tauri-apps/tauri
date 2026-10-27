@@ -11,7 +11,7 @@ use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
 use crate::{
-  image::Image, menu::run_item_main_thread, AppHandle, Manager, PhysicalPosition, Rect, Runtime,
+  AppHandle, Manager, PhysicalPosition, Rect, Runtime, image::Image, menu::run_item_main_thread,
 };
 use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;
@@ -393,7 +393,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
 ///
 /// This type is reference-counted and the icon is removed when the last instance is dropped.
 ///
-/// See [TrayIconBuilder] to construct this type.
+/// See [`TrayIconBuilder`] to construct this type.
 #[tauri_macros::default_runtime(crate::Wry, wry)]
 pub struct TrayIcon<R: Runtime> {
   id: TrayIconId,

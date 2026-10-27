@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{Component, MAIN_SEPARATOR, Path, PathBuf};
 
-use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 
 use super::{BaseDirectory, Error, PathResolver, Result};
 use crate::{
-  command,
+  AppHandle, Manager, Runtime, State, command,
   plugin::{Builder, TauriPlugin},
-  AppHandle, Manager, Runtime, State,
 };
 
 /// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util.
@@ -120,7 +119,7 @@ pub fn normalize(path: String) -> String {
   // and `"."` for `normalize("")` or `normalize(".")`
   if p.is_empty() && path == ".." {
     "..".into()
-  } else if p.is_empty() && path == "." {
+  } else if p.is_empty() && (path.is_empty() || path == ".") {
     ".".into()
   } else {
     // Add a trailing separator if the path passed to this functions had a trailing separator. That's how Node.js behaves.
@@ -153,11 +152,7 @@ pub fn join(paths: Vec<String>) -> String {
     .to_string_lossy()
     .to_string();
 
-  if p.is_empty() {
-    ".".into()
-  } else {
-    p
-  }
+  if p.is_empty() { ".".into() } else { p }
 }
 
 #[command(root = "crate")]
@@ -309,5 +304,12 @@ mod tests {
     check(vec!["a", "/b", "c"], "a/b/c", r"a\b\c");
     check(vec!["a", "b/c", "d"], "a/b/c/d", r"a\b\c\d");
     check(vec!["a/", "b"], "a/b", r"a\b");
+  }
+
+  #[test]
+  fn normalize() {
+    assert_eq!(super::normalize("".into()), ".");
+    assert_eq!(super::normalize(".".into()), ".");
+    assert_eq!(super::normalize("..".into()), "..");
   }
 }

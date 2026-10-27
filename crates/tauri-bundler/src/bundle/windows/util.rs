@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(windows)]
+use std::io::Write;
+#[cfg(windows)]
+use std::process::Command;
 use std::{
-  fs::create_dir_all,
+  fs,
   path::{Path, PathBuf},
+  sync::Once,
 };
 use ureq::ResponseExt;
 
+use crate::bundle::settings::{Arch, Settings};
 use crate::utils::http_utils::{base_ureq_agent, download};
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
@@ -21,6 +27,12 @@ pub const NSIS_OUTPUT_FOLDER_NAME: &str = "nsis";
 pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
+
+#[cfg(windows)]
+const VSWHERE: &[u8] = include_bytes!("vswhere.exe");
+const VCTOOLS_REDIST_DIR_ENV_VAR: &str = "VCTOOLS_REDIST_DIR";
+#[cfg(windows)]
+const VC_REDIST_COMPONENT: &str = "Microsoft.VisualStudio.Component.VC.Redist.14.Latest";
 
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
   let agent = base_ureq_agent();
@@ -57,10 +69,162 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
   let dir_path = base_path.join(guid);
   let file_path = dir_path.join(filename);
   if !file_path.exists() {
-    create_dir_all(dir_path)?;
+    fs::create_dir_all(dir_path)?;
     std::fs::write(&file_path, download(url)?)?;
   }
   Ok(file_path)
+}
+
+/// Finds the Visual C++ runtime DLLs for the given architecture.
+pub fn vc_runtime_dlls(arch: Arch) -> crate::Result<Vec<PathBuf>> {
+  let arch = vc_runtime_arch(arch)?;
+  let redist_dir = vc_redist_dir()?;
+  let runtime_dir = vc_runtime_dir(&redist_dir, arch)?;
+
+  let dlls = glob::glob(&glob_path(&runtime_dir, "*.dll"))?.collect::<Result<Vec<_>, _>>()?;
+  if dlls.is_empty() {
+    return Err(crate::Error::GenericError(format!(
+      "no Visual C++ runtime DLLs found in `{}`",
+      runtime_dir.display()
+    )));
+  }
+
+  Ok(dlls)
+}
+
+#[inline(always)]
+fn vc_runtime_arch(arch: Arch) -> crate::Result<&'static str> {
+  match arch {
+    Arch::X86_64 => Ok("x64"),
+    Arch::X86 => Ok("x86"),
+    Arch::AArch64 => Ok("arm64"),
+    _ => Err(crate::Error::GenericError(
+      "bundling the Visual C++ runtime is only supported for Windows x86, x64 and arm64 targets"
+        .into(),
+    )),
+  }
+}
+
+#[cfg(windows)]
+fn visual_studio_dir() -> crate::Result<PathBuf> {
+  let vswhere = vswhere_path()?;
+
+  let output = Command::new(&*vswhere)
+    .args([
+      "-latest",
+      "-prerelease",
+      "-products",
+      "*",
+      "-requires",
+      VC_REDIST_COMPONENT,
+      "-property",
+      "installationPath",
+      "-format",
+      "value",
+      "-utf8",
+    ])
+    .output()?;
+
+  if !output.status.success() {
+    return Err(crate::Error::GenericError(format!(
+      "failed to locate Visual Studio with the {VC_REDIST_COMPONENT} component"
+    )));
+  }
+
+  let stdout = String::from_utf8_lossy(&output.stdout);
+  let Some(vs_dir) = stdout.lines().map(str::trim).find(|line| !line.is_empty()) else {
+    return Err(crate::Error::GenericError(format!(
+      "failed to locate Visual Studio with the {VC_REDIST_COMPONENT} component"
+    )));
+  };
+
+  Ok(PathBuf::from(vs_dir))
+}
+
+fn vc_redist_dir() -> crate::Result<PathBuf> {
+  if let Ok(redist_dir) = std::env::var(VCTOOLS_REDIST_DIR_ENV_VAR) {
+    return Ok(PathBuf::from(redist_dir));
+  }
+
+  #[cfg(windows)]
+  {
+    let vs_dir = visual_studio_dir()?;
+    Ok(vs_dir.join("VC/Redist/MSVC"))
+  }
+
+  #[cfg(not(windows))]
+  {
+    Err(crate::Error::GenericError(format!(
+      "failed to find Visual C++ runtime redist directory; set {VCTOOLS_REDIST_DIR_ENV_VAR} when bundling the Visual C++ runtime from non-Windows hosts"
+    )))
+  }
+}
+
+fn vc_runtime_dir(redist_dir: &Path, arch: &str) -> crate::Result<PathBuf> {
+  let Some(latest_version_dir) = latest_vc_redist_version_dir(redist_dir)? else {
+    return Err(crate::Error::GenericError(format!(
+      "failed to find Visual C++ runtime versions in `{}`",
+      redist_dir.display()
+    )));
+  };
+
+  let arch_dir = latest_version_dir.join(arch);
+  let Some(runtime_dir) = glob::glob(&glob_path(&arch_dir, "Microsoft.VC*.CRT"))?
+    .filter_map(Result::ok)
+    .find(|path| path.is_dir())
+  else {
+    return Err(crate::Error::GenericError(format!(
+      "failed to find Visual C++ runtime directory for `{arch}` in `{}`",
+      arch_dir.display()
+    )));
+  };
+
+  Ok(runtime_dir)
+}
+
+fn latest_vc_redist_version_dir(redist_dir: &Path) -> crate::Result<Option<PathBuf>> {
+  let dir = fs::read_dir(redist_dir)?
+    .flatten()
+    .map(|entry| entry.path())
+    .filter(|path| path.is_dir())
+    .filter_map(|path| {
+      let version = path
+        .file_name()?
+        .to_str()?
+        .parse::<semver::Version>()
+        .ok()?;
+      Some((version, path))
+    })
+    .max_by(|(a, _), (b, _)| a.cmp(b))
+    .map(|(_, path)| path);
+  Ok(dir)
+}
+
+/// Builds a glob pattern from a literal base path and an unescaped glob suffix.
+///
+/// The base path is escaped so Visual Studio paths containing glob metacharacters are treated as
+/// literal directories, while `pattern` remains active glob syntax.
+fn glob_path(path: &Path, pattern: &str) -> String {
+  PathBuf::from(glob::Pattern::escape(&path.to_string_lossy()))
+    .join(pattern)
+    .to_string_lossy()
+    .into_owned()
+}
+
+/// Writes the bundled `vswhere.exe` to a new temporary file and returns its path.
+///
+/// Each call creates a uniquely named file, so a pre-existing or half-written `vswhere.exe` in the
+/// temp directory is never executed. The file is deleted when the returned path is dropped.
+#[cfg(windows)]
+pub fn vswhere_path() -> crate::Result<tempfile::TempPath> {
+  let mut file = tempfile::Builder::new()
+    .prefix("vswhere-")
+    .suffix(".exe")
+    .tempfile()?;
+  file.write_all(VSWHERE)?;
+  file.as_file().sync_all()?;
+  // close the handle so the executable can be launched
+  Ok(file.into_temp_path())
 }
 
 #[cfg(target_os = "windows")]
@@ -78,5 +242,236 @@ pub fn processor_architecture<'a>() -> Option<&'a str> {
     PROCESSOR_ARCHITECTURE_ARM => Some("arm"),
     PROCESSOR_ARCHITECTURE_ARM64 => Some("arm64"),
     _ => None,
+  }
+}
+
+/// Returns the directory where the NSIS and WiX toolsets are cached, along with the WebView2
+/// installers that the NSIS bundler downloads.
+///
+/// This is `<local tools directory>/.tauri` when `bundle > useLocalToolsDir` is enabled,
+/// and `<cache dir>/tauri` otherwise.
+///
+/// NSIS and WiX are 32-bit programs. When the cache dir is inside the Windows system directory,
+/// which is the case for the `SYSTEM` account (`C:\Windows\System32\config\systemprofile`) that
+/// CI runners and build agents installed as Windows services usually run as, WOW64 file system
+/// redirection makes those tools look for their own files in `C:\Windows\SysWOW64` instead, and
+/// bundling fails with errors like `Unable to start child process, error 0x2`. In that case the
+/// tools are stored in the project output directory instead, as they are when there's no cache
+/// dir, and if that is inside the system directory too, this returns an error.
+pub fn tools_directory(settings: &Settings) -> crate::Result<PathBuf> {
+  select_tools_directory(
+    settings.local_tools_directory(),
+    dirs::cache_dir(),
+    settings.project_out_directory(),
+    wow64_redirected_system_directory().as_deref(),
+  )
+}
+
+/// Picks the [`tools_directory`]. `system_dir` is the Windows system directory if NSIS and WiX are
+/// redirected away from it.
+fn select_tools_directory(
+  local_tools_directory: Option<&Path>,
+  cache_dir: Option<PathBuf>,
+  project_out_directory: &Path,
+  system_dir: Option<&Path>,
+) -> crate::Result<PathBuf> {
+  let is_redirected = |path: &Path| {
+    system_dir.is_some_and(|system_dir| starts_with_ignore_ascii_case(path, system_dir))
+  };
+
+  let tools_path = match (local_tools_directory, cache_dir) {
+    (Some(local_tools_directory), _) => local_tools_directory.join(".tauri"),
+    (None, Some(cache_dir)) if !is_redirected(&cache_dir) => cache_dir.join("tauri"),
+    (None, cache_dir) => {
+      let tools_path = project_out_directory.join(".tauri");
+      if let Some(cache_dir) = cache_dir {
+        // both the NSIS and the MSI bundlers, and their updater variants, ask for this directory
+        static WARNING: Once = Once::new();
+        WARNING.call_once(|| {
+          log::warn!(
+            "The cache directory {} is inside the Windows system directory, where 32-bit tools like NSIS and WiX can't find their own files because of WOW64 file system redirection, so the bundler tools will be stored in {} instead. To share them across build profiles and targets in `target/.tauri` and silence this warning, set `bundle > useLocalToolsDir` to `true`.",
+            cache_dir.display(),
+            tools_path.display()
+          )
+        });
+      }
+      tools_path
+    }
+  };
+
+  if is_redirected(&tools_path) {
+    return Err(crate::Error::GenericError(format!(
+      "The bundler tools directory {} is inside the Windows system directory, where WOW64 file system redirection stops 32-bit programs like NSIS and WiX from finding files. Move the project and its target directory out of the system directory.",
+      tools_path.display()
+    )));
+  }
+
+  Ok(tools_path)
+}
+
+/// There's no WOW64 file system redirection outside of Windows.
+#[cfg(not(target_os = "windows"))]
+fn wow64_redirected_system_directory() -> Option<PathBuf> {
+  None
+}
+
+/// Returns the Windows system directory (usually `C:\Windows\System32`) if the 32-bit x86 NSIS and
+/// WiX see a different one than this process, that is, unless this is a 32-bit x86 build too,
+/// which is either redirected the same way or runs on a 32-bit Windows that doesn't redirect.
+#[cfg(target_os = "windows")]
+fn wow64_redirected_system_directory() -> Option<PathBuf> {
+  use std::{ffi::OsString, os::windows::ffi::OsStringExt};
+  use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
+
+  if cfg!(target_arch = "x86") {
+    return None;
+  }
+
+  let mut buffer = [0u16; 260];
+  let len = unsafe { GetSystemDirectoryW(buffer.as_mut_ptr(), buffer.len() as u32) } as usize;
+  if len == 0 || len >= buffer.len() {
+    return None;
+  }
+  Some(PathBuf::from(OsString::from_wide(&buffer[..len])))
+}
+
+/// Like [`Path::starts_with`] but ignores ASCII case, since Windows paths are case insensitive.
+fn starts_with_ignore_ascii_case(path: &Path, base: &Path) -> bool {
+  let mut path = path.components();
+  base.components().all(|base| {
+    path
+      .next()
+      .is_some_and(|path| path.as_os_str().eq_ignore_ascii_case(base.as_os_str()))
+  })
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn system_profile_cache_dir_is_inside_the_system_directory() {
+    let system_dir = Path::new(r"C:\Windows\System32");
+    assert!(starts_with_ignore_ascii_case(
+      Path::new(r"C:\WINDOWS\system32\config\systemprofile\AppData\Local\tauri"),
+      system_dir
+    ));
+    assert!(starts_with_ignore_ascii_case(
+      Path::new(r"c:\windows\system32"),
+      system_dir
+    ));
+  }
+
+  #[test]
+  fn user_cache_dir_is_not_inside_the_system_directory() {
+    let system_dir = Path::new(r"C:\Windows\System32");
+    for path in [
+      r"C:\Users\runneradmin\AppData\Local\tauri",
+      r"C:\Windows\SysWOW64\config\systemprofile\AppData\Local\tauri",
+      r"C:\Windows\System32Extra\tauri",
+      r"C:\Windows",
+      r"D:\Windows\System32\tauri",
+    ] {
+      assert!(
+        !starts_with_ignore_ascii_case(Path::new(path), system_dir),
+        "{path}"
+      );
+    }
+  }
+
+  const SYSTEM_DIR: &str = r"C:\Windows\System32";
+  const SYSTEM_CACHE_DIR: &str = r"C:\Windows\System32\config\systemprofile\AppData\Local";
+  const USER_CACHE_DIR: &str = r"C:\Users\runneradmin\AppData\Local";
+  const OUT_DIR: &str = r"C:\app\target\release";
+
+  fn select(
+    local_tools_directory: Option<&str>,
+    cache_dir: Option<&str>,
+    project_out_directory: &str,
+    system_dir: Option<&str>,
+  ) -> crate::Result<PathBuf> {
+    select_tools_directory(
+      local_tools_directory.map(Path::new),
+      cache_dir.map(PathBuf::from),
+      Path::new(project_out_directory),
+      system_dir.map(Path::new),
+    )
+  }
+
+  #[test]
+  fn local_tools_directory_takes_precedence() {
+    let tools_dir = select(
+      Some(r"C:\app\target"),
+      Some(SYSTEM_CACHE_DIR),
+      OUT_DIR,
+      Some(SYSTEM_DIR),
+    );
+    assert_eq!(tools_dir.unwrap(), Path::new(r"C:\app\target\.tauri"));
+  }
+
+  #[test]
+  fn user_cache_dir_is_used() {
+    let tools_dir = select(None, Some(USER_CACHE_DIR), OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\Users\runneradmin\AppData\Local\tauri")
+    );
+  }
+
+  #[test]
+  fn system_profile_cache_dir_falls_back_to_the_project_out_directory() {
+    let tools_dir = select(None, Some(SYSTEM_CACHE_DIR), OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\app\target\release\.tauri")
+    );
+  }
+
+  #[test]
+  fn system_profile_cache_dir_is_used_without_redirection() {
+    let tools_dir = select(None, Some(SYSTEM_CACHE_DIR), OUT_DIR, None);
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(SYSTEM_CACHE_DIR).join("tauri")
+    );
+  }
+
+  #[test]
+  fn missing_cache_dir_falls_back_to_the_project_out_directory() {
+    let tools_dir = select(None, None, OUT_DIR, Some(SYSTEM_DIR));
+    assert_eq!(
+      tools_dir.unwrap(),
+      Path::new(r"C:\app\target\release\.tauri")
+    );
+  }
+
+  #[test]
+  fn tools_directory_inside_the_system_directory_is_an_error() {
+    let system_profile_target =
+      r"C:\Windows\System32\config\systemprofile\Jenkins\workspace\app\target";
+    let system_profile_out_dir = format!(r"{system_profile_target}\release");
+    assert!(
+      select(
+        None,
+        Some(SYSTEM_CACHE_DIR),
+        &system_profile_out_dir,
+        Some(SYSTEM_DIR)
+      )
+      .is_err()
+    );
+    assert!(select(Some(system_profile_target), None, OUT_DIR, Some(SYSTEM_DIR)).is_err());
+  }
+
+  #[test]
+  fn system_directory_is_redirected_unless_this_is_an_x86_build() {
+    let system_dir = wow64_redirected_system_directory();
+    if cfg!(target_arch = "x86") {
+      assert_eq!(system_dir, None);
+    } else {
+      let system_dir = system_dir.expect("failed to get the system directory");
+      let expected = PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32");
+      assert!(starts_with_ignore_ascii_case(&system_dir, &expected));
+      assert!(starts_with_ignore_ascii_case(&expected, &system_dir));
+    }
   }
 }

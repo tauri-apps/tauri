@@ -1,6 +1,6 @@
 # Tauri Contributing Guide
 
-Hi! We, the maintainers, are really excited that you are interested in contributing to Tauri. Before submitting your contribution though, please make sure to take a moment and read through the [Code of Conduct](CODE_OF_CONDUCT.md), as well as the appropriate section for the contribution you intend to make:
+Hi! We, the maintainers, are really excited that you are interested in contributing to Tauri. Before submitting your contribution though, please make sure to take a moment and read through the [Code of Conduct](/.github/CODE_OF_CONDUCT.md), as well as the appropriate section for the contribution you intend to make:
 
 - [Issue Reporting Guidelines](#issue-reporting-guidelines)
 - [Pull Request Guidelines](#pull-request-guidelines)
@@ -64,7 +64,7 @@ pnpm build
 
 ### Overview
 
-See [Architecture](../ARCHITECTURE.md#major-components) for an overview of the packages in this repository.
+See [Architecture](/ARCHITECTURE.md#major-components) for an overview of the packages in this repository.
 
 ### Developing Tauri Core and Related Components (Rust API, Macros, Codegen, and Utils)
 
@@ -113,7 +113,7 @@ It is unfair for other contributors and the reviewers to spend much of the time 
 1. Review and test all LLM-generated content before submitting, you're the one responsible for it, not the AI.
 2. Don't use AI to respond to review comments (except for translations).
 
-We will close the Pull Request with a `ai-slop` tag if you failed to do so.
+We will close the Pull Request with an `ai-slop` tag if you fail to follow these rules.
 
 ## Financial Contribution
 

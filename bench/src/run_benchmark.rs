@@ -19,23 +19,25 @@ use std::{
   path::Path,
   process::{Command, Stdio},
 };
+use time::format_description::well_known::Rfc3339;
 
 mod utils;
 
 /// The list of examples for benchmarks
 fn get_all_benchmarks(target: &str) -> Vec<(String, String)> {
+  let extension = if cfg!(windows) { ".exe" } else { "" };
   vec![
     (
       "tauri_hello_world".into(),
-      format!("../target/{target}/release/bench_helloworld"),
+      format!("../target/{target}/release/bench_helloworld{extension}"),
     ),
     (
       "tauri_cpu_intensive".into(),
-      format!("../target/{target}/release/bench_cpu_intensive"),
+      format!("../target/{target}/release/bench_cpu_intensive{extension}"),
     ),
     (
       "tauri_3mb_transfer".into(),
-      format!("../target/{target}/release/bench_files_transfer"),
+      format!("../target/{target}/release/bench_files_transfer{extension}"),
     ),
   ]
 }
@@ -127,34 +129,39 @@ fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
     {
       results.insert(name, mem);
     }
-
-    // Clean up the temporary file
-    if let Err(e) = std::fs::remove_file(&benchmark_file) {
-      eprintln!("Warning: failed to remove temporary file {benchmark_file_str}: {e}");
-    }
   }
 
   Ok(results)
 }
 
-fn rlib_size(target_dir: &Path, prefix: &str) -> Result<u64> {
+fn rlib_size(target_dir: &std::path::Path, library: &str) -> Result<u64> {
+  let prefix = format!("lib{library}");
+
   let mut size = 0;
   let mut seen = HashSet::new();
 
-  let deps_dir = target_dir.join("deps");
-  for entry in std::fs::read_dir(&deps_dir).with_context(|| {
+  let build_dir = target_dir.join("build").join(library);
+  for entry in std::fs::read_dir(&build_dir).with_context(|| {
     format!(
-      "failed to read target deps directory: {}",
-      deps_dir.display()
+      "failed to read target build directory: {}",
+      build_dir.display()
     )
   })? {
     let entry = entry.context("failed to read directory entry")?;
-    let name = entry.file_name().to_string_lossy().to_string();
+    let out_path = entry.path().join("out");
 
-    if name.starts_with(prefix) && name.ends_with(".rlib") {
-      if let Some(start) = name.split('-').next() {
+    for file in std::fs::read_dir(&out_path).with_context(|| {
+      format!(
+        "failed to read target build output directory: {}",
+        out_path.display()
+      )
+    })? {
+      let file = file.context("failed to read build output directory entry")?;
+      let name = file.file_name().to_string_lossy().to_string();
+      if name.starts_with(&prefix) && name.ends_with(".rlib") {
+        let start = name.split('-').next().unwrap();
         if seen.insert(start.to_string()) {
-          size += entry
+          size += file
             .metadata()
             .context("failed to read file metadata")?
             .len();
@@ -166,7 +173,7 @@ fn rlib_size(target_dir: &Path, prefix: &str) -> Result<u64> {
   if size == 0 {
     anyhow::bail!(
       "no rlib files found for prefix {prefix} in {}",
-      deps_dir.display()
+      build_dir.display()
     );
   }
 
@@ -176,7 +183,7 @@ fn rlib_size(target_dir: &Path, prefix: &str) -> Result<u64> {
 fn get_binary_sizes(target_dir: &Path, target: &str) -> Result<HashMap<String, u64>> {
   let mut sizes = HashMap::<String, u64>::new();
 
-  let wry_size = rlib_size(target_dir, "libwry")?;
+  let wry_size = rlib_size(target_dir, "wry")?;
   sizes.insert("wry_rlib".to_string(), wry_size);
 
   for (name, example_exe) in get_all_benchmarks(target) {
@@ -271,7 +278,19 @@ fn run_exec_time(target: &str) -> Result<HashMap<String, HashMap<String, f64>>> 
     "--show-output",
     "--warmup",
     "3",
+    // It seems like if we run them back to back,
+    // the execution time will get longer and longer for some reason on macOS and Windows
+    "--prepare",
+    "sleep 1",
   ];
+
+  if cfg!(target_os = "windows") {
+    // For `sleep 1` to work
+    // hyperfine uses cmd by default and it would fail with
+    // 'Input redirection is not supported, exiting the process immediately.'
+    command.push("--shell");
+    command.push("powershell");
+  }
 
   let benchmarks = get_all_benchmarks(target);
   let mut benchmark_paths = Vec::new();
@@ -334,11 +353,6 @@ fn main() -> Result<()> {
   env::set_current_dir(utils::bench_root_path())
     .context("failed to set working directory to bench root")?;
 
-  let now = std::time::SystemTime::now()
-    .duration_since(std::time::UNIX_EPOCH)
-    .context("failed to get current time")?;
-  let timestamp = format!("{}", now.as_secs());
-
   println!("Running execution time benchmarks...");
   let exec_time = run_exec_time(target)?;
 
@@ -349,7 +363,7 @@ fn main() -> Result<()> {
   let cargo_deps = cargo_deps();
 
   let mut new_data = utils::BenchResult {
-    created_at: timestamp,
+    created_at: time::OffsetDateTime::now_utc().format(&Rfc3339).unwrap(),
     sha1: {
       let output = utils::run_collect(&["git", "rev-parse", "HEAD"])?;
       output.0.trim().to_string()
@@ -372,13 +386,9 @@ fn main() -> Result<()> {
   println!("\n===== </BENCHMARK RESULTS>");
 
   let bench_file = target_dir.join("bench.json");
-  if let Some(filename) = bench_file.to_str() {
-    utils::write_json(filename, &serde_json::to_value(&new_data)?)
-      .context("failed to write benchmark results to file")?;
-    println!("Results written to: {filename}");
-  } else {
-    eprintln!("Cannot write bench.json, path contains invalid UTF-8");
-  }
+  utils::write_json(&bench_file, &serde_json::to_value(&new_data)?)
+    .context("failed to write benchmark results to file")?;
+  println!("Results written to: {}", bench_file.display());
 
   Ok(())
 }

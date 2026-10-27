@@ -4,7 +4,7 @@ LangString alreadyInstalledLong ${LANG_VIETNAMESE} "${PRODUCTNAME} ${VERSION} đ
 LangString appRunning ${LANG_VIETNAMESE} "{{product_name}} đang chạy! Vui lòng đóng ứng dụng trước rồi thử lại."
 LangString appRunningOkKill ${LANG_VIETNAMESE} "{{product_name}} đang chạy!$\nNhấn OK để tắt ứng dụng"
 LangString chooseMaintenanceOption ${LANG_VIETNAMESE} "Chọn thao tác bảo trì bạn muốn thực hiện."
-LangString choowHowToInstall ${LANG_VIETNAMESE} "Chọn cách bạn muốn cài đặt ${PRODUCTNAME}."
+LangString chooseHowToInstall ${LANG_VIETNAMESE} "Chọn cách bạn muốn cài đặt ${PRODUCTNAME}."
 LangString createDesktop ${LANG_VIETNAMESE} "Tạo biểu tượng ngoài màn hình"
 LangString dontUninstall ${LANG_VIETNAMESE} "Không gỡ cài đặt"
 LangString dontUninstallDowngrade ${LANG_VIETNAMESE} "Không gỡ cài đặt (Không hỗ trợ hạ cấp mà không gỡ cài đặt trong bộ cài này)"

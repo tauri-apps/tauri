@@ -3,27 +3,27 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Error, Settings,
   bundle::{
     settings::Arch,
     windows::{
       sign::{should_sign, sign_command, try_sign},
       util::{
-        download_webview2_bootstrapper, download_webview2_offline_installer,
-        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
+        download_webview2_offline_installer, tools_directory, vc_runtime_dlls,
       },
     },
   },
-  error::ErrorExt,
+  error::{ErrorExt, bail},
   utils::{
-    http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
     CommandExt,
+    http_utils::{HashAlgorithm, download_and_verify, verify_file_hash},
   },
-  Error, Settings,
 };
 use tauri_utils::display_path;
 
 use crate::error::Context;
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
@@ -36,11 +36,11 @@ use std::{
 // URLS for the NSIS toolchain.
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
-  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip";
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.13/nsis-3.13.zip";
 #[cfg(target_os = "windows")]
-const NSIS_SHA1: &str = "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D";
-const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
+const NSIS_SHA1: &str = "DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E";
+const NSIS_EXE_SHA1: &str = "6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2";
+const NSIS_TAURI_UTILS_URL: &str = "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
 #[cfg(target_os = "windows")]
@@ -79,10 +79,7 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
-  let tauri_tools_path = settings
-    .local_tools_directory()
-    .map(|d| d.join(".tauri"))
-    .unwrap_or_else(|| dirs::cache_dir().unwrap().join("tauri"));
+  let tauri_tools_path = tools_directory(settings)?;
 
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
@@ -93,6 +90,21 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     .any(|p| !nsis_toolset_path.join(p).exists())
   {
     log::warn!("NSIS directory is missing some files. Recreating it.");
+    std::fs::remove_dir_all(&nsis_toolset_path)?;
+    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
+  } else if let Err(e) = verify_file_hash(
+    nsis_toolset_path.join("NSIS.exe"),
+    NSIS_EXE_SHA1,
+    HashAlgorithm::Sha1,
+  ) {
+    log::warn!(
+      "NSIS.exe is {}. Recreating it.",
+      if matches!(e, Error::HashError) {
+        "outdated"
+      } else {
+        "missing"
+      }
+    );
     std::fs::remove_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else {
@@ -128,7 +140,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
     crate::utils::http_utils::extract_zip(&data, _tauri_tools_path)?;
-    fs::rename(_tauri_tools_path.join("nsis-3.11"), nsis_toolset_path)?;
+    fs::rename(_tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
   }
 
   // download additional plugins
@@ -184,7 +196,7 @@ fn build_nsis_app_installer(
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported architecture: {target:?}"
-      )))
+      )));
     }
   };
 
@@ -282,6 +294,13 @@ fn build_nsis_app_installer(
     to_json(&additional_plugins_path),
   );
 
+  if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+    data.insert(
+      "signed_plugins_path",
+      to_json(plugin_copy_path.join("x86-unicode")),
+    );
+  }
+
   data.insert("arch", to_json(arch));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
@@ -319,7 +338,8 @@ fn build_nsis_app_installer(
   );
 
   if let Some(license_file) = settings.license_file() {
-    let license_file = dunce::canonicalize(license_file)?;
+    let license_file = dunce::canonicalize(&license_file)
+      .fs_context("failed to resolve `bundle > licenseFile`", license_file)?;
     let license_file_with_bom = output_path.join("license_file");
     let content = std::fs::read(license_file)?;
     write_utf8_with_bom(&license_file_with_bom, content)?;
@@ -339,37 +359,58 @@ fn build_nsis_app_installer(
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
         "installer_icon",
-        to_json(dunce::canonicalize(installer_icon)?),
+        to_json(dunce::canonicalize(installer_icon).fs_context(
+          "failed to resolve `bundle > windows > nsis > installerIcon`",
+          installer_icon.to_owned(),
+        )?),
       );
     }
 
     if let Some(header_image) = &nsis.header_image {
-      data.insert("header_image", to_json(dunce::canonicalize(header_image)?));
+      data.insert(
+        "header_image",
+        to_json(dunce::canonicalize(header_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > headerImage`",
+          header_image.to_owned(),
+        )?),
+      );
     }
 
     if let Some(sidebar_image) = &nsis.sidebar_image {
       data.insert(
         "sidebar_image",
-        to_json(dunce::canonicalize(sidebar_image)?),
+        to_json(dunce::canonicalize(sidebar_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > sidebarImage`",
+          sidebar_image.to_owned(),
+        )?),
       );
     }
 
     if let Some(uninstaller_icon) = &nsis.uninstaller_icon {
       data.insert(
         "uninstaller_icon",
-        to_json(dunce::canonicalize(uninstaller_icon)?),
+        to_json(dunce::canonicalize(uninstaller_icon).fs_context(
+          "failed to resolve `bundle > windows > nsis > uninstallerIcon`",
+          uninstaller_icon.to_owned(),
+        )?),
       );
     }
 
     if let Some(uninstaller_header_image) = &nsis.uninstaller_header_image {
       data.insert(
         "uninstaller_header_image",
-        to_json(dunce::canonicalize(uninstaller_header_image)?),
+        to_json(dunce::canonicalize(uninstaller_header_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > uninstallerHeaderImage`",
+          uninstaller_header_image.to_owned(),
+        )?),
       );
     }
 
     if let Some(installer_hooks) = &nsis.installer_hooks {
-      let installer_hooks = dunce::canonicalize(installer_hooks)?;
+      let installer_hooks = dunce::canonicalize(installer_hooks).fs_context(
+        "failed to resolve `bundle > windows > nsis > installerHooks`",
+        installer_hooks.to_owned(),
+      )?;
       data.insert("installer_hooks", to_json(installer_hooks));
     }
 
@@ -380,7 +421,7 @@ fn build_nsis_app_installer(
     if let Some(minimum_webview2_version) = nsis
       .minimum_webview2_version
       .as_ref()
-      .or(settings.windows().minimum_webview2_version.as_ref())
+      .or_else(|| settings.windows().minimum_webview2_version.as_ref())
     {
       data.insert(
         "minimum_webview2_version",
@@ -417,7 +458,15 @@ fn build_nsis_app_installer(
   let languages = nsis
     .and_then(|nsis| nsis.languages.clone())
     .unwrap_or_else(|| vec!["English".into()]);
-  data.insert("languages", to_json(languages.clone()));
+  data.insert(
+    "languages",
+    to_json(
+      languages
+        .iter()
+        .map(|language| nsis_language_name(language))
+        .collect::<Vec<_>>(),
+    ),
+  );
 
   data.insert(
     "display_language_selector",
@@ -450,7 +499,9 @@ fn build_nsis_app_installer(
         write_utf8_with_bom(&path, content)?;
         language_files_paths.push(path);
       } else {
-        log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`");
+        log::warn!(
+          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`"
+        );
       }
     }
   }
@@ -628,7 +679,7 @@ fn build_nsis_app_installer(
   );
 
   let nsis_output_path = output_path.join(out_file);
-  let nsis_installer_path = settings.project_out_directory().to_path_buf().join(format!(
+  let nsis_installer_path = settings.project_out_directory().join(format!(
     "bundle/{}/{}.exe",
     if updater {
       NSIS_UPDATER_OUTPUT_FOLDER_NAME
@@ -661,11 +712,7 @@ fn build_nsis_app_installer(
   #[cfg(not(target_os = "windows"))]
   let mut nsis_cmd = Command::new("makensis");
 
-  if let Some(plugins_path) = &maybe_plugin_copy_path {
-    nsis_cmd.env("NSISPLUGINS", plugins_path);
-  }
-
-  nsis_cmd
+  let status = nsis_cmd
     .args(["-INPUTCHARSET", "UTF8", "-OUTPUTCHARSET", "UTF8"])
     .arg(match settings.log_level() {
       log::Level::Error => "-V1",
@@ -682,6 +729,9 @@ fn build_nsis_app_installer(
       command: "makensis.exe".to_string(),
       error,
     })?;
+  if !status.success() {
+    bail!("Failed to bundle app with makensis");
+  }
 
   fs::rename(nsis_output_path, &nsis_installer_path)?;
 
@@ -689,7 +739,9 @@ fn build_nsis_app_installer(
     try_sign(&nsis_installer_path, settings)?;
   } else {
     #[cfg(not(target_os = "windows"))]
-    log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+    log::warn!(
+      "Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer..."
+    );
   }
 
   Ok(vec![nsis_installer_path])
@@ -771,6 +823,22 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
         loader_path,
         (PathBuf::new(), PathBuf::from("WebView2Loader.dll")),
       );
+    }
+  }
+
+  if settings.windows().bundle_vc_runtime {
+    for dll in vc_runtime_dlls(settings.binary_arch())? {
+      let dll = dunce::simplified(&dll).to_path_buf();
+      if added_resources.contains(&dll) {
+        continue;
+      }
+      let target = PathBuf::from(
+        dll
+          .file_name()
+          .expect("failed to extract Visual C++ runtime DLL filename"),
+      );
+      added_resources.push(dll.clone());
+      resources.insert(dll, (PathBuf::new(), target));
     }
   }
 
@@ -863,6 +931,29 @@ fn generate_estimated_size(
   Ok(size / 1024)
 }
 
+/// The name NSIS knows a language by, which is not always the name of the
+/// language in English.
+///
+/// `MUI_LANGUAGE` loads `Contrib/Language files/<name>.nlf` from the toolset and
+/// defines `LANG_<NAME>` from it, so a name the toolset does not ship is a
+/// language table that never loads and a `LANG_<NAME>` nothing defines.
+fn nsis_language_name(language: &str) -> &str {
+  // NSIS ships this language as `Farsi`, which is what its `Farsi.nsh` declares
+  // with `!insertmacro LANGFILE "Farsi" "Persian" ...`: `Farsi` is the
+  // identifier and `Persian` only the English name. The bundler accepted
+  // `Persian` before it shipped the translation under the right name, so it is
+  // kept as a deprecated alias rather than silently breaking those configs.
+  // TODO(v3): remove the `persian` alias
+  if language.eq_ignore_ascii_case("persian") {
+    log::warn!(
+      "`{language}` is not a language NSIS knows, it calls this language `Farsi`. Rename it to `Farsi` in `bundle > windows > nsis > languages`, the old name will stop working in the next major version."
+    );
+    "Farsi"
+  } else {
+    language
+  }
+}
+
 fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
   let path = format!("{lang}.nsh");
   let content: &[u8] = match lang.to_lowercase().as_str() {
@@ -871,6 +962,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "dutch" => include_bytes!("./languages/Dutch.nsh"),
     "english" => include_bytes!("./languages/English.nsh"),
     "german" => include_bytes!("./languages/German.nsh"),
+    "hebrew" => include_bytes!("./languages/Hebrew.nsh"),
     "italian" => include_bytes!("./languages/Italian.nsh"),
     "japanese" => include_bytes!("./languages/Japanese.nsh"),
     "korean" => include_bytes!("./languages/Korean.nsh"),
@@ -881,7 +973,10 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "french" => include_bytes!("./languages/French.nsh"),
     "spanish" => include_bytes!("./languages/Spanish.nsh"),
     "spanishinternational" => include_bytes!("./languages/SpanishInternational.nsh"),
-    "persian" => include_bytes!("./languages/Persian.nsh"),
+    // `persian` is kept as a deprecated alias so existing configurations keep
+    // building, see `nsis_language_name`
+    // TODO(v3): remove the `persian` alias
+    "farsi" | "persian" => include_bytes!("./languages/Farsi.nsh"),
     "turkish" => include_bytes!("./languages/Turkish.nsh"),
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),

@@ -17,7 +17,10 @@ const MAX_LEN_PREFIX: usize = 64 - PLUGIN_PREFIX.len();
 const MAX_LEN_BASE: usize = 64;
 const MAX_LEN_IDENTIFIER: usize = MAX_LEN_PREFIX + 1 + MAX_LEN_BASE;
 
-/// Plugin identifier.
+/// Permission identifier.
+///
+/// Typically used in the [`permissions`](crate::acl::Capability::permissions) field of a capability file.
+/// (e.g. `core:default`, `sample:allow-ping-scoped`)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identifier {
   inner: String,
@@ -35,8 +38,8 @@ impl schemars::JsonSchema for Identifier {
     std::borrow::Cow::Borrowed(concat!(module_path!(), "::Identifier"))
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    String::json_schema(gen)
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(generator)
   }
 }
 
@@ -127,7 +130,9 @@ pub enum ParseIdentifierError {
   Humongous(usize),
 
   /// Identifier is not in a valid format.
-  #[error("identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix")]
+  #[error(
+    "identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix"
+  )]
   InvalidFormat,
 
   /// Identifier has multiple separators.
@@ -213,7 +218,12 @@ impl<'de> Deserialize<'de> for Identifier {
   where
     D: Deserializer<'de>,
   {
-    Self::try_from(String::deserialize(deserializer)?).map_err(serde::de::Error::custom)
+    let raw = String::deserialize(deserializer)?;
+    Self::try_from(raw.clone()).map_err(|e| {
+      serde::de::Error::custom(format!(
+        "invalid plugin or permission identifier '{raw}': {e}"
+      ))
+    })
   }
 }
 
@@ -286,7 +296,7 @@ mod tests {
 #[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
 
   use super::*;
 

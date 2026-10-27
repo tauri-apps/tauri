@@ -3,22 +3,22 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  detect_target_ok, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  log_finished, open_and_wait, project_config, synchronize_project_config, MobileTarget,
-  OptionsHandle,
+  MobileTarget, OptionsHandle, detect_target_ok, ensure_init, env, get_app, get_config,
+  inject_resources, load_pbxproj, log_finished, open_and_wait, project_config,
+  synchronize_project_config,
 };
 use crate::{
+  ConfigValue, Error, Result,
   build::Options as BuildOptions,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
     plist::merge_plist,
   },
   interface::{AppInterface, Options as InterfaceOptions},
-  mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions, TargetDevice},
-  ConfigValue, Error, Result,
+  mobile::{CliOptions, TargetDevice, ios::ensure_ios_runtime_installed, write_options},
 };
 use clap::{ArgAction, Parser, ValueEnum};
 
@@ -29,7 +29,7 @@ use cargo_mobile2::{
   },
   env::Env,
   opts::{NoiseLevel, Profile},
-  target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
+  target::{TargetInvalid, TargetTrait, call_for_targets_with_fallback},
 };
 use rand::distr::{Alphanumeric, SampleString};
 
@@ -161,6 +161,7 @@ impl From<Options> for BuildOptions {
       skip_stapling: false,
       ignore_version_mismatches: options.ignore_version_mismatches,
       no_sign: options.no_sign,
+      no_binary_patching: false,
     }
   }
 }
@@ -171,6 +172,8 @@ pub struct BuiltApplication {
   // prevent drop
   #[allow(dead_code)]
   options_handle: OptionsHandle,
+  #[allow(dead_code)]
+  export_options_tmp: Option<tempfile::NamedTempFile>,
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
@@ -271,7 +274,22 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     ensure_ios_runtime_installed()?;
   }
 
-  let mut export_options_plist = plist::Dictionary::new();
+  // start from the user's export options so values only inferred from the Xcode project
+  // (like the signing certificate) do not override what they explicitly configured
+  let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+  let mut export_options_plist = if export_options_plist_path.exists() {
+    plist::Value::from_file(&export_options_plist_path)
+      .with_context(|| {
+        format!(
+          "failed to parse plist from {}",
+          export_options_plist_path.display()
+        )
+      })?
+      .into_dictionary()
+      .unwrap_or_default()
+  } else {
+    plist::Dictionary::new()
+  };
   if let Some(method) = options.export_method {
     let xcode_version =
       crate::info::env_system::xcode_version().context("failed to determine Xcode version")?;
@@ -315,17 +333,12 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
       .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
-  // merge export options and write to temp file
-  let _export_options_tmp = if !export_options_plist.is_empty() {
-    let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+  // write the merged export options to a temp file
+  let export_options_tmp = if !export_options_plist.is_empty() {
     let export_options =
       tempfile::NamedTempFile::new().context("failed to create temporary file")?;
 
-    let merged_plist = merge_plist(vec![
-      export_options_plist_path.into(),
-      plist::Value::from(export_options_plist).into(),
-    ])?;
-    merged_plist
+    plist::Value::from(export_options_plist)
       .to_file_xml(export_options.path())
       .map_err(std::io::Error::other)
       .fs_context(
@@ -360,6 +373,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     config,
     interface,
     options_handle,
+    export_options_tmp,
   })
 }
 
@@ -403,7 +417,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(&tauri_config, cli_options)?;
+  let handle = write_options(MobileTarget::Ios, dirs.tauri, cli_options)?;
 
   if options.open {
     return Ok(handle);
@@ -488,6 +502,10 @@ fn run_build(
           .with_extension("app");
 
         let path = out_dir.join(app_path.file_name().unwrap());
+        // `rename` does not replace a non-empty directory, such as the previous build
+        if path.exists() {
+          fs::remove_dir_all(&path).fs_context("failed to remove previous app", path.clone())?;
+        }
         fs::rename(&app_path, &path).fs_context("failed to rename app", app_path)?;
         out_files.push(path);
       } else if options.no_sign {

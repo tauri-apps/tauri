@@ -234,7 +234,7 @@ pub fn does_supported_file_name_exist(target: Target, path: impl Into<PathBuf>) 
 /// 2. Check if `tauri.conf.json5` exists
 ///    a. Parse it with `json5`
 ///    b. Return error if all above steps failed
-/// 3. Check if `Tauri.json` exists
+/// 3. Check if `Tauri.toml` exists
 ///    a. Parse it with `toml`
 ///    b. Return error if all above steps failed
 /// 4. Return error if all above steps failed
@@ -337,6 +337,8 @@ fn do_parse<D: DeserializeOwned>(
 /// "Low-level" helper to parse JSON into a [`Config`].
 ///
 /// `raw` should be the contents of the file that is represented by `path`.
+// Inline so only crates that call this generate code for the `Config` deserializer (#16399).
+#[inline]
 pub fn parse_json(raw: &str, path: &Path) -> Result<Config, ConfigError> {
   do_parse_json(raw, path)
 }
@@ -360,6 +362,8 @@ fn do_parse_json<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, Confi
 /// `raw` should be the contents of the file that is represented by `path`. This function requires
 /// the `config-json5` feature to be enabled.
 #[cfg(feature = "config-json5")]
+// Inline so only crates that call this generate code for the `Config` deserializer (#16399).
+#[inline]
 pub fn parse_json5(raw: &str, path: &Path) -> Result<Config, ConfigError> {
   do_parse_json5(raw, path)
 }

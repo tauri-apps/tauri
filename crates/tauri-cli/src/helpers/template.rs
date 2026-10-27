@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  fs::{create_dir_all, File},
+  fs::{File, create_dir_all},
   io::Write,
   path::{Path, PathBuf},
 };
 
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use include_dir::Dir;
 use serde::Serialize;
 use serde_json::value::{Map, Value as JsonValue};

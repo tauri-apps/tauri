@@ -4,7 +4,7 @@
 
 use std::{fmt::Display, str::FromStr};
 
-use crate::{error::Context, Result};
+use crate::{Result, error::Context};
 
 pub fn input<T>(
   prompt: &str,
@@ -45,9 +45,9 @@ pub fn confirm(prompt: &str, default: Option<bool>) -> Result<bool> {
   builder.interact().context("failed to prompt confirm")
 }
 
-pub fn multiselect<T: ToString>(
+pub fn multiselect<T: ToString, I: IntoIterator<Item = T>>(
   prompt: &str,
-  items: &[T],
+  items: I,
   defaults: Option<&[bool]>,
 ) -> Result<Vec<usize>> {
   let theme = dialoguer::theme::ColorfulTheme::default();

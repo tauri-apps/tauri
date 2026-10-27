@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0]
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+## \[2.0.6]
+
+### What's Changed
+
+- [`3057eda06`](https://www.github.com/tauri-apps/tauri/commit/3057eda067b87761644209adeec077f232585c5d) ([#15324](https://www.github.com/tauri-apps/tauri/pull/15324)) Support `eq-separator` for `tauri-driver`.
+
 ## \[2.0.5]
 
 ### Bug Fixes

@@ -12,8 +12,8 @@
 
 use semver::Version;
 use serde::{
-  de::{Deserializer, Error as DeError, Visitor},
   Deserialize, Serialize, Serializer,
+  de::{Deserializer, Error as DeError, Visitor},
 };
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
@@ -210,7 +210,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         enum_values: Some(vec!["all".into()]),
@@ -527,7 +527,7 @@ pub struct NsisConfig {
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
   /// To allow the user to select the language, set `display_language_selector` to `true`.
   ///
-  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
   /// A key-value pair where the key is the language and the
   /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
@@ -2060,11 +2060,7 @@ impl Allowlist for OsAllowlistConfig {
   }
 
   fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["os-all"]
-    } else {
-      vec![]
-    }
+    if self.all { vec!["os-all"] } else { vec![] }
   }
 }
 
@@ -2089,11 +2085,7 @@ impl Allowlist for PathAllowlistConfig {
   }
 
   fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["path-all"]
-    } else {
-      vec![]
-    }
+    if self.all { vec!["path-all"] } else { vec![] }
   }
 }
 

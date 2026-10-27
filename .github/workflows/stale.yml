@@ -1,0 +1,53 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: Close stale issues and pull requests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 1 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v11
+        with:
+          days-before-stale: 90
+          days-before-close: 14
+          stale-issue-label: 'status: stale'
+          stale-pr-label: 'status: stale'
+          exempt-issue-labels: 'pinned,security,no-stale'
+          exempt-pr-labels: 'pinned,security,no-stale'
+          exempt-all-milestones: true
+          remove-stale-when-updated: true
+          delete-branch: false
+          stale-issue-message: >-
+            This issue has had no activity for 90 days and has been marked as stale.
+            It will be closed in 14 days unless there is further activity.
+            If this issue still applies, please comment with any relevant updates,
+            including whether it reproduces with the latest stable version of Tauri.
+            Maintainers can apply the no-stale label to keep it open.
+          stale-pr-message: >-
+            This pull request has had no activity for 90 days and has been marked as stale.
+            It will be closed in 14 days unless there is further activity.
+            If you are still working on it or waiting for review, please leave an update.
+            Maintainers can apply the no-stale label to keep it open.
+          close-issue-message: >-
+            This issue has been automatically closed after 14 days without activity
+            since being marked as stale. If it still applies, please leave an update
+            and ask for it to be reopened.
+          close-pr-message: >-
+            This pull request has been automatically closed after 14 days without activity
+            since being marked as stale. If you would like to continue it, please leave
+            an update and ask for it to be reopened. Thank you for your contribution!

@@ -4,6 +4,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 - [Issue Reporting Guidelines](#issue-reporting-guidelines)
 - [Pull Request Guidelines](#pull-request-guidelines)
+- [Stale Issues and Pull Requests](#stale-issues-and-pull-requests)
 - [Development Guide](#development-guide)
 - [AI Tool Policy](#ai-tool-policy)
 
@@ -41,6 +42,12 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
   - Provide detailed description of the bug in the PR, or link to an issue that does.
 
 - If the PR is meant to be released, follow the instructions in `.changes/readme.md` to log your changes. ie. [readme.md](https://github.com/tauri-apps/tauri/blob/dev/.changes/README.md)
+
+## Stale Issues and Pull Requests
+
+Issues and pull requests (including drafts) with no activity for 90 days are automatically labeled `status: stale` and receive a warning comment. After another 14 days without activity, they are automatically closed. Any activity before closure clears the stale label and restarts the inactivity timer.
+
+Items assigned to a milestone or labeled `pinned`, `security`, or `no-stale` are exempt. Maintainers can apply `no-stale` to keep an issue or pull request open. If an automatically closed item still needs attention, leave an update and ask a maintainer to reopen it.
 
 ## Development Guide
 

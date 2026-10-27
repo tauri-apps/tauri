@@ -891,7 +891,7 @@ pub struct NsisConfig {
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
   /// To allow the user to select the language, set `display_language_selector` to `true`.
   ///
-  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
   /// A key-value pair where the key is the language and the
   /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
@@ -1684,8 +1684,10 @@ pub struct BundleConfig {
   /// If true, tools will be cached in `target/.tauri/`.
   /// If false, tools will be cached in the current user's platform-specific cache directory.
   ///
-  /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),
-  /// because the Window system's app data directory is restricted.
+  /// When building this application as the Windows `SYSTEM` user (e.g., AWS EC2 workloads or CI runners installed as a service),
+  /// that cache directory is inside `C:\Windows\System32`, where the 32-bit NSIS and WiX tools can't find their own files,
+  /// so they are cached in the build's output directory (e.g., `target/release/.tauri/`) instead.
+  /// Setting this to `true` in that case shares them across build profiles and targets.
   #[serde(default, alias = "use-local-tools-dir")]
   pub use_local_tools_dir: bool,
   /// A list of—either absolute or relative—paths to binaries to embed with your application.

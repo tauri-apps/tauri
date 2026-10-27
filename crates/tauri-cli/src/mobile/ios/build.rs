@@ -172,6 +172,8 @@ pub struct BuiltApplication {
   // prevent drop
   #[allow(dead_code)]
   options_handle: OptionsHandle,
+  #[allow(dead_code)]
+  export_options_tmp: Option<tempfile::NamedTempFile>,
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
@@ -272,7 +274,22 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     ensure_ios_runtime_installed()?;
   }
 
-  let mut export_options_plist = plist::Dictionary::new();
+  // start from the user's export options so values only inferred from the Xcode project
+  // (like the signing certificate) do not override what they explicitly configured
+  let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+  let mut export_options_plist = if export_options_plist_path.exists() {
+    plist::Value::from_file(&export_options_plist_path)
+      .with_context(|| {
+        format!(
+          "failed to parse plist from {}",
+          export_options_plist_path.display()
+        )
+      })?
+      .into_dictionary()
+      .unwrap_or_default()
+  } else {
+    plist::Dictionary::new()
+  };
   if let Some(method) = options.export_method {
     let xcode_version =
       crate::info::env_system::xcode_version().context("failed to determine Xcode version")?;
@@ -316,17 +333,12 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
       .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
-  // merge export options and write to temp file
-  let _export_options_tmp = if !export_options_plist.is_empty() {
-    let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+  // write the merged export options to a temp file
+  let export_options_tmp = if !export_options_plist.is_empty() {
     let export_options =
       tempfile::NamedTempFile::new().context("failed to create temporary file")?;
 
-    let merged_plist = merge_plist(vec![
-      export_options_plist_path.into(),
-      plist::Value::from(export_options_plist).into(),
-    ])?;
-    merged_plist
+    plist::Value::from(export_options_plist)
       .to_file_xml(export_options.path())
       .map_err(std::io::Error::other)
       .fs_context(
@@ -361,6 +373,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     config,
     interface,
     options_handle,
+    export_options_tmp,
   })
 }
 

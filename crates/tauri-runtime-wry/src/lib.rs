@@ -1078,6 +1078,14 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  fn undecorated_border_transparent(#[allow(unused_mut)] mut self, _transparent: bool) -> Self {
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_undecorated_border_transparent(_transparent);
+    }
+    self
+  }
+
   #[cfg(windows)]
   fn owner(mut self, owner: HWND) -> Self {
     self.inner = self.inner.with_owner_window(owner.0 as _);
@@ -2378,6 +2386,8 @@ pub struct WebviewWrapper {
   // the key of the WebContext if it's not shared
   context_key: Option<PathBuf>,
   bounds: Arc<Mutex<Option<WebviewBounds>>>,
+  #[cfg(windows)]
+  kind: WebviewKind,
 }
 
 impl Deref for WebviewWrapper {
@@ -3362,10 +3372,9 @@ fn handle_user_message<T: UserEvent>(
             if !resizable {
               undecorated_resizing::detach_resize_handler(window.hwnd());
             } else if !window.is_decorated() {
-              undecorated_resizing::attach_resize_handler(
-                window.hwnd(),
-                window.has_undecorated_shadow(),
-              );
+              // The DWM-anchored shadow keeps the full client area, so the
+              // cutout drag window always covers the whole border ring.
+              undecorated_resizing::attach_resize_handler(window.hwnd(), false);
             }
           }
           WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
@@ -3388,20 +3397,24 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetDecorations(decorations) => {
             window.set_decorations(decorations);
             #[cfg(windows)]
-            if decorations {
-              undecorated_resizing::detach_resize_handler(window.hwnd());
-            } else if window.is_resizable() {
-              undecorated_resizing::attach_resize_handler(
-                window.hwnd(),
-                window.has_undecorated_shadow(),
-              );
+            {
+              if decorations {
+                undecorated_resizing::detach_resize_handler(window.hwnd());
+              } else if window.is_resizable() {
+                // Full border ring: the client area equals the window rect.
+                undecorated_resizing::attach_resize_handler(window.hwnd(), false);
+              }
+              // Toggling decorations toggles the DWM border, so the webviews'
+              // frame inset follows too.
+              sync_undecorated_frame_inset(&*window, &webviews);
             }
           }
           WindowMessage::SetShadow(_enable) => {
             #[cfg(windows)]
             {
               window.set_undecorated_shadow(_enable);
-              undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(window.hwnd(), _enable);
+              undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(window.hwnd(), false);
+              sync_undecorated_frame_inset(&*window, &webviews);
             }
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
@@ -4277,6 +4290,15 @@ fn handle_event_loop<T: UserEvent>(
               .get(&window_id)
               .map(|w| (w.inner.clone(), w.webviews.clone()))
             {
+              #[cfg(windows)]
+              {
+                // The DWM border of an undecorated shadowed window follows the
+                // maximized/fullscreen state, so the webviews' frame inset
+                // follows it too (`set_frame_inset` is a no-op when unchanged
+                // and never insets child webviews).
+                sync_undecorated_frame_inset(&*window, &webviews);
+              }
+
               let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
                 if let Some(b) = &*webview.bounds.lock().unwrap() {
@@ -4743,6 +4765,18 @@ You may have it installed on another user account, but it is not available for t
     .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled)
     .with_general_autofill_enabled(webview_attributes.general_autofill_enabled);
+
+  #[cfg(windows)]
+  // An undecorated shadowed window draws its border through DWM; on Windows 10
+  // the border lines land inside the client area, so only the webview that
+  // spans the whole window content must keep the inset
+  // `undecorated_frame_inset` reports for the border to be visible. Zero
+  // unless a border is actually drawn (transparent-border, maximized and
+  // fullscreen states included); child webviews are positioned explicitly
+  // and are never inset.
+  if kind == WebviewKind::WindowContent {
+    webview_builder = webview_builder.with_frame_inset(window.undecorated_frame_inset());
+  }
 
   if url != "about:blank" {
     webview_builder = webview_builder.with_url(&url);
@@ -5214,7 +5248,9 @@ You may have it installed on another user account, but it is not available for t
     undecorated_resizing::attach_resize_handler(&webview);
     #[cfg(windows)]
     if window.is_resizable() && !window.is_decorated() {
-      undecorated_resizing::attach_resize_handler(window.hwnd(), window.has_undecorated_shadow());
+      // Full border ring: the DWM-anchored shadow keeps the client area
+      // equal to the window rect, so every edge needs the cutout.
+      undecorated_resizing::attach_resize_handler(window.hwnd(), false);
     }
   }
 
@@ -5266,7 +5302,30 @@ You may have it installed on another user account, but it is not available for t
       web_context_key
     },
     bounds: Arc::new(Mutex::new(webview_bounds)),
+    #[cfg(windows)]
+    kind,
   })
+}
+
+/// Re-applies the frame inset that `Window::undecorated_frame_inset` reports
+/// for the current window state to the window's content webview. The DWM
+/// border follows maximize/fullscreen/shadow/decoration changes, so all state
+/// transitions share this one rule; wry dedupes no-ops and never insets child
+/// webviews.
+#[cfg(windows)]
+fn sync_undecorated_frame_inset<W: tao::platform::windows::WindowExtWindows>(
+  window: &W,
+  webviews: &[WebviewWrapper],
+) {
+  let inset = window.undecorated_frame_inset();
+  for webview in webviews.iter().filter(|w| w.kind == WebviewKind::WindowContent) {
+    if let Err(e) = webview.set_frame_inset(inset) {
+      log::error!(
+        "failed to update the frame inset of webview `{}`: {e}",
+        webview.label
+      );
+    }
+  }
 }
 
 /// Create a wry ipc handler from a tauri ipc handler.

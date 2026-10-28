@@ -2147,8 +2147,10 @@ pub struct WindowConfig {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
-  ///   - `true` will make undecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///   - The shadow of an undecorated window is anchored through DWM: the
+  ///     client area equals the window rect and a symmetric border is drawn
+  ///     on every edge. The shadow is suppressed while the window is
+  ///     maximized or fullscreen.
   /// - **Linux:** Unsupported.
   #[serde(default = "default_true")]
   pub shadow: bool,

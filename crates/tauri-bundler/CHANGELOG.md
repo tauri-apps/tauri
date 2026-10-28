@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.10.4]
+
+### Bug Fixes
+
+- [`52081e04a`](https://www.github.com/tauri-apps/tauri/commit/52081e04a0309620d3eb8121e5ca9b66312f9857) ([#16333](https://www.github.com/tauri-apps/tauri/pull/16333) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Rename the misspelled `choowHowToInstall` NSIS language string to `chooseHowToInstall`. A custom language file in `bundle.windows.nsis.customLanguageFiles` that only defines the old name keeps working for now, but users should migrate to the new name.
+- [`1a02ec364`](https://www.github.com/tauri-apps/tauri/commit/1a02ec36401de1f5eafe99fd6a8b45d3a1356993) ([#16330](https://www.github.com/tauri-apps/tauri/pull/16330) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Quote the executable path in the file association `shell\open\command` and `DefaultIcon` registry values written by the NSIS installer, so opening an associated file no longer depends on how Windows splits an unquoted path that contains spaces.
+- [`46b3de424`](https://www.github.com/tauri-apps/tauri/commit/46b3de4243ea282cee190a2505a0dde7dad1bc14) ([#16335](https://www.github.com/tauri-apps/tauri/pull/16335) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fixed the German NSIS installer defining the `older` and `unknown` strings under translated identifiers (`älter` and `unbekannt`), which made makensis emit `warning 6040: LangString "older" is not set in language table of language German` and left the version kind blank in the "An $R4 version of ... is installed on your system" prompt.
+- [`46b3de424`](https://www.github.com/tauri-apps/tauri/commit/46b3de4243ea282cee190a2505a0dde7dad1bc14) ([#16335](https://www.github.com/tauri-apps/tauri/pull/16335) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fixed malformed tokens in the Italian and Swedish NSIS language files.
+- [`c0e3dbd91`](https://www.github.com/tauri-apps/tauri/commit/c0e3dbd91def4b2c39fc7cca03f0b86407e9d584) ([#16254](https://www.github.com/tauri-apps/tauri/pull/16254) by [@kihyun1998](https://www.github.com/tauri-apps/tauri/../../kihyun1998)) Fix NSIS installers not blocking downgrades over a newer installation made by the MSI installer in silent (`/S`), passive (`/P`) and update (`/UPDATE`) modes when `bundle.windows.allowDowngrades` is `false`.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.4.3`
+- [`4a6f51251`](https://www.github.com/tauri-apps/tauri/commit/4a6f512519286ff9862b2e86c67ef39f4562aee5) ([#16317](https://www.github.com/tauri-apps/tauri/pull/16317) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Updated `zip` to v9 to fix RUSTSEC-2026-0367, RUSTSEC-2026-0368 and RUSTSEC-2026-0369.
+
 ## [2.10.3]
 
 ### Bug Fixes

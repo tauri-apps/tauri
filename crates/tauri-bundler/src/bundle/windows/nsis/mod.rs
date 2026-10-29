@@ -884,6 +884,25 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
       resources.insert(src_path, (PathBuf::new(), PathBuf::from(f)));
     }
 
+    // CEF's bootstrap host loads `<its file stem>.dll` from next to itself. The DLL is
+    // only present when the app was built for the bootstrap (without it the executable
+    // runs the application directly, unsandboxed).
+    let main_binary_name = settings.main_binary_name()?;
+    let app_dll =
+      dunce::simplified(&project_out.join(format!("{main_binary_name}.dll"))).to_path_buf();
+    if app_dll.exists() && !added_resources.contains(&app_dll) {
+      // Signed and bundle-type patched by `bundle_project`, which targets the DLL in a
+      // bootstrap build.
+      added_resources.push(app_dll.clone());
+      resources.insert(
+        app_dll,
+        (
+          PathBuf::new(),
+          PathBuf::from(format!("{main_binary_name}.dll")),
+        ),
+      );
+    }
+
     // TODO: locales?
     // crash without at least en
     let locales = [

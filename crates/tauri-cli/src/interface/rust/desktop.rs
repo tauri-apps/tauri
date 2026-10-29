@@ -4,11 +4,13 @@
 
 use super::{AppSettings, DevProcess, ExitReason, Options, Rust, RustAppSettings, RustupTarget};
 use crate::helpers::app_paths::Dirs;
+use crate::runtime::Runtime;
 use crate::{
   CommandExt, Error,
   error::{Context, ErrorExt},
 };
 
+use object::Object as _;
 use shared_child::SharedChild;
 use std::{
   fs,
@@ -227,10 +229,18 @@ pub fn build(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   main_binary_name: Option<&str>,
+  windows_cef_bootstrap: bool,
+  cef_embed: bool,
   tauri_dir: &Path,
 ) -> crate::Result<PathBuf> {
   let out_dir = app_settings.out_dir(&options, tauri_dir)?;
   let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
+
+  let mut build_features = config_features.clone();
+  build_features.extend(options.features.iter().cloned());
+  if !options.args.contains(&"--no-default-features".into()) {
+    build_features.push("default".into());
+  }
 
   if options.target == Some("universal-apple-darwin".into()) {
     std::fs::create_dir_all(&out_dir)
@@ -268,7 +278,123 @@ pub fn build(
       .with_context(|| "failed to build app")?;
   }
 
+  if windows_cef_bootstrap {
+    prepare_windows_cef_bootstrap(
+      app_settings,
+      &bin_path,
+      &out_dir,
+      &build_features,
+      cef_embed,
+    )?;
+  } else if matches!(app_settings.target_platform, TargetPlatform::Windows)
+    && matches!(app_settings.runtime(&build_features), Runtime::Cef)
+  {
+    log::warn!(
+      "Windows CEF builds run without Chromium's sandbox. Enable `bundle > cef > windowsBootstrap` and export `RunWinMain` from a `cdylib` library to ship the sandboxed bootstrap host."
+    );
+  }
+
   rename_app(bin_path, main_binary_name, &app_settings.target_platform)
+}
+
+/// Replaces the executable Cargo built with CEF's Windows bootstrap host and places the
+/// application's `cdylib` next to it, so Chromium can broker its sandbox.
+///
+/// The bootstrap host loads `<its own file stem>.dll` from the same directory and calls the
+/// DLL's `RunWinMain` export with a sandbox information object. A plain executable has
+/// nowhere to receive that object, which is why CEF falls back to `--no-sandbox`; the
+/// `cef_entry_point` macro exports `RunWinMain` and forwards the object to CEF.
+fn prepare_windows_cef_bootstrap(
+  app_settings: &RustAppSettings,
+  bin_path: &Path,
+  out_dir: &Path,
+  features: &[String],
+  cef_embed: bool,
+) -> crate::Result<()> {
+  let TargetPlatform::Windows = app_settings.target_platform else {
+    // A platform-independent configuration can enable the option and still build the
+    // other desktop targets, which have their own sandbox arrangements.
+    return Ok(());
+  };
+
+  if !cef_embed {
+    crate::error::bail!(
+      "`bundle > cef > windowsBootstrap` requires `bundle > cef > embed`: CEF's bootstrap host loads `chrome_elf.dll` from its own directory and cannot use a shared runtime"
+    );
+  }
+
+  if !matches!(app_settings.runtime(features), Runtime::Cef) {
+    crate::error::bail!(
+      "`bundle > cef > windowsBootstrap` requires the CEF runtime: add `tauri-runtime-cef` as a dependency of the application"
+    );
+  }
+
+  let Some(lib_name) = app_settings.cdylib_name() else {
+    crate::error::bail!(
+      "`bundle > cef > windowsBootstrap` requires a library target CEF's bootstrap can load: add `crate-type = [\"cdylib\"]` to the `[lib]` section of the application's Cargo.toml"
+    );
+  };
+
+  let dll_src = out_dir.join(format!("{lib_name}.dll"));
+  let bootstrap_src = out_dir.join("bootstrap.exe");
+  let dll_dest = bin_path.with_extension("dll");
+
+  if !dll_src.exists() {
+    crate::error::bail!(
+      "`bundle > cef > windowsBootstrap` expected Cargo to build {}; make sure the `[lib]` target with `crate-type = [\"cdylib\"]` is built for this target and that `cef_entry_point` is applied in that library",
+      dll_src.display()
+    );
+  }
+  if !bootstrap_src.exists() {
+    crate::error::bail!(
+      "`bundle > cef > windowsBootstrap` expected CEF's bootstrap host at {}; CEF 138 or newer must be available to the build",
+      bootstrap_src.display()
+    );
+  }
+
+  // The bootstrap reports a missing export as a fatal dialog with a file hash, so catch
+  // it here instead: the usual cause is the attribute still being on `main` rather than
+  // on the library's entry function.
+  let dll_bytes = fs::read(&dll_src).fs_context("failed to read the application DLL", &dll_src)?;
+  let dll = object::File::parse(&*dll_bytes).map_err(|error| {
+    Error::GenericError(format!(
+      "failed to parse {} as a Windows DLL: {error}",
+      dll_src.display()
+    ))
+  })?;
+  let exports_run_win_main = dll
+    .exports()
+    .map_err(|error| {
+      Error::GenericError(format!(
+        "failed to read the export table of {}: {error}",
+        dll_src.display()
+      ))
+    })?
+    .iter()
+    .any(|export| export.name() == b"RunWinMain");
+  if !exports_run_win_main {
+    crate::error::bail!(
+      "`bundle > cef > windowsBootstrap` requires the application DLL to export `RunWinMain`: apply `#[tauri_runtime_cef::cef_entry_point]` to the function in the `[lib]` target (an attribute on `main.rs` does not produce the DLL entry point)"
+    );
+  }
+
+  fs::copy(&bootstrap_src, bin_path).fs_context(
+    "failed to copy the CEF bootstrap host over the application executable",
+    bootstrap_src,
+  )?;
+  fs::copy(&dll_src, &dll_dest).fs_context(
+    "failed to place the application DLL next to the CEF bootstrap host",
+    dll_src,
+  )?;
+
+  log::info!(
+    action = "Bundling";
+    "Prepared the CEF Windows bootstrap host: {} + {}",
+    bin_path.display(),
+    dll_dest.display()
+  );
+
+  Ok(())
 }
 
 fn build_production_app(
@@ -411,7 +537,15 @@ fn rename_app(
       ""
     };
     let new_path = bin_path.with_file_name(format!("{main_binary_name}{extension}"));
+    // CEF's bootstrap host loads the DLL by the executable's file stem, so a renamed
+    // executable needs the DLL renamed with it.
+    let dll_path = bin_path.with_extension("dll");
     fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path)?;
+    if dll_path.exists() {
+      let new_dll_path = new_path.with_extension("dll");
+      fs::rename(&dll_path, &new_dll_path)
+        .fs_context("failed to rename the app DLL with the app binary", dll_path)?;
+    }
     Ok(new_path)
   } else {
     Ok(bin_path)

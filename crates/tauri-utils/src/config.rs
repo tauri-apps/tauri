@@ -1820,11 +1820,29 @@ pub struct CefConfig {
   /// the distribution.
   #[serde(default = "default_true")]
   pub embed: bool,
+  /// Whether the Windows bundle is built and shipped the way Chromium's sandbox
+  /// requires: the application as a DLL exporting `RunWinMain`, launched by CEF's
+  /// `bootstrap.exe` under the bundle's executable name.
+  ///
+  /// Without it the application is a plain executable, CEF has nowhere to put the
+  /// sandbox broker, and Windows runs unsandboxed. Enabling it requires a library
+  /// target with `crate-type` containing `cdylib`, and the `cef_entry_point`
+  /// attribute must be applied to the function that starts the application there
+  /// rather than only in `main.rs`. It also requires `embed`, because the bootstrap
+  /// host loads `chrome_elf.dll` from its own directory.
+  ///
+  /// Only affects production builds. `tauri dev` runs the executable directly and
+  /// remains unsandboxed, so `SandboxPolicy::Required` still fails there.
+  #[serde(default)]
+  pub windows_bootstrap: bool,
 }
 
 impl Default for CefConfig {
   fn default() -> Self {
-    Self { embed: true }
+    Self {
+      embed: true,
+      windows_bootstrap: false,
+    }
   }
 }
 

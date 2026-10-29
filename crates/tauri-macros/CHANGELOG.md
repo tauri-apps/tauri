@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.7.4]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.7.4`
+
 ## [2.7.3]
 
 ### Dependencies

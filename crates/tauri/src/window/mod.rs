@@ -126,7 +126,7 @@ unstable_struct!(
       <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder,
     #[cfg(desktop)]
     pub(crate) menu: Option<Menu<R>>,
-    #[cfg(desktop)]
+    #[cfg(menu)]
     on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
     window_effects: Option<WindowEffectsConfig>,
     #[cfg(target_os = "android")]
@@ -216,7 +216,7 @@ async fn create_window(app: tauri::AppHandle) {
       ),
       #[cfg(desktop)]
       menu: None,
-      #[cfg(desktop)]
+      #[cfg(menu)]
       on_menu_event: None,
       window_effects: None,
       #[cfg(target_os = "android")]
@@ -271,7 +271,7 @@ async fn reopen_window(app: tauri::AppHandle) {
         ),
       #[cfg(desktop)]
       menu: None,
-      #[cfg(desktop)]
+      #[cfg(menu)]
       on_menu_event: None,
     };
 
@@ -324,7 +324,7 @@ tauri::Builder::default()
   });
 ```"####
   )]
-  #[cfg(desktop)]
+  #[cfg(menu)]
   pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -432,7 +432,7 @@ tauri::Builder::default()
       window
     })?;
 
-    #[cfg(desktop)]
+    #[cfg(menu)]
     if let Some(handler) = self.on_menu_event {
       window.on_menu_event(handler);
     }
@@ -1292,58 +1292,6 @@ impl<R: Runtime> Window<R> {
 /// Menu APIs
 #[cfg(desktop)]
 impl<R: Runtime> Window<R> {
-  /// Registers a global menu event listener.
-  ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
-  ///
-  /// Also note that this handler will not be called if
-  /// the window used to register it was closed.
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::menu::{Menu, Submenu, MenuItem};
-tauri::Builder::default()
-  .setup(|app| {
-    let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
-    let menu = Menu::with_items(handle, &[
-      &Submenu::with_items(handle, "File", true, &[
-        &save_menu_item,
-      ])?,
-    ])?;
-    let window = tauri::window::WindowBuilder::new(app, "editor")
-      .menu(menu)
-      .build()
-      .unwrap();
-
-    window.on_menu_event(move |window, event| {
-      if event.id == save_menu_item.id() {
-          // save menu item
-      }
-    });
-
-    Ok(())
-  });
-```
-  "####
-  )]
-  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
-    &self,
-    f: F,
-  ) {
-    self
-      .manager
-      .menu
-      .event_listeners
-      .lock()
-      .unwrap()
-      .insert(self.label().to_string(), Box::new(f));
-  }
-
   pub(crate) fn menu_lock(&self) -> std::sync::MutexGuard<'_, Option<WindowMenu<R>>> {
     self.menu.lock().expect("poisoned window")
   }
@@ -1556,9 +1504,61 @@ tauri::Builder::default()
   }
 }
 
-/// Context menu APIs
+/// Menu event and context menu APIs
 #[cfg(menu)]
 impl<R: Runtime> Window<R> {
+  /// Registers a global menu event listener.
+  ///
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
+  ///
+  /// Also note that this handler will not be called if
+  /// the window used to register it was closed.
+  ///
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::menu::{Menu, Submenu, MenuItem};
+tauri::Builder::default()
+  .setup(|app| {
+    let handle = app.handle();
+    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
+    let menu = Menu::with_items(handle, &[
+      &Submenu::with_items(handle, "File", true, &[
+        &save_menu_item,
+      ])?,
+    ])?;
+    let window = tauri::window::WindowBuilder::new(app, "editor")
+      .menu(menu)
+      .build()
+      .unwrap();
+
+    window.on_menu_event(move |window, event| {
+      if event.id == save_menu_item.id() {
+          // save menu item
+      }
+    });
+
+    Ok(())
+  });
+```
+  "####
+  )]
+  pub fn on_menu_event<F: Fn(&Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+    &self,
+    f: F,
+  ) {
+    self
+      .manager
+      .menu
+      .event_listeners
+      .lock()
+      .unwrap()
+      .insert(self.label().to_string(), Box::new(f));
+  }
+
   /// Shows the specified menu as a context menu at the cursor position.
   ///
   /// ## Platform-specific:

@@ -189,7 +189,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///     Ok(())
   ///   });
   /// ```
-  #[cfg(desktop)]
+  #[cfg(menu)]
   pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -1740,50 +1740,6 @@ impl<R: Runtime> WebviewWindow<R> {
 /// Menu APIs
 #[cfg(desktop)]
 impl<R: Runtime> WebviewWindow<R> {
-  /// Registers a global menu event listener.
-  ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
-  ///
-  /// Also note that this handler will not be called if
-  /// the window used to register it was closed.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// use tauri::menu::{Menu, Submenu, MenuItem};
-  /// use tauri::{WebviewWindowBuilder, WebviewUrl};
-  ///
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let handle = app.handle();
-  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
-  ///     let menu = Menu::with_items(handle, &[
-  ///       &Submenu::with_items(handle, "File", true, &[
-  ///         &save_menu_item,
-  ///       ])?,
-  ///     ])?;
-  ///     let webview_window = WebviewWindowBuilder::new(app, "editor", WebviewUrl::default())
-  ///       .menu(menu)
-  ///       .build()
-  ///       .unwrap();
-  ///
-  ///     webview_window.on_menu_event(move |window, event| {
-  ///       if event.id == save_menu_item.id() {
-  ///           // save menu item
-  ///       }
-  ///     });
-  ///
-  ///     Ok(())
-  ///   });
-  /// ```
-  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
-    &self,
-    f: F,
-  ) {
-    self.window.on_menu_event(f)
-  }
-
   /// Returns this window menu.
   pub fn menu(&self) -> Option<Menu<R>> {
     self.window.menu()
@@ -1838,9 +1794,53 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 }
 
-/// Context menu APIs
+/// Menu event and context menu APIs
 #[cfg(menu)]
 impl<R: Runtime> WebviewWindow<R> {
+  /// Registers a global menu event listener.
+  ///
+  /// Note that this handler is called for any menu event,
+  /// whether it is coming from this window, another window or from the tray icon menu.
+  ///
+  /// Also note that this handler will not be called if
+  /// the window used to register it was closed.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::menu::{Menu, Submenu, MenuItem};
+  /// use tauri::{WebviewWindowBuilder, WebviewUrl};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
+  ///     let menu = Menu::with_items(handle, &[
+  ///       &Submenu::with_items(handle, "File", true, &[
+  ///         &save_menu_item,
+  ///       ])?,
+  ///     ])?;
+  ///     let webview_window = WebviewWindowBuilder::new(app, "editor", WebviewUrl::default())
+  ///       .menu(menu)
+  ///       .build()
+  ///       .unwrap();
+  ///
+  ///     webview_window.on_menu_event(move |window, event| {
+  ///       if event.id == save_menu_item.id() {
+  ///           // save menu item
+  ///       }
+  ///     });
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
+    &self,
+    f: F,
+  ) {
+    self.window.on_menu_event(f)
+  }
+
   /// Shows the specified menu as a context menu at the cursor position.
   ///
   /// ## Platform-specific:

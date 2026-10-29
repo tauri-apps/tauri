@@ -77,6 +77,17 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
             .show_context_menu_for_hwnd(hwnd.0 as _, position);
         }
       }
+
+      #[cfg(target_os = "ios")]
+      if let Ok(handle) = raw_window_handle::HasWindowHandle::window_handle(&window) {
+        if let raw_window_handle::RawWindowHandle::UiKit(handle) = handle.as_raw() {
+          unsafe {
+            self_
+              .inner()
+              .show_context_menu_for_uiview(handle.ui_view.as_ptr(), position);
+          }
+        }
+      }
     })
   }
   fn inner_context(&self) -> &dyn muda::ContextMenu {
@@ -158,7 +169,7 @@ impl<R: Runtime> Menu<R> {
       &[
         &PredefinedMenuItem::minimize(app_handle, None)?,
         &PredefinedMenuItem::maximize(app_handle, None)?,
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
         &PredefinedMenuItem::separator(app_handle)?,
         &PredefinedMenuItem::close_window(app_handle, None)?,
       ],
@@ -170,7 +181,7 @@ impl<R: Runtime> Menu<R> {
       "Help",
       true,
       &[
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(any(target_os = "macos", target_os = "ios")))]
         &PredefinedMenuItem::about(app_handle, None, Some(about_metadata))?,
       ],
     )?;
@@ -178,7 +189,7 @@ impl<R: Runtime> Menu<R> {
     let menu = Menu::with_items(
       app_handle,
       &[
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
         &Submenu::with_items(
           app_handle,
           pkg_info.name.clone(),
@@ -207,7 +218,7 @@ impl<R: Runtime> Menu<R> {
           true,
           &[
             &PredefinedMenuItem::close_window(app_handle, None)?,
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
             &PredefinedMenuItem::quit(app_handle, None)?,
           ],
         )?,
@@ -225,7 +236,7 @@ impl<R: Runtime> Menu<R> {
             &PredefinedMenuItem::select_all(app_handle, None)?,
           ],
         )?,
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
         &Submenu::with_items(
           app_handle,
           "View",
@@ -403,6 +414,7 @@ impl<R: Runtime> Menu<R> {
   /// Set this menu as the window menu.
   ///
   /// This is an alias for [`Window::set_menu`].
+  #[cfg(desktop)]
   pub fn set_as_window_menu(&self, window: &Window<R>) -> crate::Result<Option<Menu<R>>> {
     window.set_menu(self.clone())
   }

@@ -21,9 +21,11 @@ use crate::{
 #[cfg(desktop)]
 use crate::{
   image::Image,
-  menu::{ContextMenu, Menu},
+  menu::Menu,
   runtime::{UserAttentionType, window::CursorIcon},
 };
+#[cfg(menu)]
+use crate::menu::ContextMenu;
 use tauri_runtime::webview::NewWindowFeatures;
 use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
 use url::Url;
@@ -1834,8 +1836,16 @@ impl<R: Runtime> WebviewWindow<R> {
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     self.window.is_menu_visible()
   }
+}
 
+/// Context menu APIs
+#[cfg(menu)]
+impl<R: Runtime> WebviewWindow<R> {
   /// Shows the specified menu as a context menu at the cursor position.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **iOS:** Shown as an edit menu at the center of the window. Requires iOS 16.
   pub fn popup_menu<M: ContextMenu>(&self, menu: &M) -> crate::Result<()> {
     self.window.popup_menu(menu)
   }
@@ -1843,6 +1853,10 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Shows the specified menu as a context menu at the specified position.
   ///
   /// The position is relative to the window's top-left corner.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **iOS:** Shown as an edit menu. Requires iOS 16.
   pub fn popup_menu_at<M: ContextMenu, P: Into<Position>>(
     &self,
     menu: &M,

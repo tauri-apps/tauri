@@ -7,7 +7,7 @@ use tauri::{
   plugin::{Builder, TauriPlugin},
 };
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(desktop, not(target_os = "macos")))]
 #[command]
 pub fn toggle<R: tauri::Runtime>(window: tauri::Window<R>) {
   if window.is_menu_visible().unwrap_or_default() {
@@ -17,7 +17,7 @@ pub fn toggle<R: tauri::Runtime>(window: tauri::Window<R>) {
   }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 #[command]
 pub fn toggle<R: tauri::Runtime>(
   app: tauri::AppHandle<R>,
@@ -36,8 +36,12 @@ pub fn toggle<R: tauri::Runtime>(
 pub fn popup<R: tauri::Runtime>(
   window: tauri::Window<R>,
   popup_menu: tauri::State<'_, crate::PopupMenu<R>>,
+  position: Option<tauri::LogicalPosition<f64>>,
 ) {
-  window.popup_menu(&popup_menu.0).unwrap();
+  match position {
+    Some(position) => window.popup_menu_at(&popup_menu.0, position).unwrap(),
+    None => window.popup_menu(&popup_menu.0).unwrap(),
+  }
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {

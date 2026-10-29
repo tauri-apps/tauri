@@ -11,7 +11,8 @@ use crate::menu::NativeIcon;
 use crate::menu::SubmenuInner;
 use crate::run_main_thread;
 use crate::{AppHandle, Manager, Position, Runtime, Window};
-use muda::{ContextMenu, Icon as MudaIcon, MenuId};
+use muda::ContextMenu;
+use muda::{Icon as MudaIcon, MenuId};
 
 impl<R: Runtime> super::ContextMenu for Submenu<R> {
   #[cfg(target_os = "windows")]
@@ -68,6 +69,17 @@ impl<R: Runtime> ContextMenuBase for Submenu<R> {
           self_
             .inner()
             .show_context_menu_for_hwnd(hwnd.0 as _, position);
+        }
+      }
+
+      #[cfg(target_os = "ios")]
+      if let Ok(handle) = raw_window_handle::HasWindowHandle::window_handle(&window) {
+        if let raw_window_handle::RawWindowHandle::UiKit(handle) = handle.as_raw() {
+          unsafe {
+            self_
+              .inner()
+              .show_context_menu_for_uiview(handle.ui_view.as_ptr(), position);
+          }
         }
       }
     })
@@ -245,6 +257,7 @@ impl<R: Runtime> Submenu<R> {
     Ok(menu)
   }
 
+  #[cfg_attr(not(desktop), allow(dead_code))]
   pub(crate) fn inner(&self) -> &muda::Submenu {
     (*self.0).as_ref()
   }

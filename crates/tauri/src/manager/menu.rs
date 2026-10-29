@@ -58,6 +58,7 @@ impl<R: Runtime> MenuManager<R> {
       .insert(menu.id().clone(), menu.clone());
   }
 
+  #[cfg(desktop)]
   pub(crate) fn prepare_window_menu_creation_handler(
     &self,
     window_menu: Option<&crate::window::WindowMenu<R>>,

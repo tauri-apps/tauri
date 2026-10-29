@@ -110,8 +110,8 @@ use tauri_runtime as runtime;
 pub mod image;
 #[cfg(target_os = "ios")]
 mod ios;
-#[cfg(desktop)]
-#[cfg_attr(docsrs, doc(cfg(desktop)))]
+#[cfg(menu)]
+#[cfg_attr(docsrs, doc(cfg(any(desktop, target_os = "ios"))))]
 pub mod menu;
 /// Path APIs.
 pub mod path;
@@ -263,7 +263,7 @@ pub fn log_stdout() {
 #[derive(Debug, Clone)]
 pub enum EventLoopMessage {
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
-  #[cfg(desktop)]
+  #[cfg(menu)]
   MenuEvent(menu::MenuEvent),
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -1098,19 +1098,19 @@ pub(crate) mod sealed {
   }
 }
 
-#[cfg(desktop)]
+#[cfg(menu)]
 struct UnsafeSend<T>(T);
-#[cfg(desktop)]
+#[cfg(menu)]
 unsafe impl<T> Send for UnsafeSend<T> {}
 
-#[cfg(desktop)]
+#[cfg(menu)]
 impl<T> UnsafeSend<T> {
   fn take(self) -> T {
     self.0
   }
 }
 
-#[cfg(desktop)]
+#[cfg(menu)]
 macro_rules! run_main_thread {
   ($handle:ident, $ex:expr) => {{
     use std::sync::mpsc::channel;
@@ -1125,7 +1125,7 @@ macro_rules! run_main_thread {
   }};
 }
 
-#[cfg(desktop)]
+#[cfg(menu)]
 pub(crate) use run_main_thread;
 
 #[cfg(any(test, feature = "test"))]

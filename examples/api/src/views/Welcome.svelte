@@ -31,8 +31,10 @@
     }
   })
 
-  function contextMenu() {
-    invoke('plugin:app-menu|popup')
+  function contextMenu(event: MouseEvent) {
+    invoke('plugin:app-menu|popup', {
+      position: { x: event.clientX, y: event.clientY }
+    })
   }
 
   function exitApp() {

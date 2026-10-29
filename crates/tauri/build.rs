@@ -267,6 +267,8 @@ fn main() {
   let mobile = target_os == "ios" || target_os == "android";
   alias("desktop", !mobile);
   alias("mobile", mobile);
+  // the menu API: window and app menus on desktop, the iPadOS menu bar on iOS
+  alias("menu", !mobile || target_os == "ios");
 
   let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 

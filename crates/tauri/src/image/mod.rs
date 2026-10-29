@@ -404,7 +404,7 @@ impl<'a> From<Image<'a>> for crate::runtime::Icon<'a> {
 ///
 /// The Linux backends of `muda` and `tray-icon` do not validate this,
 /// so a mismatch would panic when the icon is rendered.
-#[cfg(desktop)]
+#[cfg(menu)]
 fn check_rgba_size(img: &Image<'_>) -> crate::Result<()> {
   let expected = (img.width as u64) * (img.height as u64) * 4;
   if img.rgba.len() as u64 != expected {
@@ -421,7 +421,7 @@ fn check_rgba_size(img: &Image<'_>) -> crate::Result<()> {
   Ok(())
 }
 
-#[cfg(desktop)]
+#[cfg(menu)]
 impl TryFrom<Image<'_>> for muda::Icon {
   type Error = crate::Error;
 

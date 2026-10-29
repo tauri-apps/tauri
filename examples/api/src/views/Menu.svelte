@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Menu, Submenu, NativeIcon } from '@tauri-apps/api/menu'
+  import { LogicalPosition } from '@tauri-apps/api/dpi'
   import MenuBuilder, {
     reorderMenuItems,
     type Item,
@@ -73,13 +74,13 @@
     await setMenu(await createSubmenuWithImageIcon())
   }
 
-  async function popup() {
+  async function popup(event: MouseEvent) {
     popupMenu?.close()
     popupMenu = undefined
     popupMenu = await Menu.new({
       items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
-    await popupMenu.popup()
+    await popupMenu.popup(new LogicalPosition(event.clientX, event.clientY))
   }
 
   function onItemClick(detail: MenuItemClickDetail) {

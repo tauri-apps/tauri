@@ -19,9 +19,11 @@ pub use crate::runtime::ProgressBarStatus;
 use crate::{
   CursorIcon,
   image::Image,
-  menu::{ContextMenu, Menu, MenuId},
+  menu::{Menu, MenuId},
   runtime::UserAttentionType,
 };
+#[cfg(menu)]
+use crate::menu::ContextMenu;
 use crate::{
   Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
   WindowEvent,
@@ -1552,8 +1554,16 @@ tauri::Builder::default()
 
     Ok(false)
   }
+}
 
+/// Context menu APIs
+#[cfg(menu)]
+impl<R: Runtime> Window<R> {
   /// Shows the specified menu as a context menu at the cursor position.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **iOS:** Shown as an edit menu at the center of the window. Requires iOS 16.
   pub fn popup_menu<M: ContextMenu>(&self, menu: &M) -> crate::Result<()> {
     menu.popup(self.clone())
   }
@@ -1561,6 +1571,10 @@ tauri::Builder::default()
   /// Shows the specified menu as a context menu at the specified position.
   ///
   /// The position is relative to the window's top-left corner.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **iOS:** Shown as an edit menu. Requires iOS 16.
   pub fn popup_menu_at<M: ContextMenu, P: Into<Position>>(
     &self,
     menu: &M,

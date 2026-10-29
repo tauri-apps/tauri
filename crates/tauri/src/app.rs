@@ -22,14 +22,14 @@ use crate::{
   webview::PageLoadPayload,
 };
 
-#[cfg(desktop)]
+#[cfg(menu)]
 use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
 use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 use tauri_macros::default_runtime;
-#[cfg(desktop)]
+#[cfg(menu)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
   RuntimeInitArgs,
@@ -54,7 +54,7 @@ use crate::ActivationPolicy;
 
 pub(crate) mod plugin;
 
-#[cfg(desktop)]
+#[cfg(menu)]
 pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync>;
 #[cfg(all(desktop, feature = "tray-icon"))]
 pub(crate) type GlobalTrayIconEventListener<T> =
@@ -265,8 +265,8 @@ pub enum RunEvent {
     urls: Vec<url::Url>,
   },
   /// An event from a menu item, could be on the window menu bar, application menu bar (on macOS) or tray icon menu.
-  #[cfg(desktop)]
-  #[cfg_attr(docsrs, doc(cfg(desktop)))]
+  #[cfg(menu)]
+  #[cfg_attr(docsrs, doc(cfg(any(desktop, target_os = "ios"))))]
   MenuEvent(crate::menu::MenuEvent),
   /// An event from a tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -300,7 +300,7 @@ pub enum RunEvent {
 impl From<EventLoopMessage> for RunEvent {
   fn from(event: EventLoopMessage) -> Self {
     match event {
-      #[cfg(desktop)]
+      #[cfg(menu)]
       EventLoopMessage::MenuEvent(e) => Self::MenuEvent(e),
       #[cfg(all(desktop, feature = "tray-icon"))]
       EventLoopMessage::TrayIconEvent(e) => Self::TrayIconEvent(e),
@@ -889,7 +889,7 @@ macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
       /// Registers a global menu event listener.
-      #[cfg(desktop)]
+      #[cfg(menu)]
       pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
         &self,
         handler: F,
@@ -1035,7 +1035,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Returns the app-wide menu.
-      #[cfg(desktop)]
+      #[cfg(menu)]
       pub fn menu(&self) -> Option<Menu<R>> {
         self.manager.menu.menu_lock().clone()
       }
@@ -1044,7 +1044,15 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this menu will be assigned to it.
-      #[cfg(desktop)]
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** The menu is the app menu bar, its first submenu is the application menu.
+      /// - **iOS:** The menu replaces the system menus in the iPadOS 26 menu bar, its first
+      ///   submenu is the application menu. Predefined items reuse the system's commands and are
+      ///   left out when the system has none. Does nothing before iOS 26, and iPhone has no
+      ///   menu bar.
+      #[cfg(menu)]
       pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
         let prev_menu = self.remove_menu()?;
 
@@ -1053,7 +1061,7 @@ macro_rules! shared_app_impl {
         self.manager.menu.menu_lock().replace(menu.clone());
 
         // set it on all windows that don't have one or previously had the app-wide menu
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(all(desktop, not(target_os = "macos")))]
         {
           for window in self.manager.windows().values() {
             let has_app_wide_menu = window.has_app_wide_menu() || window.menu().is_none();
@@ -1067,8 +1075,8 @@ macro_rules! shared_app_impl {
           }
         }
 
-        // set it app-wide for macos
-        #[cfg(target_os = "macos")]
+        // set it app-wide for macos and the iPadOS menu bar
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
         {
           let menu_ = menu.clone();
           self.run_on_main_thread(move || {
@@ -1083,13 +1091,13 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will remove the menu from it.
-      #[cfg(desktop)]
+      #[cfg(menu)]
       pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
         let menu = self.manager.menu.menu_lock().as_ref().cloned();
         #[allow(unused_variables)]
         if let Some(menu) = menu {
           // remove from windows that have the app-wide menu
-          #[cfg(not(target_os = "macos"))]
+          #[cfg(all(desktop, not(target_os = "macos")))]
           {
             for window in self.manager.windows().values() {
               let has_app_wide_menu = window.has_app_wide_menu();
@@ -1105,6 +1113,14 @@ macro_rules! shared_app_impl {
           {
             self.run_on_main_thread(move || {
               menu.inner().remove_for_nsapp();
+            })?;
+          }
+
+          // remove it from the iPadOS menu bar
+          #[cfg(target_os = "ios")]
+          {
+            self.run_on_main_thread(move || {
+              menu.inner().remove_for_uiapp();
             })?;
           }
         }
@@ -1330,7 +1346,7 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::app::plugin::init())?;
     self.handle.plugin(crate::resources::plugin::init())?;
     self.handle.plugin(crate::image::plugin::init())?;
-    #[cfg(desktop)]
+    #[cfg(menu)]
     self.handle.plugin(crate::menu::plugin::init())?;
     #[cfg(all(desktop, feature = "tray-icon"))]
     self.handle.plugin(crate::tray::plugin::init())?;
@@ -1655,11 +1671,11 @@ pub struct Builder<R: Runtime> {
   state: StateManager,
 
   /// A closure that returns the menu set to all windows.
-  #[cfg(desktop)]
+  #[cfg(menu)]
   menu: Option<Box<dyn FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>> + Send>>,
 
   /// Menu event listeners for any menu event.
-  #[cfg(desktop)]
+  #[cfg(menu)]
   menu_event_listeners: Vec<GlobalMenuEventListener<AppHandle<R>>>,
 
   /// Tray event listeners for any tray icon event.
@@ -1741,9 +1757,9 @@ impl<R: Runtime> Builder<R> {
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
-      #[cfg(desktop)]
+      #[cfg(menu)]
       menu: None,
-      #[cfg(desktop)]
+      #[cfg(menu)]
       menu_event_listeners: Vec::new(),
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray_icon_event_listeners: Vec::new(),
@@ -2152,7 +2168,7 @@ tauri::Builder::default()
   ///   ]));
   /// ```
   #[must_use]
-  #[cfg(desktop)]
+  #[cfg(menu)]
   pub fn menu<F: FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>> + Send + 'static>(
     mut self,
     f: F,
@@ -2175,7 +2191,7 @@ tauri::Builder::default()
   ///   });
   /// ```
   #[must_use]
-  #[cfg(desktop)]
+  #[cfg(menu)]
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -2490,13 +2506,13 @@ tauri::Builder::default()
       self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
       self.state,
-      #[cfg(desktop)]
+      #[cfg(menu)]
       self.menu_event_listeners,
       #[cfg(all(desktop, feature = "tray-icon"))]
       self.tray_icon_event_listeners,
       self.window_event_listeners,
       self.webview_event_listeners,
-      #[cfg(desktop)]
+      #[cfg(menu)]
       HashMap::new(),
       self.invoke_initialization_script,
       self.channel_interceptor,
@@ -2580,22 +2596,22 @@ tauri::Builder::default()
     #[cfg(target_os = "macos")]
     runtime.set_activate_ignoring_other_apps(self.activate_ignoring_other_apps);
 
-    #[cfg(desktop)]
+    // setup menu event handler
+    #[cfg(menu)]
     {
-      // setup menu event handler
       let proxy = runtime.create_proxy();
       muda::MenuEvent::set_event_handler(Some(std::sync::Arc::new(move |e: muda::MenuEvent| {
         let _ = proxy.send_event(EventLoopMessage::MenuEvent(e.into()));
       })));
+    }
 
-      // setup tray event handler
-      #[cfg(feature = "tray-icon")]
-      {
-        let proxy = runtime.create_proxy();
-        tray_icon::TrayIconEvent::set_event_handler(Some(move |e: tray_icon::TrayIconEvent| {
-          let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e.into()));
-        }));
-      }
+    // setup tray event handler
+    #[cfg(all(desktop, feature = "tray-icon"))]
+    {
+      let proxy = runtime.create_proxy();
+      tray_icon::TrayIconEvent::set_event_handler(Some(move |e: tray_icon::TrayIconEvent| {
+        let _ = proxy.send_event(EventLoopMessage::TrayIconEvent(e.into()));
+      }));
     }
 
     runtime.set_device_event_filter(self.device_event_filter);
@@ -2618,7 +2634,7 @@ tauri::Builder::default()
 
     app.register_core_plugins()?;
 
-    #[cfg(desktop)]
+    #[cfg(menu)]
     if let Some(menu) = self.menu {
       let menu = menu(&app.handle)?;
       app
@@ -2726,6 +2742,12 @@ impl<'a, R: Runtime> UriSchemeContext<'a, R> {
   }
 }
 
+#[cfg(target_os = "ios")]
+fn init_app_menu<R: Runtime>(menu: &Menu<R>) -> crate::Result<()> {
+  menu.inner().init_for_uiapp();
+  Ok(())
+}
+
 #[cfg(target_os = "macos")]
 fn init_app_menu<R: Runtime>(menu: &Menu<R>) -> crate::Result<()> {
   menu.inner().init_for_nsapp();
@@ -2805,6 +2827,13 @@ fn on_event_loop_event<R: Runtime>(
       event: event.into(),
     },
     RuntimeRunEvent::Ready => {
+      // UIKit can only take the menu once the app finished launching,
+      // so the menu set by `Builder::menu` is shown now
+      #[cfg(target_os = "ios")]
+      if let Some(menu) = manager.menu.menu_lock().clone() {
+        let _ = init_app_menu(&menu);
+      }
+
       // set the app icon in development
       #[cfg(all(dev, target_os = "macos"))]
       {
@@ -2827,7 +2856,7 @@ fn on_event_loop_event<R: Runtime>(
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => {
       match t {
-        #[cfg(desktop)]
+        #[cfg(menu)]
         EventLoopMessage::MenuEvent(ref e) => {
           app_handle.manager.menu.dispatch_menu_item_event(e.clone());
 

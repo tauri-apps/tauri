@@ -728,11 +728,23 @@ pub trait ContextMenu: sealed::ContextMenuBase + Send + Sync {
   fn hpopupmenu(&self) -> crate::Result<isize>;
 
   /// Popup this menu as a context menu on the specified window at the cursor position.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **iOS:** Shown as an edit menu at the center of the window, the one menu UIKit can
+  ///   present from code. Accelerators are not shown, and the only predefined items shown are
+  ///   the edit actions, such as copy and paste. Requires iOS 16.
   fn popup<R: crate::Runtime>(&self, window: crate::Window<R>) -> crate::Result<()>;
 
   /// Popup this menu as a context menu on the specified window at the specified position.
   ///
   /// The position is relative to the window's top-left corner.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **iOS:** Shown as an edit menu, the one menu UIKit can present from code. Accelerators
+  ///   are not shown, and the only predefined items shown are the edit actions, such as copy and
+  ///   paste. Requires iOS 16.
   fn popup_at<R: crate::Runtime, P: Into<crate::Position>>(
     &self,
     window: crate::Window<R>,

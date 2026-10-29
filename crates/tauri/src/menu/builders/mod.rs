@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(desktop)]
+#![cfg(menu)]
 
 //! A module containing menu builder types
 

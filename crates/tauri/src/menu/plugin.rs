@@ -765,6 +765,11 @@ async fn set_as_window_menu<R: Runtime>(
     .map(|w| webview.manager().get_window(&w))
     .unwrap_or(Some(current_window));
 
+  // iOS has no window menus
+  #[cfg(not(desktop))]
+  let _ = (window, rid);
+
+  #[cfg(desktop)]
   if let Some(window) = window {
     let mut resources_table = webview.resources_table();
     let menu = resources_table.get::<Menu<R>>(rid)?;

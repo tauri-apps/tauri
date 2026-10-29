@@ -34,7 +34,7 @@ use crate::{
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use crate::app::OnWebContentProcessTerminate;
 
-#[cfg(desktop)]
+#[cfg(menu)]
 mod menu;
 #[cfg(all(desktop, feature = "tray-icon"))]
 mod tray;
@@ -187,7 +187,7 @@ pub struct AppManager<R: Runtime> {
   pub webview: webview::WebviewManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
   pub tray: tray::TrayManager<R>,
-  #[cfg(desktop)]
+  #[cfg(menu)]
   pub menu: menu::MenuManager<R>,
 
   pub(crate) plugins: Mutex<PluginStore<R>>,
@@ -260,13 +260,13 @@ impl<R: Runtime> AppManager<R> {
     >,
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
-    #[cfg(desktop)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
+    #[cfg(menu)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
     #[cfg(all(desktop, feature = "tray-icon"))] tray_icon_event_listeners: Vec<
       crate::app::GlobalTrayIconEventListener<AppHandle<R>>,
     >,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     webview_event_listeners: Vec<GlobalWebviewEventListener<R>>,
-    #[cfg(desktop)] window_menu_event_listeners: HashMap<
+    #[cfg(menu)] window_menu_event_listeners: HashMap<
       String,
       crate::app::GlobalMenuEventListener<Window<R>>,
     >,
@@ -308,7 +308,7 @@ impl<R: Runtime> AppManager<R> {
         global_event_listeners: Mutex::new(tray_icon_event_listeners),
         event_listeners: Default::default(),
       },
-      #[cfg(desktop)]
+      #[cfg(menu)]
       menu: menu::MenuManager {
         menus: Default::default(),
         menu: Default::default(),
@@ -708,15 +708,18 @@ impl<R: Runtime> AppManager<R> {
   }
 }
 
-#[cfg(desktop)]
+#[cfg(menu)]
 impl<R: Runtime> AppManager<R> {
   pub fn remove_menu_from_stash_by_id(&self, id: Option<&crate::menu::MenuId>) {
     if let Some(id) = id {
+      #[cfg(desktop)]
       let is_used_by_a_window = self
         .window
         .windows_lock()
         .values()
         .any(|w| w.is_menu_in_use(id));
+      #[cfg(not(desktop))]
+      let is_used_by_a_window = false;
       if !(self.menu.is_menu_in_use(id) || is_used_by_a_window) {
         self.menu.menus_stash_lock().remove(id);
       }

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 mod cmd;
-#[cfg(all(desktop, not(test)))]
+#[cfg(all(target_os = "ios", not(test)))]
+mod ios_menu;
+#[cfg(all(any(desktop, target_os = "ios"), not(test)))]
 mod menu_plugin;
 #[cfg(all(desktop, not(test)))]
 mod tray;
@@ -23,10 +25,10 @@ struct Reply {
   data: String,
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
-#[cfg(all(desktop, not(test)))]
+#[cfg(all(any(desktop, target_os = "ios"), not(test)))]
 pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -55,15 +57,19 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     .setup(move |app| {
       #[cfg(all(desktop, not(test)))]
       {
-        let handle = app.handle();
-        tray::create_tray(handle)?;
-        handle.plugin(menu_plugin::init())?;
+        tray::create_tray(app.handle())?;
       }
 
-      #[cfg(target_os = "macos")]
+      #[cfg(all(any(desktop, target_os = "ios"), not(test)))]
+      app.handle().plugin(menu_plugin::init())?;
+
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
       app.manage(AppMenu::<R>(Default::default()));
 
-      #[cfg(all(desktop, not(test)))]
+      #[cfg(all(target_os = "ios", not(test)))]
+      ios_menu::create(app.handle())?;
+
+      #[cfg(all(any(desktop, target_os = "ios"), not(test)))]
       app.manage(PopupMenu(
         tauri::menu::MenuBuilder::new(app)
           .check("check", "Tauri is awesome!")

@@ -622,7 +622,10 @@ pub struct WindowsSettings {
 
 impl WindowsSettings {
   pub(crate) fn can_sign(&self) -> bool {
-    self.sign_command.is_some() || self.certificate_thumbprint.is_some()
+    self.sign_command.is_some()
+      || self.certificate_thumbprint.is_some()
+      // the certificate is imported from the environment on Windows hosts
+      || (cfg!(windows) && std::env::var_os("WINDOWS_CERTIFICATE").is_some_and(|c| !c.is_empty()))
   }
 }
 

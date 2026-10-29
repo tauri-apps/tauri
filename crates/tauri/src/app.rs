@@ -1050,8 +1050,9 @@ macro_rules! shared_app_impl {
       /// - **macOS:** The menu is the app menu bar, its first submenu is the application menu.
       /// - **iOS:** The menu replaces the system menus in the iPadOS 26 menu bar, its first
       ///   submenu is the application menu. Predefined items reuse the system's commands and are
-      ///   left out when the system has none. Does nothing before iOS 26, and iPhone has no
-      ///   menu bar.
+      ///   left out when the system has none. Before iOS 26, which has no menu bar, the menu
+      ///   still provides the key commands and the keyboard shortcuts list. iPhone has no menu
+      ///   bar.
       #[cfg(menu)]
       pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
         let prev_menu = self.remove_menu()?;

@@ -10,6 +10,8 @@ use std::{
   sync::{Arc, MutexGuard},
 };
 
+#[cfg(menu)]
+use crate::menu::ContextMenu;
 use crate::{
   Emitter, EventName, Listener, ResourceTable, Window,
   event::EventTarget,
@@ -24,8 +26,6 @@ use crate::{
   menu::Menu,
   runtime::{UserAttentionType, window::CursorIcon},
 };
-#[cfg(menu)]
-use crate::menu::ContextMenu;
 use tauri_runtime::webview::NewWindowFeatures;
 use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
 use url::Url;
@@ -1845,7 +1845,8 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **iOS:** Shown as an edit menu at the center of the window. Requires iOS 16.
+  /// - **iOS:** Shown as an edit menu where the last touch landed, or at the center of the
+  ///   window. Requires iOS 16.
   pub fn popup_menu<M: ContextMenu>(&self, menu: &M) -> crate::Result<()> {
     self.window.popup_menu(menu)
   }

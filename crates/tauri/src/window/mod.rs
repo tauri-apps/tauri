@@ -15,6 +15,8 @@ pub use tauri_utils::{WindowEffect as Effect, WindowEffectState as EffectState, 
 #[cfg(desktop)]
 pub use crate::runtime::ProgressBarStatus;
 
+#[cfg(menu)]
+use crate::menu::ContextMenu;
 #[cfg(desktop)]
 use crate::{
   CursorIcon,
@@ -22,8 +24,6 @@ use crate::{
   menu::{Menu, MenuId},
   runtime::UserAttentionType,
 };
-#[cfg(menu)]
-use crate::menu::ContextMenu;
 use crate::{
   Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
   WindowEvent,
@@ -1563,7 +1563,8 @@ tauri::Builder::default()
   ///
   /// ## Platform-specific:
   ///
-  /// - **iOS:** Shown as an edit menu at the center of the window. Requires iOS 16.
+  /// - **iOS:** Shown as an edit menu where the last touch landed, or at the center of the
+  ///   window. Requires iOS 16.
   pub fn popup_menu<M: ContextMenu>(&self, menu: &M) -> crate::Result<()> {
     menu.popup(self.clone())
   }

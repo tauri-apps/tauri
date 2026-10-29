@@ -4,7 +4,7 @@
 
 use tauri::{
   AppHandle, Emitter, Runtime,
-  menu::{CheckMenuItemBuilder, Menu, MenuItem, SubmenuBuilder},
+  menu::{CheckMenuItemBuilder, IconMenuItemBuilder, Menu, MenuItem, NativeIcon, SubmenuBuilder},
 };
 
 /// Fills the iPadOS menu bar, starting from the default menu.
@@ -29,7 +29,11 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
   let dashboard_menu = SubmenuBuilder::new(app, "Dashboard")
     .text("rename", "Rename")
-    .text("duplicate", "Duplicate")
+    .item(
+      &IconMenuItemBuilder::with_id("duplicate", "Duplicate")
+        .native_icon(NativeIcon::MultipleDocuments)
+        .build(app)?,
+    )
     .separator()
     .item(
       &CheckMenuItemBuilder::with_id("grid", "Show Grid")
@@ -44,13 +48,12 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .build()?,
     )
     .separator()
-    .item(&MenuItem::with_id(
-      app,
-      "delete",
-      "Delete",
-      false,
-      None::<&str>,
-    )?)
+    .item(
+      &IconMenuItemBuilder::with_id("delete", "Delete")
+        .native_icon(NativeIcon::TrashEmpty)
+        .enabled(false)
+        .build(app)?,
+    )
     .build()?;
   menu.insert(&dashboard_menu, menu.items()?.len().saturating_sub(2))?;
 

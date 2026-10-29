@@ -731,9 +731,9 @@ pub trait ContextMenu: sealed::ContextMenuBase + Send + Sync {
   ///
   /// ## Platform-specific:
   ///
-  /// - **iOS:** Shown as an edit menu at the center of the window, the one menu UIKit can
-  ///   present from code. Accelerators are not shown, and the only predefined items shown are
-  ///   the edit actions, such as copy and paste. Requires iOS 16.
+  /// - **iOS:** Shown as an edit menu, the one menu UIKit can present from code, where the
+  ///   last touch landed, or at the center of the window. Accelerators are not shown, and the
+  ///   only predefined items shown are the edit actions, such as copy and paste. Requires iOS 16.
   fn popup<R: crate::Runtime>(&self, window: crate::Window<R>) -> crate::Result<()>;
 
   /// Popup this menu as a context menu on the specified window at the specified position.

@@ -36,12 +36,8 @@ pub fn toggle<R: tauri::Runtime>(
 pub fn popup<R: tauri::Runtime>(
   window: tauri::Window<R>,
   popup_menu: tauri::State<'_, crate::PopupMenu<R>>,
-  position: Option<tauri::LogicalPosition<f64>>,
 ) {
-  match position {
-    Some(position) => window.popup_menu_at(&popup_menu.0, position).unwrap(),
-    None => window.popup_menu(&popup_menu.0).unwrap(),
-  }
+  window.popup_menu(&popup_menu.0).unwrap();
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {

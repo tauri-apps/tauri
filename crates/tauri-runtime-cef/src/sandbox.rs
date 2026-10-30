@@ -103,6 +103,15 @@ pub(crate) fn windows_sandbox_info() -> *mut u8 {
   }
 }
 
+/// Whether this process was launched by CEF's Windows bootstrap executable and therefore
+/// holds the sandbox information object Chromium's sandbox needs.
+///
+/// Always false outside Windows, where the sandbox is entered through the platform's own
+/// initialization path instead. Useful for diagnostics and release checks.
+pub fn windows_bootstrap_active() -> bool {
+  cfg!(windows) && !windows_sandbox_info().is_null()
+}
+
 /// Whether this platform cannot sandbox, given how the runtime initializes CEF.
 ///
 /// Windows can only sandbox when the bootstrap executable supplied the sandbox information
@@ -562,6 +571,7 @@ mod tests {
 
     set_windows_sandbox_info(std::ptr::NonNull::<u8>::dangling().as_ptr());
     assert!(!windows_sandbox_unavailable());
+    assert!(windows_bootstrap_active());
     assert_eq!(
       sandbox_decision(
         SandboxPolicy::Required,
@@ -576,6 +586,7 @@ mod tests {
 
     set_windows_sandbox_info(std::ptr::null_mut());
     assert!(windows_sandbox_unavailable());
+    assert!(!windows_bootstrap_active());
   }
 
   #[cfg(any(

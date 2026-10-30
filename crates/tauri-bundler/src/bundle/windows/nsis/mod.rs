@@ -844,14 +844,16 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/win/README.redistrib.txt as a reference
   if let Some(cef_path) = settings.webview_runtime().cef_distribution() {
     let project_out = settings.project_out_directory();
-    let cef_files = [
-      // required
+    let required_cef_files = [
       "libcef.dll",
       "chrome_elf.dll",
       "icudtl.dat",
       "v8_context_snapshot.bin",
-      // required end
-      // "optional" - but not really since we want support for all of this
+    ];
+    // Resources and GPU helpers. The set a distribution ships changes between
+    // Chromium milestones (CEF 154 no longer ships the ANGLE DLLs, for example), so a
+    // missing one is skipped rather than failing the whole bundle.
+    let optional_cef_files = [
       "chrome_100_percent.pak",
       "chrome_200_percent.pak",
       "resources.pak",
@@ -868,13 +870,17 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
       "vk_swiftshader.dll",
       "vk_swiftshader_icd.json",
       "vulkan-1.dll",
-      // sandbox - may need to be behind a setting?
+      // sandbox
       "bootstrap.exe",
       "bootstrapc.exe",
     ];
 
-    for f in &cef_files {
+    for f in required_cef_files.iter().chain(optional_cef_files.iter()) {
       let from = cef_path.join(f);
+      if !from.exists() && optional_cef_files.contains(f) {
+        log::warn!("skipping optional CEF file {f}: not present in the distribution");
+        continue;
+      }
       let src_path = dunce::simplified(&project_out.join(f)).to_path_buf();
       fs::copy(&from, &src_path).fs_context("failed to copy CEF file for NSIS bundle", from)?;
       if settings.windows().can_sign() && should_sign(&src_path)? {

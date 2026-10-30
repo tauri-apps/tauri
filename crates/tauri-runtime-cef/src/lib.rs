@@ -31,7 +31,7 @@ mod runtime;
 // `SandboxPolicy` itself is public API and lives in `runtime`; this module holds the
 // decision behind it and the Windows bootstrap's sandbox information object.
 mod sandbox;
-pub use sandbox::set_windows_sandbox_info;
+pub use sandbox::{set_windows_sandbox_info, windows_bootstrap_active};
 /// Helpers for the Chromium command line the runtime hands to CEF.
 mod switches;
 mod tauri_ext;

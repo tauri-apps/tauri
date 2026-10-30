@@ -39,6 +39,14 @@ path = "src/main.rs"
 cargo-mobile2 = { version = "0.22.5", default-features = false }
 
 [dependencies]
+# Reads the Mach-O binaries the macOS signing path inspects and the PE export table of
+# the CEF Windows bootstrap DLL.
+object = { version = "0.39", default-features = false, features = [
+  "macho",
+  "pe",
+  "read_core",
+  "std",
+] }
 jsonrpsee = { version = "0.26", features = ["server"] }
 jsonrpsee-core = "0.26"
 jsonrpsee-client-transport = { version = "0.26", features = ["ws"] }
@@ -138,11 +146,6 @@ libc = "0.2"
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
 tauri-macos-sign = { workspace = true }
-object = { version = "0.39", default-features = false, features = [
-  "macho",
-  "read_core",
-  "std",
-] }
 ar = "0.9"
 
 [features]

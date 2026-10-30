@@ -1783,11 +1783,31 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   }
 
   fn set_zoom(&self, scale_factor: f64) -> Result<()> {
-    self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
-      self.webview_id,
-      WebviewMessage::SetZoom(scale_factor),
-    ))
+    self.context.run_threaded(|main_thread| {
+      if let Some(main_thread) = main_thread {
+        // Reparenting may hold window_id on a worker while waiting for this
+        // thread. Resolve the live webview by its stable ID instead of locking.
+        let webview = main_thread.windows.0.borrow().values().find_map(|window| {
+          window
+            .webviews
+            .iter()
+            .find(|webview| webview.id == self.webview_id)
+            .cloned()
+        });
+        if let Some(webview) = webview {
+          if let Err(error) = webview.zoom(scale_factor) {
+            log::error!("failed to set webview zoom: {error}");
+          }
+        }
+        Ok(())
+      } else {
+        self.context.send_user_message(Message::Webview(
+          *self.window_id.lock().unwrap(),
+          self.webview_id,
+          WebviewMessage::SetZoom(scale_factor),
+        ))
+      }
+    })
   }
 
   fn clear_all_browsing_data(&self) -> Result<()> {

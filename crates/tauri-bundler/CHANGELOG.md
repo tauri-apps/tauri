@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.10.5]
+
+### Bug Fixes
+
+- [`8d3efdeea`](https://www.github.com/tauri-apps/tauri/commit/8d3efdeea5b4221301a4fc5e2d4ab969abe8aa7f) ([#16060](https://www.github.com/tauri-apps/tauri/pull/16060) by [@Raaif-Yousuf](https://www.github.com/tauri-apps/tauri/../../Raaif-Yousuf)) Fix NSIS and MSI bundling failing with `Unable to start child process, error 0x2` when running as the Windows `SYSTEM` account, for example on a CI runner installed as a service. When the cache directory is inside `C:\Windows\System32`, where WOW64 file system redirection hides the downloaded tools from the 32-bit NSIS and WiX executables, the bundler now stores them in the project output directory instead. If the tools directory would still be inside `System32`, for example because the project is, bundling now fails early with an error that explains why.
+- [`06cc1ac43`](https://www.github.com/tauri-apps/tauri/commit/06cc1ac43ae095cb40af440ee751e8dd81ec663e) ([#16362](https://www.github.com/tauri-apps/tauri/pull/16362) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix NSIS builds using the Persian translation by using the correct language name, `Farsi`. `Persian` is still accepted as a deprecated alias.
+- [`37b3be665`](https://www.github.com/tauri-apps/tauri/commit/37b3be66513ac613b521baf792b6afc94b38bc8d) ([#16361](https://www.github.com/tauri-apps/tauri/pull/16361) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Include the Hebrew language file in the NSIS installer. It was never bundled and Hebrew installers showed blank text.
+- [`7e39750cf`](https://www.github.com/tauri-apps/tauri/commit/7e39750cf6a4e05234a781088ff5fb8cb890370a) Update the CLI's locked Zstandard dependencies to address RUSTSEC-2026-0391 and RUSTSEC-2026-0395 through RUSTSEC-2026-0406, plus RUSTSEC-2026-0410.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.3`
+
 ## [2.10.4]
 
 ### Bug Fixes

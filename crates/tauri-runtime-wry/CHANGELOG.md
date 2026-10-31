@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.12.4]
+
+### Bug Fixes
+
+- [`ba1e205f3`](https://www.github.com/tauri-apps/tauri/commit/ba1e205f3bfba19a9cbe6032bb4ece3068429d04) ([#16368](https://www.github.com/tauri-apps/tauri/pull/16368) by [@masonliiu](https://www.github.com/tauri-apps/tauri/../../masonliiu)) Fix a Linux session crash where every touch event near the border of an undecorated window started another resize drag. A resize drag now only starts on touch begin.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.3`
+- Upgraded to `tauri-runtime@2.12.3`
+
 ## [2.12.3]
 
 ### Bug Fixes

@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.12.5]
+
+### Bug Fixes
+
+- [`8d3efdeea`](https://www.github.com/tauri-apps/tauri/commit/8d3efdeea5b4221301a4fc5e2d4ab969abe8aa7f) ([#16060](https://www.github.com/tauri-apps/tauri/pull/16060) by [@Raaif-Yousuf](https://www.github.com/tauri-apps/tauri/../../Raaif-Yousuf)) Fix NSIS and MSI bundling failing with `Unable to start child process, error 0x2` when running as the Windows `SYSTEM` account, for example on a CI runner installed as a service. When the cache directory is inside `C:\Windows\System32`, where WOW64 file system redirection hides the downloaded tools from the 32-bit NSIS and WiX executables, the bundler now stores them in the project output directory instead. If the tools directory would still be inside `System32`, for example because the project is, bundling now fails early with an error that explains why.
+- [`31f29e197`](https://www.github.com/tauri-apps/tauri/commit/31f29e197e7ac18797dbb9270fe658c1ca1010c8) ([#16436](https://www.github.com/tauri-apps/tauri/pull/16436) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Fix the builtin dev server serving `index.html` instead of files whose names contain spaces or non-ASCII characters, such as `my font.woff2`.
+- [`71b668096`](https://www.github.com/tauri-apps/tauri/commit/71b668096ee12ff871d7bb4edd27486c58454549) ([#14712](https://www.github.com/tauri-apps/tauri/pull/14712) by [@onebytegone](https://www.github.com/tauri-apps/tauri/../../onebytegone)) Fix iOS export failing with "Couldn't load -exportOptionsPlist" error when running `tauri ios run`.
+- [`9a010f444`](https://www.github.com/tauri-apps/tauri/commit/9a010f4444f876abd787b817d6973e5756834721) ([#15773](https://www.github.com/tauri-apps/tauri/pull/15773) by [@yingyanzhitong](https://www.github.com/tauri-apps/tauri/../../yingyanzhitong)) Read manual iOS signing certificates and provisioning profiles from the Xcode project when generating export options, without overriding the values configured in `ExportOptions.plist`. Provisioning profiles from `ExportOptions.plist` (such as the ones for app extensions) are now kept when merging.
+- [`7e39750cf`](https://www.github.com/tauri-apps/tauri/commit/7e39750cf6a4e05234a781088ff5fb8cb890370a) Update the CLI's locked Zstandard dependencies to address RUSTSEC-2026-0391 and RUSTSEC-2026-0395 through RUSTSEC-2026-0406, plus RUSTSEC-2026-0410.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.10.5`
+- Upgraded to `tauri-utils@2.10.3`
+
 ## [2.12.4]
 
 ### Bug Fixes

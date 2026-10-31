@@ -365,6 +365,7 @@ pub struct WebviewAttributes {
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
   pub browser_extensions_enabled: bool,
+  pub browser_accelerator_keys: bool,
   pub extensions_path: Option<PathBuf>,
   pub data_store_identifier: Option<[u8; 16]>,
   pub use_https_scheme: bool,
@@ -460,6 +461,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       .zoom_hotkeys_enabled(config.zoom_hotkeys_enabled)
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
+      .browser_accelerator_keys(config.browser_accelerator_keys)
       .background_throttling(config.background_throttling.clone())
       .devtools(config.devtools)
       .transparent(config.transparent)
@@ -531,6 +533,7 @@ impl WebviewAttributes {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      browser_accelerator_keys: true,
       data_store_identifier: None,
       extensions_path: None,
       use_https_scheme: false,
@@ -726,6 +729,20 @@ impl WebviewAttributes {
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.browser_extensions_enabled = enabled;
+    self
+  }
+
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn browser_accelerator_keys(mut self, enabled: bool) -> Self {
+    self.browser_accelerator_keys = enabled;
     self
   }
 

@@ -2205,6 +2205,16 @@ pub struct WindowConfig {
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
   #[serde(default, alias = "browser-extensions-enabled")]
   pub browser_extensions_enabled: bool,
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[serde(default = "default_true", alias = "browser-accelerator-keys")]
+  pub browser_accelerator_keys: bool,
 
   /// Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
   ///
@@ -2451,6 +2461,7 @@ impl Default for WindowConfig {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      browser_accelerator_keys: true,
       use_https_scheme: false,
       devtools: None,
       background_color: None,
@@ -4404,6 +4415,7 @@ mod build {
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let browser_extensions_enabled = self.browser_extensions_enabled;
+      let browser_accelerator_keys = self.browser_accelerator_keys;
       let use_https_scheme = self.use_https_scheme;
       let devtools = opt_lit(self.devtools.as_ref());
       let background_color = opt_lit(self.background_color.as_ref());
@@ -4471,6 +4483,7 @@ mod build {
         parent,
         zoom_hotkeys_enabled,
         browser_extensions_enabled,
+        browser_accelerator_keys,
         use_https_scheme,
         devtools,
         background_color,

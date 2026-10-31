@@ -224,6 +224,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_icon_templated", true),
       ("set_native_icon", true),
       ("set_show_menu_on_left_click", true),
+      ("set_show_menu_on_right_click", true),
+      ("show_menu", true),
       // TODO: Remove in v3
       ("set_icon_as_template", true),
       ("set_icon_with_as_template", true),

@@ -228,8 +228,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.0.2(jiti@2.6.1)(supports-color@10.2.2))
       '@rollup/plugin-terser':
-        specifier: 1.0.0
-        version: 1.0.0(rollup@4.64.10)
+        specifier: 1.0.2
+        version: 1.0.2(rollup@4.64.10)
       '@rollup/plugin-typescript':
         specifier: 12.3.0
         version: 12.3.0(rollup@4.64.10)(tslib@2.8.1)(typescript@6.0.3)
@@ -1911,8 +1911,8 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@rollup/plugin-terser@1.0.0':
-    resolution: {integrity: sha512-FnCxhTBx6bMOYQrar6C8h3scPt8/JwIzw3+AJ2K++6guogH5fYaIFia+zZuhqv0eo1RN7W1Pz630SyvLbDjhtQ==}
+  '@rollup/plugin-terser@1.0.2':
+    resolution: {integrity: sha512-+UihHnuLnQDQ/9wog7ym+7oawCXkjTIo0WwkK7s//0mkktTN0VhYk6fGVxH+NtGzW064w5RCGgreMDxRVhHCzw==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       rollup: ^2.0.0||^3.0.0||^4.0.0
@@ -4568,6 +4568,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  terser@5.51.2:
+    resolution: {integrity: sha512-bWnjSNscmuI+GJze6ZupnHP8G/cTcsJF+bXCeQknk2SHQsgbNJnLrqiH9jZ2W4STPVXH2mDKKRX3iwPhc9Cn/Q==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   text-decoder@1.2.7:
     resolution: {integrity: sha512-vlLytXkeP4xvEq2otHeJfSQIRyWxo/oZGEbXrtEEF9Hnmrdly59sUbzZ/QgyWuLYHctCHxFF4tRQZNQ9k60ExQ==}
 
@@ -6335,11 +6340,11 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@rollup/plugin-terser@1.0.0(rollup@4.64.10)':
+  '@rollup/plugin-terser@1.0.2(rollup@4.64.10)':
     dependencies:
       serialize-javascript: 7.1.4
       smob: 1.6.2
-      terser: 5.46.0
+      terser: 5.51.2
     optionalDependencies:
       rollup: 4.64.10
 
@@ -9367,6 +9372,14 @@ snapshots:
       - react-native-b4a
 
   terser@5.46.0:
+    dependencies:
+      '@jridgewell/source-map': 0.3.11
+      acorn: 8.16.0
+      commander: 2.20.3
+      source-map-support: 0.5.21
+    optional: true
+
+  terser@5.51.2:
     dependencies:
       '@jridgewell/source-map': 0.3.11
       acorn: 8.16.0

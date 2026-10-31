@@ -534,8 +534,15 @@ impl<R: Runtime> AppManager<R> {
     };
 
     let listeners = self.listeners();
+    // don't hold the webviews lock while evaluating, `eval` can wait on the main thread
+    let webviews = self
+      .webview
+      .webviews_lock()
+      .values()
+      .cloned()
+      .collect::<Vec<_>>();
 
-    listeners.emit_js(self.webview.webviews_lock().values(), &emit_args)?;
+    listeners.emit_js(webviews.iter(), &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())
@@ -563,12 +570,15 @@ impl<R: Runtime> AppManager<R> {
     };
 
     let listeners = self.listeners();
+    // don't hold the webviews lock while evaluating, `eval` can wait on the main thread
+    let webviews = self
+      .webview
+      .webviews_lock()
+      .values()
+      .cloned()
+      .collect::<Vec<_>>();
 
-    listeners.emit_js_filter(
-      self.webview.webviews_lock().values(),
-      &emit_args,
-      Some(&filter),
-    )?;
+    listeners.emit_js_filter(webviews.iter(), &emit_args, Some(&filter))?;
 
     listeners.emit_filter(emit_args, Some(filter))?;
 

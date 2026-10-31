@@ -10661,8 +10661,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 [[package]]
 name = "wry"
 version = "0.57.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a819957a01b3119af85e638a38d242af76dbc87d130dca67bfd0441072e21ff0"
+source = "git+https://github.com/VityaSchel/wry/?branch=feat%2Fandroid-custom-protocol-host#f700192cada693e55ae0736105e0a3e6549026b4"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.2",
@@ -10685,7 +10684,6 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-ui-kit",
  "objc2-web-kit",
- "once_cell",
  "percent-encoding",
  "raw-window-handle",
  "sha2 0.10.8",

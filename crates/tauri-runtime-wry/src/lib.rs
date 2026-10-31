@@ -4758,6 +4758,12 @@ You may have it installed on another user account, but it is not available for t
     webview_builder = webview_builder.with_https_scheme(webview_attributes.use_https_scheme);
   }
 
+  #[cfg(target_os = "android")]
+  if let Some(hostname) = webview_attributes.android_tauri_protocol_hostname {
+    webview_builder =
+      webview_builder.with_custom_protocol_host("tauri".into(), hostname.to_string());
+  }
+
   if let Some(background_throttling) = webview_attributes.background_throttling {
     webview_builder = webview_builder.with_background_throttling(match background_throttling {
       tauri_utils::config::BackgroundThrottlingPolicy::Disabled => {

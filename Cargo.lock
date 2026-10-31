@@ -8386,6 +8386,7 @@ dependencies = [
  "heck 0.5.0",
  "hex",
  "image",
+ "include_dir",
  "log",
  "md5",
  "native-tls",

@@ -4830,6 +4830,11 @@ You may have it installed on another user account, but it is not available for t
     #[cfg(desktop)]
     let context = context.clone();
     webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
+      let url = if url.is_empty() {
+        "about:blank"
+      } else {
+        url.as_str()
+      };
       let Ok(url) = url.parse() else {
         return wry::NewWindowResponse::Deny;
       };

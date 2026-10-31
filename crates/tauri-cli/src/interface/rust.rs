@@ -1350,12 +1350,6 @@ fn tauri_config_to_bundle_settings(
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
-  let enabled_features = settings
-    .manifest
-    .lock()
-    .unwrap()
-    .all_enabled_features(features);
-
   #[allow(unused_mut)]
   let mut resources = config
     .resources
@@ -1374,6 +1368,11 @@ fn tauri_config_to_bundle_settings(
   {
     let mut libs: Vec<String> = Vec::new();
 
+    let enabled_features = settings
+      .manifest
+      .lock()
+      .unwrap()
+      .all_enabled_features(features, &settings.target_triple)?;
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {

@@ -410,6 +410,11 @@ pub struct WebviewAttributes {
   pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
   #[cfg(target_os = "ios")]
   pub limit_navigations_to_app_bound_domains: bool,
+  /// The name of the Android activity hosting the webview when it is added to a window that already hosts one.
+  ///
+  /// See [`Self::activity_name`].
+  #[cfg(target_os = "android")]
+  pub activity_name: Option<String>,
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
@@ -500,6 +505,8 @@ impl From<&WindowConfig> for WebviewAttributes {
     }
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
+    #[cfg(target_os = "android")]
+    builder.activity_name.clone_from(&config.activity_name);
     #[cfg(target_os = "ios")]
     if config.disable_input_accessory_view {
       builder
@@ -546,6 +553,8 @@ impl WebviewAttributes {
       input_accessory_view_builder: None,
       #[cfg(target_os = "ios")]
       limit_navigations_to_app_bound_domains: false,
+      #[cfg(target_os = "android")]
+      activity_name: None,
       #[cfg(windows)]
       environment: None,
       #[cfg(any(
@@ -916,6 +925,20 @@ impl WebviewAttributes {
   #[must_use]
   pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
     self.general_autofill_enabled = enabled;
+    self
+  }
+
+  /// The name of the Android activity class that hosts the webview when it is added to a window
+  /// that already hosts one.
+  ///
+  /// The activity is started in the window's task, on top of the window's activity, and
+  /// [activity embedding](https://developer.android.com/develop/ui/views/layout/activity-embedding)
+  /// rules can show the two side by side on large screens.
+  /// It must be declared in `AndroidManifest.xml` with a launch mode that allows that, such as `standard`.
+  #[cfg(target_os = "android")]
+  #[must_use]
+  pub fn activity_name(mut self, activity_name: impl Into<String>) -> Self {
+    self.activity_name = Some(activity_name.into());
     self
   }
 }

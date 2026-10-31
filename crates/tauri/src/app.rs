@@ -202,12 +202,22 @@ impl From<RuntimeWindowEvent> for WindowEvent {
 pub enum WebviewEvent {
   /// An event associated with the drag and drop action.
   DragDrop(DragDropEvent),
+  /// The webview has been destroyed by the system, and removed from the app.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: emitted when the activity hosting a webview that was added to a window
+  ///   (see `WebviewBuilder::activity_name`) is closed,
+  ///   for instance with the back button.
+  /// - **Linux / macOS / Windows / iOS**: Unsupported.
+  Destroyed,
 }
 
 impl From<RuntimeWebviewEvent> for WebviewEvent {
   fn from(event: RuntimeWebviewEvent) -> Self {
     match event {
       RuntimeWebviewEvent::DragDrop(e) => Self::DragDrop(e),
+      RuntimeWebviewEvent::Destroyed => Self::Destroyed,
     }
   }
 }
@@ -1149,37 +1159,11 @@ macro_rules! shared_app_impl {
       }
 
       /// Whether the application supports multiple windows.
-      #[cfg(desktop)]
+      ///
+      /// On Android each window is a separate task, which the system shows as a separate window.
+      #[cfg(any(desktop, target_os = "android"))]
       pub fn supports_multiple_windows(&self) -> bool {
         true
-      }
-
-      /// Whether the application supports multiple windows.
-      #[cfg(target_os = "android")]
-      pub fn supports_multiple_windows(&self) -> bool {
-        let runtime_handle = match self.runtime() {
-          RuntimeOrDispatch::Runtime(runtime) => runtime.handle(),
-          RuntimeOrDispatch::RuntimeHandle(handle) => handle,
-          _ => unreachable!(),
-        };
-
-        let (tx, rx) = std::sync::mpsc::channel();
-
-        runtime_handle.run_on_android_context(move |env, _activity, _webview| {
-          let supports = (|| {
-            let version_class = env.find_class("android/os/Build$VERSION")?;
-            let sdk = env
-              .get_static_field(version_class, "SDK_INT", "I")?
-              .i()
-              .unwrap_or_default();
-            crate::Result::Ok(sdk >= 32)
-          })()
-          .unwrap_or(false);
-
-          let _ = tx.send(supports);
-        });
-
-        rx.recv().unwrap_or(false)
       }
     }
 

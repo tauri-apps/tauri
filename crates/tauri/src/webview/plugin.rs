@@ -39,16 +39,13 @@ async fn create_webview_window<R: Runtime>(
   Ok(())
 }
 
-#[cfg(desktop)]
-mod desktop_commands {
+/// Commands to add webviews to a window, available where the multiwebview API is.
+#[cfg(any(desktop, target_os = "android"))]
+mod multiwebview_commands {
   use super::*;
-  use crate::{
-    Webview, command,
-    runtime::dpi::{Position, Size},
-    utils::config::Color,
-  };
+  use crate::{Webview, command};
 
-  fn get_webview<R: Runtime>(
+  pub(super) fn get_webview<R: Runtime>(
     webview: Webview<R>,
     label: Option<String>,
   ) -> crate::Result<Webview<R>> {
@@ -60,6 +57,60 @@ mod desktop_commands {
       _ => Ok(webview),
     }
   }
+
+  #[command(root = "crate")]
+  pub async fn webview_close<R: Runtime>(
+    webview: Webview<R>,
+    label: Option<String>,
+  ) -> crate::Result<()> {
+    get_webview(webview, label)?.close()
+  }
+
+  #[cfg(not(feature = "unstable"))]
+  #[command(root = "crate")]
+  pub async fn create_webview() -> crate::Result<()> {
+    Err(crate::Error::UnstableFeatureNotSupported)
+  }
+
+  #[cfg(feature = "unstable")]
+  #[command(root = "crate")]
+  pub async fn create_webview<R: Runtime>(
+    app: crate::AppHandle<R>,
+    window_label: String,
+    options: WindowConfig,
+  ) -> crate::Result<()> {
+    use anyhow::Context;
+
+    let window = app
+      .manager()
+      .get_window(&window_label)
+      .ok_or(crate::Error::WindowNotFound)?;
+
+    let x = options.x.context("missing parameter `options.x`")?;
+    let y = options.y.context("missing parameter `options.y`")?;
+    let width = options.width;
+    let height = options.height;
+
+    let builder = crate::webview::WebviewBuilder::from_config(&options);
+
+    window.add_child(
+      builder,
+      tauri_runtime::dpi::LogicalPosition::new(x, y),
+      tauri_runtime::dpi::LogicalSize::new(width, height),
+    )?;
+
+    Ok(())
+  }
+}
+
+#[cfg(desktop)]
+mod desktop_commands {
+  use super::{multiwebview_commands::get_webview, *};
+  use crate::{
+    Webview, command,
+    runtime::dpi::{Position, Size},
+    utils::config::Color,
+  };
 
   macro_rules! getter {
     ($cmd: ident, $ret: ty) => {
@@ -111,7 +162,6 @@ mod desktop_commands {
   //getter!(is_focused, bool);
 
   setter!(print);
-  setter!(webview_close, close);
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
@@ -125,42 +175,6 @@ mod desktop_commands {
     Option<Color>
   );
   setter!(clear_all_browsing_data, clear_all_browsing_data);
-
-  #[cfg(not(feature = "unstable"))]
-  #[command(root = "crate")]
-  pub async fn create_webview() -> crate::Result<()> {
-    Err(crate::Error::UnstableFeatureNotSupported)
-  }
-
-  #[cfg(feature = "unstable")]
-  #[command(root = "crate")]
-  pub async fn create_webview<R: Runtime>(
-    app: crate::AppHandle<R>,
-    window_label: String,
-    options: WindowConfig,
-  ) -> crate::Result<()> {
-    use anyhow::Context;
-
-    let window = app
-      .manager()
-      .get_window(&window_label)
-      .ok_or(crate::Error::WindowNotFound)?;
-
-    let x = options.x.context("missing parameter `options.x`")?;
-    let y = options.y.context("missing parameter `options.y`")?;
-    let width = options.width;
-    let height = options.height;
-
-    let builder = crate::webview::WebviewBuilder::from_config(&options);
-
-    window.add_child(
-      builder,
-      tauri_runtime::dpi::LogicalPosition::new(x, y),
-      tauri_runtime::dpi::LogicalSize::new(width, height),
-    )?;
-
-    Ok(())
-  }
 
   #[command(root = "crate")]
   pub async fn reparent<R: Runtime>(
@@ -231,12 +245,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #![plugin(webview)]
       create_webview_window,
       get_all_webviews,
-      #[cfg(desktop)] desktop_commands::create_webview,
+      #[cfg(any(desktop, target_os = "android"))] multiwebview_commands::create_webview,
       // getters
       #[cfg(desktop)] desktop_commands::webview_position,
       #[cfg(desktop)] desktop_commands::webview_size,
       // setters
-      #[cfg(desktop)] desktop_commands::webview_close,
+      #[cfg(any(desktop, target_os = "android"))] multiwebview_commands::webview_close,
       #[cfg(desktop)] desktop_commands::set_webview_size,
       #[cfg(desktop)] desktop_commands::set_webview_position,
       #[cfg(desktop)] desktop_commands::set_webview_focus,

@@ -34,6 +34,8 @@ pub use {
   },
 };
 
+#[cfg(target_os = "linux")]
+pub use linux::{gst_plugin, tools_directory};
 #[cfg(windows)]
 pub use windows::vswhere_path;
 

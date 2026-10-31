@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.10.3]
+
+### Performance Improvements
+
+- [`0e5809589`](https://www.github.com/tauri-apps/tauri/commit/0e5809589026982976e49718c9a34c68680df0c3) ([#16402](https://www.github.com/tauri-apps/tauri/pull/16402) by [@johncarmack1984](https://www.github.com/tauri-apps/tauri/../../johncarmack1984)) Mark `config::parse::parse_json` and `parse_json5` `#[inline]` so crates that don't call them no longer generate code for the `Config` deserializer.
+
 ## [2.10.2]
 
 ### Bug Fixes

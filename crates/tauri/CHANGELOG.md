@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.12.6]
+
+### Bug Fixes
+
+- [`ba1e205f3`](https://www.github.com/tauri-apps/tauri/commit/ba1e205f3bfba19a9cbe6032bb4ece3068429d04) ([#16368](https://www.github.com/tauri-apps/tauri/pull/16368) by [@masonliiu](https://www.github.com/tauri-apps/tauri/../../masonliiu)) Fix a Linux session crash where every touch event near the border of an undecorated window started another resize drag. A resize drag now only starts on touch begin.
+- [`ab1875e19`](https://www.github.com/tauri-apps/tauri/commit/ab1875e194d5a48055f580775b66e683b1ecffe5) ([#16376](https://www.github.com/tauri-apps/tauri/pull/16376) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Preserve the original URL path without percent decoding them when proxying them on mobile dev
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.12.4`
+- Upgraded to `tauri-utils@2.10.3`
+- Upgraded to `tauri-runtime@2.12.3`
+- Upgraded to `tauri-macros@2.7.5`
+- Upgraded to `tauri-build@2.7.5`
+
 ## [2.12.5]
 
 ### Bug Fixes

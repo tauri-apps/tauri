@@ -584,6 +584,66 @@ impl<R: Runtime> InvokeMessage<R> {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CallbackFn(pub u32);
 
+/// Metadata about a command defined with `#[tauri::command]`.
+///
+/// This can be used by frameworks built on Tauri to introspect the registered commands.
+/// Use [`command_metadata!`](crate::command_metadata) to get it.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
+pub struct CommandMetadata {
+  /// The name of the command, after `#[tauri::command(rename = "...")]`.
+  ///
+  /// Commands registered in a plugin's invoke handler are invoked as `plugin:<plugin-name>|<name>`,
+  /// but the plugin is only known where the command is registered so it is not included here.
+  pub name: &'static str,
+  /// The Rust-doc comments for the command.
+  pub docs: &'static str,
+  /// Whether the command has a deprecated attribute.
+  pub deprecated: Option<CommandMetadataDeprecated>,
+  /// The keys used to deserialize each argument of the command function, in declaration order
+  /// and after `rename_all`. Wildcard (`_`) arguments have an empty key.
+  ///
+  /// Every argument is listed, including the ones Tauri injects instead of reading them from the
+  /// invoke payload (e.g. [`State`](crate::State), [`AppHandle`](crate::AppHandle),
+  /// [`Window`](crate::Window) or [`Request`](crate::ipc::Request)), so the positions match the
+  /// function signature. Filter them by type to get the keys the frontend must pass.
+  pub arguments: &'static [&'static str],
+}
+
+impl CommandMetadata {
+  #[doc(hidden)]
+  pub const fn __new(
+    name: &'static str,
+    docs: &'static str,
+    deprecated: Option<CommandMetadataDeprecated>,
+    arguments: &'static [&'static str],
+  ) -> Self {
+    Self {
+      name,
+      docs,
+      deprecated,
+      arguments,
+    }
+  }
+}
+
+/// Represents the Rust `#[deprecated]` attribute on a command.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
+pub struct CommandMetadataDeprecated {
+  /// Deprecation note for the developer.
+  pub note: Option<&'static str>,
+  /// Rust version where the item became deprecated.
+  pub since: Option<&'static str>,
+}
+
+impl CommandMetadataDeprecated {
+  #[doc(hidden)]
+  pub const fn __new(note: Option<&'static str>, since: Option<&'static str>) -> Self {
+    Self { note, since }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -602,5 +662,59 @@ mod tests {
     let values = vec![1, 2, 3, 4, 5, 6, 1];
     let raw = InvokeResponseBody::Raw(values.clone());
     assert_eq!(raw.deserialize::<Vec<u8>>().unwrap(), values);
+  }
+
+  /// Greets someone.
+  ///
+  ///   Indented paragraph.
+  #[crate::command(root = "crate")]
+  #[doc = concat!("From ", "a macro.")]
+  #[allow(dead_code)]
+  fn greet(_app: crate::AppHandle<crate::test::MockRuntime>, user_name: String, _: u32) -> String {
+    user_name
+  }
+
+  #[crate::command(root = "crate", rename = "custom_name", rename_all = "snake_case")]
+  #[deprecated(since = "1.2.0", note = "use greet")]
+  #[allow(dead_code, non_snake_case)]
+  fn old_cmd(someArg: String) {
+    let _ = someArg;
+  }
+
+  #[deprecated = "plain note"]
+  #[crate::command(root = "crate")]
+  #[allow(dead_code)]
+  async fn async_cmd() {}
+
+  #[test]
+  #[allow(deprecated)]
+  fn command_metadata() {
+    let greet = crate::command_metadata!(greet);
+    assert_eq!(greet.name, "greet");
+    assert_eq!(
+      greet.docs,
+      "Greets someone.\n\n  Indented paragraph.\nFrom a macro."
+    );
+    assert_eq!(greet.deprecated, None);
+    assert_eq!(greet.arguments, &["app", "userName", ""]);
+
+    let old_cmd = crate::command_metadata!(old_cmd);
+    assert_eq!(old_cmd.name, "custom_name");
+    assert_eq!(old_cmd.docs, "");
+    assert_eq!(
+      old_cmd.deprecated,
+      Some(CommandMetadataDeprecated::__new(
+        Some("use greet"),
+        Some("1.2.0")
+      ))
+    );
+    assert_eq!(old_cmd.arguments, &["some_arg"]);
+
+    let async_cmd = crate::command_metadata!(async_cmd);
+    assert_eq!(
+      async_cmd.deprecated,
+      Some(CommandMetadataDeprecated::__new(Some("plain note"), None))
+    );
+    assert!(async_cmd.arguments.is_empty());
   }
 }

@@ -1,0 +1,6 @@
+---
+"tauri-cli": patch:bug
+"@tauri-apps/cli": patch:bug
+---
+
+Fix the builtin dev server serving `index.html` instead of files whose names contain spaces or non-ASCII characters, such as `my font.woff2`.

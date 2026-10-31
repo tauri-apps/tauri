@@ -82,6 +82,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-node@v6
+        if: matrix.platform.target == 'x86_64-unknown-linux-gnu' && matrix.features.key == 'all'
+        with:
+          node-version: 22
+
+      - name: test zoom shortcut script
+        if: matrix.platform.target == 'x86_64-unknown-linux-gnu' && matrix.features.key == 'all'
+        run: node --test crates/tauri/src/webview/scripts/zoom-hotkey.test.cjs
+
       - name: install Rust
         uses: dtolnay/rust-toolchain@master
         with:

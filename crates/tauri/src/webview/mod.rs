@@ -1433,6 +1433,8 @@ pub struct Webview<R: Runtime> {
   pub(crate) manager: Arc<AppManager<R>>,
   pub(crate) app_handle: AppHandle<R>,
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
+  // Shared across handles and document reloads; serializes absolute and relative setters.
+  zoom_level: Arc<Mutex<f64>>,
   use_https_scheme: bool,
 }
 
@@ -1454,6 +1456,7 @@ impl<R: Runtime> Clone for Webview<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       resources_table: self.resources_table.clone(),
+      zoom_level: self.zoom_level.clone(),
       use_https_scheme: self.use_https_scheme,
     }
   }
@@ -1499,6 +1502,7 @@ impl<R: Runtime> Webview<R> {
       window: Arc::new(Mutex::new(window)),
       webview,
       resources_table: Default::default(),
+      zoom_level: Arc::new(Mutex::new(1.)),
       use_https_scheme,
     }
   }
@@ -2352,11 +2356,26 @@ tauri::Builder::default()
   /// - **macOS**: available on macOS 11+ only.
   /// - **iOS**: available on iOS 14+ only.
   pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
-    self
-      .webview
-      .dispatcher
-      .set_zoom(scale_factor)
-      .map_err(Into::into)
+    self.update_zoom(move |_| scale_factor)
+  }
+
+  #[cfg(desktop)]
+  fn zoom_by(&self, delta: f64) -> crate::Result<()> {
+    self.update_zoom(move |level| (level + delta).clamp(0.2, 10.))
+  }
+
+  fn update_zoom(&self, update: impl FnOnce(f64) -> f64 + Send + 'static) -> crate::Result<()> {
+    let webview = self.clone();
+    // Read/update the state where the native setter executes. Merely locking around
+    // dispatch can let a queued worker setter overwrite a newer main-thread setter.
+    self.run_on_main_thread(move || {
+      let mut zoom_level = webview.zoom_level.lock().unwrap();
+      let scale_factor = update(*zoom_level);
+      match webview.webview.dispatcher.set_zoom(scale_factor) {
+        Ok(()) => *zoom_level = scale_factor,
+        Err(error) => log::error!("failed to set webview zoom: {error}"),
+      }
+    })
   }
 
   /// Specify the webview background color.
@@ -2652,6 +2671,87 @@ mod tests {
     crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
       .build()
       .unwrap()
+  }
+
+  #[cfg(desktop)]
+  #[test]
+  fn zoom_shortcuts_share_programmatic_zoom_across_handles() {
+    let window = test_webview_window();
+    let webview = window.as_ref();
+    webview.set_zoom(1.4).unwrap();
+    // A reloaded document invokes the command on another handle of the same webview.
+    let reloaded = webview.clone();
+    reloaded.zoom_by(0.2).unwrap();
+    assert!((*webview.zoom_level.lock().unwrap() - 1.6).abs() < 1e-10);
+    reloaded.zoom_by(-0.2).unwrap();
+    assert!((*webview.zoom_level.lock().unwrap() - 1.4).abs() < 1e-10);
+    webview.set_zoom(1.).unwrap();
+    reloaded.zoom_by(0.2).unwrap();
+    assert!((*webview.zoom_level.lock().unwrap() - 1.2).abs() < 1e-10);
+  }
+
+  #[cfg(desktop)]
+  #[test]
+  fn zoom_shortcuts_clamp_without_changing_absolute_setters() {
+    let window = test_webview_window();
+    let webview = window.as_ref();
+    webview.set_zoom(12.).unwrap();
+    assert_eq!(*webview.zoom_level.lock().unwrap(), 12.);
+    webview.zoom_by(0.2).unwrap();
+    assert_eq!(*webview.zoom_level.lock().unwrap(), 10.);
+    webview.set_zoom(0.1).unwrap();
+    webview.zoom_by(-0.2).unwrap();
+    assert_eq!(*webview.zoom_level.lock().unwrap(), 0.2);
+  }
+
+  #[cfg(desktop)]
+  #[test]
+  fn zoom_state_is_per_webview_and_serializes_concurrent_changes() {
+    let window = test_webview_window();
+    let webview = window.as_ref();
+    let other = test_webview_window();
+    std::thread::scope(|scope| {
+      for _ in 0..10 {
+        scope.spawn(|| webview.zoom_by(0.2).unwrap());
+      }
+    });
+    assert!((*webview.zoom_level.lock().unwrap() - 3.).abs() < 1e-10);
+    assert_eq!(*other.as_ref().zoom_level.lock().unwrap(), 1.);
+  }
+
+  #[cfg(desktop)]
+  #[test]
+  fn zoom_state_follows_main_thread_execution_order() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let window = crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
+      .build()
+      .unwrap();
+    app.run(move |_, event| {
+      if matches!(event, crate::RunEvent::Ready) {
+        let worker = window.as_ref().clone();
+        std::thread::spawn(move || worker.set_zoom(2.).unwrap())
+          .join()
+          .unwrap();
+        // Main-thread dispatch executes inline, before the worker's queued setter.
+        window.set_zoom(3.).unwrap();
+        let check = window.clone();
+        std::thread::spawn(move || {
+          let webview = check.as_ref().clone();
+          check
+            .run_on_main_thread(move || {
+              assert_eq!(*webview.zoom_level.lock().unwrap(), 2.);
+              webview.zoom_by(0.2).unwrap();
+              assert_eq!(*webview.zoom_level.lock().unwrap(), 2.2);
+              webview.window().close().unwrap();
+            })
+            .unwrap();
+        })
+        .join()
+        .unwrap();
+      }
+    });
   }
 
   #[test]

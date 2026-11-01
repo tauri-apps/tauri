@@ -25,7 +25,7 @@ use crate::{
   ipc::InvokeHandler,
   pattern::PatternJavascript,
   sealed::ManagerBase,
-  webview::PageLoadPayload,
+  webview::{PageLoadEvent, PageLoadPayload},
 };
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -293,6 +293,11 @@ impl<R: Runtime> WebviewManager<R> {
       .on_page_load_handler
       .replace(Box::new(move |url, event| {
         let payload = PageLoadPayload { url: &url, event };
+
+        // events emitted for the previous page must not reach the new one
+        if matches!(event, PageLoadEvent::Started) {
+          app_manager_.listeners().clear_js_events(&label);
+        }
 
         if let Some(w) = app_manager_.get_webview(&label) {
           if let Some(on_page_load) = &app_manager_.webview.on_page_load {

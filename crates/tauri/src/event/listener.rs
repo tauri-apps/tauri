@@ -57,11 +57,26 @@ impl JsHandler {
 
 type WebviewLabel = String;
 
+/// An event waiting to be fetched by the JavaScript side of a webview.
+struct QueuedJsEvent {
+  emit_args: EmitArgs,
+  ids: Vec<EventId>,
+}
+
+/// Events emitted to one webview that its JavaScript side has not fetched yet.
+#[derive(Default)]
+struct WebviewJsEventQueue {
+  /// The webview was told to fetch the queue and has not done so yet.
+  notified: bool,
+  events: Vec<QueuedJsEvent>,
+}
+
 /// Holds event handlers and pending event handlers, along with the salts associating them.
 struct InnerListeners {
   pending: Mutex<Vec<Pending>>,
   handlers: Mutex<HashMap<crate::EventName, HashMap<EventId, Handler>>>,
   js_event_listeners: Mutex<HashMap<WebviewLabel, HashMap<crate::EventName, HashSet<JsHandler>>>>,
+  js_event_queues: Mutex<HashMap<WebviewLabel, WebviewJsEventQueue>>,
   function_name: &'static str,
   listeners_object_name: &'static str,
   next_event_id: Arc<AtomicU32>,
@@ -80,6 +95,7 @@ impl Default for Listeners {
         pending: Mutex::default(),
         handlers: Mutex::default(),
         js_event_listeners: Mutex::default(),
+        js_event_queues: Mutex::default(),
         function_name: "__internal_unstable_listeners_function_id__",
         listeners_object_name: "__internal_unstable_listeners_object_id__",
         next_event_id: Default::default(),
@@ -279,8 +295,62 @@ impl Listeners {
       .remove(webview_label);
   }
 
+  /// Queues an event for the JavaScript side of the given webview.
+  ///
+  /// Returns `true` if the webview must be notified to fetch the queue, which is only the case for the
+  /// first event queued since the last fetch. Notifying with the same script for a whole batch of events
+  /// keeps the evaluated script text constant, instead of evaluating (and having the webview keep) a new
+  /// script that embeds the payload for every single event.
+  pub(crate) fn queue_js_event(&self, label: &str, emit_args: &EmitArgs, ids: &[EventId]) -> bool {
+    let mut queues = self.inner.js_event_queues.lock().unwrap();
+    let queue = queues.entry(label.to_string()).or_default();
+    queue.events.push(QueuedJsEvent {
+      emit_args: emit_args.clone(),
+      ids: ids.to_vec(),
+    });
+    !std::mem::replace(&mut queue.notified, true)
+  }
+
+  /// Takes the events queued for the given webview as a JSON array, in emit order.
+  ///
+  /// The next queued event notifies the webview again.
+  pub(crate) fn take_js_events(&self, label: &str) -> String {
+    let events = {
+      let mut queues = self.inner.js_event_queues.lock().unwrap();
+      match queues.get_mut(label) {
+        Some(queue) => {
+          queue.notified = false;
+          std::mem::take(&mut queue.events)
+        }
+        None => Vec::new(),
+      }
+    };
+
+    let mut json = String::from("[");
+    for (i, event) in events.iter().enumerate() {
+      if i > 0 {
+        json.push(',');
+      }
+      json.push_str(&format!(
+        r#"{{"event":"{}","payload":{},"ids":{}}}"#,
+        event.emit_args.event,
+        event.emit_args.payload,
+        // serializing a list of numbers cannot fail
+        serde_json::to_string(&event.ids).unwrap_or_else(|_| "[]".into()),
+      ));
+    }
+    json.push(']');
+    json
+  }
+
+  /// Drops the events queued for the given webview, e.g. because its page is reloading or it was destroyed.
+  pub(crate) fn clear_js_events(&self, label: &str) {
+    self.inner.js_event_queues.lock().unwrap().remove(label);
+  }
+
   /// Removes all event listeners associated with a destroyed webview.
   pub(crate) fn remove_webview_listeners(&self, label: &str) {
+    self.clear_js_events(label);
     self.remove_webview_js_listeners(label);
     self.remove_listeners_for_target(EventTarget::webview(label));
   }
@@ -521,5 +591,69 @@ mod test {
     assert!(remaining.contains(&app));
     assert!(remaining.contains(&any));
     assert!(remaining.contains(&labeled));
+  }
+
+  fn emit_args(event: &str, payload: &str) -> EmitArgs {
+    let event = crate::EventName::new(event.to_owned()).unwrap();
+    EmitArgs::new_str(event.as_str_event(), payload.to_owned()).unwrap()
+  }
+
+  #[test]
+  fn js_events_notify_once_per_batch_and_keep_their_order() {
+    let listeners = Listeners::default();
+
+    assert!(listeners.queue_js_event("main", &emit_args("first", "1"), &[7]));
+    // the page was already told to fetch, so the rest of the batch needs no new script
+    assert!(!listeners.queue_js_event("main", &emit_args("second", r#"{"a":"b"}"#), &[7, 9]));
+    assert!(!listeners.queue_js_event("main", &emit_args("third", "null"), &[]));
+
+    assert_eq!(
+      listeners.take_js_events("main"),
+      r#"[{"event":"first","payload":1,"ids":[7]},{"event":"second","payload":{"a":"b"},"ids":[7,9]},{"event":"third","payload":null,"ids":[]}]"#
+    );
+
+    // fetching empties the queue and the next event notifies the page again
+    assert_eq!(listeners.take_js_events("main"), "[]");
+    assert!(listeners.queue_js_event("main", &emit_args("fourth", "4"), &[1]));
+  }
+
+  #[test]
+  fn js_event_queues_are_per_webview() {
+    let listeners = Listeners::default();
+
+    assert!(listeners.queue_js_event("a", &emit_args("e", "1"), &[1]));
+    assert!(listeners.queue_js_event("b", &emit_args("e", "2"), &[2]));
+
+    assert_eq!(
+      listeners.take_js_events("a"),
+      r#"[{"event":"e","payload":1,"ids":[1]}]"#
+    );
+    assert_eq!(
+      listeners.take_js_events("b"),
+      r#"[{"event":"e","payload":2,"ids":[2]}]"#
+    );
+  }
+
+  #[test]
+  fn clearing_js_events_drops_them_and_allows_a_new_notification() {
+    let listeners = Listeners::default();
+
+    assert!(listeners.queue_js_event("main", &emit_args("e", "1"), &[1]));
+    listeners.clear_js_events("main");
+
+    assert_eq!(listeners.take_js_events("main"), "[]");
+    assert!(listeners.queue_js_event("main", &emit_args("e", "2"), &[1]));
+
+    // removing a webview's listeners also drops what was queued for it
+    listeners.remove_webview_listeners("main");
+    assert_eq!(listeners.take_js_events("main"), "[]");
+  }
+
+  #[test]
+  fn notify_script_does_not_depend_on_the_event() {
+    let first = crate::event::notify_js_script("fn_name");
+    let second = crate::event::notify_js_script("fn_name");
+    assert_eq!(first, second);
+    assert!(!first.contains("payload"));
   }
 }

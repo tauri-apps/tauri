@@ -4082,7 +4082,7 @@ pub struct Config {
   /// - **Linux**: Kebab-cased for the Debian and RPM package names, used as the `Name` entry of
   ///    the desktop file and as the resource directory name under `/usr/lib`.
   /// - **Windows**: Names the installers, the installation directory, the Start Menu folder and
-  ///    the `HKCU\Software\<publisher>\<product name>` registry key. It also derives the default
+  ///    the `Software\<publisher>\<product name>` registry key. It also derives the default
   ///    WiX upgrade code, which must be unique across applications and can be set explicitly with
   ///    [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code).
   #[serde(alias = "product-name")]

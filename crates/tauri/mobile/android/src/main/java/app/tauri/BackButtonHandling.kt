@@ -7,6 +7,7 @@ package app.tauri
 interface BackButtonHandling {
   /**
    * Set to false to register no back callback, so the app can play Android's predictive back-to-home animation.
+   * This disables the default back navigation handling and the `back-button` event is not emitted.
    */
   val handleBackButton: Boolean
 }

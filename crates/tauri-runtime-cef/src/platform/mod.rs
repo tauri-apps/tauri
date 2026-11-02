@@ -39,6 +39,8 @@ fn monitor_bounds(monitor: &MonitorHandle) -> PhysicalRect<i32, u32> {
 
 pub trait EventLoopExt {
   #[cfg(target_os = "macos")]
+  fn set_application_theme(&self, theme: Option<tauri_utils::Theme>);
+  #[cfg(target_os = "macos")]
   fn set_activation_policy(&self, policy: tauri_runtime::ActivationPolicy);
   #[cfg(target_os = "macos")]
   fn set_dock_visibility(&self, visible: bool);

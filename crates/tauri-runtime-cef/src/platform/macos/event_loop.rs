@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use objc2::MainThreadMarker;
-use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSScreen};
+use objc2_app_kit::{
+  NSApp, NSAppearance, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSApplication,
+  NSApplicationActivationPolicy, NSEvent, NSScreen,
+};
 use objc2_foundation::{NSPoint, NSString};
 use tauri_runtime::{
   Error, ProgressBarState, Result,
@@ -16,6 +19,24 @@ use crate::platform::EventLoopExt;
 use super::{application::CefWinitApplication, progress};
 
 impl EventLoopExt for dyn ActiveEventLoop + '_ {
+  fn set_application_theme(&self, theme: Option<tauri_utils::Theme>) {
+    let Some(mtm) = MainThreadMarker::new() else {
+      return;
+    };
+
+    let app = NSApplication::sharedApplication(mtm);
+    let appearance = theme.and_then(|theme| {
+      // SAFETY: These AppKit constants refer to valid immutable appearance names.
+      NSAppearance::appearanceNamed(unsafe {
+        match theme {
+          tauri_utils::Theme::Dark => NSAppearanceNameDarkAqua,
+          _ => NSAppearanceNameAqua,
+        }
+      })
+    });
+    app.setAppearance(appearance.as_deref());
+  }
+
   fn set_activation_policy(&self, policy: tauri_runtime::ActivationPolicy) {
     let Some(mtm) = MainThreadMarker::new() else {
       return;

@@ -982,7 +982,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     window_id: WindowId,
     message: WindowMessage,
   ) {
-    // Handle Close and Destroy messages first to avoid borrowing issues with the window.
+    // Handle messages that need mutable access to self before borrowing a window.
     match message {
       WindowMessage::Close => {
         self.request_window_close(window_id, event_loop);
@@ -990,6 +990,13 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WindowMessage::Destroy => {
         self.close_window(window_id, event_loop);
+        return;
+      }
+      #[cfg(target_os = "macos")]
+      WindowMessage::SetTheme(theme) => {
+        if self.state.windows.contains_key(&window_id) {
+          self.set_application_theme(event_loop, theme);
+        }
         return;
       }
       _ => {}

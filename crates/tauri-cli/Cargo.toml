@@ -83,6 +83,7 @@ regex = "1"
 heck = "0.5"
 dialoguer = "0.12"
 url = { version = "2", features = ["serde"] }
+percent-encoding = "2"
 os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3"

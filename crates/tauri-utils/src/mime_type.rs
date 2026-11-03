@@ -53,8 +53,8 @@ impl MimeType {
 
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType with specified fallback for unknown file extensions.
   pub fn parse_from_uri_with_fallback(uri: &str, fallback: MimeType) -> MimeType {
-    let suffix = uri.split('.').next_back();
-    match suffix {
+    let suffix = uri.split('.').next_back().map(str::to_ascii_lowercase);
+    match suffix.as_deref() {
       Some("bin") => Self::OctetStream,
       Some("css" | "less" | "sass" | "styl") => Self::Css,
       Some("csv") => Self::Csv,
@@ -82,7 +82,7 @@ impl MimeType {
   }
   /// infer mimetype from content (or) URI if needed with specified fallback for unknown file extensions.
   pub fn parse_with_fallback(content: &[u8], uri: &str, fallback: MimeType) -> String {
-    let mime = if uri.ends_with(".svg") {
+    let mime = if uri.to_ascii_lowercase().ends_with(".svg") {
       // when reading svg, we can't use `infer`
       None
     } else {
@@ -150,5 +150,28 @@ mod tests {
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.app").to_string();
     assert_eq!(custom_scheme, String::from("text/html"));
+  }
+
+  #[test]
+  fn should_ignore_extension_case() {
+    assert_eq!(
+      MimeType::parse_from_uri("assets/app.JS").to_string(),
+      "text/javascript"
+    );
+    assert_eq!(
+      MimeType::parse_from_uri("assets/Style.Css").to_string(),
+      "text/css"
+    );
+    assert_eq!(
+      MimeType::parse(
+        b"<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>",
+        "Logo.SVG"
+      ),
+      "image/svg+xml"
+    );
+    assert_eq!(
+      MimeType::parse(b"<?xml version=\"1.0\"?><svg></svg>", "Logo.SVG"),
+      "image/svg+xml"
+    );
   }
 }

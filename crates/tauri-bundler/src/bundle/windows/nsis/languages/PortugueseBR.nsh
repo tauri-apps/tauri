@@ -2,6 +2,7 @@ LangString addOrReinstall ${LANG_PORTUGUESEBR} "Adicionar/Reinstalar componentes
 LangString alreadyInstalled ${LANG_PORTUGUESEBR} "Já instalado"
 LangString alreadyInstalledLong ${LANG_PORTUGUESEBR} "${PRODUCTNAME} ${VERSION} já está instalado. Selecione a operação que deseja realizar e clique Próximo para continuar."
 LangString appRunning ${LANG_PORTUGUESEBR} "{{product_name}} está aberto! Por favor feche a janela dele e tente novamente."
+LangString appRunningElevated ${LANG_PORTUGUESEBR} "{{product_name}} está em execução como administrador. Por favor feche a janela dele primeiro e tente novamente."
 LangString appRunningOkKill ${LANG_PORTUGUESEBR} "{{product_name}} está aberto!$\nClique OK para fechar ele."
 LangString chooseMaintenanceOption ${LANG_PORTUGUESEBR} "Escolha a opção de manutenção a realizar."
 LangString chooseHowToInstall ${LANG_PORTUGUESEBR} "Escolha como deseja instalar ${PRODUCTNAME}."

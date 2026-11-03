@@ -2,6 +2,7 @@ LangString addOrReinstall ${LANG_JAPANESE} "コンポーネントの追加・再
 LangString alreadyInstalled ${LANG_JAPANESE} "既にインストールされています"
 LangString alreadyInstalledLong ${LANG_JAPANESE} "${PRODUCTNAME} ${VERSION} は既にインストールされています。実行したい操作を選択し、「次へ」をクリックして続行します。"
 LangString appRunning ${LANG_JAPANESE} "{{product_name}} は動作中です。動作中のプログラムを終了し、もう一度やり直してください。"
+LangString appRunningElevated ${LANG_JAPANESE} "{{product_name}} は管理者権限で動作中です。動作中のプログラムを終了し、もう一度やり直してください。"
 LangString appRunningOkKill ${LANG_JAPANESE} "{{product_name}} は動作中です。$\n「OK」を押すと動作中のプログラムを終了します。"
 LangString chooseMaintenanceOption ${LANG_JAPANESE} "メンテナンスオプションを選択して実行します。"
 LangString chooseHowToInstall ${LANG_JAPANESE} "${PRODUCTNAME} のインストール方法を選択してください。"

@@ -2,7 +2,7 @@ LangString addOrReinstall ${LANG_GERMAN} "Komponenten hinzufügen/neu installier
 LangString alreadyInstalled ${LANG_GERMAN} "Bereits installiert"
 LangString alreadyInstalledLong ${LANG_GERMAN} "${PRODUCTNAME} ${VERSION} ist bereits installiert. Wählen Sie den gewünschten Vorgang aus und klicken Sie auf Weiter, um fortzufahren."
 LangString appRunning ${LANG_GERMAN} "{{product_name}} wird ausgeführt! Bitte schließen Sie es zuerst und versuchen Sie es dann erneut."
-LangString appRunningElevated ${LANG_GERMAN} "{{product_name}} wird als Administrator ausgeführt. Bitte schließen Sie es zuerst und versuchen Sie es dann erneut."
+LangString noPermissionToCloseApp ${LANG_GERMAN} "Keine Rechte zum Schließen von {{product_name}}, bitte schließen und erneut versuchen"
 LangString appRunningOkKill ${LANG_GERMAN} "{{product_name}} läuft! $\nKlicken Sie auf OK, um es zu beenden"
 LangString chooseMaintenanceOption ${LANG_GERMAN} "Wählen Sie die auszuführende Wartungsoption."
 LangString chooseHowToInstall ${LANG_GERMAN} "Wählen Sie, wie Sie ${PRODUCTNAME} installieren möchten."

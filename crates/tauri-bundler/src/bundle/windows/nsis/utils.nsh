@@ -39,11 +39,11 @@
       System::Call 'RSTRTMGR::RmGetList(p R0, *i .r1, *i .r2, p 0, *i .r3) i .r0'
       ; ERROR_SUCCESS means no running processes, ERROR_MORE_DATA means there're some
       ${If} $0 = ${ERROR_MORE_DATA}
-        ; Restart Manager can't shut down a process that runs with higher privileges than the installer
-        ; (RmShutdown fails with ERROR_FAIL_SHUTDOWN), so ask the user to close it instead of offering to kill it
+        ; The installer doesn't have permission to shut down the app (for example when the app runs elevated),
+        ; so RmShutdown would fail with ERROR_FAIL_SHUTDOWN. Ask the user to close it instead of offering to kill it
         IntOp $0 $3 & ${RmRebootReasonPermissionDenied}
         ${If} $0 <> 0
-          nsis_tauri_utils::StrReplace "$(appRunningElevated)" "{{product_name}}" "${productName}"
+          nsis_tauri_utils::StrReplace "$(noPermissionToCloseApp)" "{{product_name}}" "${productName}"
           Pop $R1
           StrCpy $R3 $R1
           Goto kill_failed_${UniqueID}

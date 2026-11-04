@@ -2,7 +2,7 @@ LangString addOrReinstall ${LANG_VIETNAMESE} "Thêm/Cài đặt lại các thàn
 LangString alreadyInstalled ${LANG_VIETNAMESE} "Đã được cài đặt"
 LangString alreadyInstalledLong ${LANG_VIETNAMESE} "${PRODUCTNAME} ${VERSION} đã được cài đặt. Hãy chọn thao tác bạn muốn thực hiện và nhấn Next để tiếp tục."
 LangString appRunning ${LANG_VIETNAMESE} "{{product_name}} đang chạy! Vui lòng đóng ứng dụng trước rồi thử lại."
-LangString appRunningElevated ${LANG_VIETNAMESE} "{{product_name}} đang chạy với quyền quản trị viên. Vui lòng đóng ứng dụng trước rồi thử lại."
+LangString noPermissionToCloseApp ${LANG_VIETNAMESE} "Không đủ quyền để đóng {{product_name}}, vui lòng đóng ứng dụng rồi thử lại"
 LangString appRunningOkKill ${LANG_VIETNAMESE} "{{product_name}} đang chạy!$\nNhấn OK để tắt ứng dụng"
 LangString chooseMaintenanceOption ${LANG_VIETNAMESE} "Chọn thao tác bảo trì bạn muốn thực hiện."
 LangString chooseHowToInstall ${LANG_VIETNAMESE} "Chọn cách bạn muốn cài đặt ${PRODUCTNAME}."

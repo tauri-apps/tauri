@@ -2,7 +2,7 @@ LangString addOrReinstall ${LANG_ARABIC} "إضافة أو إزالة المكو�
 LangString alreadyInstalled ${LANG_ARABIC} "التطبيق مثبت بالفعل"
 LangString alreadyInstalledLong ${LANG_ARABIC} "${PRODUCTNAME} ${VERSION} مثبت بالفعل. قم باختيار العملية التى تريدها ثم اضغط على التالى."
 LangString appRunning ${LANG_ARABIC} "{{product_name}} مازال يعمل! من فضلك، قم بإغلاق التطبيق أولاً ثم حاول مرة أخرى."
-LangString appRunningElevated ${LANG_ARABIC} "{{product_name}} يعمل بصلاحيات المسؤول. من فضلك، قم بإغلاق التطبيق أولاً ثم حاول مرة أخرى."
+LangString noPermissionToCloseApp ${LANG_ARABIC} "صلاحيات غير كافية لإغلاق {{product_name}}، من فضلك أغلقه ثم حاول مرة أخرى"
 LangString appRunningOkKill ${LANG_ARABIC} "{{product_name}} مازال يعمل!$\nاضغط OK لإغلاقه"
 LangString chooseMaintenanceOption ${LANG_ARABIC} "قم باختيار نوع الصيانة التى تريدها."
 LangString chooseHowToInstall ${LANG_ARABIC} "قم باختيار طريقة تنصيب ${PRODUCTNAME}."

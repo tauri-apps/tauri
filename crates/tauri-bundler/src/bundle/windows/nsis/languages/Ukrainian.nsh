@@ -2,7 +2,7 @@ LangString addOrReinstall ${LANG_UKRAINIAN} "Додати/Перевстанов
 LangString alreadyInstalled ${LANG_UKRAINIAN} "Вже встановлено"
 LangString alreadyInstalledLong ${LANG_UKRAINIAN} "${PRODUCTNAME} ${VERSION} вже встановлено. Виберіть дію, яку ви хочете виконати, і натисніть Далі, щоб продовжити."
 LangString appRunning ${LANG_UKRAINIAN} "{{product_name}} запущено! Будь ласка, спочатку закрийте його, а потім спробуйте ще раз."
-LangString appRunningElevated ${LANG_UKRAINIAN} "{{product_name}} запущено від імені адміністратора. Будь ласка, спочатку закрийте його, а потім спробуйте ще раз."
+LangString noPermissionToCloseApp ${LANG_UKRAINIAN} "Немає прав на закриття {{product_name}}, закрийте його та спробуйте знову"
 LangString appRunningOkKill ${LANG_UKRAINIAN} "{{product_name}} запущено!$\nНатисніть ОК, щоб примусово закрити його"
 LangString chooseMaintenanceOption ${LANG_UKRAINIAN} "Виберіть дію, яку треба виконати."
 LangString chooseHowToInstall ${LANG_UKRAINIAN} "Виберіть, як ви хочете встановити ${PRODUCTNAME}."

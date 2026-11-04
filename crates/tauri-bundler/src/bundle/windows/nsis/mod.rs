@@ -1018,3 +1018,491 @@ fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> c
   output.write_all(content.as_ref())?;
   Ok(())
 }
+
+/// Compiles the NSIS template with makensis, which is the only thing that knows
+/// NSIS's own rules.
+///
+/// `installer.nsi` and every file it includes share one flat, case-insensitive
+/// namespace, so makensis aborts with `variable "x" already declared` when two
+/// of them declare the same name and with `name "x" in use by constant` when
+/// one of them takes a name NSIS already uses. Reading a variable that was
+/// never declared is only a warning, which the template here turns into an
+/// error as well.
+///
+/// Declarations behind `!if` and language files only reach the compiler when a
+/// configuration pulls them in, so one build cannot see all of them. The
+/// configurations below are picked to take every branch of the template at
+/// least once.
+///
+/// Windows only: everywhere else makensis has to be installed by hand, while
+/// here the bundler downloads and caches the toolset itself on first run, the
+/// same way it does when bundling an app.
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+  use super::*;
+  use crate::bundle::{
+    settings::{
+      BundleBinary, BundleSettings, CustomSignCommandSettings, NsisSettings, PackageSettings,
+      SettingsBuilder, WindowsSettings,
+    },
+    windows::util::{WEBVIEW2_OFFLINE_INSTALLER_X64_URL, webview2_guid_path},
+  };
+  use std::collections::HashMap;
+  use tauri_utils::config::{AssociationExt, DeepLinkProtocol, FileAssociation};
+
+  /// A template configuration to compile.
+  struct Configuration {
+    name: &'static str,
+    target: &'static str,
+    install_mode: NSISInstallerMode,
+    webview_install_mode: WebviewInstallMode,
+    minimum_webview2_version: Option<&'static str>,
+    allow_downgrades: bool,
+    compression: NsisCompression,
+    /// Every built-in language rather than just English, which is the only way
+    /// the compiler reads the other language files at all.
+    all_languages: bool,
+    display_language_selector: bool,
+    /// A hook file defining all four `NSIS_HOOK_*` macros, for the
+    /// `!ifmacrodef` branches.
+    installer_hooks: bool,
+    optional_content: OptionalContent,
+    images: Images,
+    /// A custom signing command, which the bundler runs over the NSIS plugins
+    /// in a copy of its own for the template to add with `!addplugindir`, and
+    /// hands to the template for makensis to run over the uninstaller.
+    sign: bool,
+  }
+
+  /// Which of the five icon and image settings a configuration sets. The
+  /// uninstaller header image stands on its own because the template has an arm
+  /// for it being the only one set.
+  enum Images {
+    None,
+    AllButUninstallerHeader,
+    OnlyUninstallerHeader,
+  }
+
+  /// Whether a configuration sets a homepage, a license, a start menu folder, a
+  /// file association, a deep link protocol, a second binary and a resource.
+  ///
+  /// Where the resource lands matters on its own: the uninstaller removes the
+  /// directories of a resource that is in one, and the template drops the last
+  /// of those directories, which is the only one a resource at the root of the
+  /// install directory has.
+  enum OptionalContent {
+    None,
+    RootResource,
+    NestedResource,
+  }
+
+  /// Takes every branch of the template, bar the `!ifdef SHCNE_ASSOCCHANGED`
+  /// and `!ifdef SHCNF_FLUSH` guards of `includes/FileAssociation.nsh`, which
+  /// only take their branch if something defined those names first, and nothing
+  /// the bundler ships does.
+  ///
+  /// The install mode and the architecture are picked together, because the
+  /// default install directory and the MultiUser setup both branch on the
+  /// architecture inside a branch on the install mode, so a pair only compiles
+  /// the arms of the one configuration that has it.
+  fn configurations() -> Vec<Configuration> {
+    vec![
+      // Nothing optional configured, which is also the only configuration where
+      // the WebView2 section is skipped entirely
+      Configuration {
+        name: "minimal",
+        target: "i686-pc-windows-msvc",
+        install_mode: NSISInstallerMode::CurrentUser,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+      // Everything optional configured at once, bar the uninstaller header
+      // image, which the `current-user` configuration takes on its own
+      Configuration {
+        name: "full",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::Both,
+        webview_install_mode: WebviewInstallMode::DownloadBootstrapper { silent: true },
+        minimum_webview2_version: Some("110.0.1531.0"),
+        allow_downgrades: false,
+        compression: NsisCompression::Lzma,
+        all_languages: true,
+        display_language_selector: true,
+        installer_hooks: true,
+        optional_content: OptionalContent::RootResource,
+        images: Images::AllButUninstallerHeader,
+        sign: true,
+      },
+      // `perMachine` with the WebView2 section present but no minimum version,
+      // which is the pair the two configurations above never compile together,
+      // and the resource in a directory of its own
+      Configuration {
+        name: "per-machine",
+        target: "aarch64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::DownloadBootstrapper { silent: false },
+        minimum_webview2_version: None,
+        allow_downgrades: false,
+        compression: NsisCompression::Bzip2,
+        all_languages: true,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::NestedResource,
+        images: Images::None,
+        sign: false,
+      },
+      // `currentUser` with a minimum version but no hooks, for the remaining
+      // install mode and minimum version pair, the `embedBootstrapper` arm and
+      // the uninstaller header image on its own
+      Configuration {
+        name: "current-user",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::CurrentUser,
+        webview_install_mode: WebviewInstallMode::EmbedBootstrapper { silent: true },
+        minimum_webview2_version: Some("110.0.1531.0"),
+        allow_downgrades: true,
+        compression: NsisCompression::Zlib,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: true,
+        optional_content: OptionalContent::None,
+        images: Images::OnlyUninstallerHeader,
+        sign: false,
+      },
+      // The three install mode and architecture pairs the configurations above
+      // leave out. Nothing optional is configured, so each one only compiles
+      // the handful of lines its pair is there for, bar `per-machine-x64`,
+      // which carries the `offlineInstaller` arm as well
+      Configuration {
+        name: "both-arm64",
+        target: "aarch64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::Both,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+      Configuration {
+        name: "per-machine-x64",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::OfflineInstaller { silent: true },
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+      Configuration {
+        name: "per-machine-x86",
+        target: "i686-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+    ]
+  }
+
+  /// Writes the template the bundler ships with the `!pragma`s that turn a
+  /// reference to a variable that was never declared (warning 6000) and a
+  /// variable nothing reads or writes (warning 6001) into errors, and returns it
+  /// as a custom template. NSIS prints the name instead of a value for the first
+  /// one, so without this the installer ships a broken string.
+  fn template_with_fatal_warnings(dir: &Path) -> PathBuf {
+    let path = dir.join("template.nsi");
+    fs::write(
+      &path,
+      format!(
+        "!pragma warning error 6000\n!pragma warning error 6001\n{}",
+        include_str!("./installer.nsi")
+      ),
+    )
+    .unwrap();
+    path
+  }
+
+  /// Every language the bundler ships a file for, so that the compiler reads all
+  /// of them rather than only the ones a default build configures.
+  fn all_languages() -> Vec<String> {
+    [
+      "Arabic",
+      "Bulgarian",
+      "Dutch",
+      "English",
+      "Farsi",
+      "French",
+      "German",
+      "Hebrew",
+      "Italian",
+      "Japanese",
+      "Korean",
+      "Norwegian",
+      "Portuguese",
+      "PortugueseBR",
+      "Russian",
+      "SimpChinese",
+      "Spanish",
+      "SpanishInternational",
+      "Swedish",
+      "TradChinese",
+      "Turkish",
+      "Ukrainian",
+      "Vietnamese",
+    ]
+    .iter()
+    .map(|language| language.to_string())
+    .collect()
+  }
+
+  /// A one pixel, 32 bit icon: an icon directory with a single entry, a bitmap
+  /// header, one opaque pixel and an empty mask. `MUI_ICON` becomes NSIS's
+  /// `Icon` command, which reads the file and rejects anything that is not an
+  /// icon.
+  const ICON: &[u8] = &[
+    0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 32, 0, 48, 0, 0, 0, 22, 0, 0, 0, 40, 0, 0, 0, 1, 0, 0, 0,
+    2, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0,
+  ];
+
+  /// A one pixel, 24 bit bitmap. The images only have to exist, since NSIS packs
+  /// them into the installer without reading them.
+  const BITMAP: &[u8] = &[
+    0x42, 0x4D, 58, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+    24, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ];
+
+  /// Puts a stand-in for the WebView2 offline installer where the bundler looks
+  /// for the copy it downloads, and returns the tools directory to hand it.
+  ///
+  /// The real installer is 130 MB of runtime that makensis packs into the output
+  /// without reading, and the stand-in goes in a tools directory of this
+  /// configuration's own rather than the shared cache, so that no later build
+  /// can ship it. That costs this configuration its own copy of the NSIS
+  /// toolset. Only the name of the file comes from the network, which is one
+  /// redirect away.
+  fn fake_webview2_offline_installer(dir: &Path) -> crate::Result<PathBuf> {
+    let tools = dir.join("tools");
+    let (guid, filename) = webview2_guid_path(WEBVIEW2_OFFLINE_INSTALLER_X64_URL)?;
+    // `.tauri` and the architecture are what the bundler joins onto the
+    // directory it is given
+    let path = tools.join(".tauri").join("x64").join(guid);
+    fs::create_dir_all(&path)?;
+    fs::write(path.join(filename), b"webview2 offline installer")?;
+    Ok(tools)
+  }
+
+  fn compile(configuration: &Configuration) -> crate::Result<()> {
+    // The name goes in the directory makensis prints as it compiles, which is
+    // the only thing tying its output to a configuration
+    let dir = tempfile::Builder::new()
+      .prefix(&format!("nsis-{}-", configuration.name))
+      .tempdir()
+      .unwrap();
+    let out = dir.path().join("out");
+    fs::create_dir_all(&out).unwrap();
+
+    // makensis only needs the files to exist, not to be real executables
+    fs::write(out.join("app.exe"), b"main binary").unwrap();
+
+    let mut binaries = vec![BundleBinary::new("app".into(), true)];
+    let mut bundle_settings = BundleSettings {
+      identifier: Some("com.tauri.nsis-template-test".into()),
+      publisher: Some("Tauri".into()),
+      copyright: Some("Tauri".into()),
+      ..Default::default()
+    };
+
+    let optional_content = !matches!(configuration.optional_content, OptionalContent::None);
+    if optional_content {
+      fs::write(out.join("helper.exe"), b"second binary").unwrap();
+      binaries.push(BundleBinary::new("helper".into(), false));
+
+      let license = dir.path().join("LICENSE.txt");
+      fs::write(&license, b"license").unwrap();
+
+      bundle_settings.homepage = Some("https://tauri.app".into());
+      bundle_settings.license_file = Some(license);
+      // The resource is the manifest rather than a file in `dir` because
+      // resources are globbed from the working directory, which cargo sets to
+      // the crate root, and an absolute path loses its drive letter on the way
+      // through `resources::normalize`, leaving it on whichever drive that
+      // directory happens to be
+      match configuration.optional_content {
+        OptionalContent::None => {}
+        OptionalContent::RootResource => {
+          bundle_settings.resources = Some(vec!["Cargo.toml".into()])
+        }
+        // The map form rather than the list, because the list derives the
+        // target from the source and the source has to stay a relative path.
+        // Setting both of them is a panic
+        OptionalContent::NestedResource => {
+          bundle_settings.resources_map = Some(HashMap::from([(
+            "Cargo.toml".to_string(),
+            "resources/nested/Cargo.toml".to_string(),
+          )]))
+        }
+      }
+      bundle_settings.file_associations = Some(vec![FileAssociation {
+        ext: vec![AssociationExt("myext".into())],
+        content_types: None,
+        name: Some("MyExt".into()),
+        description: Some("My extension".into()),
+        role: Default::default(),
+        mime_type: None,
+        rank: Default::default(),
+        exported_type: None,
+        android_intent_action_filters: None,
+      }]);
+      bundle_settings.deep_link_protocols = Some(vec![DeepLinkProtocol {
+        schemes: vec!["mydeeplink".into()],
+        domains: Vec::new(),
+        name: Some("My deep link".into()),
+        role: Default::default(),
+      }]);
+    }
+
+    let installer_hooks = configuration.installer_hooks.then(|| {
+      let path = dir.path().join("hooks.nsh");
+      fs::write(
+        &path,
+        "!macro NSIS_HOOK_PREINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_POSTINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_PREUNINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_POSTUNINSTALL\n!macroend\n",
+      )
+      .unwrap();
+      path
+    });
+
+    let image = |name: &str, bytes: &[u8]| {
+      let path = dir.path().join(name);
+      fs::write(&path, bytes).unwrap();
+      path
+    };
+    let all_but_uninstaller_header =
+      matches!(configuration.images, Images::AllButUninstallerHeader);
+
+    bundle_settings.windows = WindowsSettings {
+      webview_install_mode: configuration.webview_install_mode.clone(),
+      allow_downgrades: configuration.allow_downgrades,
+      minimum_webview2_version: configuration
+        .minimum_webview2_version
+        .map(|version| version.to_string()),
+      // A command that does nothing but succeed, because what the template
+      // needs is for the bundler to have made the copy of the plugins that
+      // signing them calls for and to have put the command itself in
+      // `!uninstfinalize`, which makensis runs as it compiles
+      sign_command: configuration.sign.then(|| CustomSignCommandSettings {
+        cmd: "cmd".into(),
+        args: vec!["/c".into(), "exit".into(), "0".into()],
+      }),
+      nsis: Some(NsisSettings {
+        template: Some(template_with_fatal_warnings(dir.path())),
+        install_mode: configuration.install_mode,
+        compression: configuration.compression,
+        display_language_selector: configuration.display_language_selector,
+        languages: configuration.all_languages.then(all_languages),
+        start_menu_folder: optional_content.then(|| "Tauri Tests".to_string()),
+        installer_hooks,
+        installer_icon: all_but_uninstaller_header.then(|| image("icon.ico", ICON)),
+        header_image: all_but_uninstaller_header.then(|| image("header.bmp", BITMAP)),
+        sidebar_image: all_but_uninstaller_header.then(|| image("sidebar.bmp", BITMAP)),
+        uninstaller_icon: all_but_uninstaller_header.then(|| image("uninstaller.ico", ICON)),
+        uninstaller_header_image: matches!(configuration.images, Images::OnlyUninstallerHeader)
+          .then(|| image("uninstaller-header.bmp", BITMAP)),
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+
+    let mut builder = SettingsBuilder::new()
+      .project_out_directory(&out)
+      .package_settings(PackageSettings {
+        product_name: "NSIS Template Test".into(),
+        version: "1.0.0".into(),
+        description: "NSIS template test".into(),
+        homepage: bundle_settings.homepage.clone(),
+        authors: None,
+        default_run: None,
+      })
+      .binaries(binaries)
+      .target(configuration.target.into())
+      .bundle_settings(bundle_settings)
+      // makensis warnings only reach the log at this level
+      .log_level(log::Level::Debug)
+      // Signing is skipped where there is no command to run, and has to go
+      // ahead where there is one: the bundler leaves the uninstaller signing
+      // command out of the template data when it is told not to sign
+      .no_sign(!configuration.sign)
+      .binary_patching(false);
+
+    if matches!(
+      configuration.webview_install_mode,
+      WebviewInstallMode::OfflineInstaller { .. }
+    ) {
+      builder = builder.local_tools_directory(fake_webview2_offline_installer(dir.path())?);
+    }
+
+    let settings = builder.build().unwrap();
+
+    bundle_project(&settings, false)?;
+
+    Ok(())
+  }
+
+  // Serial because the mirror tests of `http_utils` set the environment
+  // variable that redirects the toolset download, and environment variables
+  // belong to the whole process
+  #[test]
+  #[serial_test::serial]
+  fn template_compiles_in_every_configuration() {
+    let configurations = configurations();
+
+    // Every configuration is compiled even after one has failed, so that the
+    // failure names all of the broken ones rather than only the first
+    let failures = configurations
+      .iter()
+      .filter_map(|configuration| {
+        compile(configuration)
+          .err()
+          .map(|error| format!("  `{}`: {error}", configuration.name))
+      })
+      .collect::<Vec<_>>();
+
+    assert!(
+      failures.is_empty(),
+      // The makensis output says why, and names the temporary directory of the
+      // configuration it belongs to
+      "the NSIS template does not compile in {} of {} configurations:\n{}",
+      failures.len(),
+      configurations.len(),
+      failures.join("\n")
+    );
+  }
+}

@@ -1,4 +1,5 @@
 ---
+'tauri': 'patch:bug'
 'tauri-runtime-wry': 'patch:bug'
 ---
 

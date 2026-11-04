@@ -534,7 +534,8 @@ impl<R: Runtime> AppManager<R> {
     };
 
     let listeners = self.listeners();
-    // don't hold the webviews lock while evaluating, `eval` can wait on the main thread
+    // `eval` can block until the main thread runs the script, so holding the webviews lock
+    // while waiting deadlocks any main thread code that takes it (e.g. `get_webview`)
     let webviews = self
       .webview
       .webviews_lock()
@@ -570,7 +571,8 @@ impl<R: Runtime> AppManager<R> {
     };
 
     let listeners = self.listeners();
-    // don't hold the webviews lock while evaluating, `eval` can wait on the main thread
+    // `eval` can block until the main thread runs the script, so holding the webviews lock
+    // while waiting deadlocks any main thread code that takes it (e.g. `get_webview`)
     let webviews = self
       .webview
       .webviews_lock()

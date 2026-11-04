@@ -318,7 +318,8 @@ impl Listeners {
     F: Fn(&EventTarget) -> bool,
   {
     let event = &emit_args.event;
-    // don't hold the listeners lock while evaluating, `eval` can wait on the main thread
+    // `eval` can block until the main thread runs the script, so holding the listeners lock
+    // while waiting deadlocks any main thread code that takes it (e.g. `emit`)
     let targets = {
       let js_listeners = self.inner.js_event_listeners.lock().unwrap();
       webviews

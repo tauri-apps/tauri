@@ -308,7 +308,7 @@ impl Listeners {
 
   pub(crate) fn emit_js_filter<'a, R, I, F>(
     &self,
-    mut webviews: I,
+    webviews: I,
     emit_args: &EmitArgs,
     filter: Option<F>,
   ) -> crate::Result<()>
@@ -318,19 +318,26 @@ impl Listeners {
     F: Fn(&EventTarget) -> bool,
   {
     let event = &emit_args.event;
-    let js_listeners = self.inner.js_event_listeners.lock().unwrap();
-    webviews.try_for_each(|webview| {
-      if let Some(handlers) = js_listeners.get(webview.label()).and_then(|s| s.get(event)) {
-        let ids = handlers
-          .iter()
-          .filter(|handler| match_any_or_filter(&handler.target, &filter))
-          .map(|handler| handler.id)
-          .collect::<Vec<_>>();
-        webview.emit_js(emit_args, &ids)?;
-      }
+    // `eval` can block until the main thread runs the script, so holding the listeners lock
+    // while waiting deadlocks any main thread code that takes it (e.g. `emit`)
+    let targets = {
+      let js_listeners = self.inner.js_event_listeners.lock().unwrap();
+      webviews
+        .filter_map(|webview| {
+          let handlers = js_listeners.get(webview.label())?.get(event)?;
+          let ids = handlers
+            .iter()
+            .filter(|handler| match_any_or_filter(&handler.target, &filter))
+            .map(|handler| handler.id)
+            .collect::<Vec<_>>();
+          Some((webview, ids))
+        })
+        .collect::<Vec<_>>()
+    };
 
-      Ok(())
-    })
+    targets
+      .into_iter()
+      .try_for_each(|(webview, ids)| webview.emit_js(emit_args, &ids))
   }
 
   pub(crate) fn emit_js<'a, R, I>(&self, webviews: I, emit_args: &EmitArgs) -> crate::Result<()>

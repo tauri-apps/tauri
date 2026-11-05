@@ -261,9 +261,14 @@ impl<T: UserEvent> Context<T> {
   }
 
   fn send_user_message(&self, message: Message<T>) -> Result<()> {
+    let event_loop = self
+      .main_thread
+      .window_target
+      .upgrade()
+      .ok_or(Error::EventLoopClosed)?;
     if current_thread().id() == self.main_thread_id {
       handle_user_message(
-        &self.main_thread.window_target,
+        &event_loop,
         message,
         UserMessageContext {
           window_id_map: &self.window_id_map,
@@ -452,7 +457,7 @@ impl fmt::Debug for WindowsStore {
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
-  pub window_target: EventLoopWindowTarget<Message<T>>,
+  pub window_target: Weak<EventLoopWindowTarget<Message<T>>>,
   pub web_context: WebContextStore,
   // changing this to an Rc will cause frequent app crashes.
   pub windows: Arc<WindowsStore>,
@@ -1289,6 +1294,9 @@ pub struct GtkBox(pub gtk::Box);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkBox {}
 
+pub struct SendRawDisplayHandle(pub raw_window_handle::RawDisplayHandle);
+unsafe impl Send for SendRawDisplayHandle {}
+
 pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
@@ -1481,6 +1489,9 @@ pub enum EventLoopWindowTargetMessage {
   AvailableMonitors(Sender<Vec<Monitor>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
+  RawDisplayHandle(
+    Sender<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>>,
+  ),
 }
 
 pub type CreateWindowClosure<T> =
@@ -1840,6 +1851,12 @@ fn get_raw_window_handle<T: UserEvent>(
   window_getter!(dispatcher, WindowMessage::RawWindowHandle)
 }
 
+fn get_raw_display_handle<T: UserEvent>(
+  dispatcher: &WryHandle<T>,
+) -> Result<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>> {
+  event_loop_window_getter!(dispatcher, EventLoopWindowTargetMessage::RawDisplayHandle)
+}
+
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
@@ -1997,12 +2014,14 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::SceneIdentifier)
   }
 
+  /// **SAFETY:** the lifetime is wrong here, use with caution!
+  /// `WryWindowDispatcher` does not own the window handle so the window can become stale before `WryWindowDispatcher` is dropped.
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
     get_raw_window_handle(self)
-      .map_err(|_| raw_window_handle::HandleError::Unavailable)
-      .and_then(|r| r.map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }))
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) })
   }
 
   // Setters
@@ -2507,6 +2526,7 @@ pub trait Plugin<T: UserEvent> {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry<T: UserEvent> {
   context: Context<T>,
+  _window_target: Arc<EventLoopWindowTarget<Message<T>>>,
   event_loop: EventLoop<Message<T>>,
 }
 
@@ -2627,10 +2647,17 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     self.context.send_user_message(Message::Task(Box::new(f)))
   }
 
+  /// **SAFETY:** the lifetime is wrong here, use with caution!
+  /// `WryHandle` does not own the display handle so the window can become stale before `WryWindowDispatcher` is dropped.
   fn display_handle(
     &self,
   ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
-    self.context.main_thread.window_target.display_handle()
+    get_raw_display_handle(self)
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .map(|handle| {
+        // SAFETY: the lifetime is wrong here, but the alternatives are worse, see https://github.com/tauri-apps/tauri/pull/15411
+        unsafe { raw_window_handle::DisplayHandle::borrow_raw(handle.0) }
+      })
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
@@ -2764,12 +2791,14 @@ impl<T: UserEvent> Wry<T> {
     let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
     let window_id_map = WindowIdStore::default();
 
+    let window_target = Arc::new(event_loop.deref().clone());
+
     let context = Context {
       window_id_map,
       main_thread_id,
       proxy: event_loop.create_proxy(),
       main_thread: DispatcherMainThreadContext {
-        window_target: event_loop.deref().clone(),
+        window_target: Arc::downgrade(&window_target),
         web_context,
         windows,
         #[cfg(feature = "tracing")]
@@ -2785,6 +2814,7 @@ impl<T: UserEvent> Wry<T> {
 
     Ok(Self {
       context,
+      _window_target: window_target,
       event_loop,
     })
   }
@@ -2960,27 +2990,21 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn primary_monitor(&self) -> Option<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .primary_monitor()
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .monitor_from_point(x, y)
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .available_monitors()
       .map(|m| MonitorHandleWrapper(m).into())
       .collect()
@@ -2988,9 +3012,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .cursor_position()
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
@@ -4094,6 +4116,13 @@ fn handle_user_message<T: UserEvent>(
       EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
         event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
       }
+      EventLoopWindowTargetMessage::RawDisplayHandle(tx) => tx
+        .send(
+          event_loop
+            .display_handle()
+            .map(|h| SendRawDisplayHandle(h.as_raw())),
+        )
+        .unwrap(),
     },
   }
 }

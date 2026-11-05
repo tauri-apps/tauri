@@ -12,7 +12,7 @@ use crate::{
   AppHandle, Manager, Runtime, Webview, command,
   image::JsImage,
   ipc::Channel,
-  menu::{Menu, Submenu, plugin::ItemKind},
+  menu::{Menu, NativeIcon, Submenu, plugin::ItemKind},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
@@ -26,6 +26,7 @@ struct TrayIconOptions {
   id: Option<String>,
   menu: Option<(ResourceId, ItemKind)>,
   icon: Option<JsImage>,
+  native_icon: Option<NativeIcon>,
   tooltip: Option<String>,
   title: Option<String>,
   temp_dir_path: Option<PathBuf>,
@@ -76,6 +77,8 @@ fn new<R: Runtime>(
     } else {
       builder.icon(icon)
     };
+  } else if let Some(native_icon) = options.native_icon {
+    builder = builder.native_icon(native_icon);
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -215,6 +218,17 @@ fn set_icon_templated<R: Runtime>(
   tray.set_icon_templated(icon)
 }
 
+#[command(root = "crate")]
+fn set_native_icon<R: Runtime>(
+  app: AppHandle<R>,
+  rid: ResourceId,
+  icon: Option<NativeIcon>,
+) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_native_icon(icon)
+}
+
 // TODO: Remove in v3
 #[command(root = "crate")]
 #[allow(deprecated)]
@@ -273,6 +287,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_visible,
       set_temp_dir_path,
       set_icon_templated,
+      set_native_icon,
       set_show_menu_on_left_click,
       // TODO: Remove in v3
       set_icon_as_template,

@@ -9,6 +9,7 @@ pub(crate) mod plugin;
 use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
+use crate::menu::NativeIcon;
 use crate::resources::Resource;
 use crate::{
   AppHandle, Manager, PhysicalPosition, Rect, Runtime, image::Image, menu::run_item_main_thread,
@@ -277,6 +278,17 @@ impl<R: Runtime> TrayIconBuilder<R> {
         self.inner = self.inner.with_icon(icon);
       }
     }
+    self
+  }
+
+  /// Set a platform-native icon for this tray icon.
+  ///
+  /// Note that this overrides any icon set with [`TrayIconBuilder::icon`] or
+  /// [`TrayIconBuilder::icon_templated`].
+  ///
+  /// See [`TrayIcon::set_native_icon`] for the platform-specific behavior.
+  pub fn native_icon(mut self, icon: NativeIcon) -> Self {
+    self.inner = self.inner.with_native_icon(icon.into());
     self
   }
 
@@ -624,7 +636,8 @@ impl<R: Runtime> TrayIcon<R> {
 
   /// Whether the current tray icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
   ///
-  /// See [`TrayIcon::set_icon_templated`].
+  /// See [`TrayIcon::set_icon_templated`]. An icon set with [`TrayIcon::set_native_icon`] reports
+  /// `false`, as the system flags those itself.
   ///
   /// ## Platform-specific:
   ///
@@ -634,6 +647,23 @@ impl<R: Runtime> TrayIcon<R> {
     return run_item_main_thread!(self, |self_: Self| self_.inner.icon_is_template());
     #[allow(unreachable_code)]
     Ok(false)
+  }
+
+  /// Sets a new tray icon from a platform-native icon. If `None` is provided, it will remove the icon.
+  ///
+  /// Note that this overrides any icon set with [`TrayIcon::set_icon`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Known variants map to freedesktop icon names, so the icon is resolved by the
+  ///   desktop icon theme and follows its light and dark variants.
+  /// - **macOS:** Known variants map to AppKit image names.
+  /// - **Windows:** Known variants map to stock shell icons where an equivalent exists, and an
+  ///   error is returned otherwise.
+  pub fn set_native_icon(&self, icon: Option<NativeIcon>) -> crate::Result<()> {
+    let icon = icon.map(Into::into);
+    run_item_main_thread!(self, |self_: Self| self_.inner.set_native_icon(icon))?
+      .map_err(Into::into)
   }
 
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.

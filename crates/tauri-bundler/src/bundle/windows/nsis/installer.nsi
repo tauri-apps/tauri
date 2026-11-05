@@ -76,6 +76,7 @@ Var UpdateMode
 Var NoShortcutMode
 Var WixMode
 Var OldMainBinaryName
+Var CmdLineInstallDir
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -529,7 +530,11 @@ Function .onInit
 
   !insertmacro SetContext
 
-  ${If} $INSTDIR == "${PLACEHOLDER_INSTALL_DIR}"
+  ${If} $INSTDIR != "${PLACEHOLDER_INSTALL_DIR}"
+    ; Remember the install dir passed with `/D=`,
+    ; `MULTIUSER_INIT` overwrites $INSTDIR when install mode is `both`
+    StrCpy $CmdLineInstallDir $INSTDIR
+  ${Else}
     ; Set default install location
     !if "${INSTALLMODE}" == "perMachine"
       ${If} ${RunningX64}
@@ -940,6 +945,12 @@ Section Uninstall
 SectionEnd
 
 Function RestorePreviousInstallLocation
+  ; Install dir passed with `/D=` takes precedence
+  ${If} $CmdLineInstallDir != ""
+    StrCpy $INSTDIR $CmdLineInstallDir
+    Return
+  ${EndIf}
+
   ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
   StrCmp $4 "" +2 0
     StrCpy $INSTDIR $4

@@ -44,12 +44,13 @@ class PluginHandle(
   }
 
   fun startActivityForResult(invoke: Invoke, intent: Intent, callbackName: String) {
-    manager.startActivityForResult(intent) { result ->
-      val method = startActivityCallbackMethods[callbackName]
-      if (method != null) {
-        method.isAccessible = true
-        method(instance, invoke, result)
+    val callback = activityCallback(invoke, callbackName)
+    if (invoke.isContextual) {
+      launchContextual(invoke) { origin, onOriginDestroyed ->
+        manager.startActivityForResult(origin, intent, callback, onOriginDestroyed)
       }
+    } else {
+      manager.startActivityForResult(intent, callback)
     }
   }
 
@@ -58,12 +59,38 @@ class PluginHandle(
     intentSender: IntentSenderRequest,
     callbackName: String
   ) {
-    manager.startIntentSenderForResult(intentSender) { result ->
+    val callback = activityCallback(invoke, callbackName)
+    if (invoke.isContextual) {
+      launchContextual(invoke) { origin, onOriginDestroyed ->
+        manager.startIntentSenderForResult(origin, intentSender, callback, onOriginDestroyed)
+      }
+    } else {
+      manager.startIntentSenderForResult(intentSender, callback)
+    }
+  }
+
+  private fun activityCallback(invoke: Invoke, callbackName: String) =
+    PluginManager.ActivityResultCallback { result ->
       val method = startActivityCallbackMethods[callbackName]
       if (method != null) {
         method.isAccessible = true
         method(instance, invoke, result)
       }
+    }
+
+  private fun launchContextual(
+    invoke: Invoke,
+    launch: (origin: Activity, onOriginDestroyed: () -> Unit) -> Unit
+  ) {
+    try {
+      val origin = invoke.activity ?: throw OriginUnavailableException()
+      launch(origin) {
+        invoke.reject(OriginUnavailableException().message, "ORIGIN_UNAVAILABLE")
+      }
+    } catch (e: OriginUnavailableException) {
+      invoke.reject(e.message, "ORIGIN_UNAVAILABLE")
+    } catch (e: ResultPendingException) {
+      invoke.reject(e.message, "RESULT_PENDING")
     }
   }
 

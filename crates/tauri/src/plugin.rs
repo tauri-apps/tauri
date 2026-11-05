@@ -33,6 +33,9 @@ use std::{
 #[cfg(mobile)]
 pub mod mobile;
 
+#[cfg(any(mobile, test))]
+mod mobile_response;
+
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {
   /// The plugin name. Used as key on the plugin config object.

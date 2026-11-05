@@ -33,15 +33,31 @@ use std::{
   process::Command,
 };
 
-// URLS for the NSIS toolchain.
+struct NsisPlugin {
+  name: &'static str,
+  filename: &'static str,
+  version: &'static str,
+  url: &'static str,
+  sha1: &'static str,
+}
+
+const NSIS_PLUGINS: &[NsisPlugin] = &[NsisPlugin {
+  name: "nsis_tauri_utils",
+  filename: "nsis_tauri_utils.dll",
+  version: "0.5.3",
+  url: "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll",
+  sha1: "75197FEE3C6A814FE035788D1C34EAD39349B860",
+}];
+
+// NSIS toolchain cache directory, download URL, and checksums.
+const NSIS_CACHE_DIRECTORY: &str = "NSIS-3.13";
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.13/nsis-3.13.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E";
+#[cfg(target_os = "windows")]
 const NSIS_EXE_SHA1: &str = "6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2";
-const NSIS_TAURI_UTILS_URL: &str = "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -49,7 +65,6 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
@@ -59,30 +74,16 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/Win/Propkey.nsh",
   "Include/Win/RestartManager.nsh",
 ];
-const NSIS_PLUGIN_FILES: &[&str] = &[
-  "NSISdl.dll",
-  "StartMenu.dll",
-  "System.dll",
-  "nsDialogs.dll",
-  "additional/nsis_tauri_utils.dll",
-];
-#[cfg(not(target_os = "windows"))]
-const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/additional/nsis_tauri_utils.dll"];
-
-const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
-  "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
-  NSIS_TAURI_UTILS_URL,
-  NSIS_TAURI_UTILS_SHA1,
-  HashAlgorithm::Sha1,
-)];
-
+const NSIS_BUILTIN_PLUGIN_FILES: &[&str] =
+  &["NSISdl.dll", "StartMenu.dll", "System.dll", "nsDialogs.dll"];
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
   let tauri_tools_path = tools_directory(settings)?;
 
-  let nsis_toolset_path = tauri_tools_path.join("NSIS");
+  let nsis_toolset_path = tauri_tools_path.join(NSIS_CACHE_DIRECTORY);
 
+  #[cfg(target_os = "windows")]
   if !nsis_toolset_path.exists() {
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else if NSIS_REQUIRED_FILES
@@ -107,31 +108,38 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     );
     std::fs::remove_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
-  } else {
-    let mismatched = NSIS_REQUIRED_FILES_HASH
-      .iter()
-      .filter(|(p, _, hash, hash_algorithm)| {
-        verify_file_hash(nsis_toolset_path.join(p), hash, *hash_algorithm).is_err()
-      })
-      .collect::<Vec<_>>();
-
-    if !mismatched.is_empty() {
-      log::warn!("NSIS directory contains mis-hashed files. Redownloading them.");
-      for (path, url, hash, hash_algorithm) in mismatched {
-        let data = download_and_verify(url, hash, *hash_algorithm)?;
-        let out_path = nsis_toolset_path.join(path);
-        std::fs::create_dir_all(out_path.parent().context("output path has no parent")?)
-          .fs_context("failed to create file output directory", out_path.clone())?;
-        fs::write(&out_path, data)
-          .fs_context("failed to save NSIS downloaded file", out_path.clone())?;
-      }
-    }
   }
 
-  build_nsis_app_installer(settings, &nsis_toolset_path, &tauri_tools_path, updater)
+  let additional_plugins_paths = prepare_nsis_plugins(&tauri_tools_path)?;
+
+  build_nsis_app_installer(
+    settings,
+    &nsis_toolset_path,
+    &additional_plugins_paths,
+    &tauri_tools_path,
+    updater,
+  )
+}
+
+fn prepare_nsis_plugins(tauri_tools_path: &Path) -> crate::Result<Vec<PathBuf>> {
+  let prepare_plugin = |plugin: &NsisPlugin| -> crate::Result<PathBuf> {
+    let directory = tauri_tools_path
+      .join("NSIS-plugins")
+      .join(format!("{}-{}", plugin.name, plugin.version));
+    let path = directory.join(plugin.filename);
+    if verify_file_hash(&path, plugin.sha1, HashAlgorithm::Sha1).is_err() {
+      let data = download_and_verify(plugin.url, plugin.sha1, HashAlgorithm::Sha1)?;
+      fs::create_dir_all(&directory)?;
+      fs::write(&path, data).fs_context("failed to save NSIS plugin", path)?;
+    }
+    Ok(directory)
+  };
+
+  NSIS_PLUGINS.iter().map(prepare_plugin).collect()
 }
 
 // Gets NSIS and verifies the download via Sha1
+#[cfg(target_os = "windows")]
 fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> crate::Result<()> {
   log::info!("Verifying NSIS package");
 
@@ -142,19 +150,6 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     crate::utils::http_utils::extract_zip(&data, _tauri_tools_path)?;
     fs::rename(_tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
   }
-
-  // download additional plugins
-  let nsis_plugins = nsis_toolset_path.join("Plugins");
-
-  let data = download_and_verify(
-    NSIS_TAURI_UTILS_URL,
-    NSIS_TAURI_UTILS_SHA1,
-    HashAlgorithm::Sha1,
-  )?;
-
-  let target_folder = nsis_plugins.join("x86-unicode").join("additional");
-  fs::create_dir_all(&target_folder)?;
-  fs::write(target_folder.join("nsis_tauri_utils.dll"), data)?;
 
   Ok(())
 }
@@ -183,9 +178,76 @@ fn try_add_numeric_build_number(version_str: &str) -> crate::Result<String> {
   ))
 }
 
+#[cfg(target_os = "linux")]
+fn system_nsis_path() -> crate::Result<PathBuf> {
+  Ok(PathBuf::from("/usr/share/nsis"))
+}
+
+#[cfg(target_os = "macos")]
+fn system_nsis_path() -> crate::Result<PathBuf> {
+  let mut makensis_path = which::which("makensis").map_err(|error| Error::CommandFailed {
+    command: "makensis".to_string(),
+    error: std::io::Error::other(format!("failed to find makensis: {error}")),
+  })?;
+
+  // homebrew installs it as a symlink
+  if makensis_path.is_symlink() {
+    // read_link might return a path relative to makensis_path so we must use join() and canonicalize
+    let link_target = std::fs::read_link(&makensis_path)
+      .fs_context("failed to resolve makensis symlink", makensis_path.clone())?;
+    let parent = makensis_path.parent().context("missing makensis parent")?;
+    let target_path = parent.join(link_target);
+
+    makensis_path = target_path.canonicalize().fs_context(
+      "failed to canonicalize makensis path",
+      makensis_path.clone(),
+    )?;
+  }
+
+  // file structure:
+  // ├── bin
+  // │   ├── makensis
+  // ├── share
+  // │   ├── nsis
+  let bin_folder = makensis_path.parent().context("missing makensis parent")?;
+  let root_folder = bin_folder.parent().context("missing makensis root")?;
+  crate::Result::Ok(root_folder.join("share").join("nsis"))
+}
+
+fn copy_nsis_plugins_for_signing(
+  #[allow(unused_variables)] nsis_toolset_path: &Path,
+  additional_plugins_paths: &[PathBuf],
+  output_path: &Path,
+) -> crate::Result<PathBuf> {
+  #[cfg(any(target_os = "linux", target_os = "macos"))]
+  let system_nsis_toolset_path = match std::env::var_os("NSIS_PATH") {
+    Some(path) => PathBuf::from(path),
+    None => system_nsis_path()?,
+  };
+  #[cfg(windows)]
+  let system_nsis_toolset_path = nsis_toolset_path.to_path_buf();
+
+  let plugins_path = output_path.join("Plugins");
+
+  // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)
+  crate::utils::fs_utils::copy_dir(
+    &system_nsis_toolset_path.join("Plugins").join("x86-unicode"),
+    &plugins_path.join("x86-unicode"),
+  )
+  .context("failed to copy system NSIS Plugins folder to local copy")?;
+
+  // Copy downloaded plugins only when signing, leaving cached DLLs untouched.
+  for directory in additional_plugins_paths {
+    crate::utils::fs_utils::copy_dir(directory, &plugins_path.join("x86-unicode"))
+      .context("failed to copy additional NSIS Plugins folder to local copy")?;
+  }
+  Ok(plugins_path)
+}
+
 fn build_nsis_app_installer(
   settings: &Settings,
   #[allow(unused_variables)] nsis_toolset_path: &Path,
+  additional_plugins_paths: &[PathBuf],
   tauri_tools_path: &Path,
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
@@ -208,70 +270,14 @@ fn build_nsis_app_installer(
   }
   fs::create_dir_all(&output_path)?;
 
-  // we make a copy of the NSIS directory if we're going to sign its DLLs
-  // because we don't want to change the DLL hashes so the cache can reuse it
-  let maybe_plugin_copy_path = if settings.windows().can_sign() {
-    // find nsis path
-    #[cfg(target_os = "linux")]
-    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
-      .map(PathBuf::from)
-      .unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
-    #[cfg(target_os = "macos")]
-    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
-      .map(PathBuf::from)
-      .context("failed to resolve NSIS path")
-      .or_else(|_| {
-        let mut makensis_path = which::which("makensis").map_err(|error| Error::CommandFailed {
-          command: "makensis".to_string(),
-          error: std::io::Error::other(format!("failed to find makensis: {error}")),
-        })?;
-        // homebrew installs it as a symlink
-        if makensis_path.is_symlink() {
-          // read_link might return a path relative to makensis_path so we must use join() and canonicalize
-          makensis_path = makensis_path
-            .parent()
-            .context("missing makensis parent")?
-            .join(
-              std::fs::read_link(&makensis_path)
-                .fs_context("failed to resolve makensis symlink", makensis_path.clone())?,
-            )
-            .canonicalize()
-            .fs_context(
-              "failed to canonicalize makensis path",
-              makensis_path.clone(),
-            )?;
-        }
-        // file structure:
-        // ├── bin
-        // │   ├── makensis
-        // ├── share
-        // │   ├── nsis
-        let bin_folder = makensis_path.parent().context("missing makensis parent")?;
-        let root_folder = bin_folder.parent().context("missing makensis root")?;
-        crate::Result::Ok(root_folder.join("share").join("nsis"))
-      })?;
-    #[cfg(windows)]
-    let system_nsis_toolset_path = nsis_toolset_path.to_path_buf();
-
-    let plugins_path = output_path.join("Plugins");
-    // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)
-    crate::utils::fs_utils::copy_dir(
-      &system_nsis_toolset_path.join("Plugins").join("x86-unicode"),
-      &plugins_path.join("x86-unicode"),
-    )
-    .context("failed to copy system NSIS Plugins folder to local copy")?;
-    // copy our downloaded DLLs
-    crate::utils::fs_utils::copy_dir(
-      &nsis_toolset_path
-        .join("Plugins")
-        .join("x86-unicode")
-        .join("additional"),
-      &plugins_path.join("x86-unicode").join("additional"),
-    )
-    .context("failed to copy additional NSIS Plugins folder to local copy")?;
-    Some(plugins_path)
+  // Copy DLLs before signing so cached and system plugins remain unchanged.
+  let plugins_to_sign_path = if settings.windows().can_sign() {
+    Some(copy_nsis_plugins_for_signing(
+      nsis_toolset_path,
+      additional_plugins_paths,
+      &output_path,
+    )?)
   } else {
-    // in this case plugin_copy_path can be None, we'll use the system default path
     None
   };
 
@@ -282,19 +288,42 @@ fn build_nsis_app_installer(
     .publisher()
     .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
 
-  let additional_plugins_path = maybe_plugin_copy_path
-    .clone()
-    .unwrap_or_else(|| nsis_toolset_path.join("Plugins"))
-    .join("x86-unicode")
-    .join("additional");
+  // See the compatibility note below for this legacy template variable.
+  let additional_plugins_path = plugins_to_sign_path
+    .as_ref()
+    .map(|p| p.join("x86-unicode"))
+    .or_else(|| additional_plugins_paths.first().cloned());
+
+  let additional_plugins_paths = plugins_to_sign_path
+    .is_none()
+    .then_some(additional_plugins_paths);
 
   data.insert(
-    "additional_plugins_path",
-    // either our Plugins copy (when signing) or the cache/Plugins/x86-unicode path
-    to_json(&additional_plugins_path),
+    "additional_plugins_paths",
+    to_json(additional_plugins_paths),
   );
 
-  if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+  // TODO: remove in v3
+  // Preserve the existing template variable for custom installer templates.
+  // Previous cache layout:
+  //   NSIS/
+  //     Plugins/
+  //       x86-unicode/
+  //         additional/                 <- previous variable value
+  //           nsis_tauri_utils.dll
+  // Current cache layout:
+  //   NSIS-plugins/
+  //     <name>-<version>/                <- variable value when unsigned (first plugin)
+  //       <filename>
+  // Build-local layout when signing:
+  //   Plugins/
+  //     x86-unicode/                     <- variable value when signing
+  //       <built-in and downloaded DLLs>
+  // Unsigned compatibility assumes a single downloaded plugin; adding or
+  // reordering plugins can break templates using this variable.
+  data.insert("additional_plugins_path", to_json(additional_plugins_path));
+
+  if let Some(plugin_copy_path) = &plugins_to_sign_path {
     data.insert(
       "signed_plugins_path",
       to_json(plugin_copy_path.join("x86-unicode")),
@@ -691,10 +720,15 @@ fn build_nsis_app_installer(
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   if settings.windows().can_sign() {
-    if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+    if let Some(plugin_copy_path) = &plugins_to_sign_path {
       let plugin_copy_path = plugin_copy_path.join("x86-unicode");
       log::info!("Signing NSIS plugins");
-      for dll in NSIS_PLUGIN_FILES {
+      let downloaded_plugins = NSIS_PLUGINS.iter().map(|plugin| plugin.filename);
+      for dll in NSIS_BUILTIN_PLUGIN_FILES
+        .iter()
+        .copied()
+        .chain(downloaded_plugins)
+      {
         let path = plugin_copy_path.join(dll);
         if path.exists() {
           try_sign(&path, settings)?;

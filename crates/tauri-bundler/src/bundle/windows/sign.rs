@@ -129,7 +129,15 @@ pub fn verify(path: &Path) -> crate::Result<bool> {
   cmd.arg("/pa");
   cmd.arg(path);
 
-  Ok(cmd.status()?.success())
+  let output = cmd.output()?;
+
+  let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+  let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+  let verification_output = format!("{}{}", stdout, stderr);
+
+  log::debug!(action = "Signing";"Verification output for {}:\n{}", tauri_utils::display_path(path), verification_output.trim());
+
+  Ok(output.status.success())
 }
 
 pub fn sign_command_custom<P: AsRef<Path>>(
@@ -210,7 +218,7 @@ pub fn sign_custom<P: AsRef<Path>>(
   let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  log::info!(action = "Signing";"Output of signing command:\n{}", stdout.trim());
+  log::debug!(action = "Signing";"Output of signing command:\n{}", stdout.trim());
 
   Ok(())
 }
@@ -229,7 +237,7 @@ pub fn sign_default<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Resu
   let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  log::info!(action = "Signing";"Output of signing command:\n{}", stdout.trim());
+  log::debug!(action = "Signing";"Output of signing command:\n{}", stdout.trim());
 
   Ok(())
 }

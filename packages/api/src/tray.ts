@@ -133,10 +133,22 @@ export interface TrayIconOptions {
    * be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
    */
   tempDirPath?: string
+  // TODO: Remove in v3
   /**
    * Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+   *
+   * @deprecated use {@linkcode TrayIconOptions.iconIsTemplate} instead.
    */
   iconAsTemplate?: boolean
+  /**
+   * Draw the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+   *
+   * A template image is drawn using only its alpha channel, so the system recolors it to match
+   * the menu bar in light and dark mode.
+   *
+   * @since 2.13.0
+   */
+  iconIsTemplate?: boolean
   /**
    * Whether to show the tray menu on left click or not, default is `true`.
    *
@@ -392,10 +404,52 @@ export class TrayIcon extends Resource {
   }
 
   /**
+   * Sets a new tray icon, or removes it, and draws it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+   *
+   * A template image is drawn using only its alpha channel, so the system recolors it to match
+   * the menu bar in light and dark mode. {@linkcode TrayIcon.setIcon} draws the icon as-is instead.
+   *
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux / Windows**: Same as {@linkcode TrayIcon.setIcon}, as only macOS has template images.
+   *
+   * @example
+   * ```typescript
+   * import { Image } from '@tauri-apps/api/image';
+   * await tray.setIconTemplated(await Image.fromPath('icons/active.png'));
+   * // remove the icon
+   * await tray.setIconTemplated(null);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  async setIconTemplated(icon: JsImage | null): Promise<void> {
+    let trayIcon = null
+    if (icon) {
+      trayIcon = transformImage(icon)
+    }
+    return invoke('plugin:tray|set_icon_templated', {
+      rid: this.rid,
+      icon: trayIcon
+    })
+  }
+
+  // TODO: Remove in v3
+  /**
    * Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**
    *
    * A template image is recolored by the system so it matches the menu bar
    * appearance in light and dark mode.
+   *
+   * @deprecated use {@linkcode TrayIcon.setIconTemplated} instead, which sets the icon and
+   * draws it as a template in one call.
    *
    * @example
    * ```typescript
@@ -409,6 +463,7 @@ export class TrayIcon extends Resource {
     })
   }
 
+  // TODO: Remove in v3
   /**
    * Sets a new tray icon and template status atomically. **macOS only**.
    *
@@ -422,6 +477,9 @@ export class TrayIcon extends Resource {
    * Prefer this over calling {@linkcode TrayIcon.setIcon} and
    * {@linkcode TrayIcon.setIconAsTemplate} in sequence, which can briefly show the
    * new icon with the previous template setting.
+   *
+   * @deprecated use {@linkcode TrayIcon.setIconTemplated} for a template icon, or
+   * {@linkcode TrayIcon.setIcon} for a plain one.
    *
    * @example
    * ```typescript

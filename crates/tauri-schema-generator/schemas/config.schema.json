@@ -1894,7 +1894,13 @@
           "type": "string"
         },
         "iconAsTemplate": {
-          "description": "A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.",
+          "description": "**Deprecated since v2.13, use [`Self::icon_is_template`] instead**\n\n A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.",
+          "default": false,
+          "deprecated": true,
+          "type": "boolean"
+        },
+        "iconIsTemplate": {
+          "description": "A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.\n\n A template image is drawn using only its alpha channel, so the system recolors it to match\n the menu bar in light and dark mode.",
           "default": false,
           "type": "boolean"
         },

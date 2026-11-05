@@ -11,7 +11,7 @@ use std::{
 use tauri_runtime::ProgressBarState;
 use tauri_runtime::dpi::PhysicalSize;
 use tauri_utils::config::Color;
-use winit::platform::gtk4::WindowExtGtk4;
+use winit::{platform::gtk4::WindowExtGtk4, window::ResizeDirection};
 
 use crate::window::AppWindow;
 
@@ -167,6 +167,14 @@ impl Drop for CefX11Host {
 }
 
 impl AppWindow {
+  pub(crate) fn drag_window(&self) {
+    super::utils::window_move_resize(self.xid(), self.cef_host.xid, None);
+  }
+
+  pub(crate) fn drag_resize_window(&self, direction: ResizeDirection) {
+    super::utils::window_move_resize(self.xid(), self.cef_host.xid, Some(direction));
+  }
+
   pub(crate) fn cef_host_handle(&self) -> cef::sys::cef_window_handle_t {
     self.cef_host.xid as cef::sys::cef_window_handle_t
   }

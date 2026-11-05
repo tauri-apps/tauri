@@ -16,6 +16,8 @@ use std::{
   process::Command,
 };
 
+const LINUXDEPLOY_COMMIT_HASH: &str = "07333c6";
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the AppImage was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -43,17 +45,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs::remove_dir_all(&output_path)?;
   }
 
-  let tools_path = settings
+  let tools_cache_path = settings
     .local_tools_directory()
     .map(|d| d.join(".tauri"))
     .unwrap_or_else(|| {
       dirs::cache_dir().map_or_else(|| output_path.to_path_buf(), |p| p.join("tauri"))
     });
+  let intermediate_tools_path = output_path.join("tools");
 
-  fs::create_dir_all(&tools_path)?;
+  fs::create_dir_all(&tools_cache_path)?;
+  fs::create_dir_all(&intermediate_tools_path)?;
 
   let linuxdeploy_path = prepare_tools(
-    &tools_path,
+    &tools_cache_path,
+    &intermediate_tools_path,
     tools_arch,
     settings.log_level() != log::Level::Error,
   )?;
@@ -93,7 +98,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let appimage_path = output_path.join(&appimage_filename);
   fs_utils::create_dir(&app_dir_path, true)?;
 
-  fs::create_dir_all(&tools_path)?;
+  fs::create_dir_all(&intermediate_tools_path)?;
   let larger_icon = icons
     .iter()
     .filter(|i| i.width == i.height)
@@ -149,7 +154,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   fs::copy(
-    tools_path.join(format!("AppRun-{tools_arch}")),
+    intermediate_tools_path.join(format!("AppRun-{tools_arch}")),
     app_dir_path.join("AppRun"),
   )?;
   fs::copy(
@@ -205,30 +210,43 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
-fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<PathBuf> {
-  const LINUXDEPLOY_COMMIT_HASH: &str = "07333c6";
-
-  let apprun = tools_path.join(format!("AppRun-{arch}"));
-  if !apprun.exists() {
+fn prepare_tools(
+  tools_cache_path: &Path,
+  intermediate_tools_path: &Path,
+  arch: &str,
+  verbose: bool,
+) -> crate::Result<PathBuf> {
+  let cached_apprun = tools_cache_path.join(format!("AppRun-{arch}"));
+  if !cached_apprun.exists() {
     let data = download(&format!(
       "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-{arch}"
     ))?;
-    write_and_make_executable(&apprun, &data)?;
+    write_and_make_executable(&cached_apprun, &data)?;
   }
 
   let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
-  let linuxdeploy = tools_path.join(format!(
+  let intermediate_apprun = intermediate_tools_path.join(format!("AppRun-{arch}"));
+  fs::copy(&cached_apprun, &intermediate_apprun)?;
+
+  let linuxdeploy_cache = tools_cache_path.join(format!(
+    "linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}-{linuxdeploy_arch}"
+  ));
+  fs::create_dir_all(&linuxdeploy_cache)?;
+  let cached_linuxdeploy = linuxdeploy_cache.join(format!(
     "linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}-{linuxdeploy_arch}.AppImage"
   ));
-  if !linuxdeploy.exists() {
+  if !cached_linuxdeploy.exists() {
     let data = download(&format!(
       "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-{LINUXDEPLOY_COMMIT_HASH}/linuxdeploy-{linuxdeploy_arch}.AppImage"
     ))?;
-    write_and_make_executable(&linuxdeploy, &data)?;
+    write_and_make_executable(&cached_linuxdeploy, &data)?;
   }
 
-  // The plugin scripts are embedded, so rewrite them whenever the cached copy differs:
-  // a copy left behind by an older CLI would otherwise be used forever.
+  let intermediate_linuxdeploy =
+    intermediate_tools_path.join(cached_linuxdeploy.file_name().unwrap());
+  fs::copy(&cached_linuxdeploy, &intermediate_linuxdeploy)?;
+
+  // Write embedded plugins beside the intermediate linuxdeploy executable.
   for (name, data) in [
     (
       "linuxdeploy-plugin-gtk.sh",
@@ -239,21 +257,21 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
       include_bytes!("./linuxdeploy-plugin-gstreamer.sh").as_slice(),
     ),
   ] {
-    let path = tools_path.join(name);
-    if fs::read(&path).ok().as_deref() != Some(data) {
-      write_and_make_executable(&path, data)?;
-    }
+    write_and_make_executable(&intermediate_tools_path.join(name), data)?;
   }
 
-  let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");
-  if !appimage.exists() {
+  // The upstream continuous release has no stable version; separate only by architecture.
+  let appimage_cache = tools_cache_path.join(format!("linuxdeploy-plugin-appimage-{arch}"));
+  fs::create_dir_all(&appimage_cache)?;
+  let cached_appimage = appimage_cache.join("linuxdeploy-plugin-appimage.AppImage");
+  if !cached_appimage.exists() {
     // This is optional, linuxdeploy will fall back to its built-in version if the download failed.
     // Since switching to linuxdeploy-07333c6 this shouldn't be necessary anymore, but we keep it here for now just for fun.
     let data = download(&format!(
       "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"
     ));
     match data {
-      Ok(data) => write_and_make_executable(&appimage, &data)?,
+      Ok(data) => write_and_make_executable(&cached_appimage, &data)?,
       Err(err) => {
         log::error!("Download of AppImage plugin failed. Using older built-in version instead.");
         if verbose {
@@ -261,6 +279,15 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
         }
       }
     }
+  }
+
+  // Since linuxdeploy is also copied to the intermediate directory, copy the plugin
+  // next to it so linuxdeploy can discover and load it.
+  if cached_appimage.exists() {
+    fs::copy(
+      &cached_appimage,
+      intermediate_tools_path.join("linuxdeploy-plugin-appimage.AppImage"),
+    )?;
   }
 
   // This should prevent linuxdeploy to be detected by appimage integration tools
@@ -271,9 +298,9 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
       "count=3",
       "seek=8",
       "conv=notrunc",
-      &format!("of={}", linuxdeploy.display()),
+      &format!("of={}", intermediate_linuxdeploy.display()),
     ])
     .output();
 
-  Ok(linuxdeploy)
+  Ok(intermediate_linuxdeploy)
 }

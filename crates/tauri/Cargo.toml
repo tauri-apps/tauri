@@ -84,11 +84,11 @@ cookie = "0.18"
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.20", default-features = false, features = [
+muda = { version = "0.21", default-features = false, features = [
   "serde",
   "gtk3",
 ] }
-tray-icon = { version = "0.25", default-features = false, features = [
+tray-icon = { version = "0.26", default-features = false, features = [
   "serde",
   "libappindicator",
 ], optional = true }
@@ -207,7 +207,8 @@ compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
-linux-libxdo = ["tray-icon/muda-libxdo", "muda/libxdo"]
+# TODO: remove in v3 - muda and tray-icon not have this feature anymore
+linux-libxdo = []
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 # TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384

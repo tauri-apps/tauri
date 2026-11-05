@@ -1337,6 +1337,11 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
   type Runtime = CefRuntime<T>;
   type WindowBuilder = WindowBuilderWrapper;
 
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    crate::platform::android::activity_name()
+  }
+
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.run_on_main_thread(f)
   }

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(target_os = "android")]
+pub mod android;
+
 #[cfg(windows)]
 mod windows;
 

@@ -30,9 +30,9 @@ harness = false
 tauri = { workspace = true, features = ["gtk4"] }
 tauri-macros = { workspace = true }
 base64 = "0.22"
-cef = { version = "=154.5.0", features = ["build-util", "linux-x11"] }
+cef = { version = "=152.4.0", features = ["build-util", "linux-x11"] }
 # Not actually used directly, just locking it.
-cef-dll-sys = { version = "=154.5.0", default-features = false }
+cef-dll-sys = { version = "=152.4.0", default-features = false }
 dirs = "6"
 dioxus-debug-cell = "0.1"
 http = "1"
@@ -48,6 +48,14 @@ tauri-utils = { workspace = true, features = ["html-manipulation"] }
 url = "2"
 winit = { version = "0.31.0-beta.3", package = "tauri-winit", default-features = false, features = [
   "gtk4",
+] }
+
+[target."cfg(target_os = \"android\")".dependencies]
+cef = { version = "=152.4.0", features = ["dox"] }
+jni = "0.21"
+libc = "0.2"
+winit = { version = "0.31.0-beta.3", package = "tauri-winit", default-features = false, features = [
+  "android-game-activity",
 ] }
 
 [target."cfg(windows)".dependencies]

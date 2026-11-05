@@ -155,6 +155,7 @@ val implementation = configurations.getByName(\"implementation\")
 dependencies {
   implementation(\"androidx.lifecycle:lifecycle-process:2.10.0\")"
     .to_string();
+  let mut app_scripts = String::new();
 
   for (env, value) in std::env::vars_os() {
     let env = env.to_string_lossy();
@@ -176,16 +177,27 @@ dependencies {
       gradle_settings.push('\n');
       gradle_settings.push_str(&format!(
         "project(':{plugin_name}').projectDir = new File({:?})",
-        tauri_utils::display_path(plugin_path)
+        tauri_utils::display_path(&plugin_path)
       ));
       gradle_settings.push('\n');
 
       app_build_gradle.push('\n');
       app_build_gradle.push_str(&format!(r#"  implementation(project(":{plugin_name}"))"#));
+
+      // A library can also configure the app module (e.g. its packaging options), which its own
+      // build script cannot do.
+      let app_script = plugin_path.join("tauri.app.gradle");
+      if app_script.exists() {
+        app_scripts.push_str(&format!(
+          "\napply(from = {:?})",
+          tauri_utils::display_path(app_script)
+        ));
+      }
     }
   }
 
   app_build_gradle.push_str("\n}");
+  app_build_gradle.push_str(&app_scripts);
 
   // Overwrite only if changed to not trigger rebuilds
   write_if_changed(&gradle_settings_path, gradle_settings)

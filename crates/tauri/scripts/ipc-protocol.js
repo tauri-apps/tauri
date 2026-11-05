@@ -16,8 +16,9 @@
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
   let customProtocolIpcFailed = false
 
-  // on Android we never use it because Android does not have support to reading the request body
-  const canUseCustomProtocol = osName !== 'android'
+  // on Android the system webview can not read the request body, and it injects `window.ipc`.
+  // CEF has no such limit.
+  const canUseCustomProtocol = osName !== 'android' || !window.ipc
 
   function sendIpcMessage(message) {
     const { cmd, callback, error, payload, options } = message

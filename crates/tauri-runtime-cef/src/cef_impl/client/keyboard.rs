@@ -4,7 +4,7 @@
 
 use cef::*;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 type CefOsEvent<'a> = Option<&'a mut cef::sys::XEvent>;
 #[cfg(target_os = "macos")]
 type CefOsEvent<'a> = *mut u8;

@@ -31,12 +31,14 @@ use tauri_runtime::{
   },
 };
 use tauri_utils::Theme;
+#[cfg(not(target_os = "android"))]
+use winit::event_loop::EventLoop;
 use winit::{
   application::ApplicationHandler,
   data_transfer::{DataTransferId, TypeHint},
   event::{StartCause, WindowEvent as WinitWindowEvent},
   event_loop::{
-    ActiveEventLoop, DndAction, EventLoop, EventLoopBuilder, EventLoopProxy as WinitEventLoopProxy,
+    ActiveEventLoop, DndAction, EventLoopBuilder, EventLoopProxy as WinitEventLoopProxy,
   },
   window::WindowId as WinitWindowId,
 };
@@ -2791,6 +2793,30 @@ pub struct CefRuntimeHandle<T: UserEvent> {
 impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   type Runtime = CefRuntime<T>;
 
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &self,
+    env: &mut jni::JNIEnv<'a>,
+    activity: &jni::objects::JObject<'_>,
+    name: impl Into<String>,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
+    crate::platform::android::find_class(env, activity, name.into())
+  }
+
+  #[cfg(target_os = "android")]
+  fn run_on_android_context<F>(&self, f: F)
+  where
+    F: FnOnce(&mut jni::JNIEnv<'_>, &jni::objects::JObject<'_>, &jni::objects::JObject<'_>)
+      + Send
+      + 'static,
+  {
+    let _ = self.context.run_on_main_thread(move || {
+      crate::platform::android::with_activity(|env, activity| {
+        f(env, activity, &jni::objects::JObject::null())
+      })
+    });
+  }
+
   fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy {
     EventProxy {
       context: self.context.clone(),
@@ -2925,7 +2951,10 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
 }
 
 pub struct CefRuntime<T: UserEvent = tauri::EventLoopMessage> {
+  #[cfg(not(target_os = "android"))]
   event_loop: EventLoop,
+  #[cfg(target_os = "android")]
+  event_loop: crate::platform::android::JavaMainLoop,
   receiver: Receiver<Message<T>>,
   context: RuntimeContext<T>,
   scheme_registry: request_handler::SchemeRegistry,
@@ -3019,7 +3048,10 @@ impl<T: UserEvent> CefRuntime<T> {
     ))]
     let pre_cef_signals = TerminationSignals::capture();
 
+    #[cfg(not(target_os = "android"))]
     let args = cef::args::Args::new();
+    #[cfg(target_os = "android")]
+    let args = crate::platform::android::main_args();
 
     #[cfg(target_os = "macos")]
     let is_helper = is_cef_helper_process();
@@ -3071,6 +3103,10 @@ impl<T: UserEvent> CefRuntime<T> {
     // setup such as building the event loop, creating cache directories, or the
     // runtime context. The browser (main) process has no `type` switch;
     // subprocesses are launched with one (e.g. `--type=renderer`).
+    // Android child processes are Chromium services, they never run this code.
+    #[cfg(target_os = "android")]
+    let is_browser_process = true;
+    #[cfg(not(target_os = "android"))]
     let is_browser_process = args
       .as_cmd_line()
       .map(|cmd| cmd.has_switch(Some(&CefString::from("type"))) != 1)
@@ -3300,7 +3336,10 @@ impl<T: UserEvent> CefRuntime<T> {
     }
 
     let cache_path = cache_path_override.unwrap_or_else(|| {
+      #[cfg(not(target_os = "android"))]
       let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
+      #[cfg(target_os = "android")]
+      let cache_base = crate::platform::android::cache_dir();
       cache_base.join(&runtime_args.identifier).join("cef")
     });
     let _ = create_dir_all(&cache_path);
@@ -3351,9 +3390,16 @@ impl<T: UserEvent> CefRuntime<T> {
     #[cfg(target_os = "macos")]
     event_loop_builder.with_default_menu(false);
 
+    #[cfg(not(target_os = "android"))]
     let event_loop = event_loop_builder
       .build()
       .map_err(|e| Error::CreateWindow(Box::new(e)))?;
+    // winit's loop already runs on `android_main`.
+    #[cfg(target_os = "android")]
+    let event_loop = {
+      let _ = event_loop_builder;
+      crate::platform::android::JavaMainLoop::get()
+    };
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
@@ -3701,6 +3747,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       .listen_device_events(device_event_filter_to_winit(filter));
   }
 
+  #[cfg(not(any(target_os = "android", target_os = "ios")))]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
     while let Ok(message) = self.receiver.try_recv() {
       if let Message::UserEvent(event) = message {
@@ -3725,6 +3772,8 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       self.scheme_registry,
     );
     let _ = self.event_loop.run_app(app);
+    // On Android `run_app` returns while the app runs on, and the OS ends the process.
+    #[cfg(not(target_os = "android"))]
     cef::shutdown();
   }
 }

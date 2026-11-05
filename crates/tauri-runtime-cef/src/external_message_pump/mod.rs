@@ -21,6 +21,7 @@
 //! - Windows: a `WM_TIMER` on a message-only window.
 //! - macOS: an `NSTimer` in the common and event-tracking run-loop modes.
 //! - Linux/BSD: a custom low-priority GLib source with a wakeup pipe.
+//! - Android: winit's loop on `android_main`, posting to the Java main thread.
 //!
 //! On Windows and macOS the timer lives on the same native loop winit already
 //! runs, so CEF keeps painting and processing IPC even while the OS spins a
@@ -33,6 +34,8 @@ use std::sync::{
   atomic::{AtomicBool, Ordering},
 };
 
+#[cfg(target_os = "android")]
+pub(crate) mod android;
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -46,6 +49,8 @@ mod macos;
 #[cfg(windows)]
 mod windows;
 
+#[cfg(target_os = "android")]
+use android::PlatformPump;
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",

@@ -84,11 +84,8 @@ impl<R: Runtime> IconMenuItem<R> {
 
   /// Create a new icon menu item but with a native icon.
   ///
-  /// See [`IconMenuItem::new`] for more info.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Windows / Linux**: Unsupported.
+  /// See [`IconMenuItem::new`] for more info and [`IconMenuItem::set_native_icon`] for the
+  /// platform-specific behavior.
   pub fn with_native_icon<M, T, A>(
     manager: &M,
     text: T,
@@ -118,11 +115,8 @@ impl<R: Runtime> IconMenuItem<R> {
 
   /// Create a new icon menu item with the specified id but with a native icon.
   ///
-  /// See [`IconMenuItem::new`] for more info.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Windows / Linux**: Unsupported.
+  /// See [`IconMenuItem::new`] for more info and [`IconMenuItem::set_native_icon`] for the
+  /// platform-specific behavior.
   pub fn with_id_and_native_icon<M, I, T, A>(
     manager: &M,
     id: I,
@@ -244,15 +238,19 @@ impl<R: Runtime> IconMenuItem<R> {
 
   /// Change this menu item icon to a native image or remove it.
   ///
+  /// Note that this overrides any icon set with [`IconMenuItem::set_icon`].
+  ///
   /// ## Platform-specific:
   ///
-  /// - **Windows / Linux**: Unsupported.
-  pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
-    #[cfg(target_os = "macos")]
-    return run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().set_native_icon(_icon.map(Into::into))
-    });
-    #[allow(unreachable_code)]
-    Ok(())
+  /// - **Linux:** Known variants map to freedesktop icon names, so the icon is resolved by the
+  ///   desktop icon theme and follows its light and dark variants.
+  /// - **macOS:** Known variants map to AppKit image names.
+  /// - **Windows:** Known variants map to stock shell icons where an equivalent exists, and the
+  ///   item is drawn without an icon otherwise.
+  pub fn set_native_icon(&self, icon: Option<NativeIcon>) -> crate::Result<()> {
+    let icon = icon.map(Into::into);
+    run_item_main_thread!(self, |self_: Self| (*self_.0)
+      .as_ref()
+      .set_native_icon(icon))
   }
 }

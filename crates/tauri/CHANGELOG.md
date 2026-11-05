@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.12.6]
+
+### Bug Fixes
+
+- [`eebf7c23c`](https://www.github.com/tauri-apps/tauri/commit/eebf7c23c1b55629aac7c8f4913d845bdbb46da3) ([#16438](https://www.github.com/tauri-apps/tauri/pull/16438) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix a deadlock when emitting an event from a non-main thread with the `tracing` feature enabled while the main thread emits an event or looks up a webview, for example in a document title change handler.
+- [`ba1e205f3`](https://www.github.com/tauri-apps/tauri/commit/ba1e205f3bfba19a9cbe6032bb4ece3068429d04) ([#16368](https://www.github.com/tauri-apps/tauri/pull/16368) by [@masonliiu](https://www.github.com/tauri-apps/tauri/../../masonliiu)) Fix a Linux session crash where every touch event near the border of an undecorated window started another resize drag. A resize drag now only starts on touch begin.
+- [`3b769fbd5`](https://www.github.com/tauri-apps/tauri/commit/3b769fbd5314bcb4c2e9849c471eb79b5dd8aa91) ([#16462](https://www.github.com/tauri-apps/tauri/pull/16462) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) On macOS, `process::restart` (and `AppHandle::restart`) no longer brings the relaunched app to the foreground, so it doesn't take focus from the app the user is working in.
+- [`ab1875e19`](https://www.github.com/tauri-apps/tauri/commit/ab1875e194d5a48055f580775b66e683b1ecffe5) ([#16376](https://www.github.com/tauri-apps/tauri/pull/16376) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Preserve the original URL path without percent decoding them when proxying them on mobile dev
+- [`a1ea1b5e5`](https://www.github.com/tauri-apps/tauri/commit/a1ea1b5e5ad4b75759fa773b7b78db288128b4af) ([#16453](https://www.github.com/tauri-apps/tauri/pull/16453) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Keep the drive letter or UNC share of absolute `bundle > resources` and `bundle > externalBin` paths on Windows. Before, a resource on another drive than the current directory, for example `D:/assets/*` in a project on `C:`, failed with a "resource path doesn't exist" error.
+- [`8d5f74c1c`](https://www.github.com/tauri-apps/tauri/commit/8d5f74c1cf476cc92d55648973d0d5abf72df189) ([#16439](https://www.github.com/tauri-apps/tauri/pull/16439) by [@Lorkydey](https://www.github.com/tauri-apps/tauri/../../Lorkydey)) On Windows, let accessibility hit tests pass through the resize helper outside the top border of frameless windows with shadows, so screen readers can reach the window content.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.12.3`
+- Upgraded to `tauri-runtime-wry@2.12.4`
+- Upgraded to `tauri-utils@2.10.3`
+- Upgraded to `tauri-macros@2.7.5`
+- Upgraded to `tauri-build@2.7.5`
+
 ## [2.12.5]
 
 ### Bug Fixes

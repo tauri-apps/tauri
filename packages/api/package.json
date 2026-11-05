@@ -52,7 +52,7 @@
     "@types/node": "^24.11.0",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-security": "4.2.0",
+    "eslint-plugin-security": "4.2.1",
     "globals": "^17.4.0",
     "rollup": "4.64.10",
     "tslib": "^2.8.1",

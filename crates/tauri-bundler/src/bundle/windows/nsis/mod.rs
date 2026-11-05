@@ -130,7 +130,7 @@ fn prepare_nsis_plugins(tauri_tools_path: &Path) -> crate::Result<Vec<PathBuf>> 
     if verify_file_hash(&path, plugin.sha1, HashAlgorithm::Sha1).is_err() {
       let data = download_and_verify(plugin.url, plugin.sha1, HashAlgorithm::Sha1)?;
       fs::create_dir_all(&directory)?;
-      fs::write(&path, data).fs_context("failed to save NSIS plugin", path.clone())?;
+      fs::write(&path, data).fs_context("failed to save NSIS plugin", path)?;
     }
     Ok(directory)
   };
@@ -300,7 +300,7 @@ fn build_nsis_app_installer(
 
   data.insert(
     "additional_plugins_paths",
-    to_json(&additional_plugins_paths),
+    to_json(additional_plugins_paths),
   );
 
   // TODO: remove in v3

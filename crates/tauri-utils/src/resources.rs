@@ -32,8 +32,6 @@ fn normalize(path: &Path) -> PathBuf {
   let mut dest = PathBuf::new();
   for component in path.components() {
     match component {
-      // keep the Windows drive or UNC share prefix, without it an absolute path
-      // resolves against the drive of the current directory instead
       Component::Prefix(_) | Component::RootDir => dest.push(component),
       Component::CurDir => {}
       Component::ParentDir => dest.push(".."),

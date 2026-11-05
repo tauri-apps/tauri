@@ -95,6 +95,9 @@ object PluginManager {
       }
     )
 
+  /** Every activity that is alive: the activity of each window, and the activities hosting embedded webviews. */
+  internal fun activities(): List<AppCompatActivity> = launchers.keys.toList()
+
   private val currentLaunchers: ResultLaunchers
     get() = launchers[activity]
       ?: throw IllegalStateException("the plugin manager has no activity to launch from")

@@ -23,14 +23,16 @@ pub use tauri_runtime::webview::{
 };
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
+#[cfg(desktop)]
+use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize};
 use tauri_runtime::{
   WebviewDispatch,
   webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
 };
-#[cfg(desktop)]
+#[cfg(any(desktop, target_os = "android"))]
 use tauri_runtime::{
   WindowDispatch,
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{Position, Size},
 };
 pub use tauri_utils::config::Color;
 use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
@@ -853,7 +855,7 @@ tauri::Builder::default()
   }
 
   /// Creates a new webview on the given window.
-  #[cfg(desktop)]
+  #[cfg(any(desktop, target_os = "android"))]
   pub(crate) fn build(
     self,
     window: Window<R>,
@@ -1276,6 +1278,24 @@ fn main() {
     self
   }
 
+  /// The name of the Android activity class that hosts this webview when it is added to a window
+  /// that already hosts one, with `Window::add_child`.
+  ///
+  /// The activity is started in the window's task, on top of the window's activity, so it belongs to the
+  /// same window (one entry in Recents, one desktop window). On large screens,
+  /// [activity embedding](https://developer.android.com/develop/ui/views/layout/activity-embedding)
+  /// rules can show the two side by side; on phones the activity covers the window's own,
+  /// and the back button closes it, which destroys the webview ([`WebviewEvent::Destroyed`](crate::WebviewEvent::Destroyed)).
+  ///
+  /// The activity must extend `TauriActivity` and be declared in `AndroidManifest.xml`
+  /// with a launch mode that allows starting it on top of another activity, such as `standard`.
+  #[cfg(all(target_os = "android", feature = "unstable"))]
+  #[must_use]
+  pub fn activity_name(mut self, activity_name: impl Into<String>) -> Self {
+    self.webview_attributes = self.webview_attributes.activity_name(activity_name);
+    self
+  }
+
   /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
   ///
   /// Default is true.
@@ -1617,6 +1637,21 @@ impl<R: Runtime> Webview<R> {
   }
 }
 
+#[cfg(any(desktop, target_os = "android"))]
+impl<R: Runtime> Webview<R> {
+  /// Closes this webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: finishes the activity hosting the webview when it was added to a window
+  ///   that already hosted one (see `WebviewBuilder::activity_name`).
+  pub fn close(&self) -> crate::Result<()> {
+    self.webview.dispatcher.close()?;
+    self.manager().on_webview_close(self.label());
+    Ok(())
+  }
+}
+
 /// Desktop webview setters and actions.
 #[cfg(desktop)]
 impl<R: Runtime> Webview<R> {
@@ -1637,13 +1672,6 @@ impl<R: Runtime> Webview<R> {
   /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
   pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
     self.app_handle.cursor_position()
-  }
-
-  /// Closes this webview.
-  pub fn close(&self) -> crate::Result<()> {
-    self.webview.dispatcher.close()?;
-    self.manager().on_webview_close(self.label());
-    Ok(())
   }
 
   /// Resizes this webview.

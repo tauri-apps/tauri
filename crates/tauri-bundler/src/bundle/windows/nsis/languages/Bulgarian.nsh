@@ -2,6 +2,7 @@ LangString addOrReinstall ${LANG_BULGARIAN} "Добавяне/Преинстал
 LangString alreadyInstalled ${LANG_BULGARIAN} "Вече инсталиран"
 LangString alreadyInstalledLong ${LANG_BULGARIAN} "${PRODUCTNAME} ${VERSION} е вече е инсталиран. Изберете операцията, която искате да извършите и натиснете Напред, за да продължите."
 LangString appRunning ${LANG_BULGARIAN} "{{product_name}} е отворен! Моля, затворете го първо и опитайте отново."
+LangString noPermissionToCloseApp ${LANG_BULGARIAN} "Няма права за затваряне на {{product_name}}, затворете го и опитайте отново"
 LangString appRunningOkKill ${LANG_BULGARIAN} "{{product_name}} е отворен!$\nНатиснете ОК, за да го затворите."
 LangString chooseMaintenanceOption ${LANG_BULGARIAN} "Изберете опция за поддръжка."
 LangString chooseHowToInstall ${LANG_BULGARIAN} "Изберете как искате да инсталирате ${PRODUCTNAME}."

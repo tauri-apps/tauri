@@ -1766,8 +1766,12 @@ impl From<[u8; 3]> for Color {
 
 impl FromStr for Color {
   type Err = String;
-  fn from_str(mut color: &str) -> Result<Self, Self::Err> {
-    color = color.trim().strip_prefix('#').unwrap_or(color);
+  fn from_str(color: &str) -> Result<Self, Self::Err> {
+    let color = color.trim();
+    let color = color.strip_prefix('#').unwrap_or(color);
+    if !color.bytes().all(|b| b.is_ascii_hexdigit()) {
+      return Err("Invalid hex color, must only contain hexadecimal digits, for example: #fff, #ffffff, or #ffffffff".into());
+    }
     let color = match color.len() {
       3 => color.chars()
             .flat_map(|c| std::iter::repeat_n(c, 2))
@@ -5243,6 +5247,11 @@ mod test {
     assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
     assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
     assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
+
+    assert!("#€€".parse::<Color>().is_err());
+    assert!("#€".parse::<Color>().is_err());
+    assert!("#+f+f+f".parse::<Color>().is_err());
+    assert_eq!(Color(255, 255, 255, 255), " fff ".parse().unwrap());
   }
 
   #[test]

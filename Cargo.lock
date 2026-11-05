@@ -8467,6 +8467,7 @@ dependencies = [
  "oxc_ast",
  "oxc_parser",
  "oxc_span",
+ "percent-encoding",
  "phf 0.14.0",
  "plist",
  "pretty_assertions",

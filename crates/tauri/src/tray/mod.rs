@@ -267,6 +267,27 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
+  /// Set a stable identity GUID for this tray icon, as a UUID in `u128` form.
+  ///
+  /// Windows keys per-icon user settings (most importantly whether the icon is
+  /// pinned to the taskbar or hidden in the overflow) on the icon's identity.
+  /// Without a GUID that identity is the executable path, so the setting is
+  /// lost whenever an update moves the binary (for example installers that use
+  /// per-version directories). With a GUID, and an executable that is
+  /// Authenticode-signed by the same publisher across versions, the setting
+  /// survives.
+  ///
+  /// Use one fixed GUID per tray icon and never share it between two icons
+  /// that can be alive at the same time.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux / macOS:** Unsupported.
+  pub fn guid(mut self, guid: u128) -> Self {
+    self.inner = self.inner.with_guid(guid);
+    self
+  }
+
   /// Set the tray icon title.
   ///
   /// ## Platform-specific

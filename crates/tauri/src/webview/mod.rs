@@ -2228,11 +2228,16 @@ tauri::Builder::default()
   }
 
   pub(crate) fn emit_js(&self, emit_args: &EmitArgs, ids: &[u32]) -> crate::Result<()> {
-    self.eval(crate::event::emit_js_script(
-      self.manager().listeners().function_name(),
-      emit_args,
-      &serde_json::to_string(ids)?,
-    )?)?;
+    let manager = self.manager();
+    let listeners = manager.listeners();
+    // only the first event of a batch needs to tell the page to fetch the queue
+    if listeners.queue_js_event(self.label(), emit_args, ids) {
+      if let Err(e) = self.eval(crate::event::notify_js_script(listeners.function_name())) {
+        // the page cannot be notified, so it would never fetch what is queued
+        listeners.clear_js_events(self.label());
+        return Err(e);
+      }
+    }
     Ok(())
   }
 

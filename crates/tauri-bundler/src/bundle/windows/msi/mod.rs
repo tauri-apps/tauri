@@ -892,9 +892,6 @@ pub fn build_wix_app_installer(
       ),
       "-loc".into(),
       display_path(&locale_path),
-      // ICE57 rejects the HKMU key paths of the desktop and start menu shortcut components,
-      // which resolve to HKLM because the package is always installed per-machine.
-      "-sice:ICE57".into(),
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");

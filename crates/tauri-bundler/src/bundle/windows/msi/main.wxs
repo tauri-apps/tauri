@@ -118,20 +118,26 @@
         <UIRef Id="WixUI_InstallDir" />
 
         <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="DesktopFolder" Name="Desktop">
+            <Directory Id="DesktopFolder" Name="Desktop"/>
+            <Directory Id="ProgramMenuFolder"/>
+            <!-- These two resolve to DesktopFolder and ProgramMenuFolder at install time through the
+                 SetDirectory elements below. ICE38, ICE43 and ICE57 treat those standard folders as per-user
+                 and reject per-machine key paths in them, although they are the common folders in this package. -->
+            <Directory Id="PerMachineDesktopFolder" Name="Desktop">
                 <Component Id="ApplicationShortcutDesktop" Guid="*">
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{product_name}}" Description="Runs {{product_name}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
-                    <RemoveFolder Id="DesktopFolder" On="uninstall" />
                     <RegistryValue Root="HKMU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />
                 </Component>
             </Directory>
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
                 <Directory Id="INSTALLDIR" Name="{{product_name}}"/>
             </Directory>
-            <Directory Id="ProgramMenuFolder">
+            <Directory Id="PerMachineProgramMenuFolder" Name="Programs">
                 <Directory Id="ApplicationProgramsFolder" Name="{{product_name}}"/>
             </Directory>
         </Directory>
+        <SetDirectory Id="PerMachineDesktopFolder" Value="[DesktopFolder]" Sequence="both"/>
+        <SetDirectory Id="PerMachineProgramMenuFolder" Value="[ProgramMenuFolder]" Sequence="both"/>
 
         <DirectoryRef Id="INSTALLDIR">
             <Component Id="RegistryEntries" Guid="*">

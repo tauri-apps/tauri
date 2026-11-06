@@ -186,6 +186,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   if settings.appimage().bundle_media_framework {
     cmd.args(["--plugin", "gstreamer"]);
   }
+  // Use the env var instead of `--exclude-library` so the exclusions also apply when
+  // the gtk and gstreamer plugins run linuxdeploy again to deploy their dependencies.
+  if let Some(excluded_libraries) = excluded_libraries_env(&settings.appimage().exclude_libraries) {
+    cmd.env("LINUXDEPLOY_EXCLUDED_LIBRARIES", excluded_libraries);
+  }
   cmd.args(["--output", "appimage"]);
 
   // Linuxdeploy logs everything into stderr so we have to ignore the output ourselves here
@@ -202,6 +207,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])
+}
+
+/// Value for linuxdeploy's `LINUXDEPLOY_EXCLUDED_LIBRARIES`, a `;` separated list of glob patterns.
+fn excluded_libraries_env(exclude_libraries: &[String]) -> Option<String> {
+  if exclude_libraries.is_empty() {
+    None
+  } else {
+    Some(exclude_libraries.join(";"))
+  }
 }
 
 // returns the linuxdeploy path to keep linuxdeploy_arch contained

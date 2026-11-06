@@ -74,6 +74,7 @@ objc2-application-services = { version = "0.3", default-features = false, featur
 ] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSApplication",
+  "NSAppearance",
   "NSBezierPath",
   "NSColor",
   "NSControl",

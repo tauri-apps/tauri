@@ -4,6 +4,7 @@
 
 import path from 'node:path'
 import fs from 'node:fs'
+import net from 'node:net'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { SevereServiceError } from 'webdriverio'
@@ -43,6 +44,8 @@ const application =
       ? path.join(targetDir, 'debug', 'api.exe')
       : path.join(targetDir, 'debug', 'api'))
 
+const tauriDriverPort = 4444
+
 let tauriDriver: ChildProcess | undefined
 let killedTauriDriver = false
 let testRunnerBackend: ChildProcess | undefined
@@ -50,7 +53,7 @@ let killedTestRunnerBackend = false
 
 export const config: WebdriverIO.Config = {
   hostname: '127.0.0.1',
-  port: 4444,
+  port: tauriDriverPort,
   specs: ['./test/specs/**/*.spec.ts'],
   // The driver spawns a single app instance and speaks WebDriver to it, so the
   // suite must run serially.
@@ -272,14 +275,16 @@ function killProcessTree(
   signal: NodeJS.Signals = 'SIGTERM'
 ): void {
   const pid = child?.pid
-  if (!pid || child?.exitCode !== null) return
+  if (!pid) return
   if (process.platform === 'win32') {
+    if (child?.exitCode !== null) return
     spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
       stdio: 'ignore'
     })
   } else {
     try {
-      // Negative pid targets the whole process group (see `detached` above).
+      // Negative pid targets the whole process group (see `detached` above),
+      // which can outlive the shell we hold a handle to.
       process.kill(-pid, signal)
     } catch {
       try {
@@ -291,32 +296,48 @@ function killProcessTree(
   }
 }
 
+/**
+ * Stops the driver and waits for its port to be free. Waiting on the child alone
+ * is not enough: it is only the shell wrapper, and tauri-driver can survive a
+ * SIGTERM to its process group when running on Node.js 26.
+ */
 async function closeTauriDriver(): Promise<void> {
   killedTauriDriver = true
   const driver = tauriDriver
   tauriDriver = undefined
-  if (!driver || driver.exitCode !== null) return
-  const exited = new Promise<void>((resolve) =>
-    driver.once('exit', () => resolve())
-  )
+  if (!driver) return
   killProcessTree(driver)
-  // Give it a moment to release the port, then escalate to SIGKILL.
-  let timer: ReturnType<typeof setTimeout> | undefined
-  await Promise.race([
-    exited,
-    new Promise<void>((resolve) => {
-      timer = setTimeout(() => {
-        killProcessTree(driver, 'SIGKILL')
-        resolve()
-      }, 5000)
+  if (await waitForDriverPortRelease(2000)) return
+  killProcessTree(driver, 'SIGKILL')
+  if (!(await waitForDriverPortRelease(5000))) {
+    throw new Error(`port ${tauriDriverPort} is still in use`)
+  }
+}
+
+async function waitForDriverPortRelease(timeout: number): Promise<boolean> {
+  const deadline = Date.now() + timeout
+  while (await isDriverPortInUse()) {
+    if (Date.now() >= deadline) return false
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  return true
+}
+
+function isDriverPortInUse(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.connect(tauriDriverPort, '127.0.0.1')
+    socket.once('connect', () => {
+      socket.destroy()
+      resolve(true)
     })
-  ])
-  if (timer) clearTimeout(timer)
+    socket.once('error', () => resolve(false))
+  })
 }
 
 function closeAll() {
   killedTauriDriver = true
-  killProcessTree(tauriDriver)
+  // This runs on shutdown, so there is no time to escalate from SIGTERM.
+  killProcessTree(tauriDriver, 'SIGKILL')
   tauriDriver = undefined
   killedTestRunnerBackend = true
   killProcessTree(testRunnerBackend)

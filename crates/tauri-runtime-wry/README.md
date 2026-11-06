@@ -33,6 +33,16 @@ To learn more about the details of how all of these pieces fit together, please 
 
 **tauri** is following [Semantic Versioning 2.0](https://semver.org/).
 
+## Mobile
+
+### Android
+
+- User launch app
+- Android creates first activity
+- `onCreate` records this first activity
+- `onFirstActivityCreate` is called and runs mobile entry point
+- When Tauri creates its first window, it claims the recorded first activity
+
 ## Licenses
 
 Code: (c) 2021 - The Tauri Programme within The Commons Conservancy.

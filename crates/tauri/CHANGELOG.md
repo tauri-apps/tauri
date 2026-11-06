@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.0.0-alpha.6]
+
+### Bug Fixes
+
+- [`78f49ba39`](https://www.github.com/tauri-apps/tauri/commit/78f49ba3993fed5a1b921235c547731006ad2a74) ([#16077](https://www.github.com/tauri-apps/tauri/pull/16077) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) `tauri` now holds the per-window/per-webview event listeners itself and feeds them from the run event loop, which fixes `Window::on_window_event` and `Webview::on_webview_event` missing events fired before the registration reached the event loop.
+- [`78f49ba39`](https://www.github.com/tauri-apps/tauri/commit/78f49ba3993fed5a1b921235c547731006ad2a74) ([#16077](https://www.github.com/tauri-apps/tauri/pull/16077) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fixed `Webview::close` on a handle to an already closed webview tearing down the state and event listeners of a newer webview reusing its label.
+- [`78f49ba39`](https://www.github.com/tauri-apps/tauri/commit/78f49ba3993fed5a1b921235c547731006ad2a74) ([#16077](https://www.github.com/tauri-apps/tauri/pull/16077) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fixed a window recreated under the same label while the previous one is being destroyed (from a `WindowEvent::Destroyed` handler or a plugin's `on_event`) losing the event listeners registered on it in the meantime.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@3.0.0-alpha.5`
+
 ## [3.0.0-alpha.5]
 
 ### Dependencies

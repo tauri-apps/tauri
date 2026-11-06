@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0-alpha.7]
+
+### Bug Fixes
+
+- [`40a2d81d9`](https://www.github.com/tauri-apps/tauri/commit/40a2d81d97f5c950e892fa7a6ce8b03064410c4d) ([#16289](https://www.github.com/tauri-apps/tauri/pull/16289) by [@redvelo](https://www.github.com/tauri-apps/tauri/../../redvelo)) Fixed F11 and the HTML Fullscreen API not updating the native window's fullscreen state on CEF.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@3.0.0-alpha.5`
+- Upgraded to `tauri@3.0.0-alpha.6`
+
 ## [3.0.0-alpha.6]
 
 ### New Features

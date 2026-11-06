@@ -14,7 +14,7 @@
   const processIpcMessage = __RAW_process_ipc_message_fn__
   const osName = __TEMPLATE_os_name__
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
-  let customProtocolIpcFailed = false
+  let customProtocolIpcFailed = null
 
   // on Android we never use it because Android does not have support to reading the request body
   const canUseCustomProtocol = osName !== 'android'
@@ -40,6 +40,7 @@
         headers
       })
         .then((response) => {
+          customProtocolIpcFailed = false
           const callbackId =
             response.headers.get('Tauri-Response') === 'ok' ? callback : error
           // we need to split here because on Android the content-type gets duplicated
@@ -57,14 +58,21 @@
             window.__TAURI_INTERNALS__.runCallback(callbackId, data)
           },
           (e) => {
-            console.warn(
-              'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
-              e
-            )
-            // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
-            // so we need to fallback to the postMessage interface
-            customProtocolIpcFailed = true
-            sendIpcMessage(message)
+            // only fall back on the first failure; if the custom protocol already
+            // succeeded once, a rejection here is likely a page reload aborting the
+            // in-flight request, and falling back would run the command twice
+            if (customProtocolIpcFailed !== false) {
+              console.warn(
+                'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
+                e
+              )
+              // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
+              // so we need to fallback to the postMessage interface
+              customProtocolIpcFailed = true
+              sendIpcMessage(message)
+            } else {
+              throw e
+            }
           }
         )
     } else {

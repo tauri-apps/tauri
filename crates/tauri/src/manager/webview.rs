@@ -464,7 +464,6 @@ impl<R: Runtime> WebviewManager<R> {
 
     let app_manager = manager.manager();
 
-    #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
         let app_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
@@ -487,17 +486,30 @@ impl<R: Runtime> WebviewManager<R> {
       WebviewUrl::External(url) => {
         let config_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let is_app_url = config_url.make_relative(url).is_some();
-        let mut url = url.clone();
-        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
+        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(url) {
           Url::parse("tauri://localhost").unwrap()
         } else {
-          url
+          url.clone()
         }
       }
 
       WebviewUrl::CustomProtocol(url) => url.clone(),
       _ => unimplemented!(),
     };
+
+    if let Some(origin) = &app_manager.custom_app_origin {
+      // the dev server proxy would fetch the app from the real host
+      if PROXY_DEV_SERVER && app_manager.get_app_url(true).origin() == origin.origin() {
+        return Err(crate::Error::InvalidWebviewUrl(
+          "`app > androidTauriProtocolHostname` requires `build > devUrl` in development",
+        ));
+      }
+      pending
+        .webview_attributes
+        .android_tauri_protocol_hostname
+        .clone_from(&app_manager.config.app.android_tauri_protocol_hostname);
+      url = crate::protocol::with_custom_app_origin(url, origin);
+    }
 
     #[cfg(not(feature = "webview-data-url"))]
     if url.scheme() == "data" {

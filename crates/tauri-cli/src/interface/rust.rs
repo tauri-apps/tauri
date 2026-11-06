@@ -135,6 +135,8 @@ pub struct Rust {
   config_features: Vec<String>,
   available_targets: Option<Vec<RustupTarget>>,
   main_binary_name: Option<String>,
+  windows_cef_bootstrap: bool,
+  cef_embed: bool,
 }
 
 impl Rust {
@@ -177,6 +179,8 @@ impl Rust {
       app_settings: Arc::new(app_settings),
       config_features: config.build.features.clone().unwrap_or_default(),
       main_binary_name: config.main_binary_name.clone(),
+      windows_cef_bootstrap: config.bundle.cef.windows_bootstrap,
+      cef_embed: config.bundle.cef.embed,
       available_targets: None,
     })
   }
@@ -197,6 +201,8 @@ impl Rust {
       &mut self.available_targets,
       self.config_features.clone(),
       self.main_binary_name.as_deref(),
+      self.windows_cef_bootstrap,
+      self.cef_embed,
       dirs.tauri,
     )
   }
@@ -1072,6 +1078,32 @@ impl AppSettings for RustAppSettings {
 }
 
 impl RustAppSettings {
+  /// The file stem of the crate's `cdylib` target, when it declares one.
+  ///
+  /// Cargo writes the artifact under `[lib] name`, defaulting to the package name with
+  /// hyphens replaced by underscores.
+  pub fn cdylib_name(&self) -> Option<String> {
+    let manifest = self.manifest.lock().unwrap();
+    let lib = manifest.inner.as_table().get("lib")?.as_table()?;
+    let has_cdylib = lib
+      .get("crate-type")?
+      .as_array()?
+      .iter()
+      .any(|crate_type| crate_type.as_str() == Some("cdylib"));
+    if !has_cdylib {
+      return None;
+    }
+
+    Some(
+      lib
+        .get("name")
+        .and_then(|name| name.as_str())
+        .map(str::to_owned)
+        .unwrap_or_else(|| self.cargo_package_settings.name.clone())
+        .replace('-', "_"),
+    )
+  }
+
   /// The webview runtime the app links when built with the given Cargo features.
   pub fn runtime(&self, features: &[String]) -> Runtime {
     let manifest = self.manifest.lock().unwrap();
@@ -1917,6 +1949,64 @@ mod tests {
     assert!(names.contains(&"app"), "{names:?}");
     assert!(names.contains(&"generate-bindings"), "{names:?}");
     assert_eq!(names.len(), 3, "{names:?}");
+  }
+
+  #[test]
+  fn cdylib_name_follows_the_cargo_library_target() {
+    let with_manifest = |cargo_toml: &str| {
+      let (_temp_dir, mut settings) = app_settings_with_manifest(cargo_toml);
+      settings.manifest = Mutex::new(Manifest {
+        inner: cargo_toml.parse().unwrap(),
+        tauri_features: Default::default(),
+      });
+      settings
+    };
+
+    let settings = with_manifest(
+      r#"
+      [package]
+      name = "my-app"
+
+      [lib]
+      name = "my-app-lib"
+      crate-type = ["staticlib", "cdylib", "rlib"]
+      "#,
+    );
+    // Cargo turns hyphens in target names into underscores in the artifact.
+    assert_eq!(settings.cdylib_name().as_deref(), Some("my_app_lib"));
+
+    let settings = with_manifest(
+      r#"
+      [package]
+      name = "my-app"
+
+      [lib]
+      crate-type = ["cdylib"]
+      "#,
+    );
+    assert_eq!(
+      settings.cdylib_name().as_deref(),
+      Some("my_app"),
+      "the library target defaults to the package name"
+    );
+
+    let settings = with_manifest(
+      r#"
+      [package]
+      name = "my-app"
+
+      [lib]
+      crate-type = ["rlib", "staticlib"]
+      "#,
+    );
+    assert_eq!(
+      settings.cdylib_name(),
+      None,
+      "a library without a cdylib produces no DLL for the bootstrap to load"
+    );
+
+    let settings = with_manifest("[package]\nname = \"my-app\"\n");
+    assert_eq!(settings.cdylib_name(), None, "no library target at all");
   }
 
   #[test]

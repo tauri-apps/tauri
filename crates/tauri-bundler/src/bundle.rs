@@ -132,7 +132,29 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let main_binary = settings.main_binary()?;
   let main_binary_path = settings.binary_path(main_binary);
 
-  // We make a copy of the unsigned main_binary so that we can restore it after each package_type step.
+  // A CEF bootstrap build keeps the application code in the DLL next to the bootstrap
+  // executable. The bundle type marker is compiled into the application's Rust code, so
+  // that is the binary to patch; the bootstrap executable is a prebuilt CEF file with no
+  // marker in it.
+  let patched_binary_path = {
+    let app_dll = main_binary_path.with_extension("dll");
+    if matches!(target_os, TargetPlatform::Windows) && app_dll.exists() {
+      app_dll
+    } else {
+      main_binary_path.clone()
+    }
+  };
+  let is_cef_bootstrap = patched_binary_path != main_binary_path;
+
+  // CEF's bootstrap executable rejects a signed DLL next to an unsigned executable (and
+  // vice versa). `sign_binaries_if_needed` skips the main binary because it expects the
+  // per-package signing below, but in a bootstrap build the executable is a prebuilt CEF
+  // file that is never patched, so sign it once here instead of once per package type.
+  if is_cef_bootstrap && matches!(target_os, TargetPlatform::Windows) {
+    windows::sign::try_sign(&main_binary_path, settings)?;
+  }
+
+  // We make a copy of the unsigned binary we patch so that we can restore it after each package_type step.
   // This allows us to patch the binary correctly and avoids two issues:
   //  - modifying a signed binary without updating its PE checksum can break signature verification
   //    - codesigning tools should handle calculating+updating this, we just need to ensure
@@ -141,8 +163,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   // TODO: change this to work on a copy while preserving the main binary unchanged
   let mut main_binary_copy =
     tempfile::tempfile().context("failed to create temp file for main binary copy")?;
-  let mut main_binary_original = std::fs::File::open(&main_binary_path)
-    .fs_context("can't open main binary", &main_binary_path)?;
+  let mut main_binary_original = std::fs::File::open(&patched_binary_path)
+    .fs_context("can't open main binary", &patched_binary_path)?;
   std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
 
   let mut bundles = Vec::<Bundle>::new();
@@ -153,7 +175,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
 
     if settings.binary_patching() {
-      if let Err(e) = patch_binary(&main_binary_path, package_type) {
+      if let Err(e) = patch_binary(&patched_binary_path, package_type) {
         log::warn!(
           "Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues"
         );
@@ -161,13 +183,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     } else {
       log::warn!(
         "Skipping binary patching for {} due to --no-binary-patching flag.",
-        main_binary_path.display()
+        patched_binary_path.display()
       );
     }
 
-    // sign main binary for every package type after patch
+    // sign the patched binary for every package type (the prepare step above signed the
+    // bootstrap executable once when the application lives in a DLL).
     if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
-      windows::sign::try_sign(&main_binary_path, settings)?;
+      windows::sign::try_sign(&patched_binary_path, settings)?;
     }
 
     let bundle_paths = match package_type {
@@ -214,7 +237,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     let mut modified_main_binary = std::fs::OpenOptions::new()
       .write(true)
       .truncate(true)
-      .open(&main_binary_path)?;
+      .open(&patched_binary_path)?;
     main_binary_copy.seek(SeekFrom::Start(0))?;
     std::io::copy(&mut main_binary_copy, &mut modified_main_binary)?;
   }

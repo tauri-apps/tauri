@@ -228,11 +228,11 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.0.2(jiti@2.6.1)(supports-color@10.2.2))
       '@rollup/plugin-terser':
-        specifier: 1.0.0
-        version: 1.0.0(rollup@4.64.10)
+        specifier: 1.0.2
+        version: 1.0.2(rollup@4.64.10)
       '@rollup/plugin-typescript':
-        specifier: 12.3.0
-        version: 12.3.0(rollup@4.64.10)(tslib@2.8.1)(typescript@6.0.3)
+        specifier: 12.3.1
+        version: 12.3.1(rollup@4.64.10)(tslib@2.8.1)(typescript@6.0.3)
       '@types/eslint':
         specifier: ^9.6.1
         version: 9.6.1
@@ -246,8 +246,8 @@ importers:
         specifier: 10.1.8
         version: 10.1.8(eslint@10.0.2(jiti@2.6.1)(supports-color@10.2.2))
       eslint-plugin-security:
-        specifier: 4.2.0
-        version: 4.2.0
+        specifier: 4.2.1
+        version: 4.2.1
       globals:
         specifier: ^17.4.0
         version: 17.4.0
@@ -1911,8 +1911,8 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@rollup/plugin-terser@1.0.0':
-    resolution: {integrity: sha512-FnCxhTBx6bMOYQrar6C8h3scPt8/JwIzw3+AJ2K++6guogH5fYaIFia+zZuhqv0eo1RN7W1Pz630SyvLbDjhtQ==}
+  '@rollup/plugin-terser@1.0.2':
+    resolution: {integrity: sha512-+UihHnuLnQDQ/9wog7ym+7oawCXkjTIo0WwkK7s//0mkktTN0VhYk6fGVxH+NtGzW064w5RCGgreMDxRVhHCzw==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       rollup: ^2.0.0||^3.0.0||^4.0.0
@@ -1920,8 +1920,8 @@ packages:
       rollup:
         optional: true
 
-  '@rollup/plugin-typescript@12.3.0':
-    resolution: {integrity: sha512-7DP0/p7y3t67+NabT9f8oTBFE6gGkto4SA6Np2oudYmZE/m1dt8RB0SjL1msMxFpLo631qjRCcBlAbq1ml/Big==}
+  '@rollup/plugin-typescript@12.3.1':
+    resolution: {integrity: sha512-+dT5iMCxLNOCdaCGvGQpLhBpWdnKlPNMU/hvVLKgQgHuBlRFABi1Y6YxXg7ajqnsHRA53Tkdm3Vu1P+qn9HQ7Q==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       rollup: ^2.14.0||^3.0.0||^4.0.0
@@ -3145,8 +3145,8 @@ packages:
     peerDependencies:
       eslint: '>=7.0.0'
 
-  eslint-plugin-security@4.2.0:
-    resolution: {integrity: sha512-LL5jbxRzlNv0vkSyBtbO7qAPofqd3xlseAFTDevyDTMmScjBrLv2/VkQ7ZFQxBaFYsa3dhpE7NcV+JkwJ9l6RQ==}
+  eslint-plugin-security@4.2.1:
+    resolution: {integrity: sha512-iF95SSqdSUVTvB7srNXoNeTQIqwfALTn9nmoqJyixSIKqEydlW01Cqb7xNveqE4Zd6YWBoQICQ4FH9NkR1byDg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   eslint-scope@9.1.1:
@@ -3330,8 +3330,8 @@ packages:
   fn.name@1.1.0:
     resolution: {integrity: sha512-GRnmB5gPyJpAhTQdSZTSp9uaPSvl09KoYcMQtsB9rQoOmzs9dH6ffeccH+Z+cv6P68Hu5bC6JjRh4Ah/mHSNRw==}
 
-  follow-redirects@1.16.1:
-    resolution: {integrity: sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==}
+  follow-redirects@1.16.2:
+    resolution: {integrity: sha512-/kVP2U8z596Ia0gwFrwyIeo74ta5aVmSeU1FfAUMAmcEP5EP7zydmag3SLiN64NaRKef3lxsq7i/g7ltJQDGow==}
     engines: {node: '>=4.0'}
     peerDependencies:
       debug: '*'
@@ -4565,6 +4565,11 @@ packages:
 
   terser@5.46.0:
     resolution: {integrity: sha512-jTwoImyr/QbOWFFso3YoU3ik0jBBDJ6JTOQiy/J2YxVJdZCc+5u7skhNwiOR3FQIygFqVUPHl7qbbxtjW2K3Qg==}
+    engines: {node: '>=10'}
+    hasBin: true
+
+  terser@5.51.2:
+    resolution: {integrity: sha512-bWnjSNscmuI+GJze6ZupnHP8G/cTcsJF+bXCeQknk2SHQsgbNJnLrqiH9jZ2W4STPVXH2mDKKRX3iwPhc9Cn/Q==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -6335,15 +6340,15 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@rollup/plugin-terser@1.0.0(rollup@4.64.10)':
+  '@rollup/plugin-terser@1.0.2(rollup@4.64.10)':
     dependencies:
       serialize-javascript: 7.1.4
       smob: 1.6.2
-      terser: 5.46.0
+      terser: 5.51.2
     optionalDependencies:
       rollup: 4.64.10
 
-  '@rollup/plugin-typescript@12.3.0(rollup@4.64.10)(tslib@2.8.1)(typescript@6.0.3)':
+  '@rollup/plugin-typescript@12.3.1(rollup@4.64.10)(tslib@2.8.1)(typescript@6.0.3)':
     dependencies:
       '@rollup/pluginutils': 5.4.0(rollup@4.64.10)
       resolve: 1.22.13
@@ -7195,7 +7200,7 @@ snapshots:
 
   axios@1.20.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
     dependencies:
-      follow-redirects: 1.16.1(debug@4.4.3(supports-color@8.1.1))
+      follow-redirects: 1.16.2(debug@4.4.3(supports-color@8.1.1))
       form-data: 4.0.6
       https-proxy-agent: 5.0.1(supports-color@8.1.1)
       proxy-from-env: 2.1.0
@@ -7720,7 +7725,7 @@ snapshots:
     dependencies:
       eslint: 10.0.2(jiti@2.6.1)(supports-color@10.2.2)
 
-  eslint-plugin-security@4.2.0:
+  eslint-plugin-security@4.2.1:
     dependencies:
       safe-regex: 2.1.1
 
@@ -7960,7 +7965,7 @@ snapshots:
 
   fn.name@1.1.0: {}
 
-  follow-redirects@1.16.1(debug@4.4.3(supports-color@8.1.1)):
+  follow-redirects@1.16.2(debug@4.4.3(supports-color@8.1.1)):
     optionalDependencies:
       debug: 4.4.3(supports-color@8.1.1)
 
@@ -9367,6 +9372,14 @@ snapshots:
       - react-native-b4a
 
   terser@5.46.0:
+    dependencies:
+      '@jridgewell/source-map': 0.3.11
+      acorn: 8.16.0
+      commander: 2.20.3
+      source-map-support: 0.5.21
+    optional: true
+
+  terser@5.51.2:
     dependencies:
       '@jridgewell/source-map': 0.3.11
       acorn: 8.16.0

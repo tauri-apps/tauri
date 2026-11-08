@@ -436,8 +436,7 @@ tauri::Builder::default()
       let window_ = window.clone();
       window.run_on_main_thread(move || {
         if let Ok(qt_window) = window_.qt_window() {
-          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
-          let _ = unsafe { menu.inner().init_for_qt_window(qt_window) };
+          let _ = menu.inner().init_for_qt_window(qt_window);
         }
       })?;
     }
@@ -1410,8 +1409,7 @@ tauri::Builder::default()
       }
       #[cfg(qt)]
       if let Ok(qt_window) = window.qt_window() {
-        // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
-        let _ = unsafe { menu_.inner().init_for_qt_window(qt_window) };
+        let _ = menu_.inner().init_for_qt_window(qt_window);
       }
     })?;
 
@@ -1449,8 +1447,7 @@ tauri::Builder::default()
         }
         #[cfg(qt)]
         if let Ok(qt_window) = window.qt_window() {
-          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
-          let _ = unsafe { menu.inner().remove_for_qt_window(qt_window) };
+          let _ = menu.inner().remove_for_qt_window(qt_window);
         }
       })?;
     }
@@ -1485,8 +1482,7 @@ tauri::Builder::default()
         }
         #[cfg(qt)]
         if let Ok(qt_window) = window.qt_window() {
-          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
-          let _ = unsafe { menu_.inner().hide_for_qt_window(qt_window) };
+          let _ = menu_.inner().hide_for_qt_window(qt_window);
         }
       })?;
     }
@@ -1517,8 +1513,7 @@ tauri::Builder::default()
         }
         #[cfg(qt)]
         if let Ok(qt_window) = window.qt_window() {
-          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
-          let _ = unsafe { menu_.inner().show_for_qt_window(qt_window) };
+          let _ = menu_.inner().show_for_qt_window(qt_window);
         }
       })?;
     }
@@ -1550,8 +1545,7 @@ tauri::Builder::default()
         }
         #[cfg(qt)]
         if let Ok(qt_window) = window.qt_window() {
-          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
-          let _ = tx.send(unsafe { menu_.inner().is_visible_on_qt_window(qt_window) });
+          let _ = tx.send(menu_.inner().is_visible_on_qt_window(qt_window));
         }
       })?;
 

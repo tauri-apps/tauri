@@ -62,10 +62,7 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
 
       #[cfg(qt)]
       if let Ok(w) = window.qt_window() {
-        // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
-        unsafe {
-          inner.show_context_menu_for_qt_window(w, position);
-        }
+        inner.show_context_menu_for_qt_window(w, position);
       }
 
       #[cfg(windows)]

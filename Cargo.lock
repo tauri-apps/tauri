@@ -5387,7 +5387,6 @@ dependencies = [
 name = "muda"
 version = "0.20.0"
 dependencies = [
- "cc",
  "crossbeam-channel",
  "dpi",
  "gtk",
@@ -5400,6 +5399,7 @@ dependencies = [
  "objc2-foundation",
  "once_cell",
  "png 0.18.1",
+ "qtshim",
  "serde",
  "thiserror 2.0.21",
  "windows-sys 0.60.2",
@@ -7276,6 +7276,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f6d64c71eb498fe9eae14ce4ec935c555749aef511cca85b5568910d6e48001"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "qtshim"
+version = "0.1.0"
+dependencies = [
+ "qtshim-sys",
+]
+
+[[package]]
+name = "qtshim-sys"
+version = "0.1.0"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

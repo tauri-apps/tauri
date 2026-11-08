@@ -83,6 +83,7 @@ incremental = false
 opt-level = "s"
 
 [patch.crates-io]
+muda = { path = "../muda" }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }

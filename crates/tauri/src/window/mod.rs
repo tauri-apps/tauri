@@ -429,6 +429,19 @@ tauri::Builder::default()
       window
     })?;
 
+    // GTK and win32 menus are installed by the runtime's `after_window_creation` callback; Qt
+    // windows get theirs here, once the runtime returned the window.
+    #[cfg(qt)]
+    if let (Some(menu), Ok(_)) = (window.menu(), window.qt_window()) {
+      let window_ = window.clone();
+      window.run_on_main_thread(move || {
+        if let Ok(qt_window) = window_.qt_window() {
+          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
+          let _ = unsafe { menu.inner().init_for_qt_window(qt_window) };
+        }
+      })?;
+    }
+
     #[cfg(desktop)]
     if let Some(handler) = self.on_menu_event {
       window.on_menu_event(handler);
@@ -660,11 +673,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
       target_os = "openbsd"
     ))]
     {
-      // the dispatcher hands out an owned `GtkApplicationWindow*`, which `transient_for` takes
-      // ownership of - no GTK bindings needed, so this works without a `gtk3`/`gtk4` feature.
-      self.window_builder = self
-        .window_builder
-        .transient_for(parent.window.dispatcher.gtk_window()?);
+      self.window_builder = transient_for_parent(self.window_builder, parent)?;
     }
 
     #[cfg(target_os = "macos")]
@@ -745,9 +754,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   pub fn transient_for(mut self, parent: &Window<R>) -> crate::Result<Self> {
-    self.window_builder = self
-      .window_builder
-      .transient_for(parent.window.dispatcher.gtk_window()?);
+    self.window_builder = transient_for_parent(self.window_builder, parent)?;
     Ok(self)
   }
 
@@ -1401,6 +1408,11 @@ tauri::Builder::default()
           .inner()
           .init_for_gtk_window(&gtk_window, Some(&gtk_box));
       }
+      #[cfg(qt)]
+      if let Ok(qt_window) = window.qt_window() {
+        // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
+        let _ = unsafe { menu_.inner().init_for_qt_window(qt_window) };
+      }
     })?;
 
     self.menu_lock().replace(WindowMenu {
@@ -1435,6 +1447,11 @@ tauri::Builder::default()
         if let Ok(gtk_window) = window.gtk_window() {
           let _ = menu.inner().remove_for_gtk_window(&gtk_window);
         }
+        #[cfg(qt)]
+        if let Ok(qt_window) = window.qt_window() {
+          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
+          let _ = unsafe { menu.inner().remove_for_qt_window(qt_window) };
+        }
       })?;
     }
 
@@ -1466,6 +1483,11 @@ tauri::Builder::default()
         if let Ok(gtk_window) = window.gtk_window() {
           let _ = menu_.inner().hide_for_gtk_window(&gtk_window);
         }
+        #[cfg(qt)]
+        if let Ok(qt_window) = window.qt_window() {
+          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
+          let _ = unsafe { menu_.inner().hide_for_qt_window(qt_window) };
+        }
       })?;
     }
 
@@ -1492,6 +1514,11 @@ tauri::Builder::default()
         #[cfg(gtk)]
         if let Ok(gtk_window) = window.gtk_window() {
           let _ = menu_.inner().show_for_gtk_window(&gtk_window);
+        }
+        #[cfg(qt)]
+        if let Ok(qt_window) = window.qt_window() {
+          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
+          let _ = unsafe { menu_.inner().show_for_qt_window(qt_window) };
         }
       })?;
     }
@@ -1521,6 +1548,11 @@ tauri::Builder::default()
         if let Ok(gtk_window) = window.gtk_window() {
           let _ = tx.send(menu_.inner().is_visible_on_gtk_window(&gtk_window));
         }
+        #[cfg(qt)]
+        if let Ok(qt_window) = window.qt_window() {
+          // SAFETY: a live `QWidget*` from the runtime, used on the main thread.
+          let _ = tx.send(unsafe { menu_.inner().is_visible_on_qt_window(qt_window) });
+        }
       })?;
 
       return Ok(rx.recv().unwrap_or(false));
@@ -1544,6 +1576,25 @@ tauri::Builder::default()
   ) -> crate::Result<()> {
     menu.popup_at(self.clone(), position)
   }
+}
+
+/// Makes `builder` transient for `parent`: a Qt runtime's window is passed as a `QWidget*`,
+/// anything else as an owned `GtkApplicationWindow*` (no GTK bindings needed either way).
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn transient_for_parent<R: Runtime, B: tauri_runtime::window::WindowBuilder>(
+  builder: B,
+  parent: &Window<R>,
+) -> crate::Result<B> {
+  if let Ok(qt_window) = parent.window.dispatcher.qt_window() {
+    return Ok(builder.transient_for_qt(qt_window));
+  }
+  Ok(builder.transient_for(parent.window.dispatcher.gtk_window()?))
 }
 
 /// Window getters.
@@ -1757,6 +1808,22 @@ impl<R: Runtime> Window<R> {
           Err(crate::Error::InvalidWindowHandle)
         }
       })
+  }
+
+  /// Returns the `QWidget*` of this window when the runtime builds its windows with Qt
+  /// (e.g. `tauri-runtime-qt`), or an error otherwise.
+  ///
+  /// The pointer is borrowed: it is valid while the window exists and must only be used on the
+  /// main thread.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn qt_window(&self) -> crate::Result<*mut std::ffi::c_void> {
+    self.window.dispatcher.qt_window().map_err(Into::into)
   }
 
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.

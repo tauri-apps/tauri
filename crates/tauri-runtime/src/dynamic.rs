@@ -255,6 +255,14 @@ enum WindowBuilderOp {
     target_os = "openbsd"
   ))]
   TransientFor(*mut std::ffi::c_void),
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  TransientForQt(*mut std::ffi::c_void),
   #[cfg(windows)]
   DragAndDrop(bool),
   #[cfg(target_os = "macos")]
@@ -326,6 +334,14 @@ impl fmt::Debug for WindowBuilderOp {
         target_os = "openbsd"
       ))]
       Self::TransientFor(v) => f.debug_tuple("TransientFor").field(v).finish(),
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      Self::TransientForQt(v) => f.debug_tuple("TransientForQt").field(v).finish(),
       #[cfg(windows)]
       Self::DragAndDrop(v) => f.debug_tuple("DragAndDrop").field(v).finish(),
       #[cfg(target_os = "macos")]
@@ -429,6 +445,14 @@ impl DynWindowBuilder {
           target_os = "openbsd"
         ))]
         WindowBuilderOp::TransientFor(v) => builder.transient_for(v),
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        WindowBuilderOp::TransientForQt(v) => builder.transient_for_qt(v),
         #[cfg(windows)]
         WindowBuilderOp::DragAndDrop(v) => builder.drag_and_drop(v),
         #[cfg(target_os = "macos")]
@@ -629,6 +653,17 @@ impl WindowBuilder for DynWindowBuilder {
   ))]
   fn transient_for(self, parent: *mut std::ffi::c_void) -> Self {
     self.push(WindowBuilderOp::TransientFor(parent))
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for_qt(self, parent: *mut std::ffi::c_void) -> Self {
+    self.push(WindowBuilderOp::TransientForQt(parent))
   }
 
   #[cfg(windows)]
@@ -1234,6 +1269,14 @@ trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     target_os = "openbsd"
   ))]
   fn default_vbox(&self) -> Result<*mut std::ffi::c_void>;
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn qt_window(&self) -> Result<*mut std::ffi::c_void>;
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String>;
   #[cfg(target_os = "ios")]
@@ -1419,6 +1462,17 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
   ))]
   fn default_vbox(&self) -> Result<*mut std::ffi::c_void> {
     WindowDispatch::default_vbox(self)
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn qt_window(&self) -> Result<*mut std::ffi::c_void> {
+    WindowDispatch::qt_window(self)
   }
 
   #[cfg(target_os = "android")]
@@ -1808,6 +1862,17 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
   ))]
   fn default_vbox(&self) -> Result<*mut std::ffi::c_void> {
     self.inner.default_vbox()
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn qt_window(&self) -> Result<*mut std::ffi::c_void> {
+    self.inner.qt_window()
   }
 
   #[cfg(target_os = "android")]

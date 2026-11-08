@@ -1674,7 +1674,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       WebviewMessage::Reparent(window_id, tx),
     ))?;
 
-    rx.recv().unwrap()?;
+    rx.recv().map_err(|_| Error::FailedToSendMessage)??;
 
     *current_window_id = window_id;
     Ok(())
@@ -3585,56 +3585,72 @@ fn handle_user_message<T: UserEvent>(
         target_os = "openbsd"
       ))]
       if let WebviewMessage::Reparent(new_parent_window_id, tx) = webview_message {
-        let webview_handle = windows.0.borrow_mut().get_mut(&window_id).and_then(|w| {
-          w.webviews
-            .iter()
-            .position(|w| w.id == webview_id)
-            .map(|webview_index| w.webviews.remove(webview_index))
-        });
+        // Validate both window records before modifying registration.
+        // Keep the original WebView registered if native reparenting fails.
+        let webview_handle = windows
+          .0
+          .borrow()
+          .get(&window_id)
+          .and_then(|w| w.webviews.iter().find(|w| w.id == webview_id).cloned());
 
-        if let Some(webview) = webview_handle {
-          if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
-            .0
-            .borrow_mut()
-            .get_mut(&new_parent_window_id)
-            .map(|w| (w.inner.clone(), &mut w.webviews))
-          {
-            #[cfg(target_os = "macos")]
-            let reparent_result = {
-              use wry::WebViewExtMacOS;
-              webview.inner.reparent(new_parent_window.ns_window() as _)
-            };
-            #[cfg(windows)]
-            let reparent_result = { webview.inner.reparent(new_parent_window.hwnd()) };
+        let destination_window = windows
+          .0
+          .borrow()
+          .get(&new_parent_window_id)
+          .and_then(|w| w.inner.clone());
 
-            #[cfg(any(
-              target_os = "linux",
-              target_os = "dragonfly",
-              target_os = "freebsd",
-              target_os = "netbsd",
-              target_os = "openbsd"
-            ))]
-            let reparent_result = {
-              if let Some(container) = new_parent_window.default_vbox() {
-                webview.inner.reparent(container)
-              } else {
-                Err(wry::Error::MessageSender)
-              }
-            };
+        if let (Some(webview), Some(new_parent_window)) = (webview_handle, destination_window) {
+          #[cfg(target_os = "macos")]
+          let reparent_result = {
+            use wry::WebViewExtMacOS;
+            webview.inner.reparent(new_parent_window.ns_window() as _)
+          };
+          #[cfg(windows)]
+          let reparent_result = { webview.inner.reparent(new_parent_window.hwnd()) };
 
-            match reparent_result {
-              Ok(_) => {
-                new_parent_window_webviews.push(webview);
-                tx.send(Ok(())).unwrap();
-              }
-              Err(e) => {
-                log::error!("failed to reparent webview: {e}");
-                tx.send(Err(Error::FailedToSendMessage)).unwrap();
-              }
+          #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ))]
+          let reparent_result = {
+            if let Some(container) = new_parent_window.default_vbox() {
+              webview.inner.reparent(container)
+            } else {
+              Err(wry::Error::MessageSender)
+            }
+          };
+
+          match reparent_result {
+            Ok(_) => {
+              // Both windows were validated above. Native reparenting has
+              // succeeded, so transfer the WebView registration now.
+              let mut all_windows = windows.0.borrow_mut();
+              let source = all_windows.get_mut(&window_id).unwrap();
+              let index = source
+                .webviews
+                .iter()
+                .position(|w| w.id == webview_id)
+                .unwrap();
+              let moved = source.webviews.remove(index);
+              all_windows
+                .get_mut(&new_parent_window_id)
+                .unwrap()
+                .webviews
+                .push(moved);
+              let _ = tx.send(Ok(()));
+            }
+            Err(e) => {
+              // No registration was removed on native failure.
+              log::error!("failed to reparent webview: {e}");
+              let _ = tx.send(Err(Error::FailedToSendMessage));
             }
           }
         } else {
-          tx.send(Err(Error::FailedToSendMessage)).unwrap();
+          // Invalid source or destination leaves registration unchanged.
+          let _ = tx.send(Err(Error::FailedToSendMessage));
         }
 
         return;

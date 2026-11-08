@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0-alpha.6]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@3.0.0-alpha.6`
+- Update `zip` to v9 and the locked `zstd`, `rustls-webpki`, `webpki-roots` and `webpki-root-certs` dependencies to address RUSTSEC-2026-0367, RUSTSEC-2026-0368, RUSTSEC-2026-0369, RUSTSEC-2026-0429, RUSTSEC-2026-0381 through RUSTSEC-2026-0383, RUSTSEC-2026-0391, RUSTSEC-2026-0395 through RUSTSEC-2026-0406 and RUSTSEC-2026-0410.
+
 ## [3.0.0-alpha.5]
 
 ### New Features

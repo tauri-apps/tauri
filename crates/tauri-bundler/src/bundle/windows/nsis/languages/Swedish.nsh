@@ -1,6 +1,6 @@
 LangString addOrReinstall ${LANG_SWEDISH} "Lägg till/Installera om komponenter"
-LangString alreadyInstalled ${LANG_SWEDISH}} "Redan installerad"
-LangString alreadyInstalledLong ${LANG_SWEDISH}} "${PRODUCTNAME} ${VERSION} är redan installerad. Välj åtgärd och klicka på Nästa för att fortsätta."
+LangString alreadyInstalled ${LANG_SWEDISH} "Redan installerad"
+LangString alreadyInstalledLong ${LANG_SWEDISH} "${PRODUCTNAME} ${VERSION} är redan installerad. Välj åtgärd och klicka på Nästa för att fortsätta."
 LangString appRunning ${LANG_SWEDISH} "{{product_name}} körs! Stäng det först och försök igen."
 LangString appRunningOkKill ${LANG_SWEDISH} "{{product_name}} körs!$\nKlicka på OK för att avsluta det."
 LangString chooseMaintenanceOption ${LANG_SWEDISH} "Välj underhållsåtgärd."

@@ -13,13 +13,13 @@ use std::sync::{
 use cef::*;
 use sha2::{Digest, Sha256};
 use tauri_runtime::{
-  Cookie, Error, Result, Runtime, UserEvent, WebviewDispatch, WebviewEventId,
+  Cookie, Error, Result, Runtime, UserEvent, WebviewDispatch,
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   webview::{
     DetachedWebview, InitializationScript, PendingWebview, UriSchemeProtocolHandler,
     WebviewAttributes,
   },
-  window::{WebviewEvent, WindowId},
+  window::WindowId,
 };
 use tauri_utils::{
   Theme,
@@ -161,9 +161,6 @@ fn color_to_argb(color: Color) -> u32 {
 ///   feature (`OverlayScrollbar`), reachable through `Cef::enable_features`.
 /// - `background_throttling`: Chromium throttles hidden pages process-wide;
 ///   `--disable-background-timer-throttling` turns that off for every webview.
-/// - `transparent` on a windowed browser: a background alpha of 0 falls back to
-///   `CefSettings.background_color`; transparent painting exists only in
-///   off-screen rendering, where `offscreen` maps it below.
 /// - `accept_first_mouse`: Chromium's own view decides whether the click that
 ///   activates a window reaches the page.
 /// - `browser_extensions_enabled`, `extensions_path`: CEF removed its extension
@@ -184,12 +181,11 @@ fn color_to_argb(color: Color) -> u32 {
 /// [`apply_user_agent_override`]), because `CefSettings.user_agent` is fixed for
 /// the whole process before any webview is created.
 ///
-/// An off-screen browser reads a background alpha of 0 as transparent painting
-/// rather than as "unset", so it gets an opaque white background unless the
-/// webview asks to be transparent or names a color of its own.
+/// CEF reads a background alpha of 0 as transparent painting rather than as
+/// "unset", so a webview gets an opaque white background unless it asks to be
+/// transparent or names a color of its own.
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
-  offscreen: bool,
 ) -> cef::BrowserSettings {
   cef::BrowserSettings {
     javascript: cef::State::from(if webview_attributes.javascript_disabled {
@@ -202,10 +198,13 @@ fn browser_settings_from_webview_attributes(
     } else {
       cef::sys::cef_state_t::STATE_DISABLED
     }),
-    background_color: match webview_attributes.background_color {
-      Some(color) => color_to_argb(color),
-      None if offscreen && !webview_attributes.transparent => 0xFFFF_FFFF,
-      None => 0,
+    background_color: match (
+      webview_attributes.background_color,
+      webview_attributes.transparent,
+    ) {
+      (Some(color), _) => color_to_argb(color),
+      (None, true) => 0x00_00_00_00,
+      (None, false) => 0xFF_FF_FF_FF,
     },
     // Browser chrome a Tauri window has no business showing: the status bubble is
     // the link target that slides in over the bottom-left of the page on hover,
@@ -224,19 +223,12 @@ fn browser_settings_from_webview_attributes(
 /// leaves an attribute at its default stays quiet. Each message names the runtime-wide
 /// API that does the same thing where one exists: an application ported from WebView2 or
 /// WKWebView may rely on the attribute, and silently dropping it is the worst outcome.
-fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes, offscreen: bool) {
+fn warn_about_unsupported_attributes(label: &str, attributes: &WebviewAttributes) {
   if attributes.additional_browser_args.is_some() {
     log::warn!(
       "webview {label:?} sets additional_browser_args, which the CEF runtime does not support: \
        Chromium's command line is per process, not per webview. Use `Cef::command_line_arg` \
        to pass switches to the browser process."
-    );
-  }
-  if attributes.transparent && !offscreen {
-    log::warn!(
-      "webview {label:?} asks to be transparent, which the CEF runtime does not support: a \
-       windowed Chromium browser paints an opaque background, and transparent painting exists \
-       only in off-screen rendering."
     );
   }
   if attributes.accept_first_mouse {
@@ -439,11 +431,7 @@ impl ConsoleMessage {
     }
   }
 }
-pub(crate) type WebviewEventHandler = Box<dyn Fn(&WebviewEvent) + Send>;
-pub(crate) type WebviewEventListeners = Arc<Mutex<HashMap<WebviewEventId, WebviewEventHandler>>>;
-
 pub(crate) enum WebviewMessage {
-  AddEventListener(WebviewEventId, Box<dyn Fn(&WebviewEvent) + Send>),
   EvaluateScript(String),
   EvaluateScriptWithCallback(String, Box<dyn Fn(String) + Send + 'static>),
   Navigate(Url),
@@ -521,9 +509,20 @@ pub(crate) struct AppWebview {
   /// Whether a DevTools window may be opened for this webview. The DevTools *protocol*
   /// stays available either way — the runtime's own startup rides on it.
   pub(crate) devtools_enabled: bool,
-  pub(crate) listeners: WebviewEventListeners,
   pub(crate) bounds_rate: Option<BoundsRate>,
   pub(crate) offscreen: Option<crate::OffscreenView>,
+  pub(crate) page_fullscreen: PageFullscreen,
+}
+
+/// Whether the page shows an element through the HTML Fullscreen API, as CEF reports it to
+/// `DisplayHandler::on_fullscreen_mode_change`.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PageFullscreen {
+  #[default]
+  Off,
+  /// `owns_window` when the window was put in fullscreen for this page, so leaving it
+  /// restores the window; a window already fullscreen by the app or the user stays that way.
+  On { owns_window: bool },
 }
 
 impl AppWebview {
@@ -681,6 +680,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // and bury an overlay webview under the one that fills the window.
     #[cfg(windows)]
     if child.offscreen.is_none() {
+      child.unclip_siblings();
       child.raise_to_top();
     } else {
       appwindow.background_surface = None;
@@ -852,8 +852,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       info.runtime_style = cef_runtime_style;
       info
     };
-    let mut settings =
-      browser_settings_from_webview_attributes(&pending.webview_attributes, offscreen.is_some());
+    let mut settings = browser_settings_from_webview_attributes(&pending.webview_attributes);
     // Applied last so an application can override what the runtime mapped.
     if let Some(callback) = &pending
       .runtime_specific_attributes
@@ -868,11 +867,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // `navigator.userAgent` for this one target.
     let user_agent = pending.webview_attributes.user_agent.clone();
 
-    warn_about_unsupported_attributes(
-      &pending.label,
-      &pending.webview_attributes,
-      offscreen.is_some(),
-    );
+    warn_about_unsupported_attributes(&pending.label, &pending.webview_attributes);
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {
       "https"
@@ -974,9 +969,9 @@ impl<T: UserEvent> WinitCefApp<T> {
             devtools_protocol_handlers,
             devtools_observer_registration,
             devtools_enabled,
-            listeners: Default::default(),
             bounds_rate,
             offscreen,
+            page_fullscreen: Default::default(),
           })
           .expect("failed to send initialized CEF browser");
       }
@@ -1147,11 +1142,19 @@ impl<T: UserEvent> WinitCefApp<T> {
           .windows
           .get_mut(&window_id)
           .and_then(|appwindow| {
-            appwindow
+            let index = appwindow
               .children
               .iter()
-              .position(|child| child.webview_id == webview_id)
-              .map(|index| appwindow.children.remove(index))
+              .position(|child| child.webview_id == webview_id)?;
+            // The page leaves HTML fullscreen with the window it was shown in fullscreen on,
+            // and that window goes back to how it was before the page took it fullscreen.
+            let page_fullscreen = appwindow.children[index].page_fullscreen;
+            appwindow.set_page_fullscreen(webview_id, false);
+            let child = appwindow.children.remove(index);
+            if page_fullscreen != PageFullscreen::Off {
+              child.host.exit_fullscreen(1);
+            }
+            Some(child)
           })
         else {
           let _ = tx.send(Err(Error::WindowNotFound));
@@ -1290,9 +1293,6 @@ impl<T: UserEvent> WinitCefApp<T> {
         unreachable!("window-dependent message routed to window-independent handler")
       }
       WebviewMessage::Print => child.host.print(),
-      WebviewMessage::AddEventListener(event_id, handler) => {
-        child.listeners.lock().unwrap().insert(event_id, handler);
-      }
       WebviewMessage::Show => child.set_visible(true),
       WebviewMessage::Hide => child.set_visible(false),
       WebviewMessage::SetZoom(scale_factor) => {
@@ -1775,16 +1775,6 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.run_on_main_thread(f)
-  }
-
-  fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId {
-    let id = self.context.next_webview_event_id();
-    let _ = self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::AddEventListener(id, Box::new(f)),
-    });
-    id
   }
 
   fn with_webview<F: FnOnce(<Self::Runtime as Runtime<T>>::Webview) + Send + 'static>(
@@ -2488,26 +2478,22 @@ mod tests {
   use super::*;
 
   #[test]
-  fn offscreen_background_is_transparent_only_on_request() {
+  fn background_is_transparent_only_on_request() {
     let mut attributes = WebviewAttributes::new(tauri_utils::config::WebviewUrl::default());
     assert_eq!(
-      browser_settings_from_webview_attributes(&attributes, false).background_color,
-      0
-    );
-    assert_eq!(
-      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      browser_settings_from_webview_attributes(&attributes).background_color,
       0xFFFF_FFFF
     );
 
     attributes.transparent = true;
     assert_eq!(
-      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      browser_settings_from_webview_attributes(&attributes).background_color,
       0
     );
 
     attributes.background_color = Some(Color(1, 2, 3, 255));
     assert_eq!(
-      browser_settings_from_webview_attributes(&attributes, true).background_color,
+      browser_settings_from_webview_attributes(&attributes).background_color,
       0xFF01_0203
     );
   }

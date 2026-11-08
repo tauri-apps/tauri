@@ -17,4 +17,8 @@ ignore = [
   # ml-dsa timing side-channel, only reachable when signing RPMs with a post-quantum ML-DSA key locally,
   # pulled in by rpm (enables pgp's draft-pqc feature); no pgp release uses a patched ml-dsa yet
   "RUSTSEC-2025-0144",
+  # crypto-bigint timing side-channels, only reachable when signing RPMs locally with a
+  # TAURI_SIGNING_RPM_KEY elliptic curve key, pulled in by rpm through sequoia-openpgp;
+  # the fix requires crypto-bigint 0.7 but no RustCrypto elliptic curve 0.13 release supports it
+  "RUSTSEC-2026-0387",
 ]

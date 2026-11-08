@@ -62,6 +62,18 @@ impl WindowBuilder for WindowBuilderWrapper {
     #[cfg(windows)]
     {
       builder = builder.window_classname("Tauri Window");
+
+      // The webview is a child HWND that draws with per-pixel alpha, which
+      // blends against whatever is painted beneath it inside this window.
+      // WS_CLIPCHILDREN excludes the child's rectangle from this window's own
+      // painting, so there would be nothing underneath and translucent webview
+      // pixels would come out black. A webview can be transparent even when
+      // the window itself is not, so this cannot be gated on `transparent`.
+      let pl_attrs = platform_attrs(&mut builder.attrs.inner).with_clip_children(false);
+      builder.attrs.inner = builder
+        .attrs
+        .inner
+        .with_platform_attributes(Box::new(pl_attrs));
     }
 
     builder

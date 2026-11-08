@@ -28,7 +28,7 @@ use crate::{
   app::AppHandle,
   event::{Event, EventId, EventTarget},
   ipc::{CommandArg, CommandItem, InvokeError},
-  manager::{AppManager, EmitPayload},
+  manager::{AppManager, EmitPayload, scoped_listener::Listeners},
   runtime::{
     RuntimeHandle, WindowDispatch,
     dpi::{Position, Size},
@@ -47,7 +47,7 @@ use windows::Win32::Foundation::HWND;
 use std::{
   fmt,
   hash::{Hash, Hasher},
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, Weak},
 };
 
 /// Monitor descriptor.
@@ -1012,6 +1012,8 @@ pub struct Window<R: Runtime = crate::DynRuntime> {
   #[cfg(desktop)]
   pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
+  /// The listeners registered through [`Window::on_window_event`].
+  pub(crate) event_listeners: Weak<Listeners<WindowEvent>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -1049,6 +1051,7 @@ impl<R: Runtime> Clone for Window<R> {
       #[cfg(desktop)]
       menu: self.menu.clone(),
       resources_table: self.resources_table.clone(),
+      event_listeners: self.event_listeners.clone(),
     }
   }
 }
@@ -1121,6 +1124,10 @@ impl<R: Runtime> Window<R> {
     app_handle: AppHandle<R>,
     #[cfg(desktop)] menu: Option<WindowMenu<R>>,
   ) -> Self {
+    let event_listeners = manager
+      .window
+      .scoped_event_listeners
+      .register(&window.label);
     Self {
       window,
       manager,
@@ -1128,6 +1135,7 @@ impl<R: Runtime> Window<R> {
       #[cfg(desktop)]
       menu: Arc::new(std::sync::Mutex::new(menu)),
       resources_table: Default::default(),
+      event_listeners,
     }
   }
 
@@ -1266,11 +1274,17 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Registers a window event listener.
+  ///
+  /// Does nothing once the window is destroyed, other than logging a warning.
   pub fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) {
-    self
-      .window
-      .dispatcher
-      .on_window_event(move |event| f(&event.clone().into()));
+    if let Some(listeners) = self.event_listeners.upgrade() {
+      listeners.add(Box::new(f));
+    } else {
+      log::warn!(
+        "ignoring a window event listener registered on `{}`, which was already destroyed",
+        self.label()
+      );
+    }
   }
 }
 

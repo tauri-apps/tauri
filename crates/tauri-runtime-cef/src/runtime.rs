@@ -1280,8 +1280,6 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   main_thread_id: std::thread::ThreadId,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
-  next_window_event_id: Arc<AtomicU32>,
-  next_webview_event_id: Arc<AtomicU32>,
   current_dispatch: Arc<MainThreadDispatchSlot<T>>,
   pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
   pub(crate) cef_pump: CefExternalPump,
@@ -1550,14 +1548,6 @@ impl<T: UserEvent> RuntimeContext<T> {
   pub(crate) fn next_webview_id(&self) -> u32 {
     self.next_webview_id.fetch_add(1, Ordering::Relaxed)
   }
-
-  pub(crate) fn next_window_event_id(&self) -> u32 {
-    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
-  }
-
-  pub(crate) fn next_webview_event_id(&self) -> u32 {
-    self.next_webview_event_id.fetch_add(1, Ordering::Relaxed)
-  }
 }
 
 pub(crate) type AfterWindowCreationCallback = Box<dyn for<'a> Fn(RawWindow<'a>) + Send>;
@@ -1602,6 +1592,18 @@ pub(crate) enum Message<T: UserEvent> {
   Window {
     window_id: WindowId,
     message: WindowMessage,
+  },
+  /// A page entered or left HTML fullscreen (`DisplayHandler::on_fullscreen_mode_change`).
+  /// Keyed by the webview alone: the window id its handlers were built with is stale once
+  /// it is reparented.
+  PageFullscreen {
+    webview_id: u32,
+    fullscreen: bool,
+  },
+  /// F11 (`IDC_FULLSCREEN`) in a webview whose page is not in HTML fullscreen, sent to
+  /// whichever window holds the webview now.
+  ToggleFullscreen {
+    webview_id: u32,
   },
   Webview {
     window_id: WindowId,
@@ -1890,6 +1892,8 @@ impl<T: UserEvent> WinitCefApp<T> {
             .iter()
             .position(|child| child.webview_id == webview_id)
             .map(|index| {
+              // A page that took the window fullscreen gives it back as it goes.
+              appwindow.set_page_fullscreen(webview_id, false);
               let child = appwindow.children.remove(index);
               if let Some(view) = &child.offscreen {
                 view.visible.store(false, Ordering::Relaxed);
@@ -1985,6 +1989,31 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       Message::Window { window_id, message } => {
         self.handle_window_message(event_loop, window_id, message)
+      }
+      Message::PageFullscreen {
+        webview_id,
+        fullscreen,
+      } => {
+        if let Some(appwindow) = self.state.windows.values_mut().find(|appwindow| {
+          appwindow
+            .children
+            .iter()
+            .any(|child| child.webview_id == webview_id)
+        }) {
+          appwindow.set_page_fullscreen(webview_id, fullscreen);
+        }
+      }
+      Message::ToggleFullscreen { webview_id } => {
+        let window_id = self.state.windows.iter().find_map(|(id, appwindow)| {
+          appwindow
+            .children
+            .iter()
+            .any(|child| child.webview_id == webview_id)
+            .then_some(*id)
+        });
+        if let Some(window_id) = window_id {
+          self.handle_window_message(event_loop, window_id, WindowMessage::ToggleFullscreen);
+        }
       }
       Message::Webview {
         window_id,
@@ -2110,19 +2139,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     };
     let label = appwindow.label.clone();
-    let listeners = appwindow.listeners.clone();
 
-    self.run_callback(RunEvent::WindowEvent {
-      label,
-      event: event.clone(),
-    });
-
-    {
-      let listeners = listeners.lock().unwrap();
-      for handler in listeners.values() {
-        handler(&event);
-      }
-    }
+    self.run_callback(RunEvent::WindowEvent { label, event });
   }
 
   fn emit_webview_event(&mut self, window_id: WindowId, webview_id: u32, event: WebviewEvent) {
@@ -2137,19 +2155,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     };
     let label = child.label.clone();
-    let listeners = child.listeners.clone();
 
-    self.run_callback(RunEvent::WebviewEvent {
-      label,
-      event: event.clone(),
-    });
-
-    {
-      let listeners = listeners.lock().unwrap();
-      for handler in listeners.values() {
-        handler(&event);
-      }
-    }
+    self.run_callback(RunEvent::WebviewEvent { label, event });
   }
 
   fn request_exit(&mut self, code: Option<i32>) -> bool {
@@ -2256,16 +2263,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     };
     let label = appwindow.label.clone();
-    let listeners = appwindow.listeners.clone();
-
-    {
-      let listeners = listeners.lock().unwrap();
-      for handler in listeners.values() {
-        handler(&WindowEvent::CloseRequested {
-          signal_tx: tx.clone(),
-        });
-      }
-    }
 
     self.run_callback(RunEvent::WindowEvent {
       label,
@@ -3435,8 +3432,6 @@ impl<T: UserEvent> CefRuntime<T> {
       main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
-      next_window_event_id: Default::default(),
-      next_webview_event_id: Default::default(),
       current_dispatch,
       app_wide_theme: Default::default(),
       cef_pump,

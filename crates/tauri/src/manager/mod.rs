@@ -35,6 +35,7 @@ use crate::app::OnWebContentProcessTerminate;
 
 #[cfg(desktop)]
 mod menu;
+pub(crate) mod scoped_listener;
 #[cfg(all(desktop, feature = "tray-icon"))]
 mod tray;
 pub mod webview;
@@ -252,6 +253,16 @@ pub(crate) enum EmitPayload<'a, S: Serialize> {
   Str(String),
 }
 
+/// What [`AppManager::on_window_close`] leaves of a destroyed window, to be dropped once
+/// [`crate::WindowEvent::Destroyed`] has been delivered to it.
+pub(crate) struct ClosedWindow {
+  /// The window's scoped event listeners, already detached from its label.
+  pub(crate) scoped_event_listeners: Option<Arc<scoped_listener::Listeners<crate::WindowEvent>>>,
+  /// Rust event listeners targeting the window's label from this id on were registered after
+  /// it was closed, for a later window reusing the label.
+  pub(crate) event_listeners_before: EventId,
+}
+
 impl<R: Runtime> AppManager<R> {
   #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
@@ -289,6 +300,7 @@ impl<R: Runtime> AppManager<R> {
         windows: Mutex::default(),
         default_icon: context.default_window_icon,
         event_listeners: Arc::new(window_event_listeners),
+        scoped_event_listeners: Default::default(),
       },
       webview: webview::WebviewManager {
         webviews: Mutex::default(),
@@ -298,6 +310,7 @@ impl<R: Runtime> AppManager<R> {
         on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webview_event_listeners),
+        scoped_event_listeners: Default::default(),
         invoke_initialization_script,
       },
       #[cfg(all(desktop, feature = "tray-icon"))]
@@ -650,26 +663,51 @@ impl<R: Runtime> AppManager<R> {
       .cloned()
   }
 
-  pub(crate) fn on_window_close(&self, label: &str) {
-    let window = self.window.windows_lock().remove(label);
-    if let Some(window) = window {
-      for webview in window.webviews() {
-        self.webview.webviews_lock().remove(webview.label());
-        self.listeners().remove_webview_listeners(webview.label());
-        self
-          .state
-          .get::<crate::ipc::channel::ChannelDataIpcQueue>()
-          .remove_webview_entries(webview.label());
-      }
+  /// Note that this runs *before* [`crate::WindowEvent::Destroyed`] is dispatched, so
+  /// the window's own listeners must outlive it until that event has been delivered. They are
+  /// handed back instead, marked at this point: a window recreated under the same label in the
+  /// meantime registers its own, which neither receive the event nor get dropped with the old
+  /// window's. Webviews have no equivalent event, so theirs are simply dropped.
+  pub(crate) fn on_window_close(&self, label: &str) -> Option<ClosedWindow> {
+    let window = self.window.windows_lock().remove(label)?;
+    let closed = ClosedWindow {
+      scoped_event_listeners: self
+        .window
+        .scoped_event_listeners
+        .remove_instance(label, &window.event_listeners),
+      event_listeners_before: self.listeners().next_event_id(),
+    };
+    for webview in window.webviews() {
+      self.webview.webviews_lock().remove(webview.label());
+      self.listeners().remove_webview_listeners(webview.label());
+      self.webview.scoped_event_listeners.remove(webview.label());
+      self
+        .state
+        .get::<crate::ipc::channel::ChannelDataIpcQueue>()
+        .remove_webview_entries(webview.label());
     }
-    // window listeners are removed by the window's own event handler after it emits `tauri://destroyed`,
-    // since the run callback (which calls this function) runs before the window event handlers
+    Some(closed)
   }
 
   #[cfg(desktop)]
-  pub(crate) fn on_webview_close(&self, label: &str) {
-    self.webview.webviews_lock().remove(label);
+  pub(crate) fn on_webview_close(&self, webview: &Webview<R>) {
+    let label = webview.label();
+    {
+      let mut webviews = self.webview.webviews_lock();
+      // a handle that outlived its webview must not tear down a later one reusing the label
+      if !webviews
+        .get(label)
+        .is_some_and(|w| w.event_listeners.ptr_eq(&webview.event_listeners))
+      {
+        return;
+      }
+      webviews.remove(label);
+    }
     self.listeners().remove_webview_listeners(label);
+    self
+      .webview
+      .scoped_event_listeners
+      .remove_instance(label, &webview.event_listeners);
     self
       .state
       .get::<crate::ipc::channel::ChannelDataIpcQueue>()

@@ -599,19 +599,11 @@ mod tests {
 
     let permission_files =
       read_permission_files(&moved_out_dir.join("tauri-test-permission-files")).unwrap();
-    let identifiers = permission_files
+    let commands = permission_files
       .iter()
-      .flat_map(|file| &file.permission)
-      .map(|permission| permission.identifier.as_str())
+      .flat_map(|file| &file.commands)
+      .map(String::as_str)
       .collect::<Vec<_>>();
-    assert_eq!(
-      identifiers,
-      [
-        "allow-generated",
-        "deny-generated",
-        "allow-custom",
-        "deny-custom"
-      ]
-    );
+    assert_eq!(commands, ["generated", "custom"]);
   }
 }

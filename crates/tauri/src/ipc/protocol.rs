@@ -644,12 +644,10 @@ mod tests {
   #[test]
   fn parse_invoke_request_empty_path() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
-    let manager: AppManager<Wry> = AppManager::with_handlers(
+    let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
-      PluginStore::default(),
       Box::new(|_| false),
       None,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
       Default::default(),
       Default::default(),

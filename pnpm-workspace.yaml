@@ -23,6 +23,9 @@ allowBuilds:
 
 overrides:
   axios@<1.20.0: ^1.20.0
+  body-parser@>=2.0.0 <2.4.0: ^2.4.0
+  glob@>=9.0.0 <14.0.2: ^14.0.2
+  minimatch@>=7.0.0 <11.0.1: ^11.0.1
   morgan@<1.12.0: ^1.12.0
   serialize-javascript@<7.0.5: ^7.0.5
   sharp@<0.35.5: ^0.35.5
@@ -33,6 +36,8 @@ auditConfig:
   ignoreGhsas:
     # braces, no fix available yet
     - GHSA-vfj7-8cjw-p6xm
+    # deepmerge, no fix available yet
+    - GHSA-gcqx-w48m-w2h4
 
 minimumReleaseAgeExclude:
   - '@crabnebula/test-runner-backend-darwin-arm64@0.3.1'

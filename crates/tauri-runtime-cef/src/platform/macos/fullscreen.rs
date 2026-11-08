@@ -168,6 +168,11 @@ impl FullscreenTransition {
     self.ivars().pending.set(Some(target));
   }
 
+  /// The request held during the transition in progress, if any, without taking it.
+  pub(crate) fn pending(&self) -> Option<Option<FullscreenTarget>> {
+    self.ivars().pending.get()
+  }
+
   /// The request held during the last transition, if any.
   pub(crate) fn take_pending(&self) -> Option<Option<FullscreenTarget>> {
     self.ivars().pending.take()

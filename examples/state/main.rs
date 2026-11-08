@@ -40,8 +40,10 @@ fn get(counter: State<'_, Counter>) -> isize {
 fn main() {
   #[cfg(feature = "cef")]
   let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
-  #[cfg(not(feature = "cef"))]
+  #[cfg(not(any(feature = "cef", feature = "qt")))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
+  #[cfg(feature = "qt")]
+  let builder = tauri::Builder::default().runtime(tauri_runtime_qt::Qt::default());
 
   builder
     .manage(Counter(Mutex::new(0)))

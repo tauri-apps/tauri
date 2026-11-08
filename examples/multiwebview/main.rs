@@ -8,8 +8,10 @@ use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
 
 #[cfg_attr(feature = "cef", tauri_runtime_cef::cef_entry_point)]
 fn main() {
-  #[cfg(not(feature = "cef"))]
+  #[cfg(not(any(feature = "cef", feature = "qt")))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
+  #[cfg(feature = "qt")]
+  let builder = tauri::Builder::default().runtime(tauri_runtime_qt::Qt::default());
   #[cfg(feature = "cef")]
   let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
   builder

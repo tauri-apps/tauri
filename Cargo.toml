@@ -86,6 +86,7 @@ opt-level = "s"
 muda = { path = "../muda" }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
+tauri-runtime = { path = "./crates/tauri-runtime" }
 tauri-utils = { path = "./crates/tauri-utils" }
 
 [workspace.lints.clippy]

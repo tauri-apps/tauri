@@ -241,6 +241,7 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-sample",
  "tauri-runtime-cef",
+ "tauri-runtime-qt",
  "tauri-runtime-wry",
 ]
 
@@ -7282,6 +7283,7 @@ dependencies = [
 name = "qtshim"
 version = "0.1.0"
 dependencies = [
+ "http",
  "qtshim-sys",
 ]
 
@@ -9668,6 +9670,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-runtime-cef",
+ "tauri-runtime-qt",
  "tauri-runtime-wry",
  "tauri-utils",
 ]
@@ -9851,6 +9854,21 @@ dependencies = [
  "url",
  "windows 0.62.2",
  "x11-dl",
+]
+
+[[package]]
+name = "tauri-runtime-qt"
+version = "0.1.0"
+dependencies = [
+ "cookie",
+ "http",
+ "log",
+ "qtshim",
+ "raw-window-handle",
+ "tauri",
+ "tauri-runtime",
+ "tauri-utils",
+ "url",
 ]
 
 [[package]]

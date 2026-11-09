@@ -23,37 +23,6 @@
       "enabled": false
     },
     {
-      "description": "Bump CLI packages",
-      "matchFileNames": [
-        "crates/tauri-cli/Cargo.toml",
-        "packages/cli/Cargo.toml",
-        "packages/cli/package.json"
-      ],
-      "rangeStrategy": "auto"
-    },
-    {
-      "description": "Group non-breaking stable CLI package updates",
-      "matchFileNames": [
-        "crates/tauri-cli/Cargo.toml",
-        "packages/cli/Cargo.toml",
-        "packages/cli/package.json"
-      ],
-      "matchUpdateTypes": ["minor", "patch"],
-      "matchCurrentVersion": "!/^0\\./",
-      "groupName": "non-breaking cli bumps"
-    },
-    {
-      "description": "Group non-breaking 0.x CLI package updates",
-      "matchFileNames": [
-        "crates/tauri-cli/Cargo.toml",
-        "packages/cli/Cargo.toml",
-        "packages/cli/package.json"
-      ],
-      "matchUpdateTypes": ["patch"],
-      "matchCurrentVersion": "/^0\\./",
-      "groupName": "non-breaking cli bumps"
-    },
-    {
       "description": "Group windows-rs / webview2-com crates",
       "groupName": "windows-rs and webview2 crates",
       "matchSourceUrls": [

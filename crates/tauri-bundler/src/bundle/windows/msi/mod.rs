@@ -283,6 +283,31 @@ fn wix_identifier(id: &str) -> String {
   identifier
 }
 
+/// Escapes plain text for the body of an RTF document: `\`, `{` and `}` are
+/// escaped, line breaks become `\par` and every non-ASCII character becomes a
+/// `\uN?` escape, so the RTF stays ASCII whatever code page WiX uses.
+fn escape_rtf_text(text: &str) -> String {
+  let mut rtf = String::with_capacity(text.len());
+  for c in text.replace("\r\n", "\n").chars() {
+    match c {
+      '\\' => rtf.push_str(r"\\"),
+      '{' => rtf.push_str(r"\{"),
+      '}' => rtf.push_str(r"\}"),
+      '\n' => rtf.push_str(r"\par "),
+      '\t' => rtf.push_str(r"\tab "),
+      c if c.is_ascii() => rtf.push(c),
+      c => {
+        let mut buf = [0u16; 2];
+        for unit in c.encode_utf16(&mut buf) {
+          // RTF takes a signed 16-bit value; `?` is the fallback character
+          rtf.push_str(&format!(r"\u{}?", *unit as i16));
+        }
+      }
+    }
+  }
+  rtf
+}
+
 // Specifically goes and gets Wix and verifies the download via Sha256
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   log::info!("Verifying wix package");
@@ -571,7 +596,10 @@ pub fn build_wix_app_installer(
   }
 
   if let Some(license) = settings.license_file() {
-    if license.ends_with(".rtf") {
+    if license
+      .extension()
+      .is_some_and(|ext| ext.eq_ignore_ascii_case("rtf"))
+    {
       data.insert("license", to_json(license));
     } else {
       let license_contents = fs::read_to_string(license)?;
@@ -581,7 +609,7 @@ pub fn build_wix_app_installer(
 \pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
 }}
 "#,
-        license_contents.replace('\n', "\\par ")
+        escape_rtf_text(&license_contents)
       );
       let rtf_output_path = settings
         .project_out_directory()
@@ -1095,6 +1123,17 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn escapes_license_text_for_rtf() {
+    assert_eq!(
+      escape_rtf_text("Copyright {yyyy}\r\nC:\\acme\n"),
+      r"Copyright \{yyyy\}\par C:\\acme\par "
+    );
+    assert_eq!(escape_rtf_text("张伟 ©"), r"\u24352?\u20255? \u169?");
+    // characters outside the BMP are written as a surrogate pair
+    assert_eq!(escape_rtf_text("😀"), r"\u-10179?\u-8704?");
+  }
 
   #[test]
   fn validates_wix_version() {

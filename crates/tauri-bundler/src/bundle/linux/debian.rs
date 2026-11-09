@@ -125,9 +125,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       "chrome_100_percent.pak",
       "chrome_200_percent.pak",
       "resources.pak",
-      // ANGLE support
-      "libEGL.so",
-      "libGLESv2.so",
       // SwANGLE support
       "libvk_swiftshader.so",
       "vk_swiftshader_icd.json",

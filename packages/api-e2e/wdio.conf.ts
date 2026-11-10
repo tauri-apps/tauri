@@ -6,6 +6,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import exitHook, { gracefulExit } from 'exit-hook'
 import { waitTauriDriverReady } from '@crabnebula/tauri-driver'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -127,12 +128,12 @@ export const config: WebdriverIO.Config = {
       })
       testRunnerBackend.on('error', (error) => {
         console.error('test-runner-backend error:', error)
-        process.exit(1)
+        gracefulExit(1)
       })
       testRunnerBackend.on('exit', (code) => {
         if (!killedTestRunnerBackend) {
           console.error('test-runner-backend exited with code:', code)
-          process.exit(1)
+          gracefulExit(1)
         }
       })
       const { waitTestRunnerBackendReady } =
@@ -162,12 +163,12 @@ export const config: WebdriverIO.Config = {
     })
     tauriDriver.on('error', (error) => {
       console.error('tauri-driver error:', error)
-      process.exit(1)
+      gracefulExit(1)
     })
     tauriDriver.on('exit', (code) => {
       if (!killedTauriDriver) {
         console.error('tauri-driver exited with code:', code)
-        process.exit(1)
+        gracefulExit(1)
       }
     })
     await waitTauriDriverReady()
@@ -274,23 +275,8 @@ function closeAll() {
   testRunnerBackend = undefined
 }
 
-function onShutdown(fn: () => void) {
-  const cleanup = () => {
-    try {
-      fn()
-    } finally {
-      process.exit()
-    }
-  }
-  for (const signal of [
-    'exit',
-    'SIGINT',
-    'SIGTERM',
-    'SIGHUP',
-    'SIGBREAK'
-  ] as const) {
-    process.on(signal, cleanup)
-  }
-}
-
-onShutdown(closeAll)
+// Share WebdriverIO's exit-hook lifecycle so its asynchronous cleanup can finish.
+exitHook(closeAll)
+// exit-hook already handles SIGINT and SIGTERM.
+process.once('SIGHUP', () => gracefulExit(129))
+process.once('SIGBREAK', () => gracefulExit(149))

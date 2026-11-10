@@ -56,7 +56,7 @@ jobs:
             }
           - {
               target: aarch64-apple-darwin,
-              os: macos-14,
+              os: macos-latest,
               toolchain: '1.90',
               cargo: cargo,
               command: 'test'

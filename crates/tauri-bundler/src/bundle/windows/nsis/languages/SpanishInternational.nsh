@@ -2,6 +2,7 @@ LangString addOrReinstall ${LANG_SPANISHINTERNATIONAL} "Añadir o reinstalar com
 LangString alreadyInstalled ${LANG_SPANISHINTERNATIONAL} "Ya está instalado"
 LangString alreadyInstalledLong ${LANG_SPANISHINTERNATIONAL} "${PRODUCTNAME} ${VERSION} ya está instalado. Seleccione la operación que desee realizar y pulse Siguiente para continuar."
 LangString appRunning ${LANG_SPANISHINTERNATIONAL} "¡{{product_name}} está abierto! Por favor ciérrelo e intente de nuevo."
+LangString noPermissionToCloseApp ${LANG_SPANISHINTERNATIONAL} "Permisos insuficientes para cerrar {{product_name}}, ciérrelo e intente de nuevo"
 LangString appRunningOkKill ${LANG_SPANISHINTERNATIONAL} "¡{{product_name}} está abierto!$\nPulse Aceptar para cerrarlo."
 LangString chooseMaintenanceOption ${LANG_SPANISHINTERNATIONAL} "Elija la operación de mantenimiento que desee realizar."
 LangString chooseHowToInstall ${LANG_SPANISHINTERNATIONAL} "Elija cómo desea instalar ${PRODUCTNAME}."

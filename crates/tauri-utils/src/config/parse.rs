@@ -337,6 +337,8 @@ fn do_parse<D: DeserializeOwned>(
 /// "Low-level" helper to parse JSON into a [`Config`].
 ///
 /// `raw` should be the contents of the file that is represented by `path`.
+// Inline so only crates that call this generate code for the `Config` deserializer (#16399).
+#[inline]
 pub fn parse_json(raw: &str, path: &Path) -> Result<Config, ConfigError> {
   do_parse_json(raw, path)
 }
@@ -360,6 +362,8 @@ fn do_parse_json<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, Confi
 /// `raw` should be the contents of the file that is represented by `path`. This function requires
 /// the `config-json5` feature to be enabled.
 #[cfg(feature = "config-json5")]
+// Inline so only crates that call this generate code for the `Config` deserializer (#16399).
+#[inline]
 pub fn parse_json5(raw: &str, path: &Path) -> Result<Config, ConfigError> {
   do_parse_json5(raw, path)
 }

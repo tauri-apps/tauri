@@ -2536,7 +2536,10 @@ class Window {
   ): Promise<UnlistenFn> {
     return this.listen<ScaleFactorChanged>(
       TauriEvent.WINDOW_SCALE_FACTOR_CHANGED,
-      handler
+      (e) => {
+        e.payload.size = new PhysicalSize(e.payload.size)
+        handler(e)
+      }
     )
   }
 

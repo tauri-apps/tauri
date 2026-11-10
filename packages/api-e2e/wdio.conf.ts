@@ -146,6 +146,7 @@ export const config: WebdriverIO.Config = {
   // A fresh tauri-driver (and therefore a fresh app instance) per spec file,
   // so each module's suite runs in isolation.
   beforeSession: async () => {
+    await new Promise(r => setTimeout(r, 200_000));
     const args = ['exec', 'tauri-driver']
     if (process.env.E2E_NATIVE_DRIVER) {
       args.push('--native-driver', process.env.E2E_NATIVE_DRIVER)

@@ -92,11 +92,13 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     log::warn!("NSIS directory is missing some files. Recreating it.");
     std::fs::remove_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
-  } else if let Err(e) = verify_file_hash(
-    nsis_toolset_path.join("NSIS.exe"),
-    NSIS_EXE_SHA1,
-    HashAlgorithm::Sha1,
-  ) {
+  } else if cfg!(target_os = "windows")
+    && let Err(e) = verify_file_hash(
+      nsis_toolset_path.join("NSIS.exe"),
+      NSIS_EXE_SHA1,
+      HashAlgorithm::Sha1,
+    )
+  {
     log::warn!(
       "NSIS.exe is {}. Recreating it.",
       if matches!(e, Error::HashError) {

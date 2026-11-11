@@ -31,5 +31,5 @@
     "prettier": "^3.8.1"
   },
   "minimumReleaseAge": 4320,
-  "packageManager": "pnpm@12.4.2"
+  "packageManager": "pnpm@12.18.0"
 }

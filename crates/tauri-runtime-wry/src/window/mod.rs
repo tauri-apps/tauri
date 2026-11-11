@@ -10,6 +10,14 @@
   target_os = "openbsd"
 ))]
 mod linux;
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub use linux::{add_webview_container, allocated_room, room};
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(windows)]

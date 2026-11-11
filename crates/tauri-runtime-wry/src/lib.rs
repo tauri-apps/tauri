@@ -388,6 +388,14 @@ impl<T: UserEvent> Context<T> {
           pending,
           #[cfg(windows)]
           _options.focused_webview,
+          #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ))]
+          _options.gtk_fixed.as_ref(),
         )
       }),
       tx,
@@ -1492,6 +1500,14 @@ pub type CreateWebviewClosure =
 pub struct CreateWebviewOptions {
   #[cfg(windows)]
   pub focused_webview: Arc<Mutex<FocusState>>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub gtk_fixed: Option<gtk::Fixed>,
 }
 
 pub enum Message<T: 'static> {
@@ -2446,6 +2462,15 @@ pub struct WindowWrapper {
   has_children: AtomicBool,
   webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
+  /// Holds the webviews of the window, if every one of them is a child.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  gtk_fixed: Option<gtk::Fixed>,
   #[cfg(windows)]
   background_color: Option<tao::window::RGBA>,
   #[cfg(windows)]
@@ -2915,6 +2940,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           CreateWebviewOptions {
             #[cfg(windows)]
             focused_webview: w.focused_webview.clone(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: w.gtk_fixed.clone(),
           },
         )
       });
@@ -2932,6 +2965,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         pending,
         #[cfg(windows)]
         _options.focused_webview,
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        _options.gtk_fixed.as_ref(),
       )?;
 
       if let Some(w) = self
@@ -3592,6 +3633,19 @@ fn handle_user_message<T: UserEvent>(
             .map(|webview_index| w.webviews.remove(webview_index))
         });
 
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        let new_parent_gtk_fixed = windows
+          .0
+          .borrow()
+          .get(&new_parent_window_id)
+          .and_then(|w| w.gtk_fixed.clone());
+
         if let Some(webview) = webview_handle {
           if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
             .0
@@ -3615,7 +3669,9 @@ fn handle_user_message<T: UserEvent>(
               target_os = "openbsd"
             ))]
             let reparent_result = {
-              if let Some(container) = new_parent_window.default_vbox() {
+              if let Some(fixed) = &new_parent_gtk_fixed {
+                webview.inner.reparent(fixed)
+              } else if let Some(container) = new_parent_window.default_vbox() {
                 webview.inner.reparent(container)
               } else {
                 Err(wry::Error::MessageSender)
@@ -3727,7 +3783,7 @@ fn handle_user_message<T: UserEvent>(
               let scale_factor = window.scale_factor();
               let size = bounds.size.to_logical::<f32>(scale_factor);
               let position = bounds.position.to_logical::<f32>(scale_factor);
-              let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+              let window_size = webview.room(&window);
               b.width_rate = size.width / window_size.width;
               b.height_rate = size.height / window_size.height;
               b.x_rate = position.x / window_size.width;
@@ -3746,7 +3802,7 @@ fn handle_user_message<T: UserEvent>(
               let size = size.to_logical::<f32>(scale_factor);
 
               if let Some(b) = &mut *webview.bounds.lock().unwrap() {
-                let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+                let window_size = webview.room(&window);
                 b.width_rate = size.width / window_size.width;
                 b.height_rate = size.height / window_size.height;
               }
@@ -3767,7 +3823,7 @@ fn handle_user_message<T: UserEvent>(
               let position = position.to_logical::<f32>(scale_factor);
 
               if let Some(b) = &mut *webview.bounds.lock().unwrap() {
-                let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+                let window_size = webview.room(&window);
                 b.x_rate = position.x / window_size.width;
                 b.y_rate = position.y / window_size.height;
               }
@@ -3870,7 +3926,7 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::SetAutoResize(auto_resize) => match webview.bounds() {
             Ok(bounds) => {
               let scale_factor = window.scale_factor();
-              let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+              let window_size = webview.room(&window);
               *webview.bounds.lock().unwrap() = if auto_resize {
                 let size = bounds.size.to_logical::<f32>(scale_factor);
                 let position = bounds.position.to_logical::<f32>(scale_factor);
@@ -3957,6 +4013,14 @@ fn handle_user_message<T: UserEvent>(
           CreateWebviewOptions {
             #[cfg(windows)]
             focused_webview: w.focused_webview.clone(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: w.gtk_fixed.clone(),
           },
         )
       });
@@ -4025,6 +4089,14 @@ fn handle_user_message<T: UserEvent>(
             inner: Some(window.clone()),
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: None,
             #[cfg(windows)]
             background_color,
             #[cfg(windows)]
@@ -4279,16 +4351,18 @@ fn handle_event_loop<T: UserEvent>(
             {
               let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
-                if let Some(b) = &*webview.bounds.lock().unwrap() {
-                  if let Err(e) = webview.set_bounds(wry::Rect {
-                    position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
-                      .into(),
-                    size: LogicalSize::new(size.width * b.width_rate, size.height * b.height_rate)
-                      .into(),
-                  }) {
-                    log::error!("failed to autoresize webview: {e}");
-                  }
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd"
+                ))]
+                // GTK gives the webviews their own room, see `size_to_room`
+                if window::allocated_room(&webview.webview()).is_some() {
+                  continue;
                 }
+                webview.resize_in(size);
               }
             }
           }
@@ -4598,6 +4672,18 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   #[cfg(not(feature = "unstable"))]
   let has_children = false;
 
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  let gtk_fixed = window::add_webview_container(&window, {
+    let windows = context.main_thread.windows.clone();
+    move |room| size_to_room(&windows, window_id, Some(room))
+  });
+
   if let Some(webview) = webview {
     webviews.push(create_webview(
       #[cfg(feature = "unstable")]
@@ -4611,6 +4697,14 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       webview,
       #[cfg(windows)]
       focused_webview.clone(),
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      gtk_fixed.as_ref(),
     )?);
   }
 
@@ -4638,6 +4732,14 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     inner: Some(window),
     webviews,
     window_event_listeners,
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    gtk_fixed,
     #[cfg(windows)]
     background_color,
     #[cfg(windows)]
@@ -4666,6 +4768,62 @@ struct WebviewBounds {
   height_rate: f32,
 }
 
+impl WebviewWrapper {
+  /// The size that the bounds of this webview are shares of: the room that GTK gives it on Linux,
+  /// the inner size of the window elsewhere.
+  fn room(&self, window: &Window) -> LogicalSize<f32> {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    if let Some(room) = window::room(window, &self.webview()) {
+      return room;
+    }
+    window.inner_size().to_logical(window.scale_factor())
+  }
+
+  /// Sizes this webview to its share of `room`, if it resizes with the window.
+  fn resize_in(&self, room: LogicalSize<f32>) {
+    if let Some(b) = &*self.bounds.lock().unwrap() {
+      if let Err(e) = self.set_bounds(wry::Rect {
+        position: LogicalPosition::new(room.width * b.x_rate, room.height * b.y_rate).into(),
+        size: LogicalSize::new(room.width * b.width_rate, room.height * b.height_rate).into(),
+      }) {
+        log::error!("failed to autoresize webview: {e}");
+      }
+    }
+  }
+}
+
+/// Sizes the webviews of the window `window_id` that resize with it to `room`, or to the room that
+/// GTK gives them now if it is `None`. The room changes with the menu bar and, on Wayland, with the
+/// client-side decorations, which the size of the window does not say.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn size_to_room(windows: &Arc<WindowsStore>, window_id: WindowId, room: Option<LogicalSize<f32>>) {
+  let Ok(store) = windows.0.try_borrow() else {
+    // GTK allocated the room while the store was in use: do it from the main loop
+    let windows = windows.clone();
+    gtk::glib::idle_add_local_once(move || size_to_room(&windows, window_id, None));
+    return;
+  };
+  if let Some(window) = store.get(&window_id) {
+    for webview in &window.webviews {
+      if let Some(room) = room.or_else(|| window::allocated_room(&webview.webview())) {
+        webview.resize_in(room);
+      }
+    }
+  }
+}
+
 fn create_webview<T: UserEvent>(
   kind: WebviewKind,
   window: &Window,
@@ -4674,6 +4832,14 @@ fn create_webview<T: UserEvent>(
   context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
   #[cfg(windows)] focused_webview: Arc<Mutex<FocusState>>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  gtk_fixed: Option<&gtk::Fixed>,
 ) -> Result<WebviewWrapper> {
   if !context.webview_runtime_installed {
     #[cfg(all(not(debug_assertions), windows))]
@@ -4912,6 +5078,16 @@ You may have it installed on another user account, but it is not available for t
     webview_builder = webview_builder.with_bounds(bounds);
 
     let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    let window_size = gtk_fixed
+      .and_then(|fixed| window::room(window, fixed))
+      .unwrap_or(window_size);
 
     if webview_attributes.auto_resize {
       Some(WebviewBounds {
@@ -5173,11 +5349,12 @@ You may have it installed on another user account, but it is not available for t
       target_os = "ios",
       target_os = "android"
     )))]
-    WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
-      let vbox = window.default_vbox().unwrap();
-      webview_builder.build_gtk(vbox)
-    }
+    WebviewKind::WindowChild => match gtk_fixed {
+      // the container puts each webview at its bounds, a box would stack them
+      Some(fixed) => webview_builder.build_gtk(fixed),
+      // only way to account for menu bar height
+      None => webview_builder.build_gtk(window.default_vbox().unwrap()),
+    },
     #[cfg(any(
       target_os = "windows",
       target_os = "macos",

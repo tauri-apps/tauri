@@ -156,3 +156,73 @@ pub fn room(
     LogicalSize::new(size.width, (size.height - others as f32).max(1.))
   }))
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::{cell::Cell, rc::Rc, time::Duration};
+
+  fn run_main_loop() {
+    for _ in 0..30 {
+      while gtk::events_pending() {
+        gtk::main_iteration();
+      }
+      std::thread::sleep(Duration::from_millis(10));
+    }
+  }
+
+  // GTK only works on the thread that initialized it, and this is the only test that uses it.
+  // Without a display it does nothing.
+  #[test]
+  fn container_asks_for_no_room_and_gives_its_webviews_the_room_in_one_layout_pass() {
+    if gtk::init().is_err() {
+      eprintln!("no display for GTK: skipped");
+      return;
+    }
+
+    // a webview that follows the room, as one with `auto_resize` does
+    let webview = gtk::DrawingArea::new();
+    webview.set_size_request(800, 600);
+    let container = WebviewContainer::new({
+      let webview = webview.clone();
+      move |room| webview.set_size_request(room.width as i32, room.height as i32)
+    });
+    container.put(&webview, 0, 0);
+
+    let vbox = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    vbox.pack_start(&gtk::MenuBar::new(), false, false, 0);
+    vbox.pack_start(&container, true, true, 0);
+    let window = gtk::Window::new(gtk::WindowType::Toplevel);
+    window.add(&vbox);
+    window.set_default_size(300, 200);
+    window.show_all();
+    run_main_loop();
+
+    // the window is smaller than the webview that it holds
+    assert_eq!(window.size(), (300, 200));
+    assert_eq!(webview.allocation().width(), container.allocation().width());
+
+    // a webview has the room in the first frame that draws the container with it
+    let drawn = Rc::new(Cell::new(None));
+    let frame_clock = window
+      .frame_clock()
+      .expect("a realized window has a frame clock");
+    frame_clock.connect_after_paint({
+      let drawn = drawn.clone();
+      move |_| {
+        if container.allocation().width() == 500 && drawn.get().is_none() {
+          drawn.set(Some((webview.allocation(), container.allocation())));
+        }
+      }
+    });
+    window.resize(500, 400);
+    run_main_loop();
+    let (webview, container) = drawn
+      .get()
+      .expect("the container was drawn with its new room");
+    assert_eq!(
+      (webview.width(), webview.height()),
+      (container.width(), container.height())
+    );
+  }
+}

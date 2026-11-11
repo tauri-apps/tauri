@@ -279,6 +279,7 @@ unstable_struct!(
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
     pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
+    pub(crate) on_web_content_process_terminate_handler: Option<Box<dyn Fn() + Send>>,
     pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
     pub(crate) permission_request_handler: Option<Box<PermissionRequestHandler<R>>>,
@@ -358,6 +359,7 @@ async fn create_window(app: tauri::AppHandle) {
       navigation_handler: None,
       new_window_handler: None,
       on_page_load_handler: None,
+      on_web_content_process_terminate_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
       permission_request_handler: None,
@@ -438,6 +440,7 @@ async fn create_window(app: tauri::AppHandle) {
       navigation_handler: None,
       new_window_handler: None,
       on_page_load_handler: None,
+      on_web_content_process_terminate_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
       permission_request_handler: None,
@@ -700,6 +703,27 @@ tauri::Builder::default()
     self
   }
 
+  /// Sets a handler invoked when the system terminates the web content process,
+  /// so the application can recover the webview (e.g. [`Webview::eval`] with
+  /// `location.reload()`).
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: WKWebView may terminate its web content process under
+  ///   memory pressure or due to a renderer crash; without reloading, the
+  ///   webview stays blank. Attach this handler and reload to recover in-place
+  ///   instead of restarting the whole application.
+  /// - **Windows / Linux / Android**: renderer crashes are handled internally
+  ///   (automatic reload), so the handler is never invoked.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  pub fn on_web_content_process_terminate<F: Fn() + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.on_web_content_process_terminate_handler.replace(Box::new(f));
+    self
+  }
+
   /// Defines a closure to be executed when a permission is requested.
   ///
   /// The handler receives the [`PermissionKind`] and should return
@@ -799,6 +823,12 @@ tauri::Builder::default()
         }));
     }
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+      pending.on_web_content_process_terminate_handler =
+        self.on_web_content_process_terminate_handler.take();
+    }
 
     if let Some(download_handler) = self.download_handler.take() {
       let label = pending.label.clone();

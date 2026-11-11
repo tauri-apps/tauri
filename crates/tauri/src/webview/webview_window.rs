@@ -434,6 +434,27 @@ tauri::Builder::default()
     self
   }
 
+  /// Sets a handler invoked when the system terminates the web content process,
+  /// so the application can recover the webview (e.g. [`WebviewWindow::eval`] with
+  /// `location.reload()`).
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: WKWebView may terminate its web content process under
+  ///   memory pressure or due to a renderer crash; without reloading, the
+  ///   webview stays blank. Attach this handler and reload to recover in-place
+  ///   instead of restarting the whole application.
+  /// - **Windows / Linux / Android**: renderer crashes are handled internally
+  ///   (automatic reload), so the handler is never invoked.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  pub fn on_web_content_process_terminate<F: Fn() + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder = self.webview_builder.on_web_content_process_terminate(f);
+    self
+  }
+
   /// Defines a closure to be executed when a permission is requested.
   ///
   /// The handler receives the [`crate::webview::PermissionKind`] and should return

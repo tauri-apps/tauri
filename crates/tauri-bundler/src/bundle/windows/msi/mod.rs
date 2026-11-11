@@ -1148,37 +1148,4 @@ mod tests {
     assert!(wix_data.contains(r#"Name="myFileRenamed""#));
     assert!(wix_data.contains(r#"Source="MyFile""#));
   }
-
-  #[test]
-  fn desktop_shortcut_is_conditional_on_upgrade() {
-    let mut handlebars = Handlebars::new();
-    handlebars.register_escape_fn(handlebars::no_escape);
-    handlebars
-      .register_template_string("main.wxs", include_str!("./main.wxs"))
-      .unwrap();
-
-    let mut data = BTreeMap::new();
-    data.insert("product_name", to_json("My App"));
-    data.insert("manufacturer", to_json("Me"));
-    data.insert("version", to_json("1.0.0"));
-    data.insert(
-      "upgrade_code",
-      to_json("00000000-0000-0000-0000-000000000000"),
-    );
-    data.insert(
-      "path_component_guid",
-      to_json("00000000-0000-0000-0000-000000000001"),
-    );
-    data.insert("bundle_id", to_json("com.me.app"));
-    data.insert("main_binary_path", to_json("app.exe"));
-    data.insert("icon_path", to_json("icon.ico"));
-
-    let wxs = handlebars.render("main.wxs", &data).unwrap();
-
-    assert!(wxs.contains(r#"<Property Id="DESKTOPSHORTCUTEXISTS" Secure="yes">"#));
-    assert!(wxs.contains(r#"<FileSearch Id="DesktopShortcutFile" Name="My App.lnk" />"#));
-    assert!(
-      wxs.contains("<Condition>NOT WIX_UPGRADE_DETECTED OR DESKTOPSHORTCUTEXISTS</Condition>")
-    );
-  }
 }

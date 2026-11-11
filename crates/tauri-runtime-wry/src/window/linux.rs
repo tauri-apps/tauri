@@ -172,13 +172,11 @@ mod tests {
   }
 
   // GTK only works on the thread that initialized it, and this is the only test that uses it.
-  // Without a display it does nothing.
+  // Run it with `--ignored` on a machine with a display.
   #[test]
+  #[ignore = "needs a display"]
   fn container_asks_for_no_room_and_gives_its_webviews_the_room_in_one_layout_pass() {
-    if gtk::init().is_err() {
-      eprintln!("no display for GTK: skipped");
-      return;
-    }
+    gtk::init().expect("GTK needs a display");
 
     // a webview that follows the room, as one with `auto_resize` does
     let webview = gtk::DrawingArea::new();

@@ -222,11 +222,7 @@ macro_rules! webview_getter {
     getter!(
       $self,
       rx,
-      Message::Webview(
-        *$self.window_id.lock().unwrap(),
-        $self.webview_id,
-        $message(tx)
-      )
+      Message::Webview($self.window_id(), $self.webview_id, $message(tx))
     )
   }};
 }
@@ -1532,6 +1528,12 @@ pub struct WryWebviewDispatcher<T: UserEvent> {
   context: Context<T>,
 }
 
+impl<T: UserEvent> WryWebviewDispatcher<T> {
+  fn window_id(&self) -> WindowId {
+    *self.window_id.lock().unwrap()
+  }
+}
+
 impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   type Runtime = Wry<T>;
 
@@ -1542,7 +1544,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
     let id = self.context.next_webview_event_id();
     let _ = self.context.proxy.send_event(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::AddEventListener(id, Box::new(f)),
     ));
@@ -1551,7 +1553,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
     ))
@@ -1560,7 +1562,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
     let _ = self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::OpenDevTools,
     ));
@@ -1569,7 +1571,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn close_devtools(&self) {
     let _ = self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::CloseDevTools,
     ));
@@ -1603,7 +1605,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn navigate(&self, url: Url) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Navigate(url),
     ))
@@ -1611,7 +1613,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn reload(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Reload,
     ))
@@ -1619,7 +1621,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn print(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Print,
     ))
@@ -1627,7 +1629,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn close(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Close,
     ))
@@ -1635,7 +1637,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetBounds(bounds),
     ))
@@ -1643,7 +1645,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_size(&self, size: Size) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetSize(size),
     ))
@@ -1651,7 +1653,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_position(&self, position: Position) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetPosition(position),
     ))
@@ -1659,7 +1661,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_focus(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetFocus,
     ))
@@ -1683,7 +1685,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>> {
     let (tx, rx) = channel();
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::CookiesForUrl(url, tx),
     ))?;
@@ -1697,7 +1699,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetCookie(cookie.into_owned()),
     ))?;
@@ -1706,7 +1708,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn delete_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::DeleteCookie(cookie.into_owned()),
     ))?;
@@ -1715,7 +1717,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetAutoResize(auto_resize),
     ))
@@ -1729,7 +1731,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       self,
       rx,
       Message::Webview(
-        *self.window_id.lock().unwrap(),
+        self.window_id(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into(), tx, tracing::Span::current()),
       )
@@ -1739,7 +1741,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::EvaluateScript(script.into()),
     ))
@@ -1757,7 +1759,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       self,
       rx,
       Message::Webview(
-        *self.window_id.lock().unwrap(),
+        self.window_id(),
         self.webview_id,
         WebviewMessage::EvaluateScriptWithCallback(
           script.into(),
@@ -1776,7 +1778,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     callback: impl Fn(String) + Send + 'static,
   ) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
     ))
@@ -1784,7 +1786,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_zoom(&self, scale_factor: f64) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetZoom(scale_factor),
     ))
@@ -1792,7 +1794,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn clear_all_browsing_data(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::ClearAllBrowsingData,
     ))
@@ -1800,7 +1802,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn hide(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Hide,
     ))
@@ -1808,7 +1810,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn show(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Show,
     ))
@@ -1816,7 +1818,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_background_color(&self, color: Option<Color>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetBackgroundColor(color),
     ))

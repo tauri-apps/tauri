@@ -201,6 +201,13 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     init_script.push_str(include_str!("./scripts/print.js"));
   }
 
+  // Mitigate scroll jump during RTL text input in macOS WKWebView.
+  // See https://github.com/tauri-apps/tauri/issues/15330
+  #[cfg(target_os = "macos")]
+  {
+    init_script.push_str(include_str!("./scripts/rtl-scroll-fix.js"));
+  }
+
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
     use serialize_to_javascript::{DefaultTemplate, Template, default_template};

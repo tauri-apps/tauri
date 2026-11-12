@@ -713,9 +713,12 @@ tauri::Builder::default()
   ///   memory pressure or due to a renderer crash; without reloading, the
   ///   webview stays blank. Attach this handler and reload to recover in-place
   ///   instead of restarting the whole application.
-  /// - **Windows / Linux / Android**: renderer crashes are handled internally
+  /// - **Linux**: WebKitGTK support is being added in wry#1872; once
+  ///   merged, the handler will fire there too.
+  /// - **Windows / Android**: renderer crashes are handled internally
   ///   (automatic reload), so the handler is never invoked.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  /// - **Linux**: WebKitGTK support is being added in wry#1872; once
+  ///   merged, the handler will fire there too.
   pub fn on_web_content_process_terminate<F: Fn() + Send + 'static>(
     mut self,
     f: F,
@@ -824,7 +827,6 @@ tauri::Builder::default()
     }
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
       pending.on_web_content_process_terminate_handler =
         self.on_web_content_process_terminate_handler.take();

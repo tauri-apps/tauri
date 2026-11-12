@@ -28,7 +28,9 @@ target/
 streaming_example_test_video.mp4
 
 # examples /gen directory
-/examples/**/src-tauri/gen/
+/examples/**/src-tauri/gen/*
+# the api example's Android project is committed: it hosts multiwebview activities with activity embedding rules
+!/examples/api/src-tauri/gen/android/
 /bench/**/src-tauri/gen/
 
 # logs

@@ -236,6 +236,9 @@ pub struct Context<T: UserEvent> {
   plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
+  /// Whether a window took the activity the system started the app with.
+  #[cfg(target_os = "android")]
+  launch_activity_claimed: Arc<AtomicBool>,
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
   webview_runtime_installed: bool,
@@ -384,6 +387,8 @@ impl<T: UserEvent> Context<T> {
           pending,
           #[cfg(windows)]
           _options.focused_webview,
+          #[cfg(target_os = "android")]
+          _options.hosts_webview,
         )
       }),
       tx,
@@ -743,6 +748,8 @@ pub struct WindowBuilderWrapper {
   prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
+  #[cfg(target_os = "android")]
+  activity_name: Option<String>,
 }
 
 impl std::fmt::Debug for WindowBuilderWrapper {
@@ -821,9 +828,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
     #[cfg(target_os = "android")]
     {
-      if let Some(activity_name) = &config.activity_name {
-        window.inner = window.inner.with_activity_name(activity_name.clone());
-      }
+      window.activity_name.clone_from(&config.activity_name);
       if let Some(activity_name) = &config.created_by_activity_name {
         window.inner = window
           .inner
@@ -1230,7 +1235,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "android")]
   fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
-    self.inner = self.inner.with_activity_name(class_name.into());
+    self.activity_name = Some(class_name.into());
     self
   }
 
@@ -1488,6 +1493,9 @@ pub type CreateWebviewClosure =
 pub struct CreateWebviewOptions {
   #[cfg(windows)]
   pub focused_webview: Arc<Mutex<FocusState>>,
+  /// Whether the window already hosts a webview, so a new one needs an activity of its own.
+  #[cfg(target_os = "android")]
+  pub hosts_webview: bool,
 }
 
 pub enum Message<T: 'static> {
@@ -2381,6 +2389,10 @@ pub struct WebviewWrapper {
   // the key of the WebContext if it's not shared
   context_key: Option<PathBuf>,
   bounds: Arc<Mutex<Option<WebviewBounds>>>,
+  /// The activity hosting the webview, when it was added to a window that already hosted one.
+  /// Dropping the last reference finishes it.
+  #[cfg(target_os = "android")]
+  embedded_activity: Option<Rc<tao::platform::android::EmbeddedActivity>>,
 }
 
 impl Deref for WebviewWrapper {
@@ -2781,6 +2793,8 @@ impl<T: UserEvent> Wry<T> {
       plugins: Default::default(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
+      #[cfg(target_os = "android")]
+      launch_activity_claimed: Default::default(),
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
       webview_runtime_installed: wry::webview_version().is_ok(),
@@ -2918,6 +2932,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           CreateWebviewOptions {
             #[cfg(windows)]
             focused_webview: w.focused_webview.clone(),
+            #[cfg(target_os = "android")]
+            hosts_webview: !w.webviews.is_empty(),
           },
         )
       });
@@ -2935,6 +2951,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         pending,
         #[cfg(windows)]
         _options.focused_webview,
+        #[cfg(target_os = "android")]
+        _options.hosts_webview,
       )?;
 
       if let Some(w) = self
@@ -3960,6 +3978,8 @@ fn handle_user_message<T: UserEvent>(
           CreateWebviewOptions {
             #[cfg(windows)]
             focused_webview: w.focused_webview.clone(),
+            #[cfg(target_os = "android")]
+            hosts_webview: !w.webviews.is_empty(),
           },
         )
       });
@@ -4214,6 +4234,11 @@ fn handle_event_loop<T: UserEvent>(
     Event::WindowEvent {
       event, window_id, ..
     } => {
+      #[cfg(target_os = "android")]
+      if matches!(event, TaoWindowEvent::Destroyed) && window_id_map.get(&window_id).is_none() {
+        on_embedded_activity_destroyed(callback, window_id, windows);
+      }
+
       if let Some(window_id) = window_id_map.get(&window_id) {
         {
           let windows_ref = windows.0.borrow();
@@ -4382,6 +4407,40 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
+/// The activity of a webview that was added to a window was destroyed (for instance with the back button),
+/// and the webview with it.
+#[cfg(target_os = "android")]
+fn on_embedded_activity_destroyed<T: UserEvent>(
+  callback: &mut (dyn FnMut(RunEvent<T>) + 'static),
+  activity_window_id: TaoWindowId,
+  windows: &WindowsStore,
+) {
+  let webview = windows.0.borrow_mut().values_mut().find_map(|window| {
+    let index = window.webviews.iter().position(|webview| {
+      webview
+        .embedded_activity
+        .as_ref()
+        .is_some_and(|activity| activity.id() == activity_window_id)
+    })?;
+    Some(window.webviews.remove(index))
+  });
+
+  if let Some(webview) = webview {
+    let label = webview.label.clone();
+    let webview_event_listeners = webview.webview_event_listeners.clone();
+    drop(webview);
+
+    callback(RunEvent::WebviewEvent {
+      label,
+      event: WebviewEvent::Destroyed,
+    });
+    let listeners = webview_event_listeners.lock().unwrap();
+    for handler in listeners.values() {
+      handler(&WebviewEvent::Destroyed);
+    }
+  }
+}
+
 fn on_window_close(window_id: WindowId, windows: &WindowsStore) {
   if let Some(window_wrapper) = windows.0.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
@@ -4534,11 +4593,35 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   }
 
+  // the first window that does not set an activity takes the one the system started the app with (the launcher
+  // activity); the others start `TauriWindowActivity`, generated and declared in AndroidManifest.xml by tauri,
+  // since the launcher activity is usually `singleTask` and can only have one instance
+  #[cfg(target_os = "android")]
+  let claims_launch_activity = {
+    let claims_launch_activity = window_builder.activity_name.is_none()
+      && !context.launch_activity_claimed.load(Ordering::Relaxed);
+    if !claims_launch_activity {
+      let activity_name = window_builder
+        .activity_name
+        .take()
+        .unwrap_or_else(|| "TauriWindowActivity".into());
+      window_builder.inner = window_builder.inner.with_activity_name(activity_name);
+    }
+    claims_launch_activity
+  };
+
   let window = window_builder
     .inner
     .build(event_loop)
     .inspect_err(|e| log::error!("Error creating window: {e:?}"))
     .map_err(|_| Error::CreateWindow)?;
+
+  #[cfg(target_os = "android")]
+  if claims_launch_activity {
+    context
+      .launch_activity_claimed
+      .store(true, Ordering::Relaxed);
+  }
 
   // On macOS, `with_position` uses the content origin; the title bar is added
   // above it. `set_outer_position` is needed for precise window placement.
@@ -4614,6 +4697,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       webview,
       #[cfg(windows)]
       focused_webview.clone(),
+      #[cfg(target_os = "android")]
+      false,
     )?);
   }
 
@@ -4677,6 +4762,8 @@ fn create_webview<T: UserEvent>(
   context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
   #[cfg(windows)] focused_webview: Arc<Mutex<FocusState>>,
+  // the window already hosts a webview: this one gets an activity of its own in the window's task
+  #[cfg(target_os = "android")] embed: bool,
 ) -> Result<WebviewWrapper> {
   if !context.webview_runtime_installed {
     #[cfg(all(not(debug_assertions), windows))]
@@ -4705,6 +4792,25 @@ You may have it installed on another user account, but it is not available for t
     url,
     ..
   } = pending;
+
+  #[cfg(target_os = "android")]
+  let embedded_activity = if embed {
+    let activity_name = webview_attributes.activity_name.as_deref().ok_or_else(|| {
+      Error::CreateWebview(
+        format!(
+          "window already hosts a webview: set the activity of webview `{label}` (`WebviewBuilder::activity_name`) to add another one on Android"
+        )
+        .into(),
+      )
+    })?;
+    Some(Rc::new(
+      window
+        .create_embedded_activity(activity_name)
+        .map_err(|e| Error::CreateWebview(e.to_string().into()))?,
+    ))
+  } else {
+    None
+  };
 
   let mut web_context = context
     .main_thread
@@ -5187,7 +5293,16 @@ You may have it installed on another user account, but it is not available for t
       target_os = "ios",
       target_os = "android"
     ))]
-    WebviewKind::WindowChild => webview_builder.build_as_child(&window),
+    WebviewKind::WindowChild => {
+      #[cfg(target_os = "android")]
+      let builder = match &embedded_activity {
+        Some(activity) => webview_builder.build_as_child(&**activity),
+        None => webview_builder.build_as_child(&window),
+      };
+      #[cfg(not(target_os = "android"))]
+      let builder = webview_builder.build_as_child(&window);
+      builder
+    }
     WebviewKind::WindowContent => {
       #[cfg(any(
         target_os = "windows",
@@ -5274,6 +5389,8 @@ You may have it installed on another user account, but it is not available for t
       web_context_key
     },
     bounds: Arc::new(Mutex::new(webview_bounds)),
+    #[cfg(target_os = "android")]
+    embedded_activity,
   })
 }
 

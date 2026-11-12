@@ -49,3 +49,5 @@ features = ["test"]
 prod = ["tauri/custom-protocol"]
 # Enables the WebDriver automation bridge; set by the e2e suite's build (packages/api-e2e).
 automation = ["dep:tauri-plugin-automation"]
+# Enables the multiwebview API; set by the e2e suite's Android build (packages/api-e2e).
+unstable = ["tauri/unstable"]

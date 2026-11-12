@@ -1,0 +1,22 @@
+<!-- Activity embedding rules: a webview added to a window (`Webview` / `WebviewBuilder` with
+     `activityName: 'EmbeddedWebviewActivity'`) is shown next to the window's own webview when the window is wide enough,
+     and stacked on top of it otherwise (e.g. a phone in portrait). -->
+<resources xmlns:window="http://schemas.android.com/apk/res-auto">
+  <SplitPairRule
+    window:splitRatio="0.5"
+    window:splitLayoutDirection="locale"
+    window:splitMinWidthDp="600"
+    window:splitMinSmallestWidthDp="0"
+    window:splitMaxAspectRatioInPortrait="alwaysAllow"
+    window:finishPrimaryWithSecondary="never"
+    window:finishSecondaryWithPrimary="always"
+    window:clearTop="false">
+    <SplitPairFilter
+      window:primaryActivityName=".MainActivity"
+      window:secondaryActivityName=".EmbeddedWebviewActivity" />
+    <!-- windows that do not set an activity name, like the multiwebview window -->
+    <SplitPairFilter
+      window:primaryActivityName=".TauriWindowActivity"
+      window:secondaryActivityName=".EmbeddedWebviewActivity" />
+  </SplitPairRule>
+</resources>

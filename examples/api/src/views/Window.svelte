@@ -11,6 +11,7 @@
     availableMonitors
   } from '@tauri-apps/api/window'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
+  import { invoke } from '@tauri-apps/api/core'
   import type {
     CursorIcon,
     Effects,
@@ -209,6 +210,13 @@
 
   function changeIcon() {
     selectedWebview.setIcon(windowIconPath)
+  }
+
+  // two webviews in a new window; requires the `unstable` Cargo feature (`--features unstable`)
+  function multiwebviewWindow() {
+    invoke('spawn_multiwebview_window')
+      .then((label) => onMessage(`multiwebview window ${label} created`))
+      .catch(onMessage)
   }
 
   function createWebviewWindow() {
@@ -467,6 +475,12 @@
         />
         <button class="btn" type="submit">Create</button>
       </form>
+    </div>
+    <div class="grid gap-1">
+      <h4 class="my-2">Multiple Webviews</h4>
+      <button class="btn" id="multiwebview" onclick={multiwebviewWindow}>
+        Multiwebview window
+      </button>
     </div>
   </div>
   {#if selectedWebview}

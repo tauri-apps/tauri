@@ -73,11 +73,10 @@ jobs:
       - name: install Linux dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo add-apt-repository universe # for webkit2gtk-driver
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
-            webkit2gtk-driver \
+            webkitgtk-webdriver \
             libgtk-3-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \

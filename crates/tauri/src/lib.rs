@@ -96,6 +96,9 @@ pub mod async_runtime;
 mod error;
 mod event;
 pub mod ipc;
+/// Experimental state-preserving business-process reload for local development.
+#[cfg(all(debug_assertions, desktop))]
+pub mod dev_reload;
 mod manager;
 mod pattern;
 pub mod plugin;

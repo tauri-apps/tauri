@@ -242,6 +242,10 @@ name = "helloworld"
 path = "../../examples/helloworld/main.rs"
 
 [[example]]
+name = "dev-reload"
+path = "../../examples/dev-reload/main.rs"
+
+[[example]]
 name = "drag"
 path = "../../examples/drag/main.rs"
 

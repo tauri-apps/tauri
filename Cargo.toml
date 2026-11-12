@@ -83,7 +83,7 @@ incremental = false
 opt-level = "s"
 
 [patch.crates-io]
-muda = { path = "../muda" }
+muda = { git = "https://github.com/KRTirtho/muda", branch = "qt-backend" }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-runtime = { path = "./crates/tauri-runtime" }

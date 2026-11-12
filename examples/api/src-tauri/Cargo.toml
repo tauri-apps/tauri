@@ -50,9 +50,10 @@ workspace = true
 default-features = true
 optional = true
 
-# The Qt/QtWebEngine runtime from a sibling checkout of tauri-runtime-qt (Linux only).
+# The Qt/QtWebEngine runtime (Linux only).
 [target."cfg(target_os = \"linux\")".dependencies.tauri-runtime-qt]
-path = "../../../../tauri-runtime-qt/crates/tauri-runtime-qt"
+git = "https://github.com/KRTirtho/tauri-runtime-qt"
+branch = "main"
 features = ["devtools"]
 optional = true
 

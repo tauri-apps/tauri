@@ -47,6 +47,21 @@ impl Manifest {
     f
   }
 
+  /// Returns the given features and every feature they enable through the `[features]` table.
+  pub fn resolve_features(&self, features: &[String]) -> HashSet<String> {
+    let manifest_features = self.features();
+    let mut enabled = HashSet::new();
+    let mut pending = features.to_vec();
+    while let Some(feature) = pending.pop() {
+      if enabled.insert(feature.clone()) {
+        if let Some(implied) = manifest_features.get(&feature) {
+          pending.extend(implied.iter().cloned());
+        }
+      }
+    }
+    enabled
+  }
+
   pub fn all_enabled_features(&self, enabled_features: &[String]) -> Vec<String> {
     let mut all_enabled_features: Vec<String> = self
       .tauri_features

@@ -2606,6 +2606,9 @@ tauri::Builder::default()
         if let Some(tooltip) = &tray_config.tooltip {
           tray = tray.tooltip(tooltip);
         }
+        if let Some(autosave_name) = &tray_config.autosave_name {
+          tray = tray.autosave_name(autosave_name);
+        }
         tray.build(handle)?;
       }
     }

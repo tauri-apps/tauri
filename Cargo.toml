@@ -91,3 +91,6 @@ collapsible_if = "allow"
 redundant_clone = "warn"
 assigning_clones = "warn"
 or_fun_call = "warn"
+
+[workspace.lints.cargo]
+unused_dependencies = "deny"

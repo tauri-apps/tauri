@@ -23,7 +23,6 @@ anyhow = "1"
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 strsim = "0.11"
-tar = "0.4"
 walkdir = "2"
 bytesize = "2"
 handlebars = "6"
@@ -46,7 +45,6 @@ plist = "1"
 glob = "0.3"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-bitness = "0.4"
 windows-registry = "0.6"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
@@ -57,15 +55,14 @@ features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = ["formatting"] }
 tauri-macos-sign = { workspace = true }
+which = "8"
+tar = "0.4"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"
 ar = "0.9"
 md5 = "0.8"
 rpm = { version = "0.30", features = ["bzip2-compression"] }
-
-[target."cfg(unix)".dependencies]
-which = "8"
 
 [lib]
 name = "tauri_bundler"

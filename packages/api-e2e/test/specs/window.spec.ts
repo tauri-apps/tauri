@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect } from '@wdio/globals'
+import type { ScaleFactorChanged } from '@tauri-apps/api/window'
 import {
   tauri,
   eventually,
@@ -57,6 +58,46 @@ describeApi('window', () => {
     expect(metrics.inner.width).toBeGreaterThan(0)
     expect(metrics.inner.height).toBeGreaterThan(0)
     expect(metrics.outer.width).toBeGreaterThanOrEqual(metrics.inner.width)
+  })
+
+  it('onScaleChanged passes the size as a PhysicalSize', async () => {
+    const result = await tauri(async (api) => {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      let unlisten: (() => void) | undefined
+      try {
+        const payload = await new Promise<ScaleFactorChanged>(
+          (resolve, reject) => {
+            timer = setTimeout(
+              () => reject(new Error('event was not received')),
+              5000
+            )
+            api.window
+              .getCurrentWindow()
+              .onScaleChanged((event) => resolve(event.payload))
+              .then((fn) => {
+                unlisten = fn
+                return api.event.emit('tauri://scale-change', {
+                  scaleFactor: 2,
+                  size: { width: 1600, height: 1200 }
+                })
+              })
+              .catch(reject)
+          }
+        )
+        const logical = payload.size.toLogical(payload.scaleFactor)
+        return {
+          isPhysicalSize: payload.size instanceof api.dpi.PhysicalSize,
+          logical: { width: logical.width, height: logical.height }
+        }
+      } finally {
+        clearTimeout(timer)
+        unlisten?.()
+      }
+    })
+    expect(result).toEqual({
+      isPhysicalSize: true,
+      logical: { width: 800, height: 600 }
+    })
   })
 
   itOn(

@@ -145,6 +145,7 @@ type IpcHandler = dyn Fn(Request<String>) + 'static;
 
 #[cfg(not(debug_assertions))]
 mod dialog;
+mod dmabuf_preflight;
 mod monitor;
 #[cfg(any(
   windows,
@@ -2760,6 +2761,10 @@ impl<T: UserEvent> Wry<T> {
   }
 
   fn init(event_loop: EventLoop<Message<T>>) -> Result<Self> {
+    if let Some(warning) = crate::dmabuf_preflight::dmabuf_preflight() {
+      eprintln!("{warning}");
+    }
+
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 

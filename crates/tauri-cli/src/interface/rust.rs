@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   ffi::OsStr,
   fs::FileType,
   io::BufRead,
@@ -696,7 +696,7 @@ impl BinarySettings {
     self.filename.as_ref().unwrap_or(&self.name)
   }
 
-  fn required_features_enabled(&self, enabled_features: &[String]) -> bool {
+  fn required_features_enabled(&self, enabled_features: &HashSet<String>) -> bool {
     match &self.required_features {
       Some(req_features) => req_features
         .iter()
@@ -939,13 +939,19 @@ impl AppSettings for RustAppSettings {
     let mut disabled_bins = Vec::new();
 
     if let Some(bins) = &self.cargo_settings.bin {
+      let mut features = options.features.clone();
+      if !options.args.contains(&"--no-default-features".into()) {
+        features.push("default".into());
+      }
+      let enabled_features = self.manifest.lock().unwrap().resolve_features(&features);
+
       let default_run = self
         .package_settings
         .default_run
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        if !bin.required_features_enabled(&options.features) {
+        if !bin.required_features_enabled(&enabled_features) {
           disabled_bins.push(bin);
           continue;
         }
@@ -1762,7 +1768,10 @@ mod tests {
     (
       temp_dir,
       RustAppSettings {
-        manifest: Mutex::new(Manifest::default()),
+        manifest: Mutex::new(Manifest {
+          inner: cargo_toml.parse().unwrap(),
+          tauri_features: Default::default(),
+        }),
         cargo_settings,
         cargo_package_settings,
         cargo_ws_package_settings: None,
@@ -1890,6 +1899,60 @@ mod tests {
       .get_binaries(
         &Options {
           features: vec!["bindings".into()],
+          ..Default::default()
+        },
+        tauri_dir,
+      )
+      .unwrap();
+    assert!(binaries.iter().any(|bin| bin.name() == "generate-bindings"));
+  }
+
+  #[test]
+  fn get_binaries_keeps_bin_with_required_features_enabled_by_other_features() {
+    let cargo_toml = r#"
+      [package]
+      name = "app"
+      version = "0.1.0"
+      default-run = "app"
+
+      [features]
+      default = ["full"]
+      full = ["bindings"]
+      bindings = []
+
+      [[bin]]
+      name = "generate-bindings"
+      path = "src/bin/generate-bindings.rs"
+      required-features = ["bindings"]
+    "#;
+
+    let (temp_dir, app_settings) = app_settings_with_manifest(cargo_toml);
+    let tauri_dir = temp_dir.path();
+
+    // `bindings` is enabled through the default features
+    let binaries = app_settings
+      .get_binaries(&Options::default(), tauri_dir)
+      .unwrap();
+    assert!(binaries.iter().any(|bin| bin.name() == "generate-bindings"));
+
+    // default features are turned off
+    let binaries = app_settings
+      .get_binaries(
+        &Options {
+          args: vec!["--no-default-features".into()],
+          ..Default::default()
+        },
+        tauri_dir,
+      )
+      .unwrap();
+    assert!(!binaries.iter().any(|bin| bin.name() == "generate-bindings"));
+
+    // `bindings` is enabled through `full`
+    let binaries = app_settings
+      .get_binaries(
+        &Options {
+          features: vec!["full".into()],
+          args: vec!["--no-default-features".into()],
           ..Default::default()
         },
         tauri_dir,

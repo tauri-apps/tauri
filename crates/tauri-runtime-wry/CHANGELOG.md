@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.12.4]
+
+### Bug Fixes
+
+- [`ba1e205f3`](https://www.github.com/tauri-apps/tauri/commit/ba1e205f3bfba19a9cbe6032bb4ece3068429d04) ([#16368](https://www.github.com/tauri-apps/tauri/pull/16368) by [@masonliiu](https://www.github.com/tauri-apps/tauri/../../masonliiu)) Fix a Linux session crash where every touch event near the border of an undecorated window started another resize drag. A resize drag now only starts on touch begin.
+- [`e86f1a61c`](https://www.github.com/tauri-apps/tauri/commit/e86f1a61cc42a9dd3711c06104508992bee7388f) ([#16427](https://www.github.com/tauri-apps/tauri/pull/16427) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix `window.open('')` being denied on macOS before reaching the `on_new_window` handler. An empty URL is now passed to the handler as `about:blank`.
+- [`d5e56b8fd`](https://www.github.com/tauri-apps/tauri/commit/d5e56b8fde3b2b150ae3d2054da29eca0a66fced) ([#16510](https://www.github.com/tauri-apps/tauri/pull/16510) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Release `WryWindowDispatcher::window_id` early without holding the lock across the entire handlers
+- [`8d5f74c1c`](https://www.github.com/tauri-apps/tauri/commit/8d5f74c1cf476cc92d55648973d0d5abf72df189) ([#16439](https://www.github.com/tauri-apps/tauri/pull/16439) by [@Lorkydey](https://www.github.com/tauri-apps/tauri/../../Lorkydey)) On Windows, let accessibility hit tests pass through the resize helper outside the top border of frameless windows with shadows, so screen readers can reach the window content.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.12.3`
+- Upgraded to `tauri-utils@2.10.3`
+
 ## [2.12.3]
 
 ### Bug Fixes

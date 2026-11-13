@@ -4816,7 +4816,7 @@ You may have it installed on another user account, but it is not available for t
       };
 
       let _ = proxy.send_event(Message::Webview(*window_id_.lock().unwrap(), id, message));
-      true
+      false
     });
   }
 

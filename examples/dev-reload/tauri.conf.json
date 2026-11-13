@@ -1,0 +1,12 @@
+{
+  "productName": "Rust Reload",
+  "version": "0.1.0",
+  "identifier": "com.tauri.reload-example",
+  "bundle": { "icon": ["../.icons/32x32.png"] },
+  "build": { "frontendDist": ["index.html", "main.js"] },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [{ "title": "Rust reload — persistent window", "width": 600, "height": 400 }],
+    "security": { "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost" }
+  }
+}

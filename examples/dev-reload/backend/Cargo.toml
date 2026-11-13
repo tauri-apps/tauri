@@ -1,0 +1,10 @@
+[package]
+name = "reload-counter"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+serde_json = "1"

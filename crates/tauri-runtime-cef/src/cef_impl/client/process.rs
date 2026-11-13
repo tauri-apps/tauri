@@ -17,6 +17,9 @@ wrap_browser_process_handler! {
     context: RuntimeContext<T>,
     context_initialized: Arc<AtomicBool>,
     deep_link_schemes: Vec<String>,
+    // Switches appended to every child process's command line, from
+    // `Cef::child_process_command_line_args`. See `on_before_child_process_launch`.
+    child_process_command_line_args: Vec<(String, Option<String>)>,
     // The `Cef::cef_api_version` override, if set.
     api_version: Option<i32>,
   }
@@ -33,16 +36,26 @@ wrap_browser_process_handler! {
     }
 
     fn on_before_child_process_launch(&self, command_line: Option<&mut CommandLine>) {
+      let Some(command_line) = command_line else {
+        return;
+      };
       // Pass an overridden CEF API version to the child on its command line.
       // See `API_VERSION_SWITCH`.
-      if let Some(command_line) = command_line
-        && let Some(version) = self.api_version
-      {
+      if let Some(version) = self.api_version {
         command_line.append_switch_with_value(
           Some(&CefString::from(crate::runtime::API_VERSION_SWITCH)),
           Some(&CefString::from(version.to_string().as_str())),
         );
       }
+      // A child's command line already carries the switches Chromium chose to
+      // propagate; the application's own are the ones that go missing — an
+      // ANGLE backend or a feature flag the GPU process must see for WebGPU
+      // find an adapter, say. Appending them here, in the browser process, is
+      // the supported way to get them there.
+      crate::runtime::append_command_line_args(
+        command_line,
+        &self.child_process_command_line_args,
+      );
     }
 
     fn on_already_running_app_relaunch(

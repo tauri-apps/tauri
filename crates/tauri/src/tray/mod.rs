@@ -293,7 +293,10 @@ impl<R: Runtime> TrayIconBuilder<R> {
 
   /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
   pub fn icon_as_template(mut self, is_template: bool) -> Self {
-    self.inner = self.inner.with_icon_as_template(is_template);
+    #[allow(deprecated)]
+    {
+      self.inner = self.inner.with_icon_as_template(is_template);
+    }
     self
   }
 
@@ -560,6 +563,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
   pub fn set_icon_as_template(&self, #[allow(unused)] is_template: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
+    #[allow(deprecated)]
     run_item_main_thread!(self, |self_: Self| {
       self_.inner.set_icon_as_template(is_template)
     })?;
@@ -585,6 +589,7 @@ impl<R: Runtime> TrayIcon<R> {
         Some(i) => Some(i.try_into()?),
         None => None,
       };
+      #[allow(deprecated)]
       run_item_main_thread!(self, |self_: Self| {
         self_
           .inner

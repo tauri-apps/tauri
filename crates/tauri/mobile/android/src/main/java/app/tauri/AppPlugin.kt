@@ -25,6 +25,12 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
   }
 
   init {
+    if ((activity as? BackButtonHandling)?.handleBackButton != false) {
+      registerBackCallback()
+    }
+  }
+
+  private fun registerBackCallback() {
     val callback = object : OnBackPressedCallback(true) {
       override fun handleOnBackPressed() {
         if (!hasListener(BACK_BUTTON_EVENT)) {

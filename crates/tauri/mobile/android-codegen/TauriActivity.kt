@@ -9,10 +9,12 @@ package {{package}}
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import app.tauri.BackButtonHandling
 import app.tauri.plugin.PluginManager
 
-abstract class TauriActivity : WryActivity() {
+abstract class TauriActivity : WryActivity(), BackButtonHandling {
   override val handleBackNavigation: Boolean = false
+  override val handleBackButton: Boolean = true
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.3`
+- [`6c20c1844`](https://www.github.com/tauri-apps/tauri/commit/6c20c1844b8fb0124dc253099700f7697bf7cff4) ([#16502](https://www.github.com/tauri-apps/tauri/pull/16502) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated sha2 to 0.11.
+
 ## [2.7.4]
 
 ### Bug Fixes

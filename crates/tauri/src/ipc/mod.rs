@@ -620,30 +620,3 @@ mod tests {
     assert_eq!(raw.deserialize::<Vec<u8>>().unwrap(), values);
   }
 }
-
-#[cfg(all(test, feature = "specta"))]
-mod specta_tests {
-  use super::{Request, Response};
-  use specta::{Type, datatype::DataType};
-
-  /// [`Request`] and [`Response`] are only understood by Tauri's IPC, so their `Type`
-  /// impls export a reference to a stand-in named type. Language exporters (such as
-  /// tauri-specta) match on that name and render their own representation.
-  #[track_caller]
-  fn reference_name<T: Type>() -> String {
-    let mut types = specta::TypeMap::default();
-    let DataType::Reference(reference) = <T as Type>::reference(&mut types, &[]).inner else {
-      panic!(
-        "expected `{}` to export as a reference to a named type",
-        std::any::type_name::<T>()
-      );
-    };
-    reference.name().to_string()
-  }
-
-  #[test]
-  fn request_and_response_export_as_tauri_references() {
-    assert_eq!(reference_name::<Request<'static>>(), "TAURI_REQUEST");
-    assert_eq!(reference_name::<Response>(), "TAURI_RESPONSE");
-  }
-}

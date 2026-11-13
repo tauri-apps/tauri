@@ -150,6 +150,14 @@ pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenSt
 /// the provided function for the browser process, and runs the CEF helper process
 /// for other processes (renderer, GPU, plugin, etc.).
 ///
+/// On Windows, a function other than `main` also exports `RunWinMain`, the entry point
+/// CEF's bootstrap executable calls after loading the application as a DLL. The export
+/// records the sandbox information object the bootstrap supplies and forwards it to CEF,
+/// which is what lets Chromium's sandbox work on Windows. To ship a sandboxed build,
+/// apply the attribute to the function that starts the application in a `[lib]` target
+/// with `crate-type = ["cdylib"]` and enable `bundle > cef > windowsBootstrap`; `main.rs`
+/// then calls that function, and `tauri dev` still runs the executable directly.
+///
 /// # Examples
 ///
 /// ```rust,ignore
@@ -159,6 +167,16 @@ pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenSt
 /// fn main() {
 ///   // Your app initialization code here
 ///   // This will only run for the browser process
+/// }
+/// ```
+///
+/// ```rust,ignore
+/// // src/lib.rs, for a Windows bundle that keeps Chromium's sandbox:
+/// #[tauri_macros::cef_entry_point]
+/// pub fn run() {
+///   tauri::Builder::default()
+///     .run(tauri::generate_context!())
+///     .expect("error while running the application");
 /// }
 /// ```
 ///

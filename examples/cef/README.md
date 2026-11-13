@@ -162,6 +162,19 @@ its own — a recovery dialog, say — _before_ the runtime starts: AppKit's
 application singleton has to be the CEF-compatible one, and whoever creates
 `NSApplication` first decides which class that is.
 
+### Windows sandbox packaging
+
+A plain executable gives CEF nowhere to receive the sandbox information object, so
+Windows runs without Chromium's sandbox. To keep it, put the application in a
+`[lib]` target with `crate-type = ["cdylib"]`, apply
+`#[tauri_runtime_cef::cef_entry_point]` to its `run` function and call that from
+`main.rs`, then enable `bundle > cef > windowsBootstrap`. The CLI ships CEF's
+`bootstrap.exe` under the application's executable name and the library as the
+sibling DLL the bootstrap loads; the bundler signs both with the same certificate.
+`tauri dev` still runs the executable directly and remains unsandboxed. The launcher
+is CEF's prebuilt executable, so its embedded icon and Windows manifest are CEF's, not
+the application's; replacing those resources is separate packaging work.
+
 ### Not shown
 
 `AsCefWebviewDispatcher` and `AsCefWebviewAttributes` are the traits the

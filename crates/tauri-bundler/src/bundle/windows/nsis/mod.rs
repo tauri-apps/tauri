@@ -715,6 +715,8 @@ fn build_nsis_app_installer(
 
   let status = nsis_cmd
     .args(["-INPUTCHARSET", "UTF8", "-OUTPUTCHARSET", "UTF8"])
+    // The installer must match the bundled x86 Unicode plugins, regardless of the app architecture.
+    .arg("-XTarget x86-unicode")
     .arg(match settings.log_level() {
       log::Level::Error => "-V1",
       log::Level::Warn => "-V2",

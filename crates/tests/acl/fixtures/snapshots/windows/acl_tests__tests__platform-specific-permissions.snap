@@ -40,13 +40,9 @@ Resolved {
     command_scope: {
         1: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "command": String(
-                            "edge",
-                        ),
-                    },
-                ),
+                Object {
+                    "command": String("edge"),
+                },
             ],
             deny: [],
         },
@@ -55,13 +51,9 @@ Resolved {
         "os": ResolvedScope {
             allow: [],
             deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$APPLOCALDATA/EBWebView/**",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$APPLOCALDATA/EBWebView/**"),
+                },
             ],
         },
     },

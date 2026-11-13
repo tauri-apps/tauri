@@ -131,6 +131,7 @@ pub fn generate_desktop_file(
     icon: &'a str,
     name: &'a str,
     mime_type: Option<String>,
+    exec_arg: Option<&'a str>,
     long_description: String,
   }
 
@@ -144,14 +145,30 @@ pub fn generate_desktop_file(
     );
   }
 
-  if let Some(protocols) = settings.deep_link_protocols() {
-    mime_type.extend(
-      protocols
-        .iter()
-        .flat_map(|protocol| &protocol.schemes)
-        .map(|s| format!("x-scheme-handler/{s}")),
-    );
-  }
+  let schemes: Vec<String> = settings
+    .deep_link_protocols()
+    .into_iter()
+    .flatten()
+    .flat_map(|protocol| &protocol.schemes)
+    .map(|s| format!("x-scheme-handler/{s}"))
+    .collect();
+
+  // Launchers fall back to `%f` when Exec has no field code, which drops URLs
+  // without a local path (deep links) and starts one process per file.
+  // `%U` passes local files as paths and URLs as-is, all in one process;
+  // `%F` also maps remote files to local paths for file-only apps.
+  let has_file_associations = settings
+    .file_associations()
+    .is_some_and(|associations| !associations.is_empty());
+  let exec_arg = if !schemes.is_empty() {
+    Some("%U")
+  } else if has_file_associations {
+    Some("%F")
+  } else {
+    None
+  };
+
+  mime_type.extend(schemes);
 
   let mime_type = (!mime_type.is_empty()).then_some(mime_type.join(";"));
 
@@ -177,10 +194,105 @@ pub fn generate_desktop_file(
       icon: bin_name,
       name: settings.product_name(),
       mime_type,
+      exec_arg,
       long_description: settings.long_description().unwrap_or_default().to_string(),
     },
     file,
   )?;
 
   Ok((file_path, dest_path))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::bundle::{BundleBinary, BundleSettings, PackageSettings, SettingsBuilder};
+  use tauri_utils::config::{AssociationExt, DeepLinkProtocol, FileAssociation};
+
+  fn render(
+    deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
+    file_associations: Option<Vec<FileAssociation>>,
+  ) -> String {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+    let settings = SettingsBuilder::new()
+      .project_out_directory(tmp_dir.path())
+      .package_settings(PackageSettings {
+        product_name: "TestApp".into(),
+        version: "0.1.0".into(),
+        description: "test".into(),
+        homepage: None,
+        authors: None,
+        default_run: None,
+      })
+      .bundle_settings(BundleSettings {
+        deep_link_protocols,
+        file_associations,
+        ..Default::default()
+      })
+      .binaries(vec![BundleBinary::new("test-app".into(), true)])
+      .target("x86_64-unknown-linux-gnu".into())
+      .build()
+      .expect("failed to build settings");
+
+    let (path, _) =
+      generate_desktop_file(&settings, &None, tmp_dir.path()).expect("failed to generate");
+    std::fs::read_to_string(path).expect("failed to read desktop file")
+  }
+
+  fn deep_link() -> Vec<DeepLinkProtocol> {
+    vec![DeepLinkProtocol {
+      schemes: vec!["my-app".into(), "other".into()],
+      domains: Vec::new(),
+      name: None,
+      role: Default::default(),
+    }]
+  }
+
+  fn file_association() -> Vec<FileAssociation> {
+    vec![FileAssociation {
+      ext: vec![AssociationExt("png".into())],
+      content_types: None,
+      name: None,
+      description: None,
+      role: Default::default(),
+      mime_type: Some("image/png".into()),
+      rank: Default::default(),
+      exported_type: None,
+      android_intent_action_filters: None,
+    }]
+  }
+
+  #[test]
+  fn exec_without_associations_has_no_field_code() {
+    let desktop = render(None, None);
+    assert!(desktop.contains("\nExec=test-app\n"), "{desktop}");
+    assert!(!desktop.contains("MimeType="), "{desktop}");
+  }
+
+  #[test]
+  fn exec_with_file_associations_takes_files() {
+    let desktop = render(None, Some(file_association()));
+    assert!(desktop.contains("\nExec=test-app %F\n"), "{desktop}");
+    assert!(desktop.contains("\nMimeType=image/png\n"), "{desktop}");
+  }
+
+  #[test]
+  fn exec_with_deep_links_takes_urls() {
+    let desktop = render(Some(deep_link()), None);
+    assert!(desktop.contains("\nExec=test-app %U\n"), "{desktop}");
+    assert!(
+      desktop.contains("\nMimeType=x-scheme-handler/my-app;x-scheme-handler/other\n"),
+      "{desktop}"
+    );
+  }
+
+  #[test]
+  fn exec_with_deep_links_and_file_associations_takes_urls() {
+    let desktop = render(Some(deep_link()), Some(file_association()));
+    assert!(desktop.contains("\nExec=test-app %U\n"), "{desktop}");
+    assert!(
+      desktop.contains("\nMimeType=image/png;x-scheme-handler/my-app;x-scheme-handler/other\n"),
+      "{desktop}"
+    );
+  }
 }

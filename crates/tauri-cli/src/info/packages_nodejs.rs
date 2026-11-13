@@ -180,20 +180,61 @@ pub fn nodejs_section_item(
         package,
         " ⱼₛ".black().on_yellow(),
         version,
-        if !(version.is_empty() || latest_ver.is_empty()) {
-          let version = semver::Version::parse(version.as_str()).unwrap();
-          let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
-
-          if version < target_version {
-            format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
-          } else {
-            "".into()
-          }
-        } else {
-          "".into()
-        }
+        outdated_suffix(&version, &latest_ver)
       )
     }
     .into()
   })
+}
+
+/// Formats the " (outdated, latest: X)" suffix. The installed version is scraped from package
+/// manager output and may not be valid semver (e.g. `2.6` from a pnpm peer-suffixed store
+/// directory), so unparseable versions produce no suffix instead of panicking.
+fn outdated_suffix(version: &str, latest_ver: &str) -> String {
+  if version.is_empty() || latest_ver.is_empty() {
+    return String::new();
+  }
+
+  match (
+    semver::Version::parse(version),
+    semver::Version::parse(latest_ver),
+  ) {
+    (Ok(version), Ok(target_version)) if version < target_version => {
+      format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
+    }
+    _ => String::new(),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::outdated_suffix;
+
+  #[test]
+  fn empty_versions_produce_no_suffix() {
+    assert_eq!(outdated_suffix("", "1.0.0"), "");
+    assert_eq!(outdated_suffix("1.0.0", ""), "");
+    assert_eq!(outdated_suffix("", ""), "");
+  }
+
+  #[test]
+  fn unparseable_version_does_not_panic() {
+    // e.g. `@tauri-apps+plugin-http@2.6_0468b058...` in the pnpm store yields `2.6`
+    assert_eq!(outdated_suffix("2.6", "2.7.0"), "");
+    assert_eq!(outdated_suffix("2.7.0", "2.6"), "");
+    assert_eq!(outdated_suffix("not-a-version", "1.0.0"), "");
+  }
+
+  #[test]
+  fn outdated_version_reports_suffix() {
+    let suffix = outdated_suffix("1.0.0", "2.0.0");
+    assert!(suffix.contains("outdated"), "{suffix}");
+    assert!(suffix.contains("2.0.0"), "{suffix}");
+  }
+
+  #[test]
+  fn up_to_date_or_newer_version_produces_no_suffix() {
+    assert_eq!(outdated_suffix("1.0.0", "1.0.0"), "");
+    assert_eq!(outdated_suffix("2.0.0", "1.0.0"), "");
+  }
 }

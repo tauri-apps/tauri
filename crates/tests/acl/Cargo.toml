@@ -14,3 +14,6 @@ publish = false
 tauri-utils = { workspace = true, features = ["build-2"] }
 serde_json = "1"
 insta = "1"
+
+[lints]
+workspace = true

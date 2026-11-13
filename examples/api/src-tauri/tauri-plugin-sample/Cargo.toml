@@ -16,3 +16,6 @@ tauri = { workspace = true, features = ["wry"] }
 
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }
+
+[lints]
+workspace = true

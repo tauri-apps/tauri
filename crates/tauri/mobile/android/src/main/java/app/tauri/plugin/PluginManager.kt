@@ -98,6 +98,7 @@ object PluginManager {
     }
   }
 
+  // TODO: Consider merging the legacy and contextual result launchers.
   private fun registerResultLaunchers(activity: AppCompatActivity): ResultLaunchers =
     ResultLaunchers(
       activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()

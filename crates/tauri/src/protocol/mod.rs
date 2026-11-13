@@ -5,6 +5,7 @@
 //! Custom protocol handlers
 
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC};
+use url::Url;
 
 #[cfg(feature = "protocol-asset")]
 pub mod asset;
@@ -38,8 +39,61 @@ pub(crate) fn origin(scheme: &str, use_https: bool) -> String {
   }
 }
 
+/// Rewrites a `tauri://localhost` URL to the custom app origin, matching the URL wry loads.
+pub(crate) fn with_custom_app_origin(url: Url, custom_app_origin: &Url) -> Url {
+  if url.scheme() != "tauri" || !url.authority().eq_ignore_ascii_case("localhost") {
+    return url;
+  }
+
+  let mut app_url = custom_app_origin.clone();
+  app_url.set_path(url.path());
+  app_url.set_query(url.query());
+  app_url.set_fragment(url.fragment());
+  app_url
+}
+
 #[cfg(test)]
 mod tests {
+  use url::Url;
+
+  use super::with_custom_app_origin;
+
+  fn url(url: &str) -> Url {
+    Url::parse(url).unwrap()
+  }
+
+  #[test]
+  fn tauri_localhost_moves_to_custom_app_origin() {
+    let origin = url("https://app.example.com");
+    for (input, expected) in [
+      ("tauri://localhost", "https://app.example.com/"),
+      ("tauri://localhost/", "https://app.example.com/"),
+      (
+        "tauri://localhost/nested/page.html?q=tauri://localhost#hash",
+        "https://app.example.com/nested/page.html?q=tauri://localhost#hash",
+      ),
+      ("tauri://LOCALHOST/page", "https://app.example.com/page"),
+    ] {
+      assert_eq!(
+        with_custom_app_origin(url(input), &origin).as_str(),
+        expected
+      );
+    }
+    for unchanged in [
+      "tauri://localhost:8080/",
+      "tauri://user@localhost/",
+      "tauri://other/",
+      "https://tauri.localhost/",
+      "https://example.com/",
+      "custom://localhost/",
+    ] {
+      assert_eq!(
+        with_custom_app_origin(url(unchanged), &origin).as_str(),
+        unchanged
+      );
+    }
+  }
+
   #[test]
   fn encode_uri_component_matches_js() {
     // encodeURIComponent("aZ09-_.!~*'() /\\?#&%+é")

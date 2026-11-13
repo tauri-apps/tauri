@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{super::debian, write_and_make_executable};
+use super::{
+  super::{debian, gst_plugin, tools_directory},
+  write_and_make_executable,
+};
 use crate::{
   Settings,
   bundle::settings::Arch,
@@ -43,12 +46,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs::remove_dir_all(&output_path)?;
   }
 
-  let tools_path = settings
-    .local_tools_directory()
-    .map(|d| d.join(".tauri"))
-    .unwrap_or_else(|| {
-      dirs::cache_dir().map_or_else(|| output_path.to_path_buf(), |p| p.join("tauri"))
-    });
+  let tools_path = tools_directory(settings.local_tools_directory(), settings.project_out_directory());
 
   fs::create_dir_all(&tools_path)?;
 
@@ -81,6 +79,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .with_context(|| "Failed to build data folders and files")?;
   fs_utils::copy_custom_files(&settings.appimage().files, &data_dir)
     .with_context(|| "Failed to copy custom files")?;
+
+  // The plugin links against GStreamer, which is only deployed into the
+  // AppImage by the media framework.
+  if settings.appimage().bundle_media_framework {
+    if let Some(plugin) = gst_plugin::download(&settings)? {
+      fs_utils::copy_file(
+        &plugin,
+        &data_dir
+          .join(gst_plugin::APPIMAGE_PLUGIN_DIR)
+          .join(gst_plugin::PLUGIN_FILE_NAME),
+      )
+      .with_context(|| "Failed to copy the asset GStreamer plugin")?;
+    }
+  }
 
   fs::create_dir_all(&output_path)?;
   let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));

@@ -204,6 +204,44 @@ impl<R: Runtime> IconMenuItem<R> {
     run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_icon(icon))
   }
 
+  /// Change this menu item icon, or remove it, and draw it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu the way the built-in items do. [`IconMenuItem::set_icon`] draws the icon as-is instead.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Same as [`IconMenuItem::set_icon`], as only macOS has template images.
+  pub fn set_icon_templated(&self, icon: Option<Image<'_>>) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+      let icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| (*self_.0)
+        .as_ref()
+        .set_icon_templated(icon))?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    self.set_icon(icon)?;
+    Ok(())
+  }
+
+  /// Whether this menu item's icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// See [`IconMenuItem::set_icon_templated`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Always `false`, as only macOS has template images.
+  pub fn icon_is_template(&self) -> crate::Result<bool> {
+    #[cfg(target_os = "macos")]
+    return run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().icon_is_template());
+    #[allow(unreachable_code)]
+    Ok(false)
+  }
+
   /// Change this menu item icon to a native image or remove it.
   ///
   /// ## Platform-specific:

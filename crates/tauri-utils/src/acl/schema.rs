@@ -280,7 +280,7 @@ fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<S
       let mut then_schema = SchemaObject::default();
       then_schema.object().properties = [
         (ALLOW.to_string(), scope_schema.clone()),
-        (DENY.to_string(), scope_schema),
+        (DENY.to_string(), scope_schema.clone()),
       ]
       .into();
 

@@ -144,6 +144,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let mut main_binary_original = std::fs::File::open(&main_binary_path)
     .fs_context("can't open main binary", &main_binary_path)?;
   std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
+  drop(main_binary_original);
 
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {

@@ -351,7 +351,9 @@ pub fn cargo_command(
 }
 
 fn fetch_available_targets() -> Option<Vec<RustupTarget>> {
-  if let Ok(output) = Command::new("rustup").args(["target", "list"]).output() {
+  if let Ok(output) = Command::new("rustup").args(["target", "list"]).output()
+    && output.status.success()
+  {
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     Some(
       stdout

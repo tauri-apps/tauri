@@ -12,7 +12,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-sha2 = "0.10"
+sha2 = "0.11"
 base64 = "0.23"
 proc-macro2 = "1"
 quote = "1"
@@ -27,7 +27,7 @@ brotli = { version = "9", optional = true, default-features = false, features = 
 ] }
 uuid = { version = "1", features = ["v4"] }
 semver = "1"
-ico = "0.5"
+ico = "0.6"
 png = "0.18"
 json-patch = "4"
 url = "2"

@@ -117,6 +117,15 @@
     The new `tauri_runtime::gtk` module carries the GTK version a runtime binds to: runtimes call `gtk::declare_version` before creating windows so `tauri`, which picks its bindings at compile time, can detect a mismatch instead of reinterpreting a GTK object of the other version.
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `Wry<T>` runtime type was renamed to `WryRuntime<T>` (defaulting to `tauri::EventLoopMessage`), and `Wry` is now the unit-like attributes type that selects the runtime, e.g. `tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default())`. `WryHandle::plugin` now takes `&self`.
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `WebviewAttribute` enum was replaced by the `WryWebviewAttributes` struct, with the `environment` (Windows), `related_view` (Linux) and `webview_configuration` (macOS) fields. The `AsWryWebviewAttributes` trait gives the `WebviewWindowBuilderWryExt` and `WebviewBuilderWryExt` extension traits access to it on both `WryRuntime` and `tauri::DynRuntime`.
+## [2.12.3]
+
+### Bug Fixes
+
+- [`9d0ab831f`](https://www.github.com/tauri-apps/tauri/commit/9d0ab831fe38566157e3296ac00fa1b6323e44e4) ([#15513](https://www.github.com/tauri-apps/tauri/pull/15513) by [@papercupai](https://www.github.com/tauri-apps/tauri/../../papercupai)) Fix undecorated window resizing on Linux when the webview was moved into another GTK container (e.g. a `GtkPaned`).
+
+### Dependencies
+
+- [`1d7b93fc5`](https://www.github.com/tauri-apps/tauri/commit/1d7b93fc5927c013e20613e45e7b84602efb0ee9) ([#16321](https://www.github.com/tauri-apps/tauri/pull/16321) by [@FalkWoldmann](https://www.github.com/tauri-apps/tauri/../../FalkWoldmann)) Replace `once_cell` with the `std::sync` equivalents, removing it from the direct dependencies.
 
 ## [2.12.2]
 

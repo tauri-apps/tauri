@@ -382,6 +382,9 @@ impl EmbeddedAssets {
           },
         )?;
       }
+
+      drop(out_file);
+      crate::backdate(&out_path);
     }
 
     Ok((key, (path.into(), out_path)))

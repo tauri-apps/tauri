@@ -100,7 +100,7 @@ jobs:
             fluxbox \
             dbus \
             python3-gi \
-            ${{ matrix.runtime == 'cef' && 'libgtk-4-dev libpipewire-0.3-0t64' || 'libwebkit2gtk-4.1-dev webkit2gtk-driver' }}
+            ${{ matrix.runtime == 'cef' && 'libgtk-4-dev libpipewire-0.3-0t64' || 'libwebkit2gtk-4.1-dev webkitgtk-webdriver' }}
           # WebKitGTK reads the color scheme and tao the theme from the desktop portal when a
           # window is created. On the runner that portal is registered with D-Bus but never
           # comes up (there is no desktop session for it), so both calls only return on their

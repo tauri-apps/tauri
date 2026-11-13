@@ -521,6 +521,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
     }
+    builder.data_store_identifier = config.data_store_identifier;
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
     #[cfg(target_os = "ios")]

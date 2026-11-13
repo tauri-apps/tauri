@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use once_cell::sync::OnceCell;
 use regex::Regex;
-use std::{collections::BTreeSet, path::Path, process::Command};
+use std::{collections::BTreeSet, path::Path, process::Command, sync::OnceLock};
 use x509_certificate::certificate::X509Certificate;
 
 use crate::{Error, Result};
@@ -52,8 +51,8 @@ impl Team {
       println!(
         "found cert {common_name:?} but failed to get organization; falling back to displaying common name"
       );
-      static APPLE_DEV: OnceCell<Regex> = OnceCell::new();
-      APPLE_DEV.get_or_init(|| Regex::new(r"Apple Develop\w+: (.*) \(.+\)").unwrap())
+      static APPLE_DEV: OnceLock<Regex> = OnceLock::new();
+      APPLE_DEV.get_or_init(|| Regex::new(r"(?:Apple|iPhone) Develop\w+: (.*) \(.+\)").unwrap())
                 .captures(&common_name)
                 .map(|caps| caps[1].to_owned())
                 .unwrap_or_else(|| {
@@ -89,11 +88,13 @@ pub fn list(keychain_path: &Path) -> Result<Vec<Team>> {
     let mut certs = Vec::new();
     for cert_prefix in [
       "iOS Distribution:",
+      "iPhone Distribution:",
       "Apple Distribution:",
       "Developer ID Application:",
       "Mac App Distribution:",
       "Apple Development:",
       "iOS App Development:",
+      "iPhone Developer:",
       "Mac Development:",
     ] {
       let pem_list_out = get_pem_list(keychain_path, cert_prefix)?;

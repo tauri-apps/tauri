@@ -159,6 +159,18 @@
     - Enabling both selects GTK 4, the same precedence `muda` and `tray-icon` use. Cargo does that whenever the dependency graph contains runtime crates that disagree on the GTK version, and such a binary can only ever run one of them, because GTK 3 and GTK 4 cannot be initialized in the same process. The GTK APIs and the Linux menu integration now fail with the new `Error::GtkVersionMismatch` under a runtime whose GTK version is not the one that was selected, instead of reinterpreting its window objects.
     - The `test` feature no longer implies GTK 3, so it can be combined with `gtk4`.
 - [`c8c75b1f7`](https://www.github.com/tauri-apps/tauri/commit/c8c75b1f7f43e7cb1e7d773ed2f6f96fad2fe975) ([#15787](https://www.github.com/tauri-apps/tauri/pull/15787)) The Linux tray icon now uses the ksni (StatusNotifierItem over D-Bus) backend by default instead of libappindicator, dropping the libayatana-appindicator system dependency. The `tray-icon` feature no longer needs a GTK version to be selected. Enable the new `linux-libappindicator` feature to go back to the libappindicator backend.
+## [2.12.5]
+
+### Bug Fixes
+
+- [`52081e04a`](https://www.github.com/tauri-apps/tauri/commit/52081e04a0309620d3eb8121e5ca9b66312f9857) ([#16333](https://www.github.com/tauri-apps/tauri/pull/16333) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Rename the misspelled `choowHowToInstall` NSIS language string to `chooseHowToInstall`. A custom language file in `bundle.windows.nsis.customLanguageFiles` that only defines the old name keeps working for now, but users should migrate to the new name.
+- [`c0e3dbd91`](https://www.github.com/tauri-apps/tauri/commit/c0e3dbd91def4b2c39fc7cca03f0b86407e9d584) ([#16254](https://www.github.com/tauri-apps/tauri/pull/16254) by [@kihyun1998](https://www.github.com/tauri-apps/tauri/../../kihyun1998)) Fix NSIS installers not blocking downgrades over a newer installation made by the MSI installer in silent (`/S`), passive (`/P`) and update (`/UPDATE`) modes when `bundle.windows.allowDowngrades` is `false`.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.7.4`
+- Upgraded to `tauri-runtime-wry@2.12.3`
+- Upgraded to `tauri-macros@2.7.4`
 
 ## [2.12.4]
 

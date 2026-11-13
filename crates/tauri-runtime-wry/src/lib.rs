@@ -5053,6 +5053,7 @@ You may have it installed on another user account, but it is not available for t
     webview_builder =
       webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview);
 
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     if let Some(on_web_content_process_terminate_handler) =
       pending.on_web_content_process_terminate_handler
     {

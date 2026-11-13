@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.0-alpha.7]
+
+### Bug Fixes
+
+- [`9a66eab83`](https://www.github.com/tauri-apps/tauri/commit/9a66eab8386fcefbe9bbab3e12a3caa90b7644ca) ([#16478](https://www.github.com/tauri-apps/tauri/pull/16478) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix a Windows `signCommand` that replaces the main binary (for example by writing a signed copy and renaming it over the original) failing with `Access is denied. (os error 5)`. The bundler no longer keeps the main binary open after copying it.
+- [`5edd31c8a`](https://www.github.com/tauri-apps/tauri/commit/5edd31c8a8914674c217b21a660a914823da2dae) ([#16506](https://www.github.com/tauri-apps/tauri/pull/16506) by [@TakahiroNago](https://www.github.com/tauri-apps/tauri/../../TakahiroNago)) Fix the MSI installer re-creating the desktop shortcut on every update even after the user deleted it. The shortcut is now only re-created during an upgrade if it still exists, matching the NSIS installer.
+- [`8d3efdeea`](https://www.github.com/tauri-apps/tauri/commit/8d3efdeea5b4221301a4fc5e2d4ab969abe8aa7f) ([#16060](https://www.github.com/tauri-apps/tauri/pull/16060) by [@Raaif-Yousuf](https://www.github.com/tauri-apps/tauri/../../Raaif-Yousuf)) Fix NSIS and MSI bundling failing with `Unable to start child process, error 0x2` when running as the Windows `SYSTEM` account, for example on a CI runner installed as a service. When the cache directory is inside `C:\Windows\System32`, where WOW64 file system redirection hides the downloaded tools from the 32-bit NSIS and WiX executables, the bundler now stores them in the project output directory instead. If the tools directory would still be inside `System32`, for example because the project is, bundling now fails early with an error that explains why.
+- [`31f29e197`](https://www.github.com/tauri-apps/tauri/commit/31f29e197e7ac18797dbb9270fe658c1ca1010c8) ([#16436](https://www.github.com/tauri-apps/tauri/pull/16436) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Fix the builtin dev server serving `index.html` instead of files whose names contain spaces or non-ASCII characters, such as `my font.woff2`.
+- [`71b668096`](https://www.github.com/tauri-apps/tauri/commit/71b668096ee12ff871d7bb4edd27486c58454549) ([#14712](https://www.github.com/tauri-apps/tauri/pull/14712) by [@onebytegone](https://www.github.com/tauri-apps/tauri/../../onebytegone)) Fix iOS export failing with "Couldn't load -exportOptionsPlist" error when running `tauri ios run`.
+- [`7facf4f23`](https://www.github.com/tauri-apps/tauri/commit/7facf4f2317bf46347e1d631729e579f54c88196) ([#16398](https://www.github.com/tauri-apps/tauri/pull/16398) by [@ashokram-si](https://www.github.com/tauri-apps/tauri/../../ashokram-si)) Fix `tauri dev` not watching the app at all when its `.taurignore` contains a pattern like `/*` that matches every entry at the top level, even if other entries are re-included with `!` negations. Watch folders are now always watched; ignore rules apply to their entries and to change events.
+- [`9a010f444`](https://www.github.com/tauri-apps/tauri/commit/9a010f4444f876abd787b817d6973e5756834721) ([#15773](https://www.github.com/tauri-apps/tauri/pull/15773) by [@yingyanzhitong](https://www.github.com/tauri-apps/tauri/../../yingyanzhitong)) Read manual iOS signing certificates and provisioning profiles from the Xcode project when generating export options, without overriding the values configured in `ExportOptions.plist`. Provisioning profiles from `ExportOptions.plist` (such as the ones for app extensions) are now kept when merging.
+- [`7e39750cf`](https://www.github.com/tauri-apps/tauri/commit/7e39750cf6a4e05234a781088ff5fb8cb890370a) Update the CLI's locked Zstandard dependencies to address RUSTSEC-2026-0391 and RUSTSEC-2026-0395 through RUSTSEC-2026-0406, plus RUSTSEC-2026-0410.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@3.0.0-alpha.6`
+- Upgraded to `tauri-utils@3.0.0-alpha.5`
+
 ## [3.0.0-alpha.6]
 
 ### Dependencies

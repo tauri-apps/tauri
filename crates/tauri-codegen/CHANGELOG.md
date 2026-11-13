@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.5`
+- [`6c20c1844`](https://www.github.com/tauri-apps/tauri/commit/6c20c1844b8fb0124dc253099700f7697bf7cff4) ([#16502](https://www.github.com/tauri-apps/tauri/pull/16502) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated sha2 to 0.11.
+
 ## [3.0.0-alpha.4]
 
 ### Dependencies

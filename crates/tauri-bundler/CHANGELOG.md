@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.0.0-alpha.6]
+
+### Enhancements
+
+- [`6df8a2e13`](https://www.github.com/tauri-apps/tauri/commit/6df8a2e13210097810751bfe8ecbca7674337d8a) ([#16451](https://www.github.com/tauri-apps/tauri/pull/16451) by [@oyobbeb](https://www.github.com/tauri-apps/tauri/../../oyobbeb)) Show a dedicated message in the NSIS installer when the running app can't be closed because the installer doesn't have permission to close it (for example when the app runs as administrator).
+
+### Bug Fixes
+
+- [`9a66eab83`](https://www.github.com/tauri-apps/tauri/commit/9a66eab8386fcefbe9bbab3e12a3caa90b7644ca) ([#16478](https://www.github.com/tauri-apps/tauri/pull/16478) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix a Windows `signCommand` that replaces the main binary (for example by writing a signed copy and renaming it over the original) failing with `Access is denied. (os error 5)`. The bundler no longer keeps the main binary open after copying it.
+- [`5edd31c8a`](https://www.github.com/tauri-apps/tauri/commit/5edd31c8a8914674c217b21a660a914823da2dae) ([#16506](https://www.github.com/tauri-apps/tauri/pull/16506) by [@TakahiroNago](https://www.github.com/tauri-apps/tauri/../../TakahiroNago)) Fix the MSI installer re-creating the desktop shortcut on every update even after the user deleted it. The shortcut is now only re-created during an upgrade if it still exists, matching the NSIS installer.
+- [`6620118f0`](https://www.github.com/tauri-apps/tauri/commit/6620118f0fe85472abfdccea8d99fd0ec9447c3f) ([#16338](https://www.github.com/tauri-apps/tauri/pull/16338) by [@aervxa](https://www.github.com/tauri-apps/tauri/../../aervxa)) Remove outdated CEF files `libEGL.so` and `libGLESv2.so`, which are not seperate libraries since cef v152
+- [`8d3efdeea`](https://www.github.com/tauri-apps/tauri/commit/8d3efdeea5b4221301a4fc5e2d4ab969abe8aa7f) ([#16060](https://www.github.com/tauri-apps/tauri/pull/16060) by [@Raaif-Yousuf](https://www.github.com/tauri-apps/tauri/../../Raaif-Yousuf)) Fix NSIS and MSI bundling failing with `Unable to start child process, error 0x2` when running as the Windows `SYSTEM` account, for example on a CI runner installed as a service. When the cache directory is inside `C:\Windows\System32`, where WOW64 file system redirection hides the downloaded tools from the 32-bit NSIS and WiX executables, the bundler now stores them in the project output directory instead. If the tools directory would still be inside `System32`, for example because the project is, bundling now fails early with an error that explains why.
+- [`a72849807`](https://www.github.com/tauri-apps/tauri/commit/a7284980733217122909b398d249d65a86ce2ee2) ([#16486](https://www.github.com/tauri-apps/tauri/pull/16486) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix NSIS bundling on macOS and Linux deleting the cached NSIS tools and downloading `nsis_tauri_utils.dll` again on every build. The `NSIS.exe` hash check now only runs on Windows, where `NSIS.exe` is part of the downloaded toolset.
+- [`06cc1ac43`](https://www.github.com/tauri-apps/tauri/commit/06cc1ac43ae095cb40af440ee751e8dd81ec663e) ([#16362](https://www.github.com/tauri-apps/tauri/pull/16362) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix NSIS builds using the Persian translation by using the correct language name, `Farsi`. `Persian` is still accepted as a deprecated alias.
+- [`37b3be665`](https://www.github.com/tauri-apps/tauri/commit/37b3be66513ac613b521baf792b6afc94b38bc8d) ([#16361](https://www.github.com/tauri-apps/tauri/pull/16361) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Include the Hebrew language file in the NSIS installer. It was never bundled and Hebrew installers showed blank text.
+- [`a200fae13`](https://www.github.com/tauri-apps/tauri/commit/a200fae133970fc85a50c2ba30ac184769278d17) ([#16336](https://www.github.com/tauri-apps/tauri/pull/16336) by [@zarkone](https://www.github.com/tauri-apps/tauri/../../zarkone)) Fix `.rpm` bundling of a SemVer pre-release version such as `1.0.0-beta.1` failing with `invalid version` errors. The pre-release is now written in RPM's tilde form (`1.0.0~beta.1`), which sorts before the release as SemVer intends. The bundle's filename is unchanged.
+- [`7e39750cf`](https://www.github.com/tauri-apps/tauri/commit/7e39750cf6a4e05234a781088ff5fb8cb890370a) Update the CLI's locked Zstandard dependencies to address RUSTSEC-2026-0391 and RUSTSEC-2026-0395 through RUSTSEC-2026-0406, plus RUSTSEC-2026-0410.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.5`
+
 ## [3.0.0-alpha.5]
 
 ### Bug Fixes

@@ -11,7 +11,7 @@ use crate::{
     config::{BeforeDevCommand, ConfigMetadata, FrontendDist, get_config, reload_config},
   },
   info::plugins::check_mismatched_packages,
-  interface::{AppInterface, ExitReason},
+  interface::{AppInterface, ExitReason, rust::winapp_manifest},
 };
 
 use clap::{ArgAction, Parser};
@@ -88,6 +88,13 @@ pub struct Options {
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
+  /// Run the app with Windows package identity, so APIs that require it (notifications,
+  /// share targets, app URI handlers, Windows App SDK) work during development.
+  ///
+  /// Requires Microsoft's `winapp` CLI (`npm i -D @microsoft/winappcli`) and a
+  /// `Package.appxmanifest` in the Tauri directory or the project root, created by `winapp init`.
+  #[clap(long)]
+  pub packaged: bool,
   /// Specify port for the built-in dev server for static files. Defaults to 1430.
   #[clap(long, env = "TAURI_CLI_PORT")]
   pub port: Option<u16>,
@@ -112,6 +119,14 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
+
+  // checked before `beforeDevCommand` starts the dev server
+  if options.packaged {
+    if !cfg!(windows) || !matches!(target, Target::Windows) {
+      crate::error::bail!("`--packaged` is only supported when running on and targeting Windows");
+    }
+    winapp_manifest(&dirs)?;
+  }
 
   let mut config = get_config(
     target,

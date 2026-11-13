@@ -49,6 +49,11 @@ impl CommandExt for Command {
     let program = self.get_program().to_string_lossy().into_owned();
     log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
+    // Nothing run this way can answer a prompt, so no stdin rather than the
+    // inherited one: under the Node.js CLI that descriptor is close-on-exec
+    // and the child would start with fd 0 closed, which actool cannot take
+    // (#15315).
+    self.stdin(Stdio::null());
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());
 

@@ -91,6 +91,46 @@ async fn handle(
       parts.headers.insert(CONTENT_LENGTH, bytes.len().into());
 
       Request::from_parts(parts, Full::new(bytes.into()))
+    } else if req.method() == &Method::POST
+      && req.uri().path().starts_with("/session/")
+      && req.uri().path().ends_with("/value")
+      && req.uri().path().contains("/element/")
+    {
+      let (mut parts, body) = req.into_parts();
+      let body = body.collect().await?.to_bytes().to_vec();
+      let mut new_body = body.clone();
+
+      if let Ok(mut json) = serde_json::from_slice::<Value>(&body) {
+        if let Some(obj) = json.as_object_mut() {
+          if !obj.contains_key("text") {
+            if let Some(value) = obj.get("value") {
+              let text_str = if let Some(value_arr) = value.as_array() {
+                let mut s = String::new();
+                for item in value_arr {
+                  if let Some(c) = item.as_str() {
+                    s.push_str(c);
+                  }
+                }
+                Some(s)
+              } else if let Some(value_str) = value.as_str() {
+                Some(value_str.to_string())
+              } else {
+                None
+              };
+
+              if let Some(s) = text_str {
+                obj.insert("text".to_string(), Value::String(s));
+                if let Ok(bytes) = serde_json::to_vec(&json) {
+                  new_body = bytes;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      parts.headers.insert(CONTENT_LENGTH, new_body.len().into());
+      Request::from_parts(parts, Full::new(new_body.into()))
     } else {
       let (parts, body) = req.into_parts();
 

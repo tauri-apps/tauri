@@ -42,7 +42,18 @@ pub enum CargoManifestDependency {
 
 #[derive(Deserialize)]
 pub struct CargoManifestPackage {
-  pub version: String,
+  /// `None` when the version is inherited from the workspace (`version.workspace = true`).
+  #[serde(default, deserialize_with = "deserialize_package_version")]
+  pub version: Option<String>,
+}
+
+fn deserialize_package_version<'de, D: serde::Deserializer<'de>>(
+  deserializer: D,
+) -> Result<Option<String>, D::Error> {
+  match toml::Value::deserialize(deserializer)? {
+    toml::Value::String(version) => Ok(Some(version)),
+    _ => Ok(None),
+  }
 }
 
 #[derive(Deserialize)]
@@ -191,7 +202,7 @@ pub fn crate_version(
             let v = fs::read_to_string(manifest_path)
               .ok()
               .and_then(|m| toml::from_str::<CargoManifest>(&m).ok())
-              .map(|m| m.package.version);
+              .and_then(|m| m.package.version);
             version.version = v;
             version.path = Some(p);
           } else if let Some(g) = p.git {
@@ -230,6 +241,27 @@ mod tests {
       version: version.into(),
       source: None,
     }
+  }
+
+  #[test]
+  fn parses_manifest_with_inherited_package_version() {
+    let manifest: CargoManifest = toml::from_str(
+      r#"
+        [package]
+        name = "app"
+        version.workspace = true
+
+        [dependencies]
+        tauri = { workspace = true }
+      "#,
+    )
+    .unwrap();
+
+    let lock = CargoLock {
+      package: vec![lock_package("1.8.0")],
+    };
+    let version = crate_version(Path::new("."), Some(&manifest), Some(&lock), "tauri");
+    assert_eq!(version.version.as_deref(), Some("1.8.0"));
   }
 
   #[test]

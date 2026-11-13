@@ -364,6 +364,16 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
+  /// Whether to show the tray menu on right click or not, default is `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported.
+  pub fn show_menu_on_right_click(mut self, enable: bool) -> Self {
+    self.inner = self.inner.with_menu_on_right_click(enable);
+    self
+  }
+
   /// Set a handler for menu events.
   ///
   /// Note that this handler is called for any menu event,
@@ -718,6 +728,32 @@ impl<R: Runtime> TrayIcon<R> {
       self_.inner.set_show_menu_on_left_click(enable)
     })?;
     Ok(())
+  }
+
+  /// Disable or enable showing the tray menu on right click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  pub fn set_show_menu_on_right_click(&self, #[allow(unused)] enable: bool) -> crate::Result<()> {
+    #[cfg(any(target_os = "macos", windows))]
+    run_item_main_thread!(self, |self_: Self| {
+      self_.inner.set_show_menu_on_right_click(enable)
+    })?;
+    Ok(())
+  }
+
+  /// Show the tray menu at the current cursor position.
+  ///
+  /// Useful with [`TrayIconBuilder::show_menu_on_left_click`] and
+  /// [`TrayIconBuilder::show_menu_on_right_click`] disabled, to control when the menu shows up,
+  /// for instance after updating its items.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  pub fn show_menu(&self) -> crate::Result<()> {
+    run_item_main_thread!(self, |self_: Self| self_.inner.show_menu())
   }
 
   /// Get tray icon rect.

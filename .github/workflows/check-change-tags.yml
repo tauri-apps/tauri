@@ -6,8 +6,7 @@ name: check change tags
 
 on:
   pull_request:
-    paths:
-      - '.changes/*.md'
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -45,3 +44,15 @@ jobs:
       - name: check
         run: node ./.scripts/ci/check-change-tags.js ${{ steps.filter.outputs.changes_files }}
         if: ${{ steps.filter.outputs.changes == 'true' }}
+
+  check-missing-bumps:
+    runs-on: ubuntu-latest
+    # add this label to PRs that change packages without needing a release (docs, refactors, CI)
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip change file') }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: check changed packages have a change file
+        run: node ./.scripts/ci/check-change-tags.js --missing-bumps origin/${{ github.base_ref }}

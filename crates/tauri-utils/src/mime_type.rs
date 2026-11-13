@@ -82,8 +82,12 @@ impl MimeType {
   }
   /// infer mimetype from content (or) URI if needed with specified fallback for unknown file extensions.
   pub fn parse_with_fallback(content: &[u8], uri: &str, fallback: MimeType) -> String {
-    let mime = if uri.to_ascii_lowercase().ends_with(".svg") {
-      // when reading svg, we can't use `infer`
+    let uri_lower = uri.to_ascii_lowercase();
+    let mime = if [".svg", ".js", ".mjs", ".css", ".html", ".json"]
+      .iter()
+      .any(|ext| uri_lower.ends_with(ext))
+    {
+      // when reading svg or other web text types, we can't use `infer`
       None
     } else {
       infer::get(content).map(|info| info.mime_type())
@@ -172,6 +176,17 @@ mod tests {
     assert_eq!(
       MimeType::parse(b"<?xml version=\"1.0\"?><svg></svg>", "Logo.SVG"),
       "image/svg+xml"
+    );
+  }
+
+  #[test]
+  fn should_not_infer_web_text_types() {
+    let js = b"var e=1;function t(h){if(h.slice(0,5)===`%PDF-`)return`application/pdf`}export{t};";
+    assert_eq!(MimeType::parse(js, "/assets/x.js"), "text/javascript");
+    assert_eq!(MimeType::parse(js, "/assets/x.mjs"), "text/javascript");
+    assert_eq!(
+      MimeType::parse(b"/* %PDF- */ a{}", "/assets/x.css"),
+      "text/css"
     );
   }
 }

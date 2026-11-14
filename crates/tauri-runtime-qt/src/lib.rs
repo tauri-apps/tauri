@@ -552,6 +552,9 @@ pub(crate) fn create_window<T: UserEvent>(
   if b.skip_taskbar {
     window.set_flag(WindowFlag::SkipTaskbar, true);
   }
+  if b.visible_on_all_workspaces {
+    window.set_flag(WindowFlag::AllWorkspaces, true);
+  }
   if !b.closable {
     window.set_flag(WindowFlag::Closable, false);
   }
@@ -702,10 +705,6 @@ pub(crate) fn create_webview<T: UserEvent>(
     attrs.data_directory.as_deref().and_then(|p| p.to_str()),
     attrs.incognito,
   );
-  if let Some(ua) = &attrs.user_agent {
-    profile.set_user_agent(ua);
-  }
-
   let webview_id = st
     .context
     .shared
@@ -746,6 +745,10 @@ pub(crate) fn create_webview<T: UserEvent>(
 
   if let Some(color) = attrs.background_color {
     view.set_background_color(color.into());
+  }
+  // Per view, not per profile: webviews sharing a profile keep their own user agents.
+  if let Some(ua) = &attrs.user_agent {
+    view.set_user_agent(Some(ua));
   }
   for script in &attrs.initialization_scripts {
     view.add_init_script(&script.script, script.for_main_frame_only);

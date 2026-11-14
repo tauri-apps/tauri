@@ -11,6 +11,7 @@
 #include <QApplication>
 #include <QBuffer>
 #include <QCloseEvent>
+#include <QShowEvent>
 #include <QCursor>
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -74,6 +75,7 @@
 #include <memory>
 #include <optional>
 
+#include <dlfcn.h>
 #include <sys/mman.h>
 
 using namespace qs;
@@ -94,11 +96,68 @@ QHash<QWebEnginePage *, QsView *> g_pageViews;
 QHash<QString, bool> g_permissionMemo; // answers given through the built-in prompt
 const char kViewHeader[] = "X-Qs-View";
 const char kSubresourceHeader[] = "X-Qs-Subresource"; // set for requests that aren't navigations
+const char kFetchHeader[] = "X-Qs-Fetch";             // set for fetch() / XMLHttpRequest requests
+// Carries a scheme response's real status to kStatusShim (Qt always sends 200/206/303).
+const char kStatusHeader[] = "x-qtshim-status";
+
+// Runs at document creation in every frame. Responses carrying kStatusHeader report that status
+// from Response.status/ok/statusText and XMLHttpRequest.status/statusText. The getters are
+// patched on the prototypes, so clone(), streaming bodies, url, redirected etc. are untouched.
+const char kStatusShim[] = R"JS((() => {
+  const H = 'x-qtshim-status';
+  const T = {200: 'OK', 201: 'Created', 202: 'Accepted', 203: 'Non-Authoritative Information',
+    204: 'No Content', 205: 'Reset Content', 206: 'Partial Content', 300: 'Multiple Choices',
+    301: 'Moved Permanently', 302: 'Found', 303: 'See Other', 304: 'Not Modified',
+    307: 'Temporary Redirect', 308: 'Permanent Redirect', 400: 'Bad Request',
+    401: 'Unauthorized', 402: 'Payment Required', 403: 'Forbidden', 404: 'Not Found',
+    405: 'Method Not Allowed', 406: 'Not Acceptable', 408: 'Request Timeout', 409: 'Conflict',
+    410: 'Gone', 411: 'Length Required', 412: 'Precondition Failed', 413: 'Content Too Large',
+    414: 'URI Too Long', 415: 'Unsupported Media Type', 416: 'Range Not Satisfiable',
+    417: 'Expectation Failed', 418: "I'm a Teapot", 421: 'Misdirected Request',
+    422: 'Unprocessable Content', 425: 'Too Early', 426: 'Upgrade Required',
+    428: 'Precondition Required', 429: 'Too Many Requests',
+    431: 'Request Header Fields Too Large', 451: 'Unavailable For Legal Reasons',
+    500: 'Internal Server Error', 501: 'Not Implemented', 502: 'Bad Gateway',
+    503: 'Service Unavailable', 504: 'Gateway Timeout', 505: 'HTTP Version Not Supported',
+    507: 'Insufficient Storage', 511: 'Network Authentication Required'};
+  const code = v => { const n = Number(v); return Number.isInteger(n) && n >= 100 && n <= 599 ? n : 0; };
+  const patch = (proto, name, make) => {
+    const d = Object.getOwnPropertyDescriptor(proto, name);
+    if (d && d.get) Object.defineProperty(proto, name, {...d, get: make(d.get)});
+  };
+  const install = (proto, status) => {
+    patch(proto, 'status', g => function () { return status(this) || g.call(this); });
+    patch(proto, 'statusText', g => function () {
+      const s = status(this);
+      return s ? T[s] || '' : g.call(this);
+    });
+  };
+  if (self.Response && self.Headers) {
+    const headers = Object.getOwnPropertyDescriptor(Response.prototype, 'headers').get;
+    const get = Headers.prototype.get;
+    const status = r => { try { return code(get.call(headers.call(r), H)); } catch (_) { return 0; } };
+    install(Response.prototype, status);
+    patch(Response.prototype, 'ok', g => function () {
+      const s = status(this);
+      return s ? s >= 200 && s < 300 : g.call(this);
+    });
+  }
+  if (self.XMLHttpRequest) {
+    const P = XMLHttpRequest.prototype;
+    const get = P.getResponseHeader;
+    const ready = Object.getOwnPropertyDescriptor(P, 'readyState').get;
+    install(P, x => {
+      try { return ready.call(x) >= 2 ? code(get.call(x, H)) : 0; } catch (_) { return 0; }
+    });
+  }
+})();
+)JS";
 
 // A scheme request handed to Rust (as QsJob*).
 struct JobHandle {
   QPointer<QWebEngineUrlRequestJob> job;
   bool subresource = false;
+  bool fetch = false;  // fetch() / XHR: kStatusShim reports the real status
   qint64 suffix = -1; // N of a `Range: bytes=-N` request
 };
 
@@ -222,17 +281,22 @@ std::optional<QByteArray> readRequestBody(QIODevice *dev) {
 }
 
 // Tags every request of a page so the profile-wide scheme handler knows which view asked.
-// Runs browser-side, so pages cannot spoof it.
+// Runs browser-side, so pages cannot spoof it. Also applies the view's own user agent.
 class ViewTagger : public QWebEngineUrlRequestInterceptor {
 public:
   ViewTagger(quint64 id, QObject *parent)
       : QWebEngineUrlRequestInterceptor(parent), m_id(QByteArray::number(id)) {}
+  QByteArray userAgent; // empty: the profile's
   void interceptRequest(QWebEngineUrlRequestInfo &info) override {
+    using I = QWebEngineUrlRequestInfo;
+    if (!userAgent.isEmpty())
+      info.setHttpHeader("User-Agent", userAgent);
     // Only our scheme handlers read the tags; don't leak them to http(s) servers.
     if (!g_schemes.contains(info.requestUrl().scheme().toLatin1()))
       return;
     info.setHttpHeader(kViewHeader, m_id);
-    using I = QWebEngineUrlRequestInfo;
+    if (info.resourceType() == I::ResourceTypeXhr) // fetch() and XMLHttpRequest
+      info.setHttpHeader(kFetchHeader, "1");
     switch (info.resourceType()) {
     case I::ResourceTypeMainFrame:
     case I::ResourceTypeSubFrame:
@@ -255,7 +319,7 @@ public:
   void requestStarted(QWebEngineUrlRequestJob *job) override {
     quint64 view = 0;
     qint64 suffix = -1;
-    bool hasOrigin = false, subresource = false;
+    bool hasOrigin = false, subresource = false, fetch = false;
     QByteArray headers;
     const auto reqHeaders = job->requestHeaders();
     for (auto it = reqHeaders.cbegin(); it != reqHeaders.cend(); ++it) {
@@ -265,6 +329,10 @@ public:
       }
       if (it.key().compare(kSubresourceHeader, Qt::CaseInsensitive) == 0) {
         subresource = true;
+        continue;
+      }
+      if (it.key().compare(kFetchHeader, Qt::CaseInsensitive) == 0) {
+        fetch = true;
         continue;
       }
       if (it.key().compare("origin", Qt::CaseInsensitive) == 0)
@@ -296,7 +364,7 @@ public:
     }
     const QByteArray method = job->requestMethod();
     const QByteArray url = job->requestUrl().toEncoded();
-    auto *handle = new JobHandle{job, subresource, suffix};
+    auto *handle = new JobHandle{job, subresource, fetch, suffix};
     CallbackScope scope;
     g_scheme(g_schemeUd, reinterpret_cast<QsJob *>(handle), view, method.constData(),
              url.constData(), headers.constData(),
@@ -337,6 +405,145 @@ QString permissionLabel(QWebEnginePermission::PermissionType t) {
 // ---------------------------------------------------------------------------------------------
 // window
 
+// ---------------------------------------------------------------------------------------------
+// X11 workspaces (EWMH). Qt has no API for "sticky" windows, so talk to the X server through the
+// libxcb that Qt's xcb platform plugin already loaded (no link-time dependency; on Wayland or
+// offscreen, libxcb isn't loaded or there's no X11 application and this is a no-op).
+
+namespace x11 {
+struct Conn;
+struct Cookie { unsigned int sequence; };
+struct AtomReply { uint8_t type, pad0; uint16_t seq; uint32_t length; uint32_t atom; };
+struct PropReply {
+  uint8_t response_type, format; uint16_t sequence; uint32_t length, type, bytes_after,
+      value_len; uint8_t pad0[12];
+};
+struct Screen { uint32_t root; };
+struct ScreenIter { Screen *data; int rem, index; };
+struct ClientMessage {
+  uint8_t response_type, format; uint16_t sequence; uint32_t window, type, data32[5];
+};
+constexpr uint32_t kCardinal = 6, kAtom = 4, kAllDesktops = 0xFFFFFFFF;
+constexpr uint32_t kSubstructureMask = (1u << 19) | (1u << 20); // Notify | Redirect
+
+struct Xcb {
+  Cookie (*intern)(Conn *, uint8_t, uint16_t, const char *);
+  AtomReply *(*internReply)(Conn *, Cookie, void **);
+  Cookie (*changeProp)(Conn *, uint8_t, uint32_t, uint32_t, uint32_t, uint8_t, uint32_t,
+                       const void *);
+  Cookie (*deleteProp)(Conn *, uint32_t, uint32_t);
+  Cookie (*getProp)(Conn *, uint8_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+  PropReply *(*getPropReply)(Conn *, Cookie, void **);
+  void *(*propValue)(const PropReply *);
+  Cookie (*sendEvent)(Conn *, uint8_t, uint32_t, uint32_t, const char *);
+  const void *(*getSetup)(Conn *);
+  ScreenIter (*roots)(const void *);
+  int (*flush)(Conn *);
+  Conn *c = nullptr;
+
+  static const Xcb *get() {
+    static Xcb x;
+    static bool loaded = false;
+    if (!loaded) {
+      loaded = true;
+      void *lib = dlopen("libxcb.so.1", RTLD_NOW | RTLD_NOLOAD);
+      if (!lib)
+        return nullptr;
+      bool ok = true;
+      auto sym = [&](auto &fn, const char *name) {
+        fn = reinterpret_cast<std::remove_reference_t<decltype(fn)>>(dlsym(lib, name));
+        ok = ok && fn;
+      };
+      sym(x.intern, "xcb_intern_atom");
+      sym(x.internReply, "xcb_intern_atom_reply");
+      sym(x.changeProp, "xcb_change_property");
+      sym(x.deleteProp, "xcb_delete_property");
+      sym(x.getProp, "xcb_get_property");
+      sym(x.getPropReply, "xcb_get_property_reply");
+      sym(x.propValue, "xcb_get_property_value");
+      sym(x.sendEvent, "xcb_send_event");
+      sym(x.getSetup, "xcb_get_setup");
+      sym(x.roots, "xcb_setup_roots_iterator");
+      sym(x.flush, "xcb_flush");
+      if (!ok)
+        return nullptr;
+#if QT_CONFIG(xcb)
+      if (auto *app = qApp->nativeInterface<QNativeInterface::QX11Application>())
+        x.c = reinterpret_cast<Conn *>(app->connection());
+#endif
+    }
+    return x.c ? &x : nullptr;
+  }
+
+  uint32_t atom(const char *name) const {
+    AtomReply *r = internReply(c, intern(c, 0, uint16_t(strlen(name)), name), nullptr);
+    const uint32_t a = r ? r->atom : 0;
+    std::free(r);
+    return a;
+  }
+  uint32_t root() const { return roots(getSetup(c)).data->root; }
+  QList<uint32_t> cardinals(uint32_t win, uint32_t prop, uint32_t type) const {
+    QList<uint32_t> out;
+    if (PropReply *r = getPropReply(c, getProp(c, 0, win, prop, type, 0, 1024), nullptr)) {
+      if (r->format == 32 && r->type == type) {
+        const auto *v = static_cast<const uint32_t *>(propValue(r));
+        out = QList<uint32_t>(v, v + r->value_len);
+      }
+      std::free(r);
+    }
+    return out;
+  }
+  void clientMessage(uint32_t win, uint32_t type, std::initializer_list<uint32_t> data) const {
+    ClientMessage ev{};
+    ev.response_type = 33; // XCB_CLIENT_MESSAGE
+    ev.format = 32;
+    ev.window = win;
+    ev.type = type;
+    int i = 0;
+    for (uint32_t d : data)
+      ev.data32[i++] = d;
+    sendEvent(c, 0, root(), kSubstructureMask, reinterpret_cast<const char *>(&ev));
+  }
+};
+static_assert(sizeof(ClientMessage) == 32, "xcb_client_message_event_t is 32 bytes");
+static_assert(sizeof(PropReply) == 32, "xcb_get_property_reply_t is 32 bytes");
+
+// Put `w` on every workspace, or back on the current one. `mapped`: the window is already
+// shown, so ask the window manager (EWMH client messages); otherwise set the properties it reads
+// when it manages the window.
+void setAllWorkspaces(QWidget *w, bool on, bool mapped) {
+  const Xcb *x = Xcb::get();
+  if (!x || !w->windowHandle())
+    return;
+  const uint32_t win = uint32_t(w->winId());
+  const uint32_t desktop = x->atom("_NET_WM_DESKTOP"), state = x->atom("_NET_WM_STATE"),
+                 sticky = x->atom("_NET_WM_STATE_STICKY");
+  if (!desktop || !state || !sticky)
+    return;
+  if (mapped) {
+    uint32_t target = kAllDesktops;
+    if (!on) {
+      const QList<uint32_t> cur = x->cardinals(x->root(), x->atom("_NET_CURRENT_DESKTOP"), kCardinal);
+      target = cur.isEmpty() ? 0 : cur.first();
+    }
+    x->clientMessage(win, desktop, {target, 1});
+    x->clientMessage(win, state, {on ? 1u : 0u, sticky, 0, 1}); // _NET_WM_STATE_ADD / _REMOVE
+  } else {
+    if (on)
+      x->changeProp(x->c, 0, win, desktop, kCardinal, 32, 1, &kAllDesktops);
+    else
+      x->deleteProp(x->c, win, desktop);
+    // Qt merges its own states into whatever _NET_WM_STATE holds when it maps the window.
+    QList<uint32_t> atoms = x->cardinals(win, state, kAtom);
+    atoms.removeAll(sticky);
+    if (on)
+      atoms << sticky;
+    x->changeProp(x->c, 0, win, state, kAtom, 32, uint32_t(atoms.size()), atoms.constData());
+  }
+  x->flush(x->c);
+}
+} // namespace x11
+
 struct QsWindow : public QWidget {
   quint64 id;
   bool resizable = true;
@@ -350,6 +557,7 @@ struct QsWindow : public QWidget {
   QList<QsView *> views;
   bool cursorHidden = false;
   int cursorShape = Qt::ArrowCursor;
+  bool allWorkspaces = false;
   // Webviews live in `content`, below an optional menubar that muda puts at the top of the
   // layout (QLayout::setMenuBar).
   QWidget *content = nullptr;
@@ -437,6 +645,13 @@ protected:
     QWidget::resizeEvent(e);
     layoutViews();
   }
+  // Sent before the window is mapped: the window manager reads these when it manages it (and
+  // drops them when the window is withdrawn, so apply them on every show).
+  void showEvent(QShowEvent *e) override {
+    QWidget::showEvent(e);
+    if (allWorkspaces && !e->spontaneous())
+      x11::setAllWorkspaces(this, true, false);
+  }
   void moveEvent(QMoveEvent *e) override {
     QWidget::moveEvent(e);
     const double s = devicePixelRatioF();
@@ -491,6 +706,7 @@ struct QsView {
   QWebEngineView *view = nullptr;
   QsPage *page = nullptr;
   QsIpcBridge *bridge = nullptr;
+  ViewTagger *tagger = nullptr;
   QObject *filter = nullptr;
   QPointer<QWebEngineView> devtools;
   bool dead = false; // Qt side torn down (its window died); struct kept until Rust drops it
@@ -1008,6 +1224,11 @@ void qs_window_set_flag(QsWindow *w, uint32_t flag, int on) {
   case QS_FLAG_FOCUSABLE: w->setFlagKeepVisible(Qt::WindowDoesNotAcceptFocus, !on); break;
   case QS_FLAG_IGNORE_CURSOR: w->setFlagKeepVisible(Qt::WindowTransparentForInput, on); break;
   case QS_FLAG_SKIP_TASKBAR: w->setFlagKeepVisible(Qt::Tool, on); break;
+  case QS_FLAG_ALL_WORKSPACES:
+    w->allWorkspaces = on;
+    if (w->windowHandle())
+      x11::setAllWorkspaces(w, on, w->isVisible());
+    break;
   case QS_FLAG_CLOSABLE:
     w->customButtons = true;
     w->closable = on;
@@ -1290,8 +1511,18 @@ QsView *qs_view_new(uint64_t id, QsWindow *parent, QsProfile *profile, uint32_t 
   v->view = new QWebEngineView(parent->content);
   v->page = new QsPage(profile->p, v->view);
   v->page->owner = v;
-  v->page->setUrlRequestInterceptor(new ViewTagger(id, v->page));
+  v->tagger = new ViewTagger(id, v->page);
+  v->page->setUrlRequestInterceptor(v->tagger);
   v->view->setPage(v->page);
+  {
+    QWebEngineScript status;
+    status.setName(QStringLiteral("wq-status"));
+    status.setSourceCode(QString::fromUtf8(kStatusShim));
+    status.setInjectionPoint(QWebEngineScript::DocumentCreation);
+    status.setWorldId(QWebEngineScript::MainWorld);
+    status.setRunsOnSubFrames(true);
+    v->page->scripts().insert(status);
+  }
 
   auto *s = v->page->settings();
   s->setAttribute(QWebEngineSettings::JavascriptEnabled, !(flags & QS_VIEW_NO_JAVASCRIPT));
@@ -1479,6 +1710,33 @@ void qs_view_add_init_script(QsView *v, const char *js, int main_frame_only) {
   v->page->scripts().insert(s);
 }
 
+void qs_view_set_user_agent(QsView *v, const char *ua) {
+  if (v->dead)
+    return;
+  const QByteArray value = ua ? QByteArray(ua).trimmed() : QByteArray();
+  v->tagger->userAgent = value;
+  QWebEngineScriptCollection &scripts = v->page->scripts();
+  for (const QWebEngineScript &old : scripts.find(QStringLiteral("wq-ua")))
+    scripts.remove(old);
+  if (value.isEmpty())
+    return;
+  // JSON-encode the string through a one-element array.
+  const QByteArray json =
+      QJsonDocument(QJsonArray{QString::fromUtf8(value)}).toJson(QJsonDocument::Compact);
+  QWebEngineScript s;
+  s.setName(QStringLiteral("wq-ua"));
+  s.setSourceCode(QStringLiteral(
+                      "(() => { const ua = %1[0]; const av = ua.replace(/^Mozilla\\//, '');"
+                      " for (const [k, v] of [['userAgent', ua], ['appVersion', av]])"
+                      " Object.defineProperty(Navigator.prototype, k,"
+                      " {get() { return v; }, configurable: true, enumerable: true}); })();")
+                      .arg(QString::fromUtf8(json)));
+  s.setInjectionPoint(QWebEngineScript::DocumentCreation);
+  s.setWorldId(QWebEngineScript::MainWorld);
+  s.setRunsOnSubFrames(true);
+  scripts.insert(s);
+}
+
 void qs_view_eval(QsView *v, const char *js, qs_str_fn cb, void *ud, qs_drop_fn drop) {
   if (v->dead) {
     if (drop && ud)
@@ -1589,11 +1847,29 @@ void qs_job_respond(QsJob *jobPtr, int status, const char *content_type, const c
       }
       extra.insert(extra.cend(), k, val); // after earlier values of the same key: keep their order
     }
+    if (status <= 0) {
+      failJob(job, handle->subresource, QWebEngineUrlRequestJob::RequestFailed);
+      return;
+    }
     if (status >= 300 && status < 400 && !location.isEmpty()) {
       job->redirect(job->requestUrl().resolved(QUrl::fromEncoded(location)));
       return;
     }
-    if (status >= 400 && payload.isEmpty()) {
+    // fetch()/XHR see the real status through kStatusShim, so serve the body (even an empty
+    // one) instead of failing, and expose the header to cross-origin readers.
+    if (handle->fetch && status != 200 && status != 206 && status >= 100 && status <= 599) {
+      extra.insert(kStatusHeader, QByteArray::number(status));
+      bool exposed = false;
+      for (auto it = extra.begin(); it != extra.end(); ++it)
+        if (it.key().compare("access-control-expose-headers", Qt::CaseInsensitive) == 0 &&
+            it.value().trimmed() != "*") {
+          it.value() += QByteArray(", ") + kStatusHeader;
+          exposed = true;
+          break;
+        }
+      if (!exposed)
+        extra.insert("Access-Control-Expose-Headers", kStatusHeader);
+    } else if (status >= 400 && payload.isEmpty()) {
       failJob(job, handle->subresource,
               status == 404   ? QWebEngineUrlRequestJob::UrlNotFound
               : status == 403 ? QWebEngineUrlRequestJob::RequestDenied

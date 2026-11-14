@@ -184,9 +184,10 @@ impl Drop for Responder {
   fn drop(&mut self) {
     if let Some(job) = self.0.take() {
       crate::lifecycle::while_alive(|| unsafe {
+        // 0: fail the request (a network error), unlike any real status.
         sys::qs_job_respond(
           job,
-          500,
+          0,
           std::ptr::null(),
           std::ptr::null(),
           std::ptr::null(),
@@ -380,6 +381,8 @@ pub enum WindowFlag {
   IgnoreCursorEvents = 8,
   /// Hide the window from the taskbar (makes it a Qt tool window; X11 only).
   SkipTaskbar = 9,
+  /// Show the window on every workspace (EWMH sticky; X11 only, no-op elsewhere).
+  AllWorkspaces = 10,
 }
 
 /// Logical geometry of a window: client area and frame.
@@ -805,6 +808,19 @@ impl View {
   pub fn set_background_color(&self, (r, g, b, a): (u8, u8, u8, u8)) {
     crate::lifecycle::ensure();
     unsafe { sys::qs_view_set_background(self.p(), r, g, b, a) }
+  }
+  /// Use `ua` as this view's user agent, for HTTP requests and `navigator.userAgent` /
+  /// `appVersion` (workers keep the profile's), from the next navigation. `None` restores the
+  /// profile's. Unlike [`Profile::set_user_agent`], other views sharing the profile are unaffected.
+  pub fn set_user_agent(&self, ua: Option<&str>) {
+    crate::lifecycle::ensure();
+    let ua = ua.map(cstring);
+    unsafe {
+      sys::qs_view_set_user_agent(
+        self.p(),
+        ua.as_ref().map_or(std::ptr::null(), |s| s.as_ptr()),
+      )
+    }
   }
   /// Inject `js` at document creation for every subsequent navigation.
   pub fn add_init_script(&self, js: &str, main_frame_only: bool) {

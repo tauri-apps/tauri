@@ -161,12 +161,24 @@ pub fn cases() -> Vec<Case> {
       response_content_length_ignored,
     ),
     Case::pass(
-      "scheme: error statuses with an empty body fail the request",
+      "scheme: error statuses with an empty body fail non-fetch requests",
       response_errors_fail,
     ),
     Case::pass(
       "scheme: error statuses with a body are served",
       response_error_with_body,
+    ),
+    Case::pass(
+      "scheme: fetch sees the handler's status, ok and statusText",
+      fetch_sees_status,
+    ),
+    Case::pass(
+      "scheme: XMLHttpRequest sees the handler's status",
+      xhr_sees_status,
+    ),
+    Case::pass(
+      "scheme: a cross-origin fetch sees the status and exposed headers",
+      cross_origin_status,
     ),
     Case::pass("scheme: 3xx with Location redirects", response_redirect),
     Case::pass(
@@ -1089,8 +1101,21 @@ fn response_errors_fail() {
   });
   let page = app_page();
   for status in [400, 403, 404, 410, 500, 503] {
-    let r = xhr(page.view(), &format!("app://host/{status}"));
+    // Elements aren't fetch()/XHR: they fail like a network error.
+    let r = js(
+      page.view(),
+      &format!(
+        "return await new Promise(ok => {{ const s = document.createElement('script'); \
+         s.src = 'app://host/{status}'; s.onload = () => ok('load'); \
+         s.onerror = () => ok('error'); document.head.append(s); }});"
+      ),
+    );
     assert_eq!(r, "ok:error", "{status}");
+    // fetch()/XHR get the status with an empty body.
+    assert_eq!(
+      xhr(page.view(), &format!("app://host/{status}")),
+      format!("ok:load {status} ")
+    );
   }
   // A failed navigation shows Chromium's error page.
   page.view().load_url("app://host/404", None);
@@ -1109,7 +1134,7 @@ fn fetch_rejects_failed_requests() {
     _ => res.respond(resp(404, &[], Vec::new())),
   });
   let page = app_page();
-  for url in ["app://host/404", "app://host/drop", "app://host/panic"] {
+  for url in ["app://host/drop", "app://host/panic"] {
     // Expected: fetch rejects (or at least the body read does).
     let r = js_timeout(
       page.view(),
@@ -1126,8 +1151,89 @@ fn fetch_rejects_failed_requests() {
 fn response_error_with_body() {
   start(|_, res| res.respond(resp(404, &[("Content-Type", "text/plain")], "not here")));
   let page = app_page();
-  // Qt can't send status codes: the body arrives as a 200.
-  assert_eq!(fetch(page.view(), "app://host/missing"), "ok:200 not here");
+  assert_eq!(fetch(page.view(), "app://host/missing"), "ok:404 not here");
+  // Navigations show the body.
+  load(page.view(), "app://host/missing");
+  assert_eq!(eval(page.view(), "document.body.innerText"), "\"not here\"");
+}
+
+fn fetch_sees_status() {
+  start(|req, res| {
+    let status: u16 = req.request.uri().path()[1..].parse().unwrap();
+    let body = if status == 204 { "" } else { "body" };
+    res.respond(resp(status, &[("Content-Type", "text/plain")], body));
+  });
+  let page = app_page();
+  for (status, ok, text) in [
+    (200, true, "OK"),
+    (201, true, "Created"),
+    (204, true, "No Content"),
+    (299, true, ""),
+    (404, false, "Not Found"),
+    (418, false, "I'm a Teapot"),
+    (500, false, "Internal Server Error"),
+    (503, false, "Service Unavailable"),
+  ] {
+    let r = js(
+      page.view(),
+      &format!(
+        "const r = await fetch('app://host/{status}'); const c = r.clone(); \
+         return [r.status, r.ok, r.statusText, c.status, await r.text()].join('|');"
+      ),
+    );
+    let body = if status == 204 { "" } else { "body" };
+    assert_eq!(
+      r,
+      format!("ok:{status}|{ok}|{text}|{status}|{body}"),
+      "{status}"
+    );
+  }
+}
+
+fn xhr_sees_status() {
+  start(|req, res| {
+    let status: u16 = req.request.uri().path()[1..].parse().unwrap();
+    res.respond(resp(status, &[("Content-Type", "text/plain")], "x"));
+  });
+  let page = app_page();
+  for (status, text) in [
+    (201, "Created"),
+    (404, "Not Found"),
+    (500, "Internal Server Error"),
+  ] {
+    let r = js(
+      page.view(),
+      &format!(
+        "return await new Promise(ok => {{ const x = new XMLHttpRequest(); \
+         const seen = [x.status]; x.open('GET', 'app://host/{status}'); \
+         x.onload = () => ok([...seen, x.status, x.statusText, x.responseText].join('|')); \
+         x.onerror = () => ok('error'); x.send(); }});"
+      ),
+    );
+    assert_eq!(r, format!("ok:0|{status}|{text}|x"), "{status}");
+  }
+}
+
+fn cross_origin_status() {
+  start(|req, res| match req.request.uri().host() {
+    Some("api") => res.respond(resp(
+      400,
+      &[
+        ("Content-Type", "text/plain"),
+        ("Tauri-Response", "error"),
+        ("Access-Control-Expose-Headers", "Tauri-Response"),
+      ],
+      "bad",
+    )),
+    _ => res.respond(text("page")),
+  });
+  let page = app_page();
+  let r = js(
+    page.view(),
+    "const r = await fetch('app://api/x', { method: 'POST', body: '{}' }); \
+     return [r.status, r.ok, r.headers.get('tauri-response'), await r.text()].join('|');",
+  );
+  assert_eq!(r, "ok:400|false|error|bad");
 }
 
 fn response_redirect() {
@@ -1164,7 +1270,7 @@ fn response_redirect() {
 fn response_redirect_without_location() {
   start(|_, res| res.respond(resp(304, &[], "kept")));
   let page = app_page();
-  assert_eq!(fetch(page.view(), "app://host/x"), "ok:200 kept");
+  assert_eq!(fetch(page.view(), "app://host/x"), "ok:304 kept");
 }
 
 /// The test resource for range requests: byte `i` is `i % 251`.

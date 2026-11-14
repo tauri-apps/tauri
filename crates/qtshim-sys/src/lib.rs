@@ -291,6 +291,7 @@ unsafe extern "C" {
   pub fn qs_view_set_zoom(v: *mut QsView, f: f64);
   pub fn qs_view_set_background(v: *mut QsView, r: u8, g: u8, b: u8, a: u8);
   pub fn qs_view_add_init_script(v: *mut QsView, js: *const c_char, main_only: c_int);
+  pub fn qs_view_set_user_agent(v: *mut QsView, ua: *const c_char);
   pub fn qs_view_eval(
     v: *mut QsView,
     js: *const c_char,

@@ -335,9 +335,9 @@ impl<T: UserEvent> WindowDispatch<T> for QtWindowDispatcher<T> {
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
     self.set_flag(WindowFlag::AlwaysOnTop, always_on_top)
   }
-  /// Not exposed by Qt; no-op.
-  fn set_visible_on_all_workspaces(&self, _visible_on_all_workspaces: bool) -> Result<()> {
-    Ok(())
+  /// X11 only (EWMH); no-op on Wayland, which has no protocol for it.
+  fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()> {
+    self.set_flag(WindowFlag::AllWorkspaces, visible_on_all_workspaces)
   }
   fn set_background_color(&self, color: Option<Color>) -> Result<()> {
     self.act(move |w| w.window.set_background(color.map(Into::into)))

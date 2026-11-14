@@ -182,6 +182,7 @@ enum {
   QS_FLAG_MAXIMIZABLE = 7,
   QS_FLAG_IGNORE_CURSOR = 8,
   QS_FLAG_SKIP_TASKBAR = 9,
+  QS_FLAG_ALL_WORKSPACES = 10, // EWMH sticky / _NET_WM_DESKTOP=all (X11; no-op elsewhere)
 };
 void qs_window_set_flag(QsWindow *w, uint32_t flag, int on);
 void qs_window_set_enabled(QsWindow *w, int enabled);
@@ -258,6 +259,9 @@ int qs_view_can_go_forward(QsView *v);
 void qs_view_set_zoom(QsView *v, double factor);
 void qs_view_set_background(QsView *v, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void qs_view_add_init_script(QsView *v, const char *js, int main_frame_only);
+// User agent of this view only (HTTP requests and navigator.userAgent / appVersion; workers keep
+// the profile's). NULL or "" restores the profile's. Applies from the next navigation.
+void qs_view_set_user_agent(QsView *v, const char *ua);
 // Evaluate JS; callback (if any) receives the JSON-serialised result.
 void qs_view_eval(QsView *v, const char *js, qs_str_fn cb, void *ud, qs_drop_fn drop);
 char *qs_view_url(QsView *v); // free with qs_free
@@ -273,8 +277,11 @@ void *qs_view_qt_page(QsView *v);
 // custom scheme responses [webengine]
 
 // Thread-safe. Consumes the job. headers: "Name: value\n" joined (may be NULL).
-// QtWebEngine cannot report arbitrary status codes: 3xx + Location redirects, an empty 404
-// fails with "not found", everything else is served. For a 206 pass the Content-Range start
+// QtWebEngine can't set the status line, so 3xx + Location redirects, and for fetch()/XHR any
+// other status is carried in an `x-qtshim-status` header that a document-start script turns
+// back into Response.status/ok/statusText and XMLHttpRequest.status/statusText. For other
+// requests an empty 4xx/5xx fails (navigations: error page) and everything else is served.
+// status 0 fails the request like a network error (used when a Responder is dropped). For a 206 pass the Content-Range start
 // and total size so Qt (which applies the Range header itself) sees the full resource.
 void qs_job_respond(QsJob *job, int status, const char *content_type, const char *headers,
                     const uint8_t *data, size_t len, int64_t range_start, int64_t range_total);

@@ -111,6 +111,10 @@ pub fn cases() -> Vec<Case> {
       "window: every flag keeps a visible window visible",
       flags_keep_visible,
     ),
+    Case::pass(
+      "window: AllWorkspaces sets EWMH sticky (X11; run with QT_QPA_PLATFORM=xcb)",
+      all_workspaces_x11,
+    ),
     Case::pass("window: set_enabled toggles ENABLED", enabled),
     // appearance and input
     Case::pass("window: set_icon accepts a valid buffer", icon_valid),
@@ -661,6 +665,7 @@ fn flags_keep_visible() {
     WindowFlag::Maximizable,
     WindowFlag::IgnoreCursorEvents,
     WindowFlag::SkipTaskbar,
+    WindowFlag::AllWorkspaces,
   ] {
     for on in [false, true, false, true] {
       window.set_flag(flag, on);
@@ -674,6 +679,64 @@ fn flags_keep_visible() {
     &window,
     window_state::DECORATED | window_state::CLOSABLE
   ));
+}
+
+fn all_workspaces_x11() {
+  init();
+  let window = Window::new(1, false);
+  window.resize(200, 100);
+  let Some(app::NativeHandle::X11(id)) = window.native_handle() else {
+    return; // not X11 (offscreen, Wayland): a no-op
+  };
+  fn xprop(args: &[&str]) -> String {
+    let out = std::process::Command::new("xprop")
+      .args(args)
+      .output()
+      .expect("xprop");
+    String::from_utf8_lossy(&out.stdout).into_owned()
+  }
+  let props = move || {
+    let id = id.to_string();
+    let state = xprop(&["-id", &id, "_NET_WM_STATE"]).contains("_NET_WM_STATE_STICKY");
+    let all = xprop(&["-id", &id, "_NET_WM_DESKTOP"]).contains("4294967295");
+    (state, all)
+  };
+  // Unmapped: the properties the window manager reads when it manages the window.
+  window.set_flag(WindowFlag::AllWorkspaces, true);
+  assert_eq!(props(), (true, true));
+  window.set_flag(WindowFlag::AllWorkspaces, false);
+  assert_eq!(props(), (false, false));
+  window.set_flag(WindowFlag::AllWorkspaces, true);
+
+  // Mapped, the window manager owns both. KWin doesn't implement _NET_WM_STATE_STICKY and,
+  // with a single desktop, reports "all desktops" as desktop 0: nothing to observe then.
+  let root = xprop(&["-root", "_NET_NUMBER_OF_DESKTOPS", "_NET_SUPPORTED"]);
+  let desktops: u32 = root
+    .lines()
+    .find_map(|l| l.strip_prefix("_NET_NUMBER_OF_DESKTOPS(CARDINAL) = "))
+    .and_then(|n| n.trim().parse().ok())
+    .unwrap_or(1);
+  let wm_sticky = root.contains("_NET_WM_STATE_STICKY");
+  if desktops < 2 && !wm_sticky {
+    eprintln!("skipping the window-manager half: one desktop and no _NET_WM_STATE_STICKY");
+    return;
+  }
+  let sticky = move || {
+    let (state, all) = props();
+    (!wm_sticky || state) && (desktops < 2 || all)
+  };
+  window.set_visible(true);
+  wait_for("sticky after show", sticky);
+  // While mapped: EWMH client messages to the window manager.
+  window.set_flag(WindowFlag::AllWorkspaces, false);
+  wait_for("not sticky", move || !sticky());
+  window.set_flag(WindowFlag::AllWorkspaces, true);
+  wait_for("sticky again", sticky);
+  // Hidden and shown again (the window manager drops the state on unmap).
+  window.set_visible(false);
+  pump(Duration::from_millis(100));
+  window.set_visible(true);
+  wait_for("sticky after re-show", sticky);
 }
 
 fn enabled() {

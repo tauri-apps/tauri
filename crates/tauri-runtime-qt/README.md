@@ -137,17 +137,22 @@ runtime and muda link a single copy of the `qtshim` native library.
 
 ## Limitations
 
-- **Positioning on Wayland.** Wayland doesn't let apps place windows or warp the pointer, so
-  `set_position`, `center` and `set_cursor_position` only work on X11.
-- **Status codes.** QtWebEngine scheme handlers can't send arbitrary HTTP status codes. Bodies
-  are served with 200/206, redirects work, and empty 4xx/5xx responses become network errors.
-  Tauri's IPC doesn't depend on status codes.
-- **App-wide settings.** User agent, proxy and extra Chromium flags apply per profile or app-wide,
-  not per webview.
-- **Unsupported (no-ops).** Content protection, visible-on-all-workspaces and shadows.
-  `skip_taskbar` maps to `Qt::Tool`.
-- **Frameless resizing.** Frameless windows resize from a 5 px border, but the cursor doesn't
-  change shape on hover.
+- **Positioning on Wayland.** The Wayland protocol doesn't let apps place windows or warp the
+  pointer, so `set_position`, `center` and `set_cursor_position` only work on X11. To get them on
+  a Wayland desktop, run the app through XWayland with `QT_QPA_PLATFORM=xcb`.
+- **Status codes.** QtWebEngine always sends 200/206 for scheme responses. `fetch()` and
+  `XMLHttpRequest` still see the handler's real status, `ok` and `statusText`: the shim passes
+  the status in an `x-qtshim-status` header, and a document-start script reads it. Navigations
+  and elements (`<img>`, `<script>`, ...) get the body; with an empty 4xx/5xx body they fail
+  like a network error. Workers don't run the script, so they still see 200.
+- **Per-webview user agent.** Works for HTTP requests and `navigator.userAgent`/`appVersion` in
+  every frame. Workers and `navigator.userAgentData` report the profile's user agent.
+- **App-wide settings.** Proxy and extra Chromium flags are process-wide in QtWebEngine and come
+  from the first webview (or `Qt::chromium_flags`).
+- **Visible on all workspaces.** Supported on X11 (EWMH `_NET_WM_DESKTOP` plus
+  `_NET_WM_STATE_STICKY`). Wayland has no protocol for it, so it's a no-op there.
+- **Unsupported (no-ops).** Content protection and shadows. Linux has no capture-exclusion API,
+  and the compositor draws the shadows. `skip_taskbar` maps to `Qt::Tool`.
 
 ## Layout
 

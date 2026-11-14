@@ -254,6 +254,7 @@ fn qtshim_window_flags_match_header() {
     (F::Maximizable, "QS_FLAG_MAXIMIZABLE"),
     (F::IgnoreCursorEvents, "QS_FLAG_IGNORE_CURSOR"),
     (F::SkipTaskbar, "QS_FLAG_SKIP_TASKBAR"),
+    (F::AllWorkspaces, "QS_FLAG_ALL_WORKSPACES"),
   ];
   for (rust, name) in pairs {
     assert_eq!(rust as i64, header_const(name), "{name}");

@@ -12,7 +12,7 @@ use qtshim::{
   webengine::{Profile, View, ViewOptions, Window},
 };
 
-use super::scheme::{eval, js, open, start, text, wait_true};
+use super::scheme::{eval, js, load, open, start, text, wait_true};
 use crate::common::{init, pump, wait_for};
 
 pub fn cases() -> Vec<Case> {
@@ -36,6 +36,10 @@ pub fn cases() -> Vec<Case> {
     Case::pass(
       "profile: set_user_agent reaches navigator.userAgent",
       user_agent,
+    ),
+    Case::pass(
+      "profile: views sharing a profile keep their own user agents",
+      view_user_agent,
     ),
     Case::pass(
       "profile: set_cookie with a Domain is listed",
@@ -253,6 +257,42 @@ fn user_agent() {
   assert_eq!(eval(a.view(), "navigator.userAgent"), "\"QtShimTest/1.0\"");
   let ua = eval(b.view(), "navigator.userAgent");
   assert!(ua.contains("QtWebEngine"), "{ua}");
+}
+
+fn view_user_agent() {
+  start(|req, res| {
+    let ua = req
+      .request
+      .headers()
+      .get(http::header::USER_AGENT)
+      .map_or("none", |v| v.to_str().unwrap())
+      .to_owned();
+    res.respond(text(&ua))
+  });
+  let page = open(Profile::get(None, false), &[1, 2], "app://host/");
+  let (a, b) = (&page.views[0], &page.views[1]);
+  a.set_user_agent(Some("Mozilla/5.0 ViewA/1.0"));
+  b.set_user_agent(Some("ViewB \"quoted\" 'ua'"));
+  for v in [a, b] {
+    load(v, "app://host/again");
+  }
+  let probe = "const r = await fetch('app://host/ua'); \
+     const f = document.body.appendChild(document.createElement('iframe')); \
+     await new Promise(ok => { f.onload = ok; f.src = 'app://host/frame'; }); \
+     return [navigator.userAgent, navigator.appVersion, await r.text(), \
+       document.body.innerText.split('\\n')[0], f.contentWindow.navigator.userAgent].join('|');";
+  assert_eq!(
+    js(a, probe),
+    "ok:Mozilla/5.0 ViewA/1.0|5.0 ViewA/1.0|Mozilla/5.0 ViewA/1.0|Mozilla/5.0 ViewA/1.0|Mozilla/5.0 ViewA/1.0"
+  );
+  let ub = "ViewB \"quoted\" 'ua'";
+  assert_eq!(js(b, probe), format!("ok:{ub}|{ub}|{ub}|{ub}|{ub}"));
+  // None restores the profile's.
+  a.set_user_agent(None);
+  load(a, "app://host/third");
+  let ua = eval(a, "navigator.userAgent");
+  assert!(ua.contains("QtWebEngine"), "{ua}");
+  assert!(js(a, "return await (await fetch('app://host/ua')).text();").contains("QtWebEngine"));
 }
 
 fn set_cookie_with_domain() {

@@ -5582,6 +5582,7 @@ dependencies = [
 [[package]]
 name = "muda"
 version = "0.20.0"
+source = "git+https://github.com/KRTirtho/muda?branch=qt-backend#e9d966a57fdc665304aae22c48fb20052b365d48"
 dependencies = [
  "crossbeam-channel",
  "dpi",

@@ -71,10 +71,6 @@ so select them with `-p`:
 
 - [`examples/qt-app`](../../examples/qt-app): a showcase of (nearly) every Tauri API, plus the
   runtime's end-to-end self-tests (`cargo run -p qt-app`, `QT_APP_AUTO=1 cargo run -p qt-app`).
-- [`examples/qt-modes`](../../examples/qt-modes): IPC checks under each Tauri mode (isolation,
-  devUrl, postMessage fallback, remote ACL, …) (`cargo test -p qt-modes`).
-- [`examples/qt-browser`](../../examples/qt-browser): a Chromium-style browser using Tauri's
-  official plugins (`cargo run -p qt-browser`).
 - Tauri's own examples: `cargo run -p tauri-examples --example helloworld --no-default-features
 --features qt`, and `cargo run -p api --no-default-features --features qt,prod`.
 
@@ -86,7 +82,6 @@ cargo test -p qtshim --features webengine,test-harness --test qt    # real Qt, o
 cargo test -p tauri-runtime-qt                                      # the runtime through the tauri_runtime traits
 cargo test -p qtshim-sys-systest --features webengine               # FFI declarations vs cpp/qtshim.h
 cargo test -p qt-app --test e2e                                     # the app self-tests, offscreen
-cargo test -p qt-modes                                              # every Tauri mode
 ```
 
 ## Menus
@@ -155,9 +150,9 @@ runtime and muda link a single copy of the `qtshim` native library.
 
 ## Layout
 
-| Path                                                          | What                                                                                                                                     |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `crates/qtshim-sys`                                           | Raw FFI (`links = "qtshim"`) and the only C++: `cpp/qtshim.h` (the C API), `core.cpp`, `menu.cpp`, `webengine.cpp` (feature `webengine`) |
-| `crates/qtshim`                                               | Safe API over it: `app`, `menu`, `webengine` (feature), `test_harness` (feature). Shared by this runtime and muda's Qt backend           |
-| `crates/tauri-runtime-qt/src`                                 | `Runtime`, `RuntimeHandle`, `WindowDispatch`, `WebviewDispatch`, `WindowBuilder`                                                         |
-| `examples/qt-app`, `examples/qt-modes`, `examples/qt-browser` | Example apps and end-to-end suites (see above)                                                                                           |
+| Path                          | What                                                                                                                                     |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `crates/qtshim-sys`           | Raw FFI (`links = "qtshim"`) and the only C++: `cpp/qtshim.h` (the C API), `core.cpp`, `menu.cpp`, `webengine.cpp` (feature `webengine`) |
+| `crates/qtshim`               | Safe API over it: `app`, `menu`, `webengine` (feature), `test_harness` (feature). Shared by this runtime and muda's Qt backend           |
+| `crates/tauri-runtime-qt/src` | `Runtime`, `RuntimeHandle`, `WindowDispatch`, `WebviewDispatch`, `WindowBuilder`                                                         |
+| `examples/qt-app`             | Example app and end-to-end suite (see above)                                                                                             |

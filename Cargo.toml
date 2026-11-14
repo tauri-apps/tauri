@@ -42,8 +42,6 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
   "examples/qt-app/src-tauri",
-  "examples/qt-modes/src-tauri",
-  "examples/qt-browser/src-tauri",
 ]
 # Everything except the Qt runtime and its crates: those need the Qt 6 (WebEngine) development
 # packages, and next to `tauri-runtime-wry` (GTK menus, which take precedence) their windows would

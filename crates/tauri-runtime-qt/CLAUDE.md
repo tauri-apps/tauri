@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Tauri runtime for Linux that replaces tao + wry + WebKitGTK with Qt Widgets + QtWebEngine (Chromium). See README.md for user-facing usage and the list of known limitations.
 
-Paths below are relative to the Tauri repository root. The Qt crates are `crates/tauri-runtime-qt`, `crates/qtshim`, `crates/qtshim-sys` (+ `systest`), and the examples `examples/qt-app`, `examples/qt-modes`, `examples/qt-browser` (tauri's example layout: `src-tauri/` for the Rust crate, `ui/` for the frontend). They are workspace members but not `default-members` (they need Qt dev packages, and when `tauri`'s `qt` feature meets the `gtk3` feature `tauri-runtime-wry` enables, GTK menus win in both muda and `tauri`'s `build.rs`, with a build warning, and Qt windows get no menus), so always pass `-p`. They were moved here from the now-temporary KRTirtho/tauri-runtime-qt repository.
+Paths below are relative to the Tauri repository root. The Qt crates are `crates/tauri-runtime-qt`, `crates/qtshim`, `crates/qtshim-sys` (+ `systest`), and the example `examples/qt-app` (tauri's example layout: `src-tauri/` for the Rust crate, `ui/` for the frontend). Two more examples stay in KRTirtho/tauri-runtime-qt (`examples/qt-modes`: IPC under each Tauri mode; `examples/qt-browser`): they were left out of the Tauri PR to keep it reviewable. They are workspace members but not `default-members` (they need Qt dev packages, and when `tauri`'s `qt` feature meets the `gtk3` feature `tauri-runtime-wry` enables, GTK menus win in both muda and `tauri`'s `build.rs`, with a build warning, and Qt windows get no menus), so always pass `-p`. They were moved here from the now-temporary KRTirtho/tauri-runtime-qt repository.
 
 muda's Qt backend lives in KRTirtho/muda (branch `qt-backend`, muda 0.20.0 + a `qt` backend; local clone at `../muda`), patched in through `[patch.crates-io]` in the workspace `Cargo.toml`. muda takes `qtshim` from this repository on GitHub (KRTirtho/tauri, branch `qt-support`); the workspace's `[patch."https://github.com/KRTirtho/tauri"]` maps them back to the local crates so there is one `qtshim` native library. To try unpushed muda changes: `cargo build -p qt-app --config 'patch.crates-io.muda.path="../muda"'`.
 
@@ -23,9 +23,6 @@ cargo test -p tauri-runtime-qt --lib                     # runtime unit tests
 cargo test -p tauri-runtime-qt --test qt                 # runtime driven through tauri_runtime traits
 cargo test -p qtshim-sys-systest --features webengine    # FFI decls vs qtshim.h (ctest + signature check)
 cargo test -p qt-app --test e2e                          # the four QT_APP_AUTO modes, offscreen
-cargo test -p qt-modes                                   # IPC checks under each Tauri mode (isolation, devUrl, postMessage fallback, remote ACL, ...)
-QT_MODES_MODE=isolation cargo run -p qt-modes            # one mode; modes: brownfield isolation devserver postmessage noglobal remote
-cargo run -p qt-browser [url]                            # Chromium-style browser example: tabs, custom title bar, app menu, tray, plugins
 cargo llvm-cov -p qtshim --features webengine --summary-only   # coverage (child processes included)
 # Tauri's examples on this runtime:
 cargo run -p tauri-examples --example helloworld --no-default-features --features qt

@@ -1,0 +1,13 @@
+{
+  "identifier": "web-pages",
+  "description": "Web pages in tabs: only what the tab's init script forwards (keyboard shortcuts, the right-click menu, the page's HTML for Save page as).",
+  "webviews": ["tab-*"],
+  "remote": {
+    "urls": ["https://*:*/*", "http://*:*/*", "https://*/*", "http://*/*"]
+  },
+  "permissions": [
+    "allow-shortcut",
+    "allow-page-context-menu",
+    "allow-page-html"
+  ]
+}

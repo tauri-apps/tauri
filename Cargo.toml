@@ -4,6 +4,10 @@ members = [
   "crates/tauri-runtime",
   "crates/tauri-runtime-wry",
   "crates/tauri-runtime-cef",
+  "crates/tauri-runtime-qt",
+  "crates/qtshim",
+  "crates/qtshim-sys",
+  "crates/qtshim-sys/systest",
   "crates/tauri-macros",
   "crates/tauri-utils",
   "crates/tauri-build",
@@ -37,6 +41,44 @@ members = [
   "examples/resources/src-tauri",
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
+  "examples/qt-app/src-tauri",
+  "examples/qt-modes/src-tauri",
+  "examples/qt-browser/src-tauri",
+]
+# Everything except the Qt runtime and its crates: those need the Qt 6 (WebEngine) development
+# packages, and next to `tauri-runtime-wry` (GTK menus, which take precedence) their windows would
+# get no menus, so they are built on their own with `-p`
+# (e.g. `cargo build -p tauri-runtime-qt`, `cargo run -p qt-app`).
+default-members = [
+  "crates/tauri",
+  "crates/tauri-runtime",
+  "crates/tauri-runtime-wry",
+  "crates/tauri-runtime-cef",
+  "crates/tauri-macros",
+  "crates/tauri-utils",
+  "crates/tauri-build",
+  "crates/tauri-codegen",
+  "crates/tauri-plugin",
+  "crates/tauri-schema-generator",
+  "crates/tauri-schema-worker",
+  "crates/tauri-cli",
+  "crates/tauri-bundler",
+  "crates/tauri-macos-sign",
+  "crates/tauri-driver",
+  "crates/tauri-examples",
+  "packages/cli",
+  "crates/tests/restart",
+  "crates/tests/acl",
+  "crates/tauri/test/cef-rollback",
+  "bench",
+  "bench/tests/cpu_intensive/src-tauri",
+  "bench/tests/files_transfer/src-tauri",
+  "bench/tests/helloworld/src-tauri",
+  "examples/cef/src-tauri",
+  "examples/file-associations/src-tauri",
+  "examples/resources/src-tauri",
+  "examples/api/src-tauri",
+  "examples/api/src-tauri/tauri-plugin-sample",
 ]
 resolver = "3"
 
@@ -54,6 +96,9 @@ tauri = { version = "3.0.0-alpha.6", path = "./crates/tauri", default-features =
 tauri-runtime = { version = "~3.0.0-alpha.5", path = "./crates/tauri-runtime" }
 tauri-runtime-wry = { version = "~3.0.0-alpha.6", path = "./crates/tauri-runtime-wry", default-features = false }
 tauri-runtime-cef = { version = "~3.0.0-alpha.7", path = "./crates/tauri-runtime-cef", default-features = false }
+tauri-runtime-qt = { version = "~3.0.0-alpha.0", path = "./crates/tauri-runtime-qt" }
+qtshim = { version = "0.1.0", path = "./crates/qtshim" }
+qtshim-sys = { version = "0.1.0", path = "./crates/qtshim-sys" }
 tauri-build = { version = "3.0.0-alpha.4", path = "./crates/tauri-build", default-features = false }
 tauri-macros = { version = "~3.0.0-alpha.4", path = "./crates/tauri-macros" }
 tauri-codegen = { version = "~3.0.0-alpha.4", path = "./crates/tauri-codegen" }
@@ -88,6 +133,12 @@ tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-runtime = { path = "./crates/tauri-runtime" }
 tauri-utils = { path = "./crates/tauri-utils" }
+
+# muda's Qt backend takes `qtshim` from this repository on GitHub; inside this workspace that is the
+# local crate, so muda and `tauri-runtime-qt` share one copy of the `qtshim` native library.
+[patch."https://github.com/KRTirtho/tauri"]
+qtshim = { path = "./crates/qtshim" }
+qtshim-sys = { path = "./crates/qtshim-sys" }
 
 [workspace.lints.clippy]
 # TODO: Update in next PR to keep changes small, see https://github.com/tauri-apps/tauri/pull/16029

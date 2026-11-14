@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>denied:pending</title>
+  </head>
+  <body>
+    <p>A remote origin without a capability: IPC must be rejected.</p>
+    <script>
+      // Not `ipc`: window.ipc (the postMessage bridge) is a non-configurable global.
+      const internals = window.__TAURI_INTERNALS__
+      if (!internals) {
+        document.title = 'denied:no-ipc'
+      } else {
+        internals.invoke('plugin:window|title', { label: 'denied' }).then(
+          () => (document.title = 'denied:allowed'),
+          (e) => (document.title = 'denied:rejected ' + String(e).slice(0, 80))
+        )
+      }
+    </script>
+  </body>
+</html>

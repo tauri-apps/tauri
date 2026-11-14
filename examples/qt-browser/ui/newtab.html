@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>New Tab</title>
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="pages.css" />
+  </head>
+  <body>
+    <main class="newtab">
+      <div class="logo">Qt<span>Browser</span></div>
+      <form id="form">
+        <input
+          id="search"
+          type="text"
+          placeholder="Search the web or type a URL"
+          autocomplete="off"
+        />
+      </form>
+      <nav class="tiles">
+        <a href="https://en.wikipedia.org"
+          ><span class="icon">W</span>Wikipedia</a
+        >
+        <a href="https://github.com"><span class="icon">G</span>GitHub</a>
+        <a href="https://www.rust-lang.org"><span class="icon">R</span>Rust</a>
+        <a href="https://v2.tauri.app"><span class="icon">T</span>Tauri</a>
+      </nav>
+    </main>
+    <script src="newtab.js"></script>
+  </body>
+</html>

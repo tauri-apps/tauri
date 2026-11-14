@@ -208,6 +208,20 @@
       "manager": "rust",
       "dependencies": ["tauri-utils", "tauri-runtime", "tauri", "tauri-macros"]
     },
+    "qtshim-sys": {
+      "path": "./crates/qtshim-sys",
+      "manager": "rust"
+    },
+    "qtshim": {
+      "path": "./crates/qtshim",
+      "manager": "rust",
+      "dependencies": ["qtshim-sys"]
+    },
+    "tauri-runtime-qt": {
+      "path": "./crates/tauri-runtime-qt",
+      "manager": "rust",
+      "dependencies": ["tauri-utils", "tauri-runtime", "tauri", "qtshim"]
+    },
     "@tauri-apps/cli": {
       "path": "./packages/cli",
       "manager": "javascript",

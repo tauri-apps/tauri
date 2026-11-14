@@ -1,0 +1,16 @@
+{
+  "identifier": "remote",
+  "description": "The `remote` mode: only http://127.0.0.1:17422 in the `remote` window may use IPC.",
+  "windows": ["remote"],
+  "remote": { "urls": ["http://127.0.0.1:17422/*"] },
+  "permissions": [
+    "core:default",
+    "allow-report",
+    "allow-done",
+    "allow-echo",
+    "allow-echo-bytes",
+    "allow-fail",
+    "allow-stream-numbers",
+    "allow-denied-result"
+  ]
+}

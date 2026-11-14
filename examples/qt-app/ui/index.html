@@ -1,0 +1,316 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tauri on QtWebEngine</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Shown in child webviews, second windows and popups (see app.js). -->
+    <main id="mini" hidden>
+      <h1 id="mini-title">Child webview</h1>
+      <p id="mini-info" class="muted"></p>
+      <div class="row">
+        <button id="mini-close">Close me</button>
+        <button id="mini-devtools">DevTools</button>
+      </div>
+    </main>
+
+    <div id="app" hidden>
+      <header data-tauri-drag-region>
+        <div data-tauri-drag-region>
+          <h1 data-tauri-drag-region>Tauri on QtWebEngine</h1>
+          <p class="muted" id="engine" data-tauri-drag-region>…</p>
+        </div>
+        <div class="row">
+          <button id="devtools-toggle" class="primary">
+            DevTools <kbd>F12</kbd>
+          </button>
+          <button id="run-selftest">Run self-test</button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <div class="sections">
+          <section>
+            <h2>About</h2>
+            <dl class="facts" id="facts"></dl>
+            <div class="row">
+              <button id="monitors">List monitors</button>
+              <button id="cursor">Cursor position</button>
+            </div>
+          </section>
+
+          <section>
+            <h2>Commands &amp; events</h2>
+            <div class="row">
+              <input id="greet-name" value="Qt" aria-label="Name" />
+              <button id="greet">invoke("greet")</button>
+              <button id="add">async command (2 + 40)</button>
+              <button id="error">command that fails</button>
+            </div>
+            <div class="row">
+              <button id="emit-rust">emit → Rust</button>
+              <button id="ping">Rust → emit → JS</button>
+              <button id="eval-btn">eval from Rust:</button>
+              <input
+                id="eval-code"
+                value="[document.title, navigator.hardwareConcurrency, 6 * 7]"
+                class="grow"
+                aria-label="JavaScript"
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2>Window</h2>
+            <div class="row">
+              <input
+                id="title"
+                placeholder="Window title"
+                class="grow"
+                aria-label="Window title"
+              />
+              <button id="set-title">Set title</button>
+            </div>
+            <div class="row">
+              <button data-win="minimize">Minimize</button>
+              <button data-win="toggleMaximize">Toggle maximize</button>
+              <button id="fullscreen">Toggle fullscreen</button>
+              <button data-win="center">Center <small>(X11)</small></button>
+              <button id="hide-show">Hide for 2 s</button>
+              <button id="attention">Request attention</button>
+            </div>
+            <div class="row">
+              <label><input type="checkbox" id="on-top" /> Always on top</label>
+              <label
+                ><input type="checkbox" id="decorations" checked />
+                Decorations</label
+              >
+              <label
+                ><input type="checkbox" id="resizable" checked />
+                Resizable</label
+              >
+              <label
+                ><input type="checkbox" id="prevent-close" /> Prevent
+                close</label
+              >
+            </div>
+            <div class="row">
+              <button data-size="800x600">800 × 600</button>
+              <button data-size="1100x820">1100 × 820</button>
+              <button id="min-size">Min size 600 × 400</button>
+              <button id="position">
+                Move to 100, 100 <small>(X11)</small>
+              </button>
+            </div>
+            <div class="row">
+              <label
+                >Cursor
+                <select id="cursor-icon">
+                  <option>default</option>
+                  <option>pointer</option>
+                  <option>crosshair</option>
+                  <option>text</option>
+                  <option>wait</option>
+                  <option>move</option>
+                  <option>notAllowed</option>
+                  <option>grab</option>
+                  <option>help</option>
+                </select>
+              </label>
+              <label
+                ><input type="checkbox" id="cursor-visible" checked /> Cursor
+                visible</label
+              >
+              <label
+                >Theme
+                <select id="theme">
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label class="grow"
+                >Taskbar progress
+                <input
+                  type="range"
+                  id="progress"
+                  min="0"
+                  max="100"
+                  value="0"
+                  class="grow"
+              /></label>
+              <label
+                >Badge
+                <input
+                  type="number"
+                  id="badge"
+                  min="0"
+                  max="99"
+                  value="0"
+                  class="narrow"
+              /></label>
+            </div>
+            <p class="muted">
+              The header is a <code>data-tauri-drag-region</code>: drag it to
+              move the window. With decorations off, drag the window edges to
+              resize.
+            </p>
+          </section>
+
+          <section>
+            <h2>Webview &amp; DevTools</h2>
+            <div class="row">
+              <button id="dt-open">Open DevTools</button>
+              <button id="dt-close">Close DevTools</button>
+              <span class="muted"
+                >Also: <kbd>F12</kbd> (View menu) and
+                <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> (Tauri's page
+                shortcut)</span
+              >
+            </div>
+            <div class="row">
+              <label class="grow"
+                >Zoom
+                <input
+                  type="range"
+                  id="zoom"
+                  min="50"
+                  max="200"
+                  value="100"
+                  class="grow"
+              /></label>
+              <label
+                >Background <input type="color" id="bg" value="#ffffff"
+              /></label>
+            </div>
+            <div class="row">
+              <button id="push">pushState #step</button>
+              <button data-history="back">Back</button>
+              <button data-history="forward">Forward</button>
+              <button data-history="reload">Reload</button>
+              <span class="muted" id="history-state"></span>
+            </div>
+            <div class="row">
+              <input
+                id="nav-url"
+                value="https://webrtc.github.io/samples/"
+                class="grow"
+                aria-label="URL"
+              />
+              <button id="navigate">Navigate</button>
+            </div>
+            <div class="row">
+              <a href="https://blocked.example.com/" id="blocked"
+                >Link blocked by on_navigation</a
+              >
+              <button id="print">Print…</button>
+              <button id="clear-data">Clear browsing data</button>
+            </div>
+            <div class="row">
+              <button id="set-cookie">Set cookie</button>
+              <button id="list-cookies">List cookies</button>
+            </div>
+          </section>
+
+          <section>
+            <h2>Windows &amp; webviews</h2>
+            <div class="row">
+              <button id="new-window">New window</button>
+              <button id="new-window-parent">New window (parent: main)</button>
+              <button id="window-open">window.open() popup</button>
+            </div>
+            <div class="row">
+              <input
+                id="child-url"
+                value="index.html"
+                class="grow"
+                aria-label="Child webview URL"
+              />
+              <button id="add-child">Add child webview</button>
+              <button id="close-children">Close child webviews</button>
+              <button id="list-windows">List windows &amp; webviews</button>
+            </div>
+          </section>
+
+          <section>
+            <h2>Menus</h2>
+            <p class="muted">
+              The menubar above is a Qt menubar built from the Tauri menu: try
+              the shortcuts (<kbd>Ctrl</kbd>+<kbd>N</kbd>,
+              <kbd>Ctrl</kbd>+<kbd>=</kbd>, <kbd>F11</kbd>), the Theme submenu
+              and Help → About.
+            </p>
+            <div id="context-zone" class="zone">
+              Right-click here for a context menu built with the JS
+              <code>Menu</code> API
+            </div>
+            <div class="row">
+              <input id="rename" value="&amp;New file" aria-label="New label" />
+              <button id="rename-btn">Rename File → New</button>
+              <button id="menu-tree">Show menubar tree</button>
+            </div>
+            <p class="muted">
+              A tray icon with Show / Hide / Quit is registered too (needs a
+              StatusNotifier host, e.g. GNOME's AppIndicator extension).
+            </p>
+          </section>
+
+          <section>
+            <h2>Media (Chromium)</h2>
+            <div class="row">
+              <button id="cam">Camera + mic</button>
+              <button id="screen">Share screen</button>
+              <button id="stop-media">Stop</button>
+              <button id="video-fs">Video fullscreen</button>
+            </div>
+            <video id="video" autoplay playsinline muted></video>
+            <div class="row">
+              <button id="webrtc">WebRTC loopback</button>
+              <button id="codecs">Codecs</button>
+              <button id="webgl">WebGL renderer</button>
+            </div>
+          </section>
+
+          <section>
+            <h2>Files &amp; protocols</h2>
+            <div id="drop-zone" class="zone">
+              Drop files anywhere on the window — Tauri reports them as
+              drag-drop events
+            </div>
+            <div class="row">
+              <button id="download">Download a file</button>
+              <button id="stream">stream:// fetch with a Range header</button>
+              <button id="crash">Kill the renderer</button>
+            </div>
+          </section>
+
+          <section id="selftest-section" hidden>
+            <h2>Self-test</h2>
+            <ol id="results"></ol>
+          </section>
+        </div>
+
+        <aside>
+          <div class="log-head">
+            <h2>Event log</h2>
+            <label
+              ><input type="checkbox" id="quiet" checked /> hide
+              resize/move</label
+            >
+            <button id="clear-log">Clear</button>
+          </div>
+          <ol id="log"></ol>
+        </aside>
+      </div>
+    </div>
+
+    <script src="selftest.js"></script>
+    <script src="selftest-api.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

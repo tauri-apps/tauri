@@ -1,0 +1,31 @@
+[package]
+name = "qt-browser"
+version = "0.1.0"
+description = "A Chromium-style browser on Tauri + the Qt runtime, showcasing Tauri's features and official plugins"
+edition = "2024"
+rust-version = "1.95"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[build-dependencies]
+tauri-build = { workspace = true, default-features = true }
+
+[dependencies]
+tauri = { workspace = true, default-features = true, features = ["unstable", "devtools", "tray-icon", "image-png", "protocol-asset"] }
+tauri-runtime-qt = { workspace = true, features = ["devtools"] }
+tauri-plugin-single-instance = "3.0.0-alpha.3"
+tauri-plugin-notification = "3.0.0-alpha.3"
+tauri-plugin-dialog = "3.0.0-alpha.4"
+tauri-plugin-clipboard-manager = "3.0.0-alpha.3"
+tauri-plugin-opener = "3.0.0-alpha.3"
+tauri-plugin-global-shortcut = "3.0.0-alpha.3"
+tauri-plugin-window-state = "3.0.0-alpha.2"
+tauri-plugin-store = "3.0.0-alpha.3"
+tauri-plugin-os = "3.0.0-alpha.3"
+tauri-plugin-process = "3.0.0-alpha.3"
+tauri-plugin-autostart = "3.0.0-alpha.3"
+tauri-plugin-log = "3.0.0-alpha.3"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"

@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "productName": "Qt Browser",
+  "version": "0.1.0",
+  "identifier": "dev.example.qtbrowser",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self' qtbrowser:; img-src 'self' qtbrowser: https: http: data: asset: http://asset.localhost; style-src 'self' qtbrowser: 'unsafe-inline'; connect-src ipc: http://ipc.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$DOWNLOAD/**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "../../.icons/32x32.png",
+      "../../.icons/128x128.png",
+      "../../.icons/128x128@2x.png",
+      "../../.icons/icon.icns",
+      "../../.icons/icon.ico"
+    ]
+  }
+}

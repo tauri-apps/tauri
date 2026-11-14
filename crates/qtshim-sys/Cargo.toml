@@ -1,0 +1,26 @@
+[package]
+name = "qtshim-sys"
+version = "0.1.0"
+description = "Raw FFI bindings to qtshim, a small C++ library over Qt Widgets and QtWebEngine"
+links = "qtshim"
+build = "build.rs"
+include = ["build.rs", "cpp/**", "src/**"]
+categories = ["external-ffi-bindings", "gui"]
+keywords = ["qt", "qtwebengine", "ffi"]
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+# Windows hosting QWebEngineViews, profiles, custom schemes and IPC (needs QtWebEngine).
+webengine = []
+
+[build-dependencies]
+cc = "1"
+
+[lints]
+workspace = true

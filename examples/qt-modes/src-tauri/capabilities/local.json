@@ -1,0 +1,15 @@
+{
+  "identifier": "local",
+  "description": "Pages served by the app itself (tauri://, devUrl): every check.",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "allow-report",
+    "allow-done",
+    "allow-echo",
+    "allow-echo-bytes",
+    "allow-fail",
+    "allow-stream-numbers",
+    "allow-denied-result"
+  ]
+}

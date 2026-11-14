@@ -15,8 +15,6 @@ rust-version.workspace = true
 tauri = { workspace = true, default-features = true, features = ["unstable"] }
 tauri-runtime-wry = { workspace = true, default-features = true, optional = true }
 tauri-runtime-cef = { workspace = true, default-features = true, optional = true }
-# The Qt/QtWebEngine runtime.
-tauri-runtime-qt = { git = "https://github.com/KRTirtho/tauri-runtime-qt", branch = "main", features = ["devtools"], optional = true }
 tauri-utils = { workspace = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -25,6 +23,10 @@ http-range = "0.1.5"
 getrandom = "0.3"
 percent-encoding = "2"
 
+# The Qt/QtWebEngine runtime (Linux only).
+[target."cfg(target_os = \"linux\")".dependencies]
+tauri-runtime-qt = { workspace = true, features = ["devtools"], optional = true }
+
 [build-dependencies]
 tauri-utils = { workspace = true, features = ["build-2"] }
 
@@ -32,7 +34,8 @@ tauri-utils = { workspace = true, features = ["build-2"] }
 default = ["wry"]
 wry = ["dep:tauri-runtime-wry"]
 cef = ["dep:tauri-runtime-cef"]
-# Use with `--no-default-features` (wry's GTK menus and Qt menus are mutually exclusive).
+# Linux only. Use with `--no-default-features`: with `wry` (GTK menus) also enabled, Qt windows
+# get no menus. `cef` takes precedence over both.
 qt = ["dep:tauri-runtime-qt"]
 isolation = ["tauri/isolation"]
 

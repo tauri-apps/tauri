@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "productName": "qt-modes",
+  "version": "0.1.0",
+  "identifier": "dev.example.qtmodes",
+  "build": {
+    "frontendDist": "../../../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost",
+      "freezePrototype": true
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "../../../../.icons/32x32.png",
+      "../../../../.icons/128x128.png",
+      "../../../../.icons/128x128@2x.png",
+      "../../../../.icons/icon.icns",
+      "../../../../.icons/icon.ico"
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+[package]
+name = "tauri-runtime-qt"
+version = "3.0.0-alpha.0"
+description = "Qt and QtWebEngine (Chromium) bindings to the Tauri runtime, for Linux"
+exclude = ["CHANGELOG.md", "/target"]
+readme = "README.md"
+categories.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+qtshim = { workspace = true, features = ["webengine"] }
+tauri-runtime = { workspace = true }
+tauri-utils = { workspace = true }
+# Selecting this runtime turns on Qt menus in `tauri` (like tauri-runtime-wry enables `gtk3`).
+tauri = { workspace = true, features = ["qt"] }
+http = "1"
+url = "2"
+cookie = "0.18"
+raw-window-handle = "0.6"
+log = "0.4"
+
+[features]
+# Enable DevTools (and the DevTools keyboard shortcut) in release builds.
+devtools = ["tauri-runtime/devtools"]
+
+[dev-dependencies]
+qtshim = { workspace = true, features = ["webengine", "test-harness"] }
+serde_json = "1"
+
+# Drives the runtime through the `tauri_runtime` traits with a real Qt application (offscreen),
+# one process per case (see `qtshim::test_harness`).
+[[test]]
+name = "qt"
+path = "tests/qt/main.rs"
+harness = false
+
+[lints]
+workspace = true

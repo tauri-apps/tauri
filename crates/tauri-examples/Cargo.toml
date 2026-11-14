@@ -1,7 +1,7 @@
 [package]
 name = "tauri-examples"
 version = "0.1.0"
-description = "Tauri desktop application examples (wry and CEF runtimes)"
+description = "Tauri desktop application examples (wry, CEF and Qt runtimes)"
 publish = false
 authors.workspace = true
 homepage.workspace = true
@@ -23,6 +23,10 @@ http-range = "0.1.5"
 getrandom = "0.3"
 percent-encoding = "2"
 
+# The Qt/QtWebEngine runtime (Linux only).
+[target."cfg(target_os = \"linux\")".dependencies]
+tauri-runtime-qt = { workspace = true, features = ["devtools"], optional = true }
+
 [build-dependencies]
 tauri-utils = { workspace = true, features = ["build-2"] }
 
@@ -30,6 +34,9 @@ tauri-utils = { workspace = true, features = ["build-2"] }
 default = ["wry"]
 wry = ["dep:tauri-runtime-wry"]
 cef = ["dep:tauri-runtime-cef"]
+# Linux only. Use with `--no-default-features`: with `wry` (GTK menus) also enabled, Qt windows
+# get no menus. `cef` takes precedence over both.
+qt = ["dep:tauri-runtime-qt"]
 isolation = ["tauri/isolation"]
 
 [[example]]

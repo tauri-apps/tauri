@@ -99,6 +99,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libgtk-4-dev libxdo-dev libayatana-appindicator3-dev
 
+      # `tauri`'s `qt` feature (in `--all-features`) builds `qtshim`, which needs Qt 6.8+ with
+      # QtWebEngine, newer than Ubuntu's packages.
+      - name: install Qt
+        if: contains(matrix.platform.target, 'unknown-linux') && matrix.features.key == 'all'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.11.3'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          modules: 'qtwebengine qtwebchannel qtpositioning'
+          cache: true
+
+      - name: point pkg-config at Qt
+        if: contains(matrix.platform.target, 'unknown-linux') && matrix.features.key == 'all'
+        run: echo "PKG_CONFIG_PATH=$QT_ROOT_DIR/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.platform.target }}

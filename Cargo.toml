@@ -41,12 +41,11 @@ members = [
   "examples/resources/src-tauri",
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
-  "examples/qt-app/src-tauri",
 ]
 # Everything except the Qt runtime and its crates: those need the Qt 6 (WebEngine) development
 # packages, and next to `tauri-runtime-wry` (GTK menus, which take precedence) their windows would
 # get no menus, so they are built on their own with `-p`
-# (e.g. `cargo build -p tauri-runtime-qt`, `cargo run -p qt-app`).
+# (e.g. `cargo build -p tauri-runtime-qt`).
 default-members = [
   "crates/tauri",
   "crates/tauri-runtime",

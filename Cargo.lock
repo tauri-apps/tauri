@@ -7364,17 +7364,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "qt-app"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-runtime-qt",
-]
-
-[[package]]
 name = "qtshim"
 version = "0.1.0"
 dependencies = [

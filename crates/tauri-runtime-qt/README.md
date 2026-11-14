@@ -50,8 +50,7 @@ fn main() {
 
 `Qt` carries runtime options: `Qt::default().chromium_flags("--ignore-gpu-blocklist")` and
 `.remote_debugging_port(9222)`. Enable the crate's `devtools` feature (with `tauri/devtools`) for
-DevTools in release builds. See [`examples/qt-app`](../../examples/qt-app) for a complete app, including
-`window.open()` popups via `on_new_window` + `window_features`.
+DevTools in release builds.
 
 ### Build requirements
 
@@ -65,14 +64,17 @@ Runtime dependency for packages: `qt6-qtwebengine` (rpm), `libqt6webenginewidget
 
 ### Running the examples
 
-The Qt crates aren't default members of the Tauri workspace (they need the Qt dev packages, and
-in a build that also has `tauri-runtime-wry`, GTK menus take precedence and Qt windows get none),
-so select them with `-p`:
+Tauri's own examples run on this runtime with their Linux-only `qt` feature. Use
+`--no-default-features`: in a build that also has `tauri-runtime-wry`, GTK menus take precedence
+and Qt windows get none.
 
-- [`examples/qt-app`](../../examples/qt-app): a showcase of (nearly) every Tauri API, plus the
-  runtime's end-to-end self-tests (`cargo run -p qt-app`, `QT_APP_AUTO=1 cargo run -p qt-app`).
-- Tauri's own examples: `cargo run -p tauri-examples --example helloworld --no-default-features
---features qt`, and `cargo run -p api --no-default-features --features qt,prod`.
+```sh
+cargo run -p tauri-examples --example helloworld --no-default-features --features qt
+cargo run -p api --no-default-features --features qt,prod
+```
+
+The Qt crates aren't default members of the Tauri workspace, since they need the Qt dev
+packages, so select them with `-p`.
 
 ### Tests
 
@@ -81,7 +83,6 @@ cargo test -p qtshim --features webengine --lib                     # qtshim uni
 cargo test -p qtshim --features webengine,test-harness --test qt    # real Qt, offscreen
 cargo test -p tauri-runtime-qt                                      # the runtime through the tauri_runtime traits
 cargo test -p qtshim-sys-systest --features webengine               # FFI declarations vs cpp/qtshim.h
-cargo test -p qt-app --test e2e                                     # the app self-tests, offscreen
 ```
 
 ## Menus
@@ -155,4 +156,3 @@ runtime and muda link a single copy of the `qtshim` native library.
 | `crates/qtshim-sys`           | Raw FFI (`links = "qtshim"`) and the only C++: `cpp/qtshim.h` (the C API), `core.cpp`, `menu.cpp`, `webengine.cpp` (feature `webengine`) |
 | `crates/qtshim`               | Safe API over it: `app`, `menu`, `webengine` (feature), `test_harness` (feature). Shared by this runtime and muda's Qt backend           |
 | `crates/tauri-runtime-qt/src` | `Runtime`, `RuntimeHandle`, `WindowDispatch`, `WebviewDispatch`, `WindowBuilder`                                                         |
-| `examples/qt-app`             | Example app and end-to-end suite (see above)                                                                                             |

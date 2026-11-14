@@ -1157,9 +1157,12 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn icon(mut self, icon: Icon) -> Result<Self> {
-    self.inner = self
-      .inner
-      .with_window_icon(Some(TaoIcon::try_from(icon)?.0));
+    let icon = TaoIcon::try_from(icon)?.0;
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_taskbar_icon(Some(icon.clone()));
+    }
+    self.inner = self.inner.with_window_icon(Some(icon));
     Ok(self)
   }
 
@@ -3464,6 +3467,11 @@ fn handle_user_message<T: UserEvent>(
             window.set_focusable(focusable);
           }
           WindowMessage::SetIcon(icon) => {
+            #[cfg(windows)]
+            {
+              use tao::platform::windows::WindowExtWindows;
+              window.set_taskbar_icon(Some(icon.clone()));
+            }
             window.set_window_icon(Some(icon));
           }
           #[allow(unused_variables)]

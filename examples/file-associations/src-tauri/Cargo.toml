@@ -17,3 +17,6 @@ tauri = { workspace = true, default-features = true, features = [
   "protocol-asset",
 ] }
 url = "2"
+
+[lints]
+workspace = true

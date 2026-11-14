@@ -666,12 +666,30 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
-  ///   - `true` will make undecorated window have a 1px white border,
-  ///     and on Windows 11, it will have a rounded corners.
+  ///   - The shadow of an undecorated window is anchored through DWM: the
+  ///     client area equals the window rect and a symmetric border is drawn
+  ///     on every edge. The shadow is suppressed while the window is
+  ///     maximized or fullscreen.
   /// - **Linux:** Unsupported.
   #[must_use]
   pub fn shadow(mut self, enable: bool) -> Self {
     self.window_builder = self.window_builder.shadow(enable);
+    self
+  }
+
+  /// Sets whether the border of an undecorated shadowed window is drawn
+  /// transparent, i.e. keeps the shadow but draws no visible border.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** Windows 11 hides the border line through
+  ///   `DWMWA_BORDER_COLOR`; on Windows 10 the border lines stay underneath
+  ///   the webview content, and the runtime zeroes the webview frame inset so
+  ///   the content covers them.
+  /// - **Linux:** Unsupported (no-op).
+  #[must_use]
+  pub fn undecorated_border_transparent(mut self, transparent: bool) -> Self {
+    self.window_builder = self.window_builder.undecorated_border_transparent(transparent);
     self
   }
 
@@ -2117,8 +2135,10 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
-  ///   - `true` will make undecorated window have a 1px white border,
-  ///     and on Windows 11, it will have a rounded corners.
+  ///   - The shadow of an undecorated window is anchored through DWM: the
+  ///     client area equals the window rect and a symmetric border is drawn
+  ///     on every edge. The shadow is suppressed while the window is
+  ///     maximized or fullscreen.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
     self.window.set_shadow(enable)

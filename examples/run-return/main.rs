@@ -8,9 +8,9 @@
 fn main() {
   #[cfg(feature = "cef")]
   let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
-  #[cfg(not(any(feature = "cef", feature = "qt")))]
+  #[cfg(not(any(feature = "cef", all(feature = "qt", target_os = "linux"))))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
-  #[cfg(feature = "qt")]
+  #[cfg(all(feature = "qt", not(feature = "cef"), target_os = "linux"))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_qt::Qt::default());
 
   let app = builder

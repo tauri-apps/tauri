@@ -53,9 +53,13 @@ pub fn run() {
     let cef = cef.secret_storage(tauri_runtime_cef::SecretStorage::Mock);
     tauri::Builder::default().runtime(cef)
   };
-  #[cfg(all(not(test), feature = "qt"))]
+  #[cfg(all(not(test), feature = "qt", not(feature = "cef"), target_os = "linux"))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_qt::Qt::default());
-  #[cfg(all(not(test), not(feature = "cef"), not(feature = "qt")))]
+  #[cfg(all(
+    not(test),
+    not(feature = "cef"),
+    not(all(feature = "qt", target_os = "linux"))
+  ))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
 
   run_app(builder, |_app| {});

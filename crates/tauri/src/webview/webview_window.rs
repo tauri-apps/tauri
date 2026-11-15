@@ -1571,7 +1571,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let webview = command.message.webview();
     let window = webview.window();
-    if window.is_webview_window() {
+    if webview.label() == window.label() {
       return Ok(Self { window, webview });
     }
 

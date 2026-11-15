@@ -33,7 +33,7 @@ fn wix_upgrade_code(tauri_dir: &Path) -> Result<()> {
   let target = tauri_utils::platform::Target::Windows;
   let config = crate::helpers::config::get_config(target, &[], tauri_dir)?;
 
-  let interface = AppInterface::new(&config, None, tauri_dir)?;
+  let interface = AppInterface::new(&config, None, tauri_dir, true)?;
 
   let product_name = interface.app_settings().get_package_settings().product_name;
 

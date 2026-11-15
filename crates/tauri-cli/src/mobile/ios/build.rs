@@ -203,7 +203,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri, true)?;
   interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
   let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);

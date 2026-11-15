@@ -144,7 +144,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     dirs.tauri,
   )?;
 
-  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri, true)?;
 
   std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 

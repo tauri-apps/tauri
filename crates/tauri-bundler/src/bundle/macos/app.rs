@@ -391,8 +391,21 @@ fn create_info_plist(
     }
   }
 
-  plist::Value::Dictionary(plist).to_file_xml(bundle_dir.join("Info.plist"))?;
+  write_info_plist(plist, &bundle_dir.join("Info.plist"))?;
 
+  Ok(())
+}
+
+// Chromium reconstructs the cached NSBundle infoDictionary with Foundation's
+// XML serializer during dynamic signature validation. Its bytes (including key
+// ordering and trailing newline) must match the Info.plist sealed by codesign.
+fn write_info_plist(plist: plist::Dictionary, path: &Path) -> crate::Result<()> {
+  plist::Value::Dictionary(plist).to_file_xml(path)?;
+  Command::new("/usr/bin/plutil")
+    .args(["-convert", "xml1"])
+    .arg(path)
+    .output_ok()
+    .context("failed to canonicalize Info.plist before signing")?;
   Ok(())
 }
 
@@ -624,7 +637,7 @@ fn create_cef_helpers(bundle_directory: &Path, settings: &Settings) -> crate::Re
     plist.insert("LSMinimumSystemVersion".into(), "11.0".into());
     plist.insert("LSUIElement".into(), "1".into());
 
-    plist::Value::Dictionary(plist).to_file_xml(helper_contents.join("Info.plist"))?;
+    write_info_plist(plist, &helper_contents.join("Info.plist"))?;
 
     let helper_exec = helper_macos.join(&helper_name);
     fs_utils::copy_file(&helper_binary, &helper_exec)?;
@@ -723,6 +736,54 @@ mod tests {
     fs::create_dir_all(&bundle_dir).expect("failed to create bundle dir");
 
     (bundle_dir, settings)
+  }
+
+  #[test]
+  fn info_plist_dynamic_signature_matches_foundation_serialization() {
+    let tmp = tempfile::tempdir().unwrap();
+    let contents = tmp.path().join("SignatureTest.app/Contents");
+    let macos = contents.join("MacOS");
+    fs::create_dir_all(&macos).unwrap();
+    let source = tmp.path().join("signature.m");
+    fs::write(&source, include_str!("fixtures/dynamic-signature.m")).unwrap();
+    let executable = macos.join("signature");
+    Command::new("/usr/bin/clang")
+      .arg(&source)
+      .args(["-framework", "Foundation", "-framework", "Security", "-o"])
+      .arg(&executable)
+      .output_ok()
+      .unwrap();
+    let mut plist = plist::Dictionary::new();
+    // Deliberately non-alphabetical, as generated metadata and user overrides are.
+    plist.insert("CFBundlePackageType".into(), "APPL".into());
+    plist.insert(
+      "CFBundleIdentifier".into(),
+      "app.tauri.signature-test".into(),
+    );
+    plist.insert("CFBundleExecutable".into(), "signature".into());
+    plist.insert("CFBundleVersion".into(), "1".into());
+    let path = contents.join("Info.plist");
+    let bundle = contents.parent().unwrap();
+    let check = || {
+      Command::new("/usr/bin/codesign")
+        .args(["--force", "--sign", "-", "--timestamp=none"])
+        .arg(bundle)
+        .output_ok()
+        .unwrap();
+      Command::new("/usr/bin/codesign")
+        .args(["--verify", "--deep", "--strict"])
+        .arg(bundle)
+        .output_ok()
+        .unwrap();
+      Command::new(&executable).output_ok().unwrap().stdout
+    };
+    // A valid on-disk signature alone does not catch the Chromium failure.
+    plist::Value::Dictionary(plist.clone())
+      .to_file_xml(&path)
+      .unwrap();
+    assert_eq!(String::from_utf8(check()).unwrap().trim(), "-67030");
+    write_info_plist(plist, &path).unwrap();
+    assert_eq!(String::from_utf8(check()).unwrap().trim(), "0");
   }
 
   #[test]

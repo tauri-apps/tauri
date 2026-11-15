@@ -15,6 +15,7 @@ mod downgrade;
 mod environment;
 mod external_message_pump;
 mod frame;
+mod getter_reply;
 pub use dialog::{
   NativeDialogKind, NativeDialogObservation, NativeDialogSnapshot, NativeDialogToken,
 };

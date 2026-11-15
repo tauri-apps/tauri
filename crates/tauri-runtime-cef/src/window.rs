@@ -1316,7 +1316,8 @@ fn getter<T: UserEvent, R>(
   receiver: Receiver<Result<R>>,
 ) -> Result<R> {
   context.send_message(message)?;
-  receiver.recv().map_err(|_| Error::FailedToReceiveMessage)?
+  crate::getter_reply::receive(context.is_main_thread(), receiver)
+    .map_err(|_| Error::FailedToReceiveMessage)?
 }
 
 macro_rules! window_getter {

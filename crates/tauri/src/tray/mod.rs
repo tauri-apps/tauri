@@ -321,10 +321,17 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
-  /// Set a handler for menu events.
+  /// Set a global handler for menu events.
   ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
+  /// This handler is not specific to this tray icon.
+  /// It receives each menu event of the application.
+  /// This includes the events of the app menu, the window menus, and the menus of all tray icons.
+  ///
+  /// This method operates the same as [`Builder::on_menu_event`](crate::Builder::on_menu_event).
+  /// If you register the same handler here and on the [`Builder`](crate::Builder),
+  /// the handler runs two times for each menu event.
+  ///
+  /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
@@ -460,10 +467,17 @@ impl<R: Runtime> TrayIcon<R> {
     &self.app_handle
   }
 
-  /// Register a handler for menu events.
+  /// Register a global handler for menu events.
   ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
+  /// This handler is not specific to this tray icon.
+  /// It receives each menu event of the application.
+  /// This includes the events of the app menu, the window menus, and the menus of all tray icons.
+  ///
+  /// This method operates the same as [`AppHandle::on_menu_event`].
+  /// If you register the same handler here and on the [`Builder`](crate::Builder) or the [`AppHandle`],
+  /// the handler runs two times for each menu event.
+  ///
+  /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(&self, f: F) {
     self
       .app_handle

@@ -61,6 +61,11 @@ abstract class Plugin(private val activity: Activity) {
    */
   open fun onNewIntent(intent: Intent) {}
 
+  /**
+   * The webview's history changed (a navigation, a pushState, back or forward)
+   */
+  open fun onWebViewHistoryChanged(webView: WebView) {}
+
 
   /**
    * This event is called just before another activity comes into the foreground.

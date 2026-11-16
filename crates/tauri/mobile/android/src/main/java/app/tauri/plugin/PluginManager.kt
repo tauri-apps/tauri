@@ -105,6 +105,12 @@ object PluginManager {
     }
   }
 
+  fun onWebViewHistoryChanged(webView: WebView) {
+    for (plugin in plugins.values) {
+      plugin.instance.onWebViewHistoryChanged(webView)
+    }
+  }
+
   fun onPause(activity: AppCompatActivity) {
     for (plugin in plugins.values) {
       plugin.instance.triggerOnPause(activity)

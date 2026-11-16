@@ -23,18 +23,18 @@
  * @module
  */
 
-import * as app from './app'
-import * as core from './core'
-import * as dpi from './dpi'
-import * as event from './event'
-import * as image from './image'
-import * as menu from './menu'
-import * as mocks from './mocks'
-import * as path from './path'
-import * as tray from './tray'
-import * as webview from './webview'
-import * as webviewWindow from './webviewWindow'
-import * as window from './window'
+import * as app from './app.js'
+import * as core from './core.js'
+import * as dpi from './dpi.js'
+import * as event from './event.js'
+import * as image from './image.js'
+import * as menu from './menu.js'
+import * as mocks from './mocks.js'
+import * as path from './path.js'
+import * as tray from './tray.js'
+import * as webview from './webview.js'
+import * as webviewWindow from './webviewWindow.js'
+import * as window from './window.js'
 
 export {
   app,

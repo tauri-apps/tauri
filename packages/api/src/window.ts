@@ -30,8 +30,8 @@ import {
   PhysicalSize,
   Position,
   Size
-} from './dpi'
-import type { Event, EventName, EventCallback, UnlistenFn } from './event'
+} from './dpi.js'
+import type { Event, EventName, EventCallback, UnlistenFn } from './event.js'
 import {
   TauriEvent,
   // imported for documentation purposes
@@ -40,10 +40,10 @@ import {
   emitTo,
   listen,
   once
-} from './event'
-import { invoke } from './core'
-import { WebviewWindow } from './webviewWindow'
-import type { DragDropEvent } from './webview'
+} from './event.js'
+import { invoke } from './core.js'
+import { WebviewWindow } from './webviewWindow.js'
+import type { DragDropEvent } from './webview.js'
 import { type JsImage, transformImage } from './image'
 
 /**
@@ -3076,15 +3076,15 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position),
-        size: new PhysicalSize(m.size),
-        workArea: {
-          position: new PhysicalPosition(m.workArea.position),
-          size: new PhysicalSize(m.workArea.size)
-        }
+      name: m.name,
+      scaleFactor: m.scaleFactor,
+      position: new PhysicalPosition(m.position),
+      size: new PhysicalSize(m.size),
+      workArea: {
+        position: new PhysicalPosition(m.workArea.position),
+        size: new PhysicalSize(m.workArea.size)
       }
+    }
 }
 
 /**

@@ -15,7 +15,7 @@
  * @module
  */
 
-import { invoke, transformCallback } from './core'
+import { invoke, transformCallback } from './core.js'
 
 declare global {
   interface Window {

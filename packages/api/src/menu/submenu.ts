@@ -6,17 +6,17 @@ import {
   IconMenuItemOptions,
   PredefinedMenuItemOptions,
   CheckMenuItemOptions
-} from '../menu'
-import { MenuItem, type MenuItemOptions } from './menuItem'
-import { CheckMenuItem } from './checkMenuItem'
-import { IconMenuItem } from './iconMenuItem'
-import { PredefinedMenuItem } from './predefinedMenuItem'
-import { invoke } from '../core'
-import { type LogicalPosition, PhysicalPosition, type Window } from '../window'
-import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base'
-import { type MenuOptions } from './menu'
-import { Position } from '../dpi'
-import { transformImage, MenuIcon } from '../image'
+} from '../menu.js'
+import { MenuItem, type MenuItemOptions } from './menuItem.js'
+import { CheckMenuItem } from './checkMenuItem.js'
+import { IconMenuItem } from './iconMenuItem.js'
+import { PredefinedMenuItem } from './predefinedMenuItem.js'
+import { invoke } from '../core.js'
+import { type LogicalPosition, PhysicalPosition, type Window } from '../window.js'
+import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base.js'
+import { type MenuOptions } from './menu.js'
+import { Position } from '../dpi.js'
+import { transformImage, MenuIcon } from '../image.js'
 
 /** @ignore */
 export function itemFromKind([rid, id, kind]: [number, string, ItemKind]):

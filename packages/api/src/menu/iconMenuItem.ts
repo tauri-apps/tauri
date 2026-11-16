@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { MenuItemBase, newMenu } from './base'
-import { type MenuItemOptions } from '../menu'
-import { invoke } from '../core'
-import { transformImage, MenuIcon } from '../image'
+import { MenuItemBase, newMenu } from './base.js'
+import { type MenuItemOptions } from '../menu.js'
+import { invoke } from '../core.js'
+import { transformImage, MenuIcon } from '../image.js'
 
 /**
  * A native Icon to be used for the menu item

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { MenuItemBase, newMenu } from './base'
-import { invoke } from '../core'
-import { type MenuItemOptions } from '../menu'
+import { MenuItemBase, newMenu } from './base.js'
+import { invoke } from '../core.js'
+import { type MenuItemOptions } from '../menu.js'
 
 /** Options for creating a new check menu item. */
 export interface CheckMenuItemOptions extends MenuItemOptions {

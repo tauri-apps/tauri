@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { MenuItemBase, newMenu } from './base'
-import { invoke } from '../core'
+import { MenuItemBase, newMenu } from './base.js'
+import { invoke } from '../core.js'
 
 /** Options for creating a new menu item. */
 export interface MenuItemOptions {

@@ -23,9 +23,9 @@
  * @module
  */
 
-export * from './menu/submenu'
-export * from './menu/menuItem'
-export * from './menu/menu'
-export * from './menu/checkMenuItem'
-export * from './menu/iconMenuItem'
-export * from './menu/predefinedMenuItem'
+export * from './menu/submenu.js'
+export * from './menu/menuItem.js'
+export * from './menu/menu.js'
+export * from './menu/checkMenuItem.js'
+export * from './menu/iconMenuItem.js'
+export * from './menu/predefinedMenuItem.js'

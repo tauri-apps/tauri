@@ -185,7 +185,7 @@ pub use tao::platform::macos::{
 use tauri_runtime::ActivationPolicy;
 
 use std::{
-  cell::RefCell,
+  cell::{Cell, RefCell},
   collections::{
     BTreeMap, HashMap, HashSet,
     hash_map::Entry::{Occupied, Vacant},
@@ -204,6 +204,29 @@ use std::{
 
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
+
+thread_local! {
+  static REENTRANT_CALLBACK_DEPTH: Cell<u32> = const { Cell::new(0) };
+}
+
+struct ReentrantCallbackGuard;
+
+impl ReentrantCallbackGuard {
+  fn enter() -> Self {
+    REENTRANT_CALLBACK_DEPTH.with(|depth| depth.set(depth.get() + 1));
+    Self
+  }
+}
+
+impl Drop for ReentrantCallbackGuard {
+  fn drop(&mut self) {
+    REENTRANT_CALLBACK_DEPTH.with(|depth| depth.set(depth.get().saturating_sub(1)));
+  }
+}
+
+fn is_in_reentrant_callback() -> bool {
+  REENTRANT_CALLBACK_DEPTH.with(|depth| depth.get() > 0)
+}
 
 #[cfg(not(debug_assertions))]
 mod dialog;
@@ -408,11 +431,15 @@ impl<T: UserEvent> Context<T> {
 }
 
 impl<T: UserEvent> Context<T> {
-  fn create_window<F: Fn(RawWindow) + Send + 'static>(
+  fn prepare_window_creation<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, WryRuntime<T>>,
     after_window_creation: Option<F>,
-  ) -> Result<DetachedWindow<T, WryRuntime<T>>> {
+  ) -> (
+    WindowId,
+    CreateWindowClosure<T>,
+    DetachedWindow<T, WryRuntime<T>>,
+  ) {
     let label = pending.label.clone();
     let context = self.clone();
     let window_id = self.next_window_id();
@@ -428,23 +455,16 @@ impl<T: UserEvent> Context<T> {
       })
       .unwrap_or((None, false, None));
 
-    let (tx, rx) = channel();
-    self.send_user_message(Message::CreateWindow(
-      window_id,
-      Box::new(move |event_loop| {
-        create_window(
-          window_id,
-          webview_id.unwrap_or_default(),
-          event_loop,
-          &context,
-          pending,
-          after_window_creation,
-        )
-      }),
-      tx,
-    ))?;
-    rx.recv()
-      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
+    let closure: CreateWindowClosure<T> = Box::new(move |event_loop| {
+      create_window(
+        window_id,
+        webview_id.unwrap_or_default(),
+        event_loop,
+        &context,
+        pending,
+        after_window_creation,
+      )
+    });
 
     let dispatcher = WryWindowDispatcher {
       window_id,
@@ -467,19 +487,21 @@ impl<T: UserEvent> Context<T> {
       }
     });
 
-    Ok(DetachedWindow {
+    let detached = DetachedWindow {
       id: window_id,
       label,
       dispatcher,
       webview: detached_webview,
-    })
+    };
+
+    (window_id, closure, detached)
   }
 
-  fn create_webview(
+  fn prepare_webview_creation(
     &self,
     window_id: WindowId,
     pending: PendingWebview<T, WryRuntime<T>>,
-  ) -> Result<DetachedWebview<T, WryRuntime<T>>> {
+  ) -> (CreateWebviewClosure, DetachedWebview<T, WryRuntime<T>>) {
     let label = pending.label.clone();
     let context = self.clone();
 
@@ -488,25 +510,18 @@ impl<T: UserEvent> Context<T> {
     let window_id_wrapper = Arc::new(Mutex::new(window_id));
     let window_id_wrapper_ = window_id_wrapper.clone();
 
-    let (tx, rx) = channel();
-    self.send_user_message(Message::CreateWebview(
-      window_id,
-      Box::new(move |window, _options| {
-        create_webview(
-          WebviewKind::WindowChild,
-          window,
-          window_id_wrapper_,
-          webview_id,
-          &context,
-          pending,
-          #[cfg(windows)]
-          _options.focused_webview,
-        )
-      }),
-      tx,
-    ))?;
-    rx.recv()
-      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
+    let closure: CreateWebviewClosure = Box::new(move |window, _options| {
+      create_webview(
+        WebviewKind::WindowChild,
+        window,
+        window_id_wrapper_,
+        webview_id,
+        &context,
+        pending,
+        #[cfg(windows)]
+        _options.focused_webview,
+      )
+    });
 
     let dispatcher = WryWebviewDispatcher {
       window_id: window_id_wrapper,
@@ -514,7 +529,114 @@ impl<T: UserEvent> Context<T> {
       context: self.clone(),
     };
 
-    Ok(DetachedWebview { label, dispatcher })
+    (closure, DetachedWebview { label, dispatcher })
+  }
+
+  fn create_window<F: Fn(RawWindow) + Send + 'static>(
+    &self,
+    pending: PendingWindow<T, WryRuntime<T>>,
+    after_window_creation: Option<F>,
+  ) -> Result<DetachedWindow<T, WryRuntime<T>>> {
+    if current_thread().id() == self.main_thread_id && is_in_reentrant_callback() {
+      return Err(Error::ReentrantWindowCreation);
+    }
+
+    let (window_id, closure, detached) =
+      self.prepare_window_creation(pending, after_window_creation);
+    let (tx, rx) = channel();
+    self.send_user_message(Message::CreateWindow(window_id, closure, tx))?;
+    rx.recv()
+      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
+
+    Ok(detached)
+  }
+
+  fn create_window_async<
+    F: Fn(RawWindow) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, WryRuntime<T>>>) + Send + 'static,
+  >(
+    &self,
+    pending: PendingWindow<T, WryRuntime<T>>,
+    after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    let (window_id, closure, detached) =
+      self.prepare_window_creation(pending, after_window_creation);
+    let callback =
+      Arc::new(Mutex::new(Some(Box::new(callback)
+        as Box<
+          dyn FnOnce(Result<DetachedWindow<T, WryRuntime<T>>>) + Send,
+        >)));
+    let callback_ = callback.clone();
+    // Always post through the event loop proxy so window/webview creation
+    // never runs synchronously or re-entrantly inside an active UI/IPC callback.
+    if self
+      .proxy
+      .send_event(Message::CreateWindowAsync(
+        window_id,
+        closure,
+        Box::new(move |res| {
+          if let Some(cb) = callback_.lock().unwrap().take() {
+            cb(res.map(|()| detached));
+          }
+        }),
+      ))
+      .is_err()
+    {
+      if let Some(cb) = callback.lock().unwrap().take() {
+        cb(Err(Error::EventLoopClosed));
+      }
+    }
+  }
+
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, WryRuntime<T>>,
+  ) -> Result<DetachedWebview<T, WryRuntime<T>>> {
+    if current_thread().id() == self.main_thread_id && is_in_reentrant_callback() {
+      return Err(Error::ReentrantWindowCreation);
+    }
+
+    let (closure, detached) = self.prepare_webview_creation(window_id, pending);
+    let (tx, rx) = channel();
+    self.send_user_message(Message::CreateWebview(window_id, closure, tx))?;
+    rx.recv()
+      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
+
+    Ok(detached)
+  }
+
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, WryRuntime<T>>>) + Send + 'static>(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, WryRuntime<T>>,
+    callback: C,
+  ) {
+    let (closure, detached) = self.prepare_webview_creation(window_id, pending);
+    let callback =
+      Arc::new(Mutex::new(Some(Box::new(callback)
+        as Box<
+          dyn FnOnce(Result<DetachedWebview<T, WryRuntime<T>>>) + Send,
+        >)));
+    let callback_ = callback.clone();
+    if self
+      .proxy
+      .send_event(Message::CreateWebviewAsync(
+        window_id,
+        closure,
+        Box::new(move |res| {
+          if let Some(cb) = callback_.lock().unwrap().take() {
+            cb(res.map(|()| detached));
+          }
+        }),
+      ))
+      .is_err()
+    {
+      if let Some(cb) = callback.lock().unwrap().take() {
+        cb(Err(Error::EventLoopClosed));
+      }
+    }
   }
 }
 
@@ -1623,7 +1745,17 @@ pub enum Message<T: 'static> {
   Webview(WindowId, WebviewId, WebviewMessage),
   EventLoopWindowTarget(EventLoopWindowTargetMessage),
   CreateWebview(WindowId, CreateWebviewClosure, Sender<Result<()>>),
+  CreateWebviewAsync(
+    WindowId,
+    CreateWebviewClosure,
+    Box<dyn FnOnce(Result<()>) + Send>,
+  ),
   CreateWindow(WindowId, CreateWindowClosure<T>, Sender<Result<()>>),
+  CreateWindowAsync(
+    WindowId,
+    CreateWindowClosure<T>,
+    Box<dyn FnOnce(Result<()>) + Send>,
+  ),
   CreateRawWindow(
     WindowId,
     Box<dyn FnOnce() -> (String, TaoWindowBuilder) + Send>,
@@ -2188,6 +2320,30 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
     self.context.create_webview(self.window_id, pending)
+  }
+
+  fn create_window_async<
+    F: Fn(RawWindow) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, Self::Runtime>>) + Send + 'static,
+  >(
+    &mut self,
+    pending: PendingWindow<T, Self::Runtime>,
+    after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    self
+      .context
+      .create_window_async(pending, after_window_creation, callback)
+  }
+
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, Self::Runtime>>) + Send + 'static>(
+    &mut self,
+    pending: PendingWebview<T, Self::Runtime>,
+    callback: C,
+  ) {
+    self
+      .context
+      .create_webview_async(self.window_id, pending, callback)
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -2812,6 +2968,31 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     self.context.create_webview(window_id, pending)
   }
 
+  fn create_window_async<
+    F: Fn(RawWindow) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, Self::Runtime>>) + Send + 'static,
+  >(
+    &self,
+    pending: PendingWindow<T, Self::Runtime>,
+    after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    self
+      .context
+      .create_window_async(pending, after_window_creation, callback)
+  }
+
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, Self::Runtime>>) + Send + 'static>(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self::Runtime>,
+    callback: C,
+  ) {
+    self
+      .context
+      .create_webview_async(window_id, pending, callback)
+  }
+
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_user_message(Message::Task(Box::new(f)))
   }
@@ -3372,6 +3553,51 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
 struct UserMessageContext<'a> {
   windows: &'a WindowsStore,
   window_id_map: &'a WindowIdStore,
+}
+
+fn run_create_webview(
+  windows: &WindowsStore,
+  window_id: WindowId,
+  handler: CreateWebviewClosure,
+) -> Option<Result<()>> {
+  let window = windows.0.borrow().get(&window_id).map(|w| {
+    (
+      w.inner.clone(),
+      CreateWebviewOptions {
+        #[cfg(windows)]
+        focused_webview: w.focused_webview.clone(),
+      },
+    )
+  });
+  if let Some((Some(window), options)) = window {
+    match handler(&window, options) {
+      Ok(webview) => {
+        if let Some(w) = windows.0.borrow_mut().get_mut(&window_id) {
+          w.webviews.push(webview);
+          w.has_children.store(true, Ordering::Relaxed);
+        }
+        Some(Ok(()))
+      }
+      Err(e) => Some(Err(e)),
+    }
+  } else {
+    None
+  }
+}
+
+fn run_create_window<T: UserEvent>(
+  windows: &WindowsStore,
+  window_id: WindowId,
+  event_loop: &EventLoopWindowTarget<Message<T>>,
+  handler: CreateWindowClosure<T>,
+) -> Result<()> {
+  match handler(event_loop) {
+    Ok(webview) => {
+      windows.0.borrow_mut().insert(window_id, webview);
+      Ok(())
+    }
+    Err(e) => Err(e),
+  }
 }
 
 fn handle_user_message<T: UserEvent>(
@@ -4141,43 +4367,25 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWebview(window_id, handler, sender) => {
-      let window = windows.0.borrow().get(&window_id).map(|w| {
-        (
-          w.inner.clone(),
-          CreateWebviewOptions {
-            #[cfg(windows)]
-            focused_webview: w.focused_webview.clone(),
-          },
-        )
-      });
-      if let Some((Some(window), options)) = window {
-        match handler(&window, options) {
-          Ok(webview) => {
-            if let Some(w) = windows.0.borrow_mut().get_mut(&window_id) {
-              w.webviews.push(webview);
-              w.has_children.store(true, Ordering::Relaxed);
-            }
-            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-            sender.send(Ok(())).unwrap();
-          }
-          Err(e) => {
-            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-            sender.send(Err(e)).unwrap();
-          }
-        }
+      if let Some(res) = run_create_webview(windows, window_id, handler) {
+        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+        sender.send(res).unwrap();
       }
     }
-    Message::CreateWindow(window_id, handler, sender) => match handler(event_loop) {
-      Ok(webview) => {
-        windows.0.borrow_mut().insert(window_id, webview);
-        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Ok(())).unwrap();
-      }
-      Err(e) => {
-        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Err(e)).unwrap();
-      }
-    },
+    Message::CreateWebviewAsync(window_id, handler, callback) => {
+      let res =
+        run_create_webview(windows, window_id, handler).unwrap_or(Err(Error::WindowNotFound));
+      callback(res);
+    }
+    Message::CreateWindow(window_id, handler, sender) => {
+      let res = run_create_window(windows, window_id, event_loop, handler);
+      // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+      sender.send(res).unwrap();
+    }
+    Message::CreateWindowAsync(window_id, handler, callback) => {
+      let res = run_create_window(windows, window_id, event_loop, handler);
+      callback(res);
+    }
     Message::CreateRawWindow(window_id, handler, sender) => {
       let (label, builder) = handler();
 
@@ -4360,6 +4568,7 @@ fn handle_event_loop<T: UserEvent>(
 
         drop(windows_ref);
 
+        let _guard = ReentrantCallbackGuard::enter();
         callback(RunEvent::WebviewEvent { label, event });
       }
     }
@@ -4377,6 +4586,7 @@ fn handle_event_loop<T: UserEvent>(
 
           drop(windows_ref);
 
+          let _guard = ReentrantCallbackGuard::enter();
           callback(RunEvent::WindowEvent { label, event });
         }
       }
@@ -4395,6 +4605,7 @@ fn handle_event_loop<T: UserEvent>(
 
             drop(windows_ref);
 
+            let _guard = ReentrantCallbackGuard::enter();
             callback(RunEvent::WindowEvent { label, event });
           }
         }
@@ -4525,10 +4736,12 @@ fn on_close_requested<'a, T: UserEvent>(
 
     drop(windows_ref);
 
+    let _guard = ReentrantCallbackGuard::enter();
     callback(RunEvent::WindowEvent {
       label,
       event: WindowEvent::CloseRequested { signal_tx: tx },
     });
+    drop(_guard);
     if let Ok(true) = rx.try_recv() {
     } else {
       on_window_close(window_id, windows);
@@ -5004,6 +5217,7 @@ You may have it installed on another user account, but it is not available for t
 
   if let Some(navigation_handler) = navigation_handler {
     webview_builder = webview_builder.with_navigation_handler(move |url| {
+      let _guard = ReentrantCallbackGuard::enter();
       url
         .parse()
         .map(|url| navigation_handler(&url))
@@ -5080,6 +5294,7 @@ You may have it installed on another user account, but it is not available for t
 
   if let Some(permission_request_handler) = pending.permission_request_handler {
     webview_builder = webview_builder.with_permission_handler(move |kind| {
+      let _guard = ReentrantCallbackGuard::enter();
       let kind = webview_permissions::from_wry_permission_kind(kind);
       let response = permission_request_handler(kind);
       webview_permissions::to_wry_permission_response(response)
@@ -5129,6 +5344,7 @@ You may have it installed on another user account, but it is not available for t
   if let Some(download_handler) = pending.download_handler {
     let download_handler_ = download_handler.clone();
     webview_builder = webview_builder.with_download_started_handler(move |url, path| {
+      let _guard = ReentrantCallbackGuard::enter();
       if let Ok(url) = url.parse() {
         download_handler_(DownloadEvent::Requested {
           url,
@@ -5139,6 +5355,7 @@ You may have it installed on another user account, but it is not available for t
       }
     });
     webview_builder = webview_builder.with_download_completed_handler(move |url, path, success| {
+      let _guard = ReentrantCallbackGuard::enter();
       if let Ok(url) = url.parse() {
         download_handler(DownloadEvent::Finished { url, path, success });
       }
@@ -5147,6 +5364,7 @@ You may have it installed on another user account, but it is not available for t
 
   if let Some(page_load_handler) = pending.on_page_load_handler {
     webview_builder = webview_builder.with_on_page_load_handler(move |event, url| {
+      let _guard = ReentrantCallbackGuard::enter();
       if let Ok(url) = url.parse() {
         page_load_handler(
           url,
@@ -5489,6 +5707,7 @@ fn create_ipc_handler<T: UserEvent>(
   ipc_handler: Option<WebviewIpcHandler<T, WryRuntime<T>>>,
 ) -> Box<IpcHandler> {
   Box::new(move |request| {
+    let _guard = ReentrantCallbackGuard::enter();
     if let Some(handler) = &ipc_handler {
       handler(
         DetachedWebview {

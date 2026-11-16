@@ -346,17 +346,44 @@ tauri::Builder::default()
     Ok((window, webview))
   }
 
+  /// Creates this window with a webview asynchronously without blocking the calling thread.
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(name = "webview::create_async", skip_all)
+  )]
+  pub(crate) async fn with_webview_async(
+    self,
+    webview: WebviewBuilder<R>,
+  ) -> crate::Result<(Window<R>, Webview<R>)> {
+    let pending_webview = webview.into_pending_webview(self.manager, &self.label)?;
+    let window = self.build_internal_async(Some(pending_webview)).await?;
+
+    let webview = window.webviews().first().unwrap().clone();
+
+    Ok((window, webview))
+  }
+
   /// Creates a new window.
   pub fn build(self) -> crate::Result<Window<R>> {
     self.build_internal(None)
   }
 
-  /// Creates a new window with an optional webview.
-  fn build_internal(
+  /// Creates a new window asynchronously without blocking the calling thread or
+  /// deadlocking if invoked from a main-thread IPC or event callback.
+  pub async fn build_async(self) -> crate::Result<Window<R>> {
+    self.build_internal_async(None).await
+  }
+
+  #[allow(clippy::type_complexity)]
+  fn prepare_build(
     // mutable on mobile
     #[allow(unused_mut)] mut self,
     webview: Option<PendingWebview<EventLoopMessage, R>>,
-  ) -> crate::Result<Window<R>> {
+  ) -> crate::Result<(
+    PendingWindow<EventLoopMessage, R>,
+    Option<WindowCreationHandler>,
+    PreparedBuildFinish<R>,
+  )> {
     #[cfg(desktop)]
     let theme = self.window_builder.get_theme();
 
@@ -383,7 +410,8 @@ tauri::Builder::default()
       pending.set_webview(webview);
     }
 
-    let app_manager = self.manager.manager();
+    let app_handle = self.manager.app_handle().clone();
+    let app_manager = self.manager.manager_owned();
 
     let pending = app_manager.window.prepare_window(pending)?;
 
@@ -392,54 +420,65 @@ tauri::Builder::default()
       let is_app_wide = self.menu.is_none();
       self
         .menu
-        .or_else(|| self.manager.app_handle().menu())
+        .or_else(|| app_handle.menu())
         .map(|menu| WindowMenu { is_app_wide, menu })
     };
 
     #[cfg(desktop)]
     let handler = app_manager
       .menu
-      .prepare_window_menu_creation_handler(window_menu.as_ref(), theme);
+      .prepare_window_menu_creation_handler(window_menu.as_ref(), theme)
+      .map(|f| Box::new(f) as WindowCreationHandler);
     #[cfg(not(desktop))]
-    #[allow(clippy::type_complexity)]
-    let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
+    let handler: Option<WindowCreationHandler> = None;
 
-    let window = match &mut self.manager.runtime() {
-      RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending, handler),
-      RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending, handler),
-      RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
-    }
-    .map(|detached_window| {
-      let window = app_manager.window.attach_window(
-        self.manager.app_handle().clone(),
-        detached_window.clone(),
+    Ok((
+      pending,
+      handler,
+      PreparedBuildFinish {
+        app_handle,
+        app_manager,
         #[cfg(desktop)]
         window_menu,
+        #[cfg(desktop)]
+        on_menu_event: self.on_menu_event,
+        window_effects: self.window_effects,
+      },
+    ))
+  }
+
+  fn finish_build(
+    prepared: PreparedBuildFinish<R>,
+    detached_window: DetachedWindow<EventLoopMessage, R>,
+  ) -> Window<R> {
+    let window = prepared.app_manager.window.attach_window(
+      prepared.app_handle,
+      detached_window.clone(),
+      #[cfg(desktop)]
+      prepared.window_menu,
+    );
+
+    if let Some(webview) = detached_window.webview {
+      prepared.app_manager.webview.attach_webview(
+        window.clone(),
+        webview.webview,
+        webview.use_https_scheme,
+        webview.devtools,
       );
-
-      if let Some(webview) = detached_window.webview {
-        app_manager.webview.attach_webview(
-          window.clone(),
-          webview.webview,
-          webview.use_https_scheme,
-          webview.devtools,
-        );
-      }
-
-      window
-    })?;
+    }
 
     #[cfg(desktop)]
-    if let Some(handler) = self.on_menu_event {
+    if let Some(handler) = prepared.on_menu_event {
       window.on_menu_event(handler);
     }
 
-    let app_manager = self.manager.manager_owned();
+    let app_manager = prepared.app_manager;
     let window_label = window.label().to_string();
     let window_ = window.clone();
+    let window_effects = prepared.window_effects;
     // run on the main thread to fix a deadlock on webview.eval if the tracing feature is enabled
     let _ = window.run_on_main_thread(move || {
-      if let Some(effects) = self.window_effects {
+      if let Some(effects) = window_effects {
         _ = crate::vibrancy::set_window_effects(&window_, Some(effects));
       }
       let event = crate::EventName::from_str("tauri://window-created");
@@ -449,8 +488,73 @@ tauri::Builder::default()
       let _ = app_manager.emit(event, EmitPayload::Serialize(&payload));
     });
 
-    Ok(window)
+    window
   }
+
+  /// Creates a new window with an optional webview.
+  fn build_internal(
+    self,
+    webview: Option<PendingWebview<EventLoopMessage, R>>,
+  ) -> crate::Result<Window<R>> {
+    let manager = self.manager;
+    let (pending, handler, finish) = self.prepare_build(webview)?;
+
+    let detached_window = match &mut manager.runtime() {
+      RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending, handler),
+      RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending, handler),
+      RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending, handler),
+    }?;
+
+    Ok(Self::finish_build(finish, detached_window))
+  }
+
+  /// Creates a new window asynchronously with an optional webview.
+  async fn build_internal_async(
+    self,
+    webview: Option<PendingWebview<EventLoopMessage, R>>,
+  ) -> crate::Result<Window<R>> {
+    let manager = self.manager;
+    let (pending, handler, finish) = self.prepare_build(webview)?;
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    match &mut manager.runtime() {
+      RuntimeOrDispatch::Runtime(runtime) => {
+        runtime
+          .handle()
+          .create_window_async(pending, handler, move |res| {
+            let _ = tx.send(res);
+          });
+      }
+      RuntimeOrDispatch::RuntimeHandle(handle) => {
+        handle.create_window_async(pending, handler, move |res| {
+          let _ = tx.send(res);
+        });
+      }
+      RuntimeOrDispatch::Dispatch(dispatcher) => {
+        dispatcher.create_window_async(pending, handler, move |res| {
+          let _ = tx.send(res);
+        });
+      }
+    }
+
+    let detached_window = rx
+      .await
+      .map_err(|_| crate::Error::Runtime(tauri_runtime::Error::FailedToReceiveMessage))??;
+
+    Ok(Self::finish_build(finish, detached_window))
+  }
+}
+
+type WindowCreationHandler = Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>;
+
+struct PreparedBuildFinish<R: Runtime> {
+  app_handle: AppHandle<R>,
+  app_manager: Arc<AppManager<R>>,
+  #[cfg(desktop)]
+  window_menu: Option<WindowMenu<R>>,
+  #[cfg(desktop)]
+  on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
+  window_effects: Option<WindowEffectsConfig>,
 }
 
 /// Desktop APIs
@@ -1250,6 +1354,17 @@ impl<R: Runtime> Window<R> {
       tx.send(res).unwrap();
     })?;
     rx.recv().unwrap()
+  }
+
+  /// Asynchronous counterpart of [`Self::add_child`] that queues child webview creation
+  /// on the event loop without blocking the calling thread or deadlocking re-entrantly.
+  #[cfg(any(test, all(desktop, feature = "unstable")))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
+  pub async fn add_child_async(
+    &self,
+    webview_builder: WebviewBuilder<R>,
+  ) -> crate::Result<Webview<R>> {
+    webview_builder.build_async(self.clone()).await
   }
 
   /// List of webviews associated with this window.
@@ -2646,5 +2761,184 @@ mod tests {
   fn window_is_send_sync() {
     crate::test_utils::assert_send::<super::Window>();
     crate::test_utils::assert_sync::<super::Window>();
+  }
+
+  #[test]
+  fn reentrant_sync_window_creation_returns_error_and_async_succeeds() {
+    let app = crate::test::mock_app();
+    let handle = app.handle().clone();
+
+    let parent = super::WindowBuilder::new(&app, "parent").build().unwrap();
+
+    // While inside a main-thread IPC/event callback guard, sync creation must fail immediately
+    // with `ReentrantWindowCreation` instead of deadlocking.
+    let _guard = crate::test::MockReentrantCallbackGuard::enter();
+
+    let sync_win_err = super::WindowBuilder::new(&handle, "sync-reentrant")
+      .build()
+      .unwrap_err();
+    assert!(matches!(
+      sync_win_err,
+      crate::Error::Runtime(tauri_runtime::Error::ReentrantWindowCreation)
+    ));
+
+    let sync_wv_win_err =
+      crate::WebviewWindowBuilder::new(&handle, "sync-wv-reentrant", crate::WebviewUrl::default())
+        .build()
+        .unwrap_err();
+    assert!(matches!(
+      sync_wv_win_err,
+      crate::Error::Runtime(tauri_runtime::Error::ReentrantWindowCreation)
+    ));
+
+    let sync_child_err = parent
+      .add_child(
+        crate::webview::WebviewBuilder::new("sync-child-reentrant", crate::WebviewUrl::default())
+          .position(crate::LogicalPosition::new(0.0, 0.0))
+          .size(crate::LogicalSize::new(100.0, 100.0)),
+      )
+      .unwrap_err();
+    assert!(matches!(
+      sync_child_err,
+      crate::Error::Runtime(tauri_runtime::Error::ReentrantWindowCreation)
+    ));
+
+    drop(_guard);
+
+    // Non-blocking async creation succeeds even when invoked from an async task.
+    let async_win = crate::async_runtime::block_on(async {
+      super::WindowBuilder::new(&handle, "async-win")
+        .build_async()
+        .await
+        .unwrap()
+    });
+    assert_eq!(async_win.label(), "async-win");
+
+    let async_wv_win = crate::async_runtime::block_on(async {
+      crate::WebviewWindowBuilder::new(&handle, "async-wv-win", crate::WebviewUrl::default())
+        .build_async()
+        .await
+        .unwrap()
+    });
+    assert_eq!(async_wv_win.label(), "async-wv-win");
+
+    let async_child = crate::async_runtime::block_on(async {
+      parent
+        .add_child_async(
+          crate::webview::WebviewBuilder::new("async-child", crate::WebviewUrl::default())
+            .position(crate::LogicalPosition::new(0.0, 0.0))
+            .size(crate::LogicalSize::new(100.0, 100.0)),
+        )
+        .await
+        .unwrap()
+    });
+    assert_eq!(async_child.label(), "async-child");
+  }
+
+  #[test]
+  fn async_window_creation_via_running_event_loop() {
+    let app = crate::test::mock_app();
+    let handle = app.handle().clone();
+    let parent = super::WindowBuilder::new(&app, "loop-parent")
+      .build()
+      .unwrap();
+
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    crate::async_runtime::spawn(async move {
+      let win = super::WindowBuilder::new(&handle, "loop-win")
+        .build_async()
+        .await
+        .unwrap();
+      assert_eq!(win.label(), "loop-win");
+
+      let wv_win =
+        crate::WebviewWindowBuilder::new(&handle, "loop-wv-win", crate::WebviewUrl::default())
+          .build_async()
+          .await
+          .unwrap();
+      assert_eq!(wv_win.label(), "loop-wv-win");
+
+      let child = parent
+        .add_child_async(
+          crate::webview::WebviewBuilder::new("loop-child", crate::WebviewUrl::default())
+            .position(crate::LogicalPosition::new(0.0, 0.0))
+            .size(crate::LogicalSize::new(50.0, 50.0)),
+        )
+        .await
+        .unwrap();
+      assert_eq!(child.label(), "loop-child");
+
+      let _ = done_tx.send(());
+      let _ = child.close();
+      let _ = wv_win.close();
+      let _ = win.close();
+      let _ = parent.close();
+    });
+
+    app.run(|_, _| {});
+    done_rx
+      .recv_timeout(std::time::Duration::from_secs(10))
+      .expect("async window creation task did not finish on event loop");
+  }
+
+  #[test]
+  fn dyn_runtime_reentrant_and_async_window_creation() {
+    let app = crate::Builder::<crate::DynRuntime>::new()
+      .enable_macos_default_menu(false)
+      .runtime(crate::test::MockRuntimeInitAttrs {})
+      .build(crate::test::mock_context(crate::test::noop_assets()))
+      .unwrap();
+    let handle = app.handle().clone();
+    let parent = super::WindowBuilder::new(&app, "dyn-parent")
+      .build()
+      .unwrap();
+
+    // Verify re-entrant sync rejection passes through DynRuntime as well.
+    let _guard = crate::test::MockReentrantCallbackGuard::enter();
+    let err = super::WindowBuilder::new(&handle, "dyn-sync-err")
+      .build()
+      .unwrap_err();
+    assert!(matches!(
+      err,
+      crate::Error::Runtime(tauri_runtime::Error::ReentrantWindowCreation)
+    ));
+    drop(_guard);
+
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    crate::async_runtime::spawn(async move {
+      let win = super::WindowBuilder::new(&handle, "dyn-win")
+        .build_async()
+        .await
+        .unwrap();
+      assert_eq!(win.label(), "dyn-win");
+
+      let wv_win =
+        crate::WebviewWindowBuilder::new(&handle, "dyn-wv-win", crate::WebviewUrl::default())
+          .build_async()
+          .await
+          .unwrap();
+      assert_eq!(wv_win.label(), "dyn-wv-win");
+
+      let child = parent
+        .add_child_async(
+          crate::webview::WebviewBuilder::new("dyn-child", crate::WebviewUrl::default())
+            .position(crate::LogicalPosition::new(0.0, 0.0))
+            .size(crate::LogicalSize::new(50.0, 50.0)),
+        )
+        .await
+        .unwrap();
+      assert_eq!(child.label(), "dyn-child");
+
+      let _ = done_tx.send(());
+      let _ = child.close();
+      let _ = wv_win.close();
+      let _ = win.close();
+      let _ = parent.close();
+    });
+
+    app.run(|_, _| {});
+    done_rx
+      .recv_timeout(std::time::Duration::from_secs(10))
+      .expect("async DynRuntime window creation task did not finish on event loop");
   }
 }

@@ -199,6 +199,11 @@ pub enum Error {
   /// Failed to determine the webview version.
   #[error("failed to get the webview version: {0}")]
   WebviewVersion(Box<dyn std::error::Error + Send + Sync>),
+  /// Attempted to synchronously create a window or webview re-entrantly from the main thread inside an IPC or event callback.
+  #[error(
+    "cannot synchronously create a window or webview re-entrantly from the main thread during an IPC or event callback; use `build_async` or an async command instead"
+  )]
+  ReentrantWindowCreation,
 }
 
 /// Result type.
@@ -343,6 +348,29 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
     window_id: WindowId,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>>;
+
+  /// Asynchronously create a new window without blocking the caller or running re-entrantly inside a main-thread callback.
+  fn create_window_async<
+    F: Fn(RawWindow) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, Self::Runtime>>) + Send + 'static,
+  >(
+    &self,
+    pending: PendingWindow<T, Self::Runtime>,
+    after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    callback(self.create_window(pending, after_window_creation));
+  }
+
+  /// Asynchronously create a new webview without blocking the caller or running re-entrantly inside a main-thread callback.
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, Self::Runtime>>) + Send + 'static>(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self::Runtime>,
+    callback: C,
+  ) {
+    callback(self.create_webview(window_id, pending));
+  }
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
@@ -991,6 +1019,28 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
     &mut self,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>>;
+
+  /// Asynchronously create a new window without blocking the caller or running re-entrantly inside a main-thread callback.
+  fn create_window_async<
+    F: Fn(RawWindow) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, Self::Runtime>>) + Send + 'static,
+  >(
+    &mut self,
+    pending: PendingWindow<T, Self::Runtime>,
+    after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    callback(self.create_window(pending, after_window_creation));
+  }
+
+  /// Asynchronously create a new webview without blocking the caller or running re-entrantly inside a main-thread callback.
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, Self::Runtime>>) + Send + 'static>(
+    &mut self,
+    pending: PendingWebview<T, Self::Runtime>,
+    callback: C,
+  ) {
+    callback(self.create_webview(pending));
+  }
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> Result<()>;

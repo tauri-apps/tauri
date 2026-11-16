@@ -861,6 +861,11 @@ impl<T: UserEvent> EventLoopProxy<T> for DynEventLoopProxy<T> {
 // Runtime handle
 // ---------------------------------------------------------------------------
 
+type CreateWindowCallback<T> =
+  Box<dyn FnOnce(Result<DetachedWindow<T, DynRuntime<T>>>) + Send + 'static>;
+type CreateWebviewCallback<T> =
+  Box<dyn FnOnce(Result<DetachedWebview<T, DynRuntime<T>>>) + Send + 'static>;
+
 trait ErasedRuntimeHandle<T: UserEvent>: fmt::Debug + Send + Sync + Any {
   fn create_proxy(&self) -> DynEventLoopProxy<T>;
   #[cfg(target_os = "macos")]
@@ -878,6 +883,18 @@ trait ErasedRuntimeHandle<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     window_id: WindowId,
     pending: PendingWebview<T, DynRuntime<T>>,
   ) -> Result<DetachedWebview<T, DynRuntime<T>>>;
+  fn create_window_async(
+    &self,
+    pending: PendingWindow<T, DynRuntime<T>>,
+    after_window_creation: Option<AfterWindowCreation>,
+    callback: CreateWindowCallback<T>,
+  );
+  fn create_webview_async(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, DynRuntime<T>>,
+    callback: CreateWebviewCallback<T>,
+  );
   fn run_on_main_thread(&self, f: MainThreadTask) -> Result<()>;
   fn display_handle(&self) -> std::result::Result<DisplayHandle<'_>, HandleError>;
   fn primary_monitor(&self) -> Result<Option<Monitor>>;
@@ -944,6 +961,38 @@ impl<T: UserEvent, H: RuntimeHandle<T>> ErasedRuntimeHandle<T> for H {
   ) -> Result<DetachedWebview<T, DynRuntime<T>>> {
     let pending = pending_webview_from_dyn::<T, H::Runtime>(pending)?;
     RuntimeHandle::create_webview(self, window_id, pending).map(detached_webview_into_dyn)
+  }
+
+  fn create_window_async(
+    &self,
+    pending: PendingWindow<T, DynRuntime<T>>,
+    after_window_creation: Option<AfterWindowCreation>,
+    callback: CreateWindowCallback<T>,
+  ) {
+    match pending_window_from_dyn::<T, H::Runtime>(pending) {
+      Ok(pending) => {
+        RuntimeHandle::create_window_async(self, pending, after_window_creation, move |res| {
+          callback(res.map(detached_window_into_dyn));
+        });
+      }
+      Err(err) => callback(Err(err)),
+    }
+  }
+
+  fn create_webview_async(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, DynRuntime<T>>,
+    callback: CreateWebviewCallback<T>,
+  ) {
+    match pending_webview_from_dyn::<T, H::Runtime>(pending) {
+      Ok(pending) => {
+        RuntimeHandle::create_webview_async(self, window_id, pending, move |res| {
+          callback(res.map(detached_webview_into_dyn));
+        });
+      }
+      Err(err) => callback(Err(err)),
+    }
   }
 
   fn run_on_main_thread(&self, f: MainThreadTask) -> Result<()> {
@@ -1103,6 +1152,33 @@ impl<T: UserEvent> RuntimeHandle<T> for DynRuntimeHandle<T> {
     self.inner.create_webview(window_id, pending)
   }
 
+  fn create_window_async<
+    F: Fn(RawWindow) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, Self::Runtime>>) + Send + 'static,
+  >(
+    &self,
+    pending: PendingWindow<T, Self::Runtime>,
+    after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    self.inner.create_window_async(
+      pending,
+      after_window_creation.map(|f| Box::new(f) as AfterWindowCreation),
+      Box::new(callback),
+    );
+  }
+
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, Self::Runtime>>) + Send + 'static>(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self::Runtime>,
+    callback: C,
+  ) {
+    self
+      .inner
+      .create_webview_async(window_id, pending, Box::new(callback));
+  }
+
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.inner.run_on_main_thread(Box::new(f))
   }
@@ -1251,6 +1327,17 @@ trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     &mut self,
     pending: PendingWebview<T, DynRuntime<T>>,
   ) -> Result<DetachedWebview<T, DynRuntime<T>>>;
+  fn create_window_async(
+    &mut self,
+    pending: PendingWindow<T, DynRuntime<T>>,
+    after_window_creation: Option<AfterWindowCreation>,
+    callback: CreateWindowCallback<T>,
+  );
+  fn create_webview_async(
+    &mut self,
+    pending: PendingWebview<T, DynRuntime<T>>,
+    callback: CreateWebviewCallback<T>,
+  );
   fn set_resizable(&self, resizable: bool) -> Result<()>;
   fn set_enabled(&self, enabled: bool) -> Result<()>;
   fn set_maximizable(&self, maximizable: bool) -> Result<()>;
@@ -1463,6 +1550,37 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
   ) -> Result<DetachedWebview<T, DynRuntime<T>>> {
     let pending = pending_webview_from_dyn::<T, D::Runtime>(pending)?;
     WindowDispatch::create_webview(self, pending).map(detached_webview_into_dyn)
+  }
+
+  fn create_window_async(
+    &mut self,
+    pending: PendingWindow<T, DynRuntime<T>>,
+    after_window_creation: Option<AfterWindowCreation>,
+    callback: CreateWindowCallback<T>,
+  ) {
+    match pending_window_from_dyn::<T, D::Runtime>(pending) {
+      Ok(pending) => {
+        WindowDispatch::create_window_async(self, pending, after_window_creation, move |res| {
+          callback(res.map(detached_window_into_dyn));
+        });
+      }
+      Err(err) => callback(Err(err)),
+    }
+  }
+
+  fn create_webview_async(
+    &mut self,
+    pending: PendingWebview<T, DynRuntime<T>>,
+    callback: CreateWebviewCallback<T>,
+  ) {
+    match pending_webview_from_dyn::<T, D::Runtime>(pending) {
+      Ok(pending) => {
+        WindowDispatch::create_webview_async(self, pending, move |res| {
+          callback(res.map(detached_webview_into_dyn));
+        });
+      }
+      Err(err) => callback(Err(err)),
+    }
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1852,6 +1970,30 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
     self.inner.create_webview(pending)
+  }
+
+  fn create_window_async<
+    F: Fn(RawWindow) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, Self::Runtime>>) + Send + 'static,
+  >(
+    &mut self,
+    pending: PendingWindow<T, Self::Runtime>,
+    after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    self.inner.create_window_async(
+      pending,
+      after_window_creation.map(|f| Box::new(f) as AfterWindowCreation),
+      Box::new(callback),
+    );
+  }
+
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, Self::Runtime>>) + Send + 'static>(
+    &mut self,
+    pending: PendingWebview<T, Self::Runtime>,
+    callback: C,
+  ) {
+    self.inner.create_webview_async(pending, Box::new(callback));
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {

@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.10.3]
+
+### Bug Fixes
+
+- [`219a60724`](https://www.github.com/tauri-apps/tauri/commit/219a607245c79df4c859bf50997bcdcbdbe25ea8) ([#16444](https://www.github.com/tauri-apps/tauri/pull/16444) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Fix parsing a hex `Color` string panicking when it contains non-ASCII characters, for example `#€€`; it now returns an error. Surrounding whitespace is also trimmed when the string has no leading `#`.
+- [`c51f047e9`](https://www.github.com/tauri-apps/tauri/commit/c51f047e919e2659c822ccd0320919907b0e0c6c) ([#16447](https://www.github.com/tauri-apps/tauri/pull/16447) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Match file extensions case-insensitively when guessing a MIME type, so files such as `app.JS` or `Logo.SVG` no longer get the fallback type (`text/html` for the `tauri://` and `asset://` protocols).
+- [`a1ea1b5e5`](https://www.github.com/tauri-apps/tauri/commit/a1ea1b5e5ad4b75759fa773b7b78db288128b4af) ([#16453](https://www.github.com/tauri-apps/tauri/pull/16453) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Keep the drive letter or UNC share of absolute `bundle > resources` and `bundle > externalBin` paths on Windows. Before, a resource on another drive than the current directory, for example `D:/assets/*` in a project on `C:`, failed with a "resource path doesn't exist" error.
+
+### Performance Improvements
+
+- [`0e5809589`](https://www.github.com/tauri-apps/tauri/commit/0e5809589026982976e49718c9a34c68680df0c3) ([#16402](https://www.github.com/tauri-apps/tauri/pull/16402) by [@johncarmack1984](https://www.github.com/tauri-apps/tauri/../../johncarmack1984)) Mark `config::parse::parse_json` and `parse_json5` `#[inline]` so crates that don't call them no longer generate code for the `Config` deserializer.
+
 ## [2.10.2]
 
 ### Bug Fixes

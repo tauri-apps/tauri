@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.12.3]
+
+### Bug Fixes
+
+- [`ac1a94d5b`](https://www.github.com/tauri-apps/tauri/commit/ac1a94d5b4a35c28175e139e3f399a20853eb1bd) ([#16464](https://www.github.com/tauri-apps/tauri/pull/16464) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Apply the `dataStoreIdentifier` window config option to the webview. It was ignored when a window was created from the config.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.3`
+
 ## [2.12.2]
 
 ### Dependencies

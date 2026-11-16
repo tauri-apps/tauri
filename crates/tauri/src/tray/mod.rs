@@ -63,8 +63,11 @@ impl From<tray_icon::MouseButton> for MouseButton {
 ///
 /// ## Platform-specific:
 ///
-/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown
+/// - **Linux**: Unsupported by default. The event is not emitted even though the icon is shown
 ///   and will still show a context menu on right click.
+///   With the `linux-ksni` feature, [`TrayIconEvent::Click`] is emitted for left and middle clicks
+///   (only with [`MouseButtonState::Up`]). Right click shows the context menu and is not reported.
+///   All other events are unsupported.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
 #[non_exhaustive]
@@ -261,7 +264,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Linux:** Unsupported.
+  /// - **Linux:** Unsupported, unless the `linux-ksni` feature is enabled.
   pub fn tooltip<S: AsRef<str>>(mut self, s: S) -> Self {
     self.inner = self.inner.with_tooltip(s);
     self
@@ -286,6 +289,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+  /// This has no effect when the `linux-ksni` feature is enabled.
   pub fn temp_dir_path<P: AsRef<Path>>(mut self, s: P) -> Self {
     self.inner = self.inner.with_temp_dir_path(s);
     self
@@ -519,7 +523,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Linux:** Unsupported
+  /// - **Linux:** Unsupported, unless the `linux-ksni` feature is enabled.
   pub fn set_tooltip<S: AsRef<str>>(&self, tooltip: Option<S>) -> crate::Result<()> {
     let s = tooltip.map(|s| s.as_ref().to_string());
     run_item_main_thread!(self, |self_: Self| self_.inner.set_tooltip(s))?.map_err(Into::into)
@@ -549,6 +553,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+  /// This has no effect when the `linux-ksni` feature is enabled.
   pub fn set_temp_dir_path<P: AsRef<Path>>(&self, path: Option<P>) -> crate::Result<()> {
     #[allow(unused)]
     let p = path.map(|p| p.as_ref().to_path_buf());

@@ -124,8 +124,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
         let out_path = nsis_toolset_path.join(path);
         std::fs::create_dir_all(out_path.parent().context("output path has no parent")?)
           .fs_context("failed to create file output directory", out_path.clone())?;
-        fs::write(&out_path, data)
-          .fs_context("failed to save NSIS downloaded file", out_path.clone())?;
+        fs::write(&out_path, data).fs_context("failed to save NSIS downloaded file", out_path)?;
       }
     }
   }

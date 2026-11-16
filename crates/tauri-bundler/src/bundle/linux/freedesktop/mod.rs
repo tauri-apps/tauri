@@ -131,7 +131,7 @@ pub fn generate_desktop_file(
     icon: &'a str,
     name: &'a str,
     mime_type: Option<String>,
-    exec_arg: Option<&'a str>,
+    exec_arg: &'a str,
     long_description: String,
   }
 
@@ -157,15 +157,16 @@ pub fn generate_desktop_file(
   // without a local path (deep links) and starts one process per file.
   // `%U` passes local files as paths and URLs as-is, all in one process;
   // `%F` also maps remote files to local paths for file-only apps.
+  // The leading space lets templates append it as `Exec={{exec}}{{exec_arg}}`.
   let has_file_associations = settings
     .file_associations()
     .is_some_and(|associations| !associations.is_empty());
   let exec_arg = if !schemes.is_empty() {
-    Some("%U")
+    " %U"
   } else if has_file_associations {
-    Some("%F")
+    " %F"
   } else {
-    None
+    ""
   };
 
   mime_type.extend(schemes);

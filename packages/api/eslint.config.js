@@ -29,7 +29,7 @@ export default [
       }
     },
     plugins: {
-      n,
+      n
     },
     rules: {
       'no-console': 'error',
@@ -60,7 +60,7 @@ export default [
           caughtErrorsIgnorePattern: '^_'
         }
       ],
-      "n/file-extension-in-import": ["error", "always"],
+      'n/file-extension-in-import': ['error', 'always']
     }
   }
 ]

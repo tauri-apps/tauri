@@ -12,7 +12,11 @@ import { CheckMenuItem } from './checkMenuItem.js'
 import { IconMenuItem } from './iconMenuItem.js'
 import { PredefinedMenuItem } from './predefinedMenuItem.js'
 import { invoke } from '../core.js'
-import { type LogicalPosition, PhysicalPosition, type Window } from '../window.js'
+import {
+  type LogicalPosition,
+  PhysicalPosition,
+  type Window
+} from '../window.js'
 import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base.js'
 import { type MenuOptions } from './menu.js'
 import { Position } from '../dpi.js'

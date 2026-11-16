@@ -3076,15 +3076,15 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-      name: m.name,
-      scaleFactor: m.scaleFactor,
-      position: new PhysicalPosition(m.position),
-      size: new PhysicalSize(m.size),
-      workArea: {
-        position: new PhysicalPosition(m.workArea.position),
-        size: new PhysicalSize(m.workArea.size)
+        name: m.name,
+        scaleFactor: m.scaleFactor,
+        position: new PhysicalPosition(m.position),
+        size: new PhysicalSize(m.size),
+        workArea: {
+          position: new PhysicalPosition(m.workArea.position),
+          size: new PhysicalSize(m.workArea.size)
+        }
       }
-    }
 }
 
 /**

@@ -79,7 +79,7 @@ async function getAllWebviewWindows(): Promise<WebviewWindow[]> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-interface WebviewWindow extends Webview, Window { }
+interface WebviewWindow extends Webview, Window {}
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 class WebviewWindow {
@@ -298,7 +298,7 @@ function applyMixins(
   baseClass: { prototype: unknown },
   extendedClasses: unknown
 ): void {
-  ; (Array.isArray(extendedClasses)
+  ;(Array.isArray(extendedClasses)
     ? extendedClasses
     : [extendedClasses]
   ).forEach((extendedClass: { prototype: unknown }) => {
@@ -314,7 +314,7 @@ function applyMixins(
         name,
         // eslint-disable-next-line
         Object.getOwnPropertyDescriptor(extendedClass.prototype, name)
-        ?? Object.create(null)
+          ?? Object.create(null)
       )
     })
   })

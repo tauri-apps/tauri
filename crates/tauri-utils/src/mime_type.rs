@@ -83,15 +83,32 @@ impl MimeType {
     Some(mime)
   }
 
+  /// text types that `infer` can't detect from content, so the extension is used as is.
+  fn is_text(&self) -> bool {
+    matches!(
+      self,
+      Self::Css
+        | Self::Csv
+        | Self::Html
+        | Self::Js
+        | Self::Json
+        | Self::Jsonld
+        | Self::Svg
+        | Self::Txt
+    )
+  }
+
   /// infer mimetype from content (or) URI if needed.
   pub fn parse(content: &[u8], uri: &str) -> String {
     Self::parse_with_fallback(content, uri, Self::Html)
   }
-  /// get the mimetype from the URI extension, or infer it from content for unknown extensions, with specified fallback.
+  /// get the mimetype from the URI extension for text types, otherwise infer it from content (or) URI with specified fallback.
   pub fn parse_with_fallback(content: &[u8], uri: &str, fallback: MimeType) -> String {
     let suffix = uri.split('.').next_back().map(str::to_ascii_lowercase);
     if let Some(mime) = suffix.as_deref().and_then(Self::from_known_extension) {
-      return mime.to_string();
+      if mime.is_text() {
+        return mime.to_string();
+      }
     }
 
     match infer::get(content).map(|info| info.mime_type()) {
@@ -178,7 +195,7 @@ mod tests {
   }
 
   #[test]
-  fn should_prefer_extension_over_content() {
+  fn should_prefer_extension_over_content_for_text_types() {
     let js = b"var e=1;function t(h){if(h.slice(0,5)===`%PDF-`)return`application/pdf`}export{t};";
     assert_eq!(MimeType::parse(js, "/assets/x.js"), "text/javascript");
     assert_eq!(MimeType::parse(js, "/assets/x.mjs"), "text/javascript");
@@ -190,7 +207,11 @@ mod tests {
       MimeType::parse(b"%PDF-1.7", "/assets/readme.txt"),
       "text/plain"
     );
-    // unknown extensions still use the content
+    // other types still use the content
+    assert_eq!(
+      MimeType::parse(b"%PDF-1.7", "/video.mp4"),
+      "application/pdf"
+    );
     assert_eq!(MimeType::parse(b"%PDF-1.7", "/doc.pdf"), "application/pdf");
     assert_eq!(
       MimeType::parse(b"\0asm\x01\0\0\0", "/app.wasm"),

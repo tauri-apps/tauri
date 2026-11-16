@@ -502,6 +502,16 @@ tauri::Builder::default()
     let (window, webview) = self.window_builder.with_webview(self.webview_builder)?;
     Ok(WebviewWindow { window, webview })
   }
+
+  /// Creates a new window asynchronously without blocking the calling thread or
+  /// deadlocking if invoked from a main-thread IPC or event callback.
+  pub async fn build_async(self) -> crate::Result<WebviewWindow<R>> {
+    let (window, webview) = self
+      .window_builder
+      .with_webview_async(self.webview_builder)
+      .await?;
+    Ok(WebviewWindow { window, webview })
+  }
 }
 
 /// Desktop APIs.

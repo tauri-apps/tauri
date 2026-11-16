@@ -2,6 +2,7 @@ LangString addOrReinstall ${LANG_FARSI} "اضافه کردن/نصب مجدد ک�
 LangString alreadyInstalled ${LANG_FARSI} "قبلا نصب شده است"
 LangString alreadyInstalledLong ${LANG_FARSI} "${PRODUCTNAME} ${VERSION} قبلا نصب شده است. عملیات مدنظر را انتخاب کنید و بروی بعدی کلیک کنید."
 LangString appRunning ${LANG_FARSI} "{{product_name}} در حال اجر می باشد ! لطفا اول الان را ببندید و دوباره تلاش کنید"
+LangString noPermissionToCloseApp ${LANG_FARSI} "دسترسی کافی برای بستن {{product_name}} وجود ندارد، لطفا آن را ببندید و دوباره تلاش کنید"
 LangString appRunningOkKill ${LANG_FARSI} "{{product_name}} در حال اجرا می باشد!$\nبرای از بین بردن اوکی را انتخاب کنید"
 LangString chooseMaintenanceOption ${LANG_FARSI} "عملیات نگهداری مدنظر را برای اجرا انتخاب کنید"
 LangString chooseHowToInstall ${LANG_FARSI} "نحوه نصب ${PRODUCTNAME} را انتخاب کنید"

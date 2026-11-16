@@ -85,7 +85,10 @@ async fn handler(uri: Uri, headers: HeaderMap, state: State<ServerState>) -> imp
   }
 
   // Frontend files should not contain query parameters. This seems to be how Vite handles it.
-  let uri = uri.path();
+  // The path is percent-encoded, decode it like the `tauri://` protocol does so files with spaces
+  // or non-ASCII characters in their names are found.
+  let path = percent_encoding::percent_decode_str(uri.path()).decode_utf8_lossy();
+  let uri = path.as_ref();
 
   let uri = if uri == "/" {
     uri
@@ -367,5 +370,44 @@ mod tests {
       b"inner"
     );
     assert!(fs_read_scoped(inner.join("../secret.txt"), &inner).is_err());
+  }
+
+  #[tokio::test]
+  async fn serves_percent_encoded_paths() {
+    let temp = tempfile::tempdir().unwrap();
+    let temp = dunce::canonicalize(temp.path()).unwrap();
+    let dir = temp.join("dist");
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::write(dir.join("index.html"), "<html></html>").unwrap();
+    std::fs::write(dir.join("my font.woff2"), "font").unwrap();
+    std::fs::write(dir.join("页面.css"), "css").unwrap();
+    std::fs::write(temp.join("secret.txt"), "secret").unwrap();
+
+    let state = ServerState {
+      dir,
+      address: "127.0.0.1:1430".parse().unwrap(),
+      tx: channel(1).0,
+    };
+    let get = |path: &str| {
+      let mut headers = HeaderMap::new();
+      headers.insert(header::HOST, HeaderValue::from_static("127.0.0.1:1430"));
+      let response = handler(path.parse().unwrap(), headers, State(state.clone()));
+      async move {
+        let response = response.await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        axum::body::to_bytes(response.into_body(), usize::MAX)
+          .await
+          .unwrap()
+      }
+    };
+
+    assert_eq!(get("/my%20font.woff2").await, "font");
+    assert_eq!(get("/%E9%A1%B5%E9%9D%A2.css").await, "css");
+    // decoded paths are still scoped to the served directory
+    assert_ne!(get("/%2E%2E/secret.txt").await, "secret");
+    assert_ne!(get("/..%2Fsecret.txt").await, "secret");
+    let secret = temp.join("secret.txt").display().to_string();
+    let secret = percent_encoding::utf8_percent_encode(&secret, percent_encoding::NON_ALPHANUMERIC);
+    assert_ne!(get(&format!("/{secret}")).await, "secret");
   }
 }

@@ -36,11 +36,6 @@ targets = [
   "x86_64-apple-ios",
 ]
 
-[package.metadata.cargo-udeps.ignore]
-normal = ["reqwest"]
-build = ["tauri-build"]
-development = ["quickcheck_macros"]
-
 [dependencies]
 serde_json = { version = "1", features = ["raw_value"] }
 serde = { version = "1", features = ["derive", "rc"] }
@@ -72,7 +67,6 @@ serialize-to-javascript = "0.1.2"
 image = { version = "0.25", default-features = false, optional = true }
 http-range = { version = "0.1", optional = true }
 tracing = { version = "0.1", optional = true }
-heck = "0.5"
 log = "0.4.21"
 dunce = "1"
 specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [
@@ -143,6 +137,7 @@ windows = { version = "0.62", features = [
 
 # mobile
 [target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
+heck = "0.5"
 bytes = { version = "1", features = ["serde"] }
 reqwest = { version = "0.13", default-features = false, features = [
   "json",
@@ -169,8 +164,11 @@ objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
 [build-dependencies]
 glob = "0.3"
 heck = "0.5"
-tauri-build = { workspace = true }
 tauri-utils = { workspace = true, features = ["build-2"] }
+
+# never built, only here so apps resolve a tauri-build version compatible with this tauri
+[target.'cfg(false)'.build-dependencies]
+tauri-build = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.6.0"

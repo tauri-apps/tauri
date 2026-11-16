@@ -41,15 +41,6 @@
       "matchSourceUrls": ["https://github.com/paritytech/jsonrpsee"]
     },
     {
-      "description": "Bump CLI packages",
-      "matchFileNames": [
-        "crates/tauri-cli/Cargo.toml",
-        "packages/cli/Cargo.toml",
-        "packages/cli/package.json"
-      ],
-      "rangeStrategy": "auto"
-    },
-    {
       "description": "Group napi-rs packages",
       "groupName": "napi-rs packages",
       "matchPackageNames": [

@@ -323,17 +323,19 @@ impl<R: Runtime> InvokeResolver<R> {
     T: IpcResponse,
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
-    crate::async_runtime::spawn(async move {
-      Self::return_task(
-        self.webview,
-        self.responder,
-        task,
-        self.cmd,
-        self.callback,
-        self.error,
-      )
-      .await;
-    });
+    let Self {
+      webview,
+      responder,
+      cmd,
+      callback,
+      error,
+    } = self;
+    spawn_erased_invoke_task(
+      Box::pin(async move { task.await.into() }),
+      Box::new(move |response| {
+        Self::return_result(webview, responder, response, cmd, callback, error);
+      }),
+    );
   }
 
   /// Reply to the invoke promise with an async task which is already serialized.
@@ -341,48 +343,24 @@ impl<R: Runtime> InvokeResolver<R> {
   where
     F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
   {
-    // Dynamic dispatch the call in dev for a faster compile time
-    // TODO: Revisit this and see if we can do this for the release build as well if the performance hit is not a problem
-    #[cfg(debug_assertions)]
-    {
-      self.respond_async_serialized_dyn(Box::pin(task))
-    }
-    #[cfg(not(debug_assertions))]
-    {
-      self.respond_async_serialized_inner(task)
-    }
-  }
-
-  /// Dynamic dispatch the [`Self::respond_async_serialized`] call
-  #[cfg(debug_assertions)]
-  fn respond_async_serialized_dyn(
-    self,
-    task: std::pin::Pin<
-      Box<dyn Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static>,
-    >,
-  ) {
-    self.respond_async_serialized_inner(task)
-  }
-
-  /// Reply to the invoke promise with an async task which is already serialized.
-  fn respond_async_serialized_inner<F>(self, task: F)
-  where
-    F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
-  {
-    crate::async_runtime::spawn(async move {
-      let response = match task.await {
-        Ok(ok) => InvokeResponse::Ok(ok),
-        Err(err) => InvokeResponse::Err(err),
-      };
-      Self::return_result(
-        self.webview,
-        self.responder,
-        response,
-        self.cmd,
-        self.callback,
-        self.error,
-      )
-    });
+    let Self {
+      webview,
+      responder,
+      cmd,
+      callback,
+      error,
+    } = self;
+    spawn_erased_invoke_task(
+      Box::pin(async move {
+        match task.await {
+          Ok(ok) => InvokeResponse::Ok(ok),
+          Err(err) => InvokeResponse::Err(err),
+        }
+      }),
+      Box::new(move |response| {
+        Self::return_result(webview, responder, response, cmd, callback, error);
+      }),
+    );
   }
 
   /// Reply to the invoke promise with a serializable value.
@@ -487,6 +465,17 @@ impl<R: Runtime> InvokeResolver<R> {
       error_callback,
     );
   }
+}
+
+/// Non-generic async task spawner for IPC invocations so `tokio::spawn` is monomorphized once.
+fn spawn_erased_invoke_task(
+  future: std::pin::Pin<Box<dyn Future<Output = InvokeResponse> + Send + 'static>>,
+  respond: Box<dyn FnOnce(InvokeResponse) + Send + 'static>,
+) {
+  crate::async_runtime::spawn(async move {
+    let response = future.await;
+    respond(response);
+  });
 }
 
 /// An invoke message.

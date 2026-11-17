@@ -1330,7 +1330,7 @@
       ]
     },
     "DisabledCspModificationKind": {
-      "description": "The possible values for the `dangerous_disable_asset_csp_modification` config option.",
+      "description": "The possible values for the `dangerousDisableAssetCspModification` config option.",
       "anyOf": [
         {
           "description": "If `true`, disables all CSP modification.\n `false` is the default value and it configures Tauri to control the CSP.",
@@ -3177,7 +3177,7 @@
           ]
         },
         "uninstallerHeaderImage": {
-          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`\n\n The recommended dimensions are 150px x 57px.",
+          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `headerImage`\n\n The recommended dimensions are 150px x 57px.",
           "type": [
             "string",
             "null"
@@ -3193,7 +3193,7 @@
           ]
         },
         "languages": {
-          "description": "A list of installer languages. Default to `[\"English\"]` if not set.\n\n By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.\n To allow the user to select the language, set `display_language_selector` to `true`.\n\n See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.",
+          "description": "A list of installer languages. Default to `[\"English\"]` if not set.\n\n By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.\n To allow the user to select the language, set `displayLanguageSelector` to `true`.\n\n See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.",
           "type": [
             "array",
             "null"
@@ -4048,7 +4048,7 @@
           "minimum": 1.0
         },
         "autoIncrementVersionCode": {
-          "description": "Whether to automatically increment the `versionCode` on each build.\n\n - If `true`, the generator will try to read the last `versionCode` from\n   `tauri.properties` and increment it by 1 for every build.\n - If `false` or not set, it falls back to `version_code` or semver-derived logic.\n\n Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.",
+          "description": "Whether to automatically increment the `versionCode` on each build.\n\n - If `true`, the generator will try to read the last `versionCode` from\n   `tauri.properties` and increment it by 1 for every build.\n - If `false` or not set, it falls back to `versionCode` or semver-derived logic.\n\n Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.",
           "default": false,
           "type": "boolean"
         },

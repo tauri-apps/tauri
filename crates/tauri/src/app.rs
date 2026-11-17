@@ -2096,9 +2096,6 @@ tauri::Builder::default()
 
   /// Registers an event handler for any menu event.
   ///
-  /// `TrayIconBuilder::on_menu_event` also registers a global handler.
-  /// If you register the same handler here and on a tray icon, the handler runs two times for each menu event.
-  ///
   /// # Examples
   /// ```
   /// use tauri::menu::*;

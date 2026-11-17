@@ -2753,6 +2753,8 @@ fn on_event_loop_event<R: Runtime>(
       match t {
         #[cfg(desktop)]
         EventLoopMessage::MenuEvent(ref e) => {
+          app_handle.manager.menu.dispatch_menu_item_event(e.clone());
+
           for listener in &*app_handle
             .manager
             .menu

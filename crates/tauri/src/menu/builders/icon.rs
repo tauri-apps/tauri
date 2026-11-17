@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::ItemEventHandler;
 use crate::{
   Manager, Runtime,
   image::Image,
@@ -9,14 +10,14 @@ use crate::{
 };
 
 /// A builder type for [`IconMenuItem`]
-pub struct IconMenuItemBuilder<'a, R: Runtime> {
+pub struct IconMenuItemBuilder<'a, R: Runtime = crate::DynRuntime> {
   id: Option<MenuId>,
   text: String,
   enabled: bool,
   icon: Option<Image<'a>>,
   native_icon: Option<NativeIcon>,
   accelerator: Option<String>,
-  handler: Option<Box<dyn Fn(&IconMenuItem<R>, MenuEvent) + Send + Sync + 'static>>,
+  handler: Option<ItemEventHandler<IconMenuItem<R>>>,
 }
 
 impl<'a, R: Runtime> IconMenuItemBuilder<'a, R> {
@@ -91,6 +92,11 @@ impl<'a, R: Runtime> IconMenuItemBuilder<'a, R> {
   }
 
   /// Set a handler to be called when this item is activated.
+  ///
+  /// The handler receives a temporary reference to the item and does not keep it alive.
+  /// It is removed when the last item reference is dropped, including references held
+  /// by menus and submenus. Items with the same ID share a handler registration;
+  /// the last handler registered for that ID is used.
   pub fn handler<F: Fn(&IconMenuItem<R>, MenuEvent) + Send + Sync + 'static>(
     mut self,
     handler: F,
@@ -140,15 +146,10 @@ impl<'a, R: Runtime> IconMenuItemBuilder<'a, R> {
     };
 
     if let Some(handler) = self.handler {
-      let i = i.clone();
-      manager
-        .manager()
-        .menu
-        .on_menu_item_event(i.id().clone(), move |_app, e| {
-          if e.id == i.id() {
-            handler(&i, e)
-          }
-        });
+      let menu_manager = &manager.manager().menu;
+      menu_manager.on_menu_item_event(i.id().clone(), &i.0, move |item, event| {
+        handler(&IconMenuItem(item), event);
+      });
     };
 
     Ok(i)

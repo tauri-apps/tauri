@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::ItemEventHandler;
 use crate::{
   Manager, Runtime,
   menu::{CheckMenuItem, MenuEvent, MenuId},
 };
 
 /// A builder type for [`CheckMenuItem`]
-pub struct CheckMenuItemBuilder<R: Runtime> {
+pub struct CheckMenuItemBuilder<R: Runtime = crate::DynRuntime> {
   id: Option<MenuId>,
   text: String,
   enabled: bool,
   checked: bool,
   accelerator: Option<String>,
-  handler: Option<Box<dyn Fn(&CheckMenuItem<R>, MenuEvent) + Send + Sync + 'static>>,
+  handler: Option<ItemEventHandler<CheckMenuItem<R>>>,
 }
 
 impl<R: Runtime> CheckMenuItemBuilder<R> {
@@ -73,6 +74,11 @@ impl<R: Runtime> CheckMenuItemBuilder<R> {
   }
 
   /// Set a handler to be called when this item is activated.
+  ///
+  /// The handler receives a temporary reference to the item and does not keep it alive.
+  /// It is removed when the last item reference is dropped, including references held
+  /// by menus and submenus. Items with the same ID share a handler registration;
+  /// the last handler registered for that ID is used.
   pub fn handler<F: Fn(&CheckMenuItem<R>, MenuEvent) + Send + Sync + 'static>(
     mut self,
     handler: F,
@@ -103,15 +109,10 @@ impl<R: Runtime> CheckMenuItemBuilder<R> {
     };
 
     if let Some(handler) = self.handler {
-      let i = i.clone();
-      manager
-        .manager()
-        .menu
-        .on_menu_item_event(i.id().clone(), move |_app, e| {
-          if e.id == i.id() {
-            handler(&i, e)
-          }
-        });
+      let menu_manager = &manager.manager().menu;
+      menu_manager.on_menu_item_event(i.id().clone(), &i.0, move |item, event| {
+        handler(&CheckMenuItem(item), event);
+      });
     };
 
     Ok(i)

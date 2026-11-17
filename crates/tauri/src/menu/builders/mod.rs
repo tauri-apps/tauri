@@ -6,6 +6,8 @@
 
 //! A module containing menu builder types
 
+type ItemEventHandler<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync + 'static>;
+
 mod menu;
 pub use menu::MenuBuilder;
 pub use menu::SubmenuBuilder;
@@ -15,3 +17,54 @@ mod check;
 pub use check::CheckMenuItemBuilder;
 mod icon;
 pub use icon::IconMenuItemBuilder;
+
+// GTK menu items require initialization on GTK's event-loop thread.
+#[cfg(all(test, not(gtk)))]
+mod tests {
+  use std::sync::Arc;
+
+  use super::{CheckMenuItemBuilder, IconMenuItemBuilder, MenuItemBuilder};
+  use crate::{menu::MenuEvent, sealed::ManagerBase, test::mock_app};
+
+  #[test]
+  fn handlers_do_not_keep_menu_items_alive() {
+    let app = mock_app();
+    let menu_manager = &app.manager().menu;
+
+    macro_rules! assert_no_leak {
+      ($builder:ident) => {{
+        let item = $builder::new("item")
+          .handler(|item, event| assert_eq!(item.id(), event.id()))
+          .build(&app)
+          .unwrap();
+        let weak_item = Arc::downgrade(&item.0);
+        let id = item.id().clone();
+
+        assert!(
+          menu_manager
+            .item_event_listeners
+            .lock()
+            .unwrap()
+            .contains_key(&id)
+        );
+        menu_manager.dispatch_menu_item_event(MenuEvent { id: id.clone() });
+
+        drop(item);
+
+        assert!(weak_item.upgrade().is_none(), "handler retained the item");
+        assert!(
+          !menu_manager
+            .item_event_listeners
+            .lock()
+            .unwrap()
+            .contains_key(&id),
+          "handler registration was not removed"
+        );
+      }};
+    }
+
+    assert_no_leak!(MenuItemBuilder);
+    assert_no_leak!(CheckMenuItemBuilder);
+    assert_no_leak!(IconMenuItemBuilder);
+  }
+}

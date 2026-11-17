@@ -260,6 +260,18 @@ wrap_with_args! {
         return 0;
       };
 
+      // A frame on a host left without `window.ipc` stays on those hosts, so its document
+      // cannot navigate it to one it wrote (`data:`, `blob:`), which would get the bridge.
+      // See `Cef::frame_hosts_without_ipc`.
+      if crate::cef_impl::ipc::navigation_leaves_hosts(
+        &CefString::from(&frame.url()).to_string(),
+        &url_str,
+        &self.context.frame_hosts_without_ipc,
+      ) {
+        log::debug!("cancelled a navigation off a host without `window.ipc`");
+        return 1;
+      }
+
       // Preserve the portable main-frame policy. Native observers receive only
       // admitted navigations, so a denied navigation cannot strand their barrier.
       if frame.is_main() != 0

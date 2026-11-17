@@ -659,7 +659,8 @@ impl Cef {
     self
   }
 
-  /// Hosts whose frames get no `window.ipc`, nor does any frame nested in them.
+  /// Hosts whose frames get no `window.ipc`, nor does any frame nested in them, and whose
+  /// frames stay on them.
   ///
   /// By default every frame of every webview gets `window.ipc.postMessage`, the channel
   /// Tauri's IPC sends through, whatever its origin. Tauri refuses a message that lacks the
@@ -669,6 +670,11 @@ impl Cef {
   /// on the frame's document URL, any scheme and port, so it holds for a sandboxed frame
   /// whose origin is opaque, and it covers the `about:blank`, `about:srcdoc` and other
   /// frames such a document creates inside itself.
+  ///
+  /// A frame showing a document on one of these hosts only navigates to them: any other
+  /// navigation of it is cancelled, whoever starts it. Otherwise the document could navigate
+  /// its own frame to a `data:` or `blob:` document it wrote, which is on no host and would
+  /// get `window.ipc`. Remove such a frame rather than navigate it elsewhere.
   ///
   /// Hosts compare case-insensitively and must match exactly: `apps.localhost` does not
   /// cover `sub.apps.localhost`. A custom scheme `apps` is served at `apps.localhost`
@@ -1292,6 +1298,9 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   /// Whether [`Cef::devtools`] lets this application open DevTools at all. Combined with
   /// the per-webview `WebviewAttributes::devtools`, which can only narrow it further.
   pub(crate) devtools_allowed: bool,
+  /// Hosts whose frames get no `window.ipc` and stay on those hosts. See
+  /// [`Cef::frame_hosts_without_ipc`].
+  pub(crate) frame_hosts_without_ipc: Arc<Vec<String>>,
   window_event_handler: Option<Arc<NativeWindowEventHandler>>,
 }
 
@@ -3427,6 +3436,7 @@ impl<T: UserEvent> CefRuntime<T> {
       content_settings: Arc::new(content_settings),
       certificate_errors,
       devtools_allowed,
+      frame_hosts_without_ipc: Arc::new(frame_hosts_without_ipc.clone()),
     };
 
     internal_command_line_args.push(("--no-first-run".to_string(), None));

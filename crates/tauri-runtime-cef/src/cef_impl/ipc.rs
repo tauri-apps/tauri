@@ -74,6 +74,12 @@ pub(crate) fn url_on_hosts(url: &str, hosts: &[String]) -> bool {
   url_host(url).is_some_and(|host| hosts.iter().any(|h| h.eq_ignore_ascii_case(host)))
 }
 
+/// Whether a navigation from `current` to `target` takes a frame off `hosts`, which is refused:
+/// see [`crate::Cef::frame_hosts_without_ipc`].
+pub(crate) fn navigation_leaves_hosts(current: &str, target: &str, hosts: &[String]) -> bool {
+  url_on_hosts(current, hosts) && !url_on_hosts(target, hosts)
+}
+
 /// Whether the frame or any frame it is nested in is on one of `hosts`.
 ///
 /// Nested frames count because a document can script the `about:blank` and `about:srcdoc`
@@ -250,7 +256,8 @@ pub(crate) fn on_process_message_received<T: UserEvent>(
 #[cfg(test)]
 mod tests {
   use super::{
-    FRAME_HOSTS_WITHOUT_IPC_SWITCH, frame_hosts_without_ipc_from, url_host, url_on_hosts,
+    FRAME_HOSTS_WITHOUT_IPC_SWITCH, frame_hosts_without_ipc_from, navigation_leaves_hosts,
+    url_host, url_on_hosts,
   };
 
   fn hosts(args: &[&str]) -> Vec<String> {
@@ -301,6 +308,42 @@ mod tests {
     assert_eq!(url_host("data:text/html,<p>"), None);
     assert_eq!(url_host("blob:null/uuid"), None);
     assert_eq!(url_host("file:///tmp/x"), None);
+  }
+
+  #[test]
+  fn a_frame_on_the_hosts_stays_on_them() {
+    let hosts = ["apps.localhost".to_string()];
+    let app = "http://apps.localhost/token/index.html";
+    assert!(!navigation_leaves_hosts(
+      app,
+      "http://apps.localhost/token/index.html",
+      &hosts
+    ));
+    assert!(!navigation_leaves_hosts(
+      app,
+      "https://apps.localhost/other/",
+      &hosts
+    ));
+    assert!(navigation_leaves_hosts(
+      app,
+      "data:text/html,<script>",
+      &hosts
+    ));
+    assert!(navigation_leaves_hosts(app, "blob:null/uuid", &hosts));
+    assert!(navigation_leaves_hosts(app, "about:blank", &hosts));
+    assert!(navigation_leaves_hosts(
+      app,
+      "http://tauri.localhost/",
+      &hosts
+    ));
+    // Frames elsewhere navigate freely, onto the hosts too.
+    assert!(!navigation_leaves_hosts("about:blank", app, &hosts));
+    assert!(!navigation_leaves_hosts(
+      "http://tauri.localhost/",
+      "data:text/html,",
+      &hosts
+    ));
+    assert!(!navigation_leaves_hosts(app, "data:text/html,", &[]));
   }
 
   #[test]

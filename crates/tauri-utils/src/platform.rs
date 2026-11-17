@@ -271,7 +271,7 @@ fn is_cargo_output_directory(path: &std::path::Path) -> bool {
 ///   like this: `app.fs().read_to_string(app.path().resource_dir().unwrap().join("resource"));`
 ///
 /// For applications packaged with `tauri-bundler`, `package_info.name` must match
-/// [`tauri_bundler::PackageSettings::product_name`](https://docs.rs/tauri-bundler/latest/tauri_bundler/bundle/struct.PackageSettings.html#structfield.product_name).
+/// [`tauri_bundler::bundle::PackageSettings::product_name`](https://docs.rs/tauri-bundler/latest/tauri_bundler/bundle/struct.PackageSettings.html#structfield.product_name).
 ///
 /// ## Example
 ///

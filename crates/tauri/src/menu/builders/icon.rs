@@ -97,10 +97,9 @@ impl<'a, H> IconMenuItemBuilder<'a, H> {
 
   /// Set a handler to be called when this item is activated.
   ///
-  /// The handler receives a temporary reference to the item and does not keep it alive.
-  /// It is removed when the last item reference is dropped, including references held
-  /// by menus and submenus. Items with the same ID share a handler registration;
+  /// Items with the same ID share a handler registration;
   /// the last handler registered for that ID is used.
+  /// Always use a unique ID for each item to ensure its handler is called.
   pub fn handler<R, F>(self, handler: F) -> IconMenuItemBuilder<'a, F>
   where
     R: Runtime,

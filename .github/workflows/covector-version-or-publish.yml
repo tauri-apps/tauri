@@ -173,6 +173,29 @@ jobs:
           createRelease: true
           recognizeContributors: true
 
+      # Covector does not set GitHub's prerelease flag, even for alpha/beta/RC versions.
+      - name: Set GitHub release prerelease flags
+        if: ${{ !cancelled() && steps.covector.outputs.releaseId != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          COVECTOR_OUTPUTS: ${{ toJSON(steps.covector.outputs) }}
+        run: |
+          release_ids=$(jq -r 'to_entries[] | select(.key | endswith("-releaseId")) | .value | select(. != "")' <<< "$COVECTOR_OUTPUTS")
+
+          while IFS= read -r release_id; do
+            release_api="repos/$GH_REPO/releases/$release_id"
+            tag=$(gh api "$release_api" --jq '.tag_name')
+
+            # Tags use <package>-v<version>, e.g. tauri-v3.0.0-alpha.6.
+            is_prerelease=false
+            if [[ "$tag" =~ -v[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+              is_prerelease=true
+            fi
+
+            gh api --method PATCH "$release_api" -F prerelease="$is_prerelease" --silent
+          done <<< "$release_ids"
+
       - name: Sync Cargo.lock
         if: steps.covector.outputs.commandRan == 'version'
         run: cargo tree --depth 0

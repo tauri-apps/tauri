@@ -24,8 +24,7 @@ pub struct MenuManager<R: Runtime> {
   /// Menu event listeners to all windows.
   pub global_event_listeners: Mutex<Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>>,
   /// Menu event listeners to specific windows.
-  pub window_event_listeners:
-    Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>,
+  pub event_listeners: Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>,
   /// Menu event listeners to specific windows.
   pub item_event_listeners:
     Mutex<HashMap<MenuId, crate::app::GlobalMenuEventListener<AppHandle<R>>>>,

@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex, MutexGuard, atomic::AtomicBool},
+  sync::{Arc, Mutex, MutexGuard, OnceLock, atomic::AtomicBool},
 };
 
 use serde::Serialize;
@@ -219,6 +219,7 @@ pub struct AppManager<R: Runtime> {
   /// Sets to true in [`AppHandle::request_restart`] and [`AppHandle::restart`]
   /// and we will call `restart` on the next `RuntimeRunEvent::Exit` event
   pub(crate) restart_on_exit: AtomicBool,
+  tauri_protocol_url_cache: [OnceLock<Url>; 2],
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -330,13 +331,17 @@ impl<R: Runtime> AppManager<R> {
       invoke_key,
       channel_interceptor,
       restart_on_exit: AtomicBool::new(false),
+      tauri_protocol_url_cache: [OnceLock::new(), OnceLock::new()],
     }
   }
 
   /// The `tauri` custom protocol URL we use to serve the embedded assets.
   /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
-    Cow::Owned(Url::parse(&crate::protocol::origin("tauri", https)).unwrap())
+    Cow::Borrowed(
+      self.tauri_protocol_url_cache[usize::from(https)]
+        .get_or_init(|| Url::parse(&crate::protocol::origin("tauri", https)).unwrap()),
+    )
   }
 
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).

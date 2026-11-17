@@ -7,6 +7,68 @@ use cef::{args::Args, *};
 const IPC_MESSAGE_NAME: &str = "tauri:ipc";
 const IPC_POST_MESSAGE_FUNCTION: &str = "postMessage";
 
+/// Switch the browser process uses to pass `Cef::frame_hosts_without_ipc` to renderers.
+///
+/// Mirrors `FRAME_HOSTS_WITHOUT_IPC_SWITCH` in `tauri-runtime-cef`, which appends it, along
+/// with the parsing and frame checks below. This crate is built from standalone source and
+/// cannot depend on that one, so keep both in sync.
+const FRAME_HOSTS_WITHOUT_IPC_SWITCH: &str = "tauri-cef-frame-hosts-without-ipc";
+
+/// The hosts the browser process passed, lowercased; empty if none. The last occurrence wins.
+fn frame_hosts_without_ipc_from<I>(args: I) -> Vec<String>
+where
+  I: IntoIterator<Item = std::ffi::OsString>,
+{
+  let prefix = format!("--{FRAME_HOSTS_WITHOUT_IPC_SWITCH}=");
+  let mut hosts = Vec::new();
+  for arg in args {
+    if let Some(value) = arg.to_str().and_then(|arg| arg.strip_prefix(&prefix)) {
+      hosts = value
+        .split(',')
+        .map(|host| host.trim().to_ascii_lowercase())
+        .filter(|host| !host.is_empty())
+        .collect();
+    }
+  }
+  hosts
+}
+
+fn frame_hosts_without_ipc() -> &'static [String] {
+  static HOSTS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+  HOSTS.get_or_init(|| frame_hosts_without_ipc_from(std::env::args_os()))
+}
+
+/// The host of `url`, without port or brackets; for a `blob:` URL, the host of its origin.
+fn url_host(url: &str) -> Option<&str> {
+  let url = url.strip_prefix("blob:").unwrap_or(url);
+  let (_scheme, rest) = url.split_once("://")?;
+  let authority = rest.split(['/', '?', '#']).next()?;
+  let host = authority
+    .rsplit_once('@')
+    .map_or(authority, |(_, host)| host);
+  let host = match host.strip_prefix('[') {
+    Some(bracketed) => bracketed.split(']').next()?,
+    None => host.split(':').next()?,
+  };
+  (!host.is_empty()).then_some(host)
+}
+
+fn url_on_hosts(url: &str, hosts: &[String]) -> bool {
+  url_host(url).is_some_and(|host| hosts.iter().any(|h| h.eq_ignore_ascii_case(host)))
+}
+
+/// Whether the frame or any frame it is nested in is on one of `hosts`.
+fn frame_without_ipc(frame: &Frame, hosts: &[String]) -> bool {
+  let mut frame = Some(frame.clone());
+  while let Some(current) = frame {
+    if url_on_hosts(&CefString::from(&current.url()).to_string(), hosts) {
+      return true;
+    }
+    frame = current.parent();
+  }
+  false
+}
+
 wrap_v8_handler! {
   struct IpcPostMessageV8Handler;
 
@@ -103,9 +165,13 @@ wrap_render_process_handler! {
     fn on_context_created(
       &self,
       _browser: Option<&mut Browser>,
-      _frame: Option<&mut Frame>,
+      frame: Option<&mut Frame>,
       context: Option<&mut V8Context>,
     ) {
+      let hosts = frame_hosts_without_ipc();
+      if !hosts.is_empty() && frame.is_some_and(|frame| frame_without_ipc(frame, hosts)) {
+        return;
+      }
       install_ipc_post_message(context);
     }
   }
@@ -227,7 +293,25 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-  use super::{API_VERSION_SWITCH, child_process_api_version};
+  use super::{
+    API_VERSION_SWITCH, FRAME_HOSTS_WITHOUT_IPC_SWITCH, child_process_api_version,
+    frame_hosts_without_ipc_from, url_on_hosts,
+  };
+
+  #[test]
+  fn reads_the_frame_hosts_without_ipc() {
+    let arg = format!("--{FRAME_HOSTS_WITHOUT_IPC_SWITCH}=Apps.localhost,other.localhost");
+    let hosts = frame_hosts_without_ipc_from(
+      ["app", "--type=renderer", arg.as_str()]
+        .into_iter()
+        .map(std::ffi::OsString::from),
+    );
+    assert_eq!(hosts, ["apps.localhost", "other.localhost"]);
+    assert!(url_on_hosts("http://apps.localhost/token/", &hosts));
+    assert!(url_on_hosts("blob:https://other.localhost/uuid", &hosts));
+    assert!(!url_on_hosts("http://tauri.localhost/", &hosts));
+    assert!(!url_on_hosts("about:srcdoc", &hosts));
+  }
 
   fn version(args: &[&str]) -> Option<i32> {
     child_process_api_version(args.iter().map(std::ffi::OsString::from))

@@ -19,6 +19,8 @@ wrap_browser_process_handler! {
     deep_link_schemes: Vec<String>,
     // The `Cef::cef_api_version` override, if set.
     api_version: Option<i32>,
+    // `Cef::frame_hosts_without_ipc`, empty if not set.
+    frame_hosts_without_ipc: Vec<String>,
   }
 
   impl BrowserProcessHandler {
@@ -33,14 +35,27 @@ wrap_browser_process_handler! {
     }
 
     fn on_before_child_process_launch(&self, command_line: Option<&mut CommandLine>) {
+      let Some(command_line) = command_line else {
+        return;
+      };
       // Pass an overridden CEF API version to the child on its command line.
       // See `API_VERSION_SWITCH`.
-      if let Some(command_line) = command_line
-        && let Some(version) = self.api_version
-      {
+      if let Some(version) = self.api_version {
         command_line.append_switch_with_value(
           Some(&CefString::from(crate::runtime::API_VERSION_SWITCH)),
           Some(&CefString::from(version.to_string().as_str())),
+        );
+      }
+      // And the frames its renderer leaves without `window.ipc`.
+      // See `FRAME_HOSTS_WITHOUT_IPC_SWITCH`.
+      if !self.frame_hosts_without_ipc.is_empty() {
+        command_line.append_switch_with_value(
+          Some(&CefString::from(
+            crate::cef_impl::ipc::FRAME_HOSTS_WITHOUT_IPC_SWITCH,
+          )),
+          Some(&CefString::from(
+            self.frame_hosts_without_ipc.join(",").as_str(),
+          )),
         );
       }
     }

@@ -476,6 +476,7 @@ pub struct Cef {
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
+  frame_hosts_without_ipc: Vec<String>,
   secret_storage: SecretStorage,
   profile_preferences: Vec<(String, serde_json::Value)>,
   global_preferences: Vec<(String, serde_json::Value)>,
@@ -510,6 +511,7 @@ impl fmt::Debug for Cef {
       .field("deep_link_schemes", &self.deep_link_schemes)
       .field("cache_path", &self.cache_path)
       .field("api_version", &self.api_version)
+      .field("frame_hosts_without_ipc", &self.frame_hosts_without_ipc)
       .field("secret_storage", &self.secret_storage)
       .field("profile_preferences", &self.profile_preferences)
       .field("global_preferences", &self.global_preferences)
@@ -654,6 +656,44 @@ impl Cef {
   #[must_use]
   pub fn cef_api_version(mut self, version: i32) -> Self {
     self.api_version = Some(version);
+    self
+  }
+
+  /// Hosts whose frames get no `window.ipc`, nor does any frame nested in them.
+  ///
+  /// By default every frame of every webview gets `window.ipc.postMessage`, the channel
+  /// Tauri's IPC sends through, whatever its origin. Tauri refuses a message that lacks the
+  /// window's invoke key, but the bridge itself is there for any document to call. An
+  /// application that embeds untrusted documents in frames (served from a custom scheme,
+  /// say) names their host here, and those frames have no such global at all. The check is
+  /// on the frame's document URL, any scheme and port, so it holds for a sandboxed frame
+  /// whose origin is opaque, and it covers the `about:blank`, `about:srcdoc` and other
+  /// frames such a document creates inside itself.
+  ///
+  /// Hosts compare case-insensitively and must match exactly: `apps.localhost` does not
+  /// cover `sub.apps.localhost`. A custom scheme `apps` is served at `apps.localhost`
+  /// (see `custom_scheme_url`). Calling it again adds to the list. Renderer processes read
+  /// the list from their command line, including the macOS `tauri-cef-helper`.
+  ///
+  /// ```no_run
+  /// # use tauri_runtime_cef::Cef;
+  /// Cef::default().frame_hosts_without_ipc(["untrusted-apps.localhost"]);
+  /// ```
+  #[must_use]
+  pub fn frame_hosts_without_ipc<S: Into<String>>(
+    mut self,
+    hosts: impl IntoIterator<Item = S>,
+  ) -> Self {
+    self
+      .frame_hosts_without_ipc
+      .extend(hosts.into_iter().map(|host| {
+        let host: String = host.into();
+        assert!(
+          !host.is_empty() && !host.contains([',', '/', ':']),
+          "`frame_hosts_without_ipc` takes bare hosts, got {host:?}"
+        );
+        host.to_ascii_lowercase()
+      }));
     self
   }
 
@@ -2617,6 +2657,9 @@ wrap_with_args! {
     // The `Cef::cef_api_version` override, passed on to child processes. See
     // `API_VERSION_SWITCH`.
     api_version: Option<i32>,
+    // `Cef::frame_hosts_without_ipc`, passed on to child processes. See
+    // `FRAME_HOSTS_WITHOUT_IPC_SWITCH`.
+    frame_hosts_without_ipc: Vec<String>,
     // Names merged into `--disable-features` and `--enable-features` rather than
     // appended over them.
     //
@@ -2639,6 +2682,7 @@ wrap_with_args! {
         self.context_initialized.clone(),
         self.deep_link_schemes.clone(),
         self.api_version,
+        self.frame_hosts_without_ipc.clone(),
       ))
     }
 
@@ -3119,6 +3163,7 @@ impl<T: UserEvent> CefRuntime<T> {
       window_event_handler,
       // Already applied, above, before the first CEF call.
       api_version: _,
+      frame_hosts_without_ipc,
     } = runtime_args.runtime_init_attrs;
 
     // CEF reads its crash-reporter overrides from `BasicStartupComplete`, which
@@ -3410,6 +3455,7 @@ impl<T: UserEvent> CefRuntime<T> {
       internal_command_line_args,
       browser_command_line_args,
       api_version,
+      frame_hosts_without_ipc,
       disabled_features,
       enabled_features,
     });

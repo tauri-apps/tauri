@@ -209,7 +209,9 @@ pub fn read_platform(
 /// JSON with `.json`.
 pub fn does_supported_file_name_exist(target: Target, path: impl Into<PathBuf>) -> bool {
   let path = path.into();
-  let source_file_name = path.file_name().unwrap();
+  let Some(source_file_name) = path.file_name() else {
+    return false;
+  };
   let lookup_platform_config = ENABLED_FORMATS
     .iter()
     .any(|format| source_file_name == format.into_platform_file_name(target));
@@ -399,4 +401,29 @@ fn read_to_string(path: &Path) -> Result<String, ConfigError> {
     path: path.into(),
     error,
   })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn does_supported_file_name_exist_without_file_name() {
+    // Paths without a file name component must not panic.
+    for path in [PathBuf::new(), PathBuf::from("/"), PathBuf::from("..")] {
+      assert!(!does_supported_file_name_exist(Target::current(), path));
+    }
+  }
+
+  #[test]
+  fn does_supported_file_name_exist_checks_existence() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("tauri.conf.json");
+    assert!(!does_supported_file_name_exist(
+      Target::current(),
+      config.clone()
+    ));
+    std::fs::write(&config, "{}").unwrap();
+    assert!(does_supported_file_name_exist(Target::current(), config));
+  }
 }

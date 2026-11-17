@@ -2,23 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::ItemEventHandler;
+use super::{ItemEventHandler, NoHandler};
 use crate::{
   Manager, Runtime,
   menu::{CheckMenuItem, MenuEvent, MenuId},
 };
 
 /// A builder type for [`CheckMenuItem`]
-pub struct CheckMenuItemBuilder<R: Runtime = crate::DynRuntime> {
+///
+/// The handler type is inferred when using [`Self::handler`].
+pub struct CheckMenuItemBuilder<H = NoHandler> {
   id: Option<MenuId>,
   text: String,
   enabled: bool,
   checked: bool,
   accelerator: Option<String>,
-  handler: Option<ItemEventHandler<CheckMenuItem<R>>>,
+  handler: H,
 }
 
-impl<R: Runtime> CheckMenuItemBuilder<R> {
+impl CheckMenuItemBuilder {
   /// Create a new menu item builder.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
@@ -30,7 +32,7 @@ impl<R: Runtime> CheckMenuItemBuilder<R> {
       enabled: true,
       checked: true,
       accelerator: None,
-      handler: None,
+      handler: NoHandler,
     }
   }
 
@@ -45,10 +47,12 @@ impl<R: Runtime> CheckMenuItemBuilder<R> {
       enabled: true,
       checked: true,
       accelerator: None,
-      handler: None,
+      handler: NoHandler,
     }
   }
+}
 
+impl<H> CheckMenuItemBuilder<H> {
   /// Set the id for this menu item.
   pub fn id<I: Into<MenuId>>(mut self, id: I) -> Self {
     self.id.replace(id.into());
@@ -79,16 +83,27 @@ impl<R: Runtime> CheckMenuItemBuilder<R> {
   /// It is removed when the last item reference is dropped, including references held
   /// by menus and submenus. Items with the same ID share a handler registration;
   /// the last handler registered for that ID is used.
-  pub fn handler<F: Fn(&CheckMenuItem<R>, MenuEvent) + Send + Sync + 'static>(
-    mut self,
-    handler: F,
-  ) -> Self {
-    self.handler.replace(Box::new(handler));
-    self
+  pub fn handler<R, F>(self, handler: F) -> CheckMenuItemBuilder<F>
+  where
+    R: Runtime,
+    F: Fn(&CheckMenuItem<R>, MenuEvent) + Send + Sync + 'static,
+    H: ItemEventHandler<CheckMenuItem<R>>,
+  {
+    CheckMenuItemBuilder {
+      id: self.id,
+      text: self.text,
+      enabled: self.enabled,
+      checked: self.checked,
+      accelerator: self.accelerator,
+      handler,
+    }
   }
 
   /// Build the menu item
-  pub fn build<M: Manager<R>>(self, manager: &M) -> crate::Result<CheckMenuItem<R>> {
+  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<CheckMenuItem<R>>
+  where
+    H: ItemEventHandler<CheckMenuItem<R>>,
+  {
     let i = if let Some(id) = self.id {
       CheckMenuItem::with_id(
         manager,
@@ -108,7 +123,7 @@ impl<R: Runtime> CheckMenuItemBuilder<R> {
       )?
     };
 
-    if let Some(handler) = self.handler {
+    if let Some(handler) = self.handler.into_handler() {
       let menu_manager = &manager.manager().menu;
       menu_manager.on_menu_item_event(i.id().clone(), &i.0, move |item, event| {
         handler(&CheckMenuItem(item), event);

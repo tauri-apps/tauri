@@ -6,7 +6,38 @@
 
 //! A module containing menu builder types
 
-type ItemEventHandler<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync + 'static>;
+type ItemEventCallback<T> = Box<dyn Fn(&T, crate::menu::MenuEvent) + Send + Sync + 'static>;
+
+/// The default handler state of a menu item builder before a handler is set.
+#[doc(hidden)]
+pub struct NoHandler;
+
+/// Converts a menu item builder's inferred handler into a callback for its item type.
+#[doc(hidden)]
+pub trait ItemEventHandler<T>: sealed::Sealed<T> + Send + Sync + 'static {
+  fn into_handler(self) -> Option<ItemEventCallback<T>>;
+}
+
+impl<T> ItemEventHandler<T> for NoHandler {
+  fn into_handler(self) -> Option<ItemEventCallback<T>> {
+    None
+  }
+}
+
+impl<T, F> ItemEventHandler<T> for F
+where
+  F: Fn(&T, crate::menu::MenuEvent) + Send + Sync + 'static,
+{
+  fn into_handler(self) -> Option<ItemEventCallback<T>> {
+    Some(Box::new(self))
+  }
+}
+
+mod sealed {
+  pub trait Sealed<T> {}
+  impl<T> Sealed<T> for super::NoHandler {}
+  impl<T, F> Sealed<T> for F where F: Fn(&T, crate::menu::MenuEvent) + Send + Sync + 'static {}
+}
 
 mod menu;
 pub use menu::MenuBuilder;

@@ -70,8 +70,9 @@ resources in the worker that require identity across reloads.
 Build failure leaves `current` untouched. New binaries have unique paths; failed
 handshakes retain the previous live worker. A request failure kills the worker
 and rejects that call; the next call starts from committed state. Requests are
-never automatically retried. Old generations remain until the developer removes
-`.reload` after closing all hosts. Keep this directory outside source control.
+never automatically retried. By default the watcher keeps the 5 newest published
+generations (`--keep 5`, or `--keep 0` to retain all); remove `.reload` after
+closing all hosts to reclaim remaining space. Keep this directory outside source control.
 This API is compiled only for desktop debug builds. Release apps must register
 normal commands and must not start the watcher.
 

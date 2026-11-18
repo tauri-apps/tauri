@@ -123,9 +123,9 @@ class WatcherTest(unittest.TestCase):
             env = dict(
                 os.environ,
                 CARGO_NET_OFFLINE='true',
-                RSYNC_RSH=str(ssh_shim),
                 PATH=f'{bin_dir}{os.pathsep}{os.environ.get("PATH", "")}',
             )
+            env.pop('RSYNC_RSH', None)
             child = subprocess.Popen([
                 sys.executable, str(SCRIPT),
                 '--manifest', str(root / 'backend/Cargo.toml'), '--bin', 'reload-counter',
@@ -238,6 +238,93 @@ class WatcherTest(unittest.TestCase):
             self.assertIn('GLIBC_2.99', res.stdout)
             self.assertFalse((output / 'current').exists())
             self.assertEqual(list(output.iterdir()), [])
+
+    def test_generation_pruning_and_cancel_on_edit(self):
+        with tempfile.TemporaryDirectory(prefix='tauri-reload-gc-cancel-') as directory:
+            root = Path(directory)
+            shutil.copytree(Path(__file__).parent / 'backend', root / 'backend',
+                            ignore=shutil.ignore_patterns('target', '.reload'))
+            output = root / 'generations'
+            bin_dir = root / 'bin'
+            bin_dir.mkdir()
+
+            # Build real worker once so our fast/slow runner wrapper can emit a valid executable.
+            subprocess.run(
+                ['cargo', 'build', '--offline', '--manifest-path', str(root / 'backend/Cargo.toml'),
+                 '--bin', 'reload-counter'],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            exe_name = 'reload-counter.exe' if os.name == 'nt' else 'reload-counter'
+            built_bin = root / 'backend/target/debug' / exe_name
+
+            runner = bin_dir / 'mock-runner'
+            runner.write_text(
+                '#!/usr/bin/env python3\n'
+                'import json, sys, time\n'
+                'from pathlib import Path\n'
+                f'src = Path({str(root / "backend/src/main.rs")!r}).read_text()\n'
+                'if "SLOW_BUILD" in src:\n'
+                '    time.sleep(10)\n'
+                f'print(json.dumps({{"reason": "compiler-artifact", "target": {{"name": "reload-counter"}}, "executable": {str(built_bin)!r}}}), flush=True)\n'
+            )
+            runner.chmod(0o755)
+
+            child = subprocess.Popen([
+                sys.executable, str(SCRIPT),
+                '--manifest', str(root / 'backend/Cargo.toml'), '--bin', 'reload-counter',
+                '--runner', str(runner), '--keep', '2', '--output', str(output),
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            lines = queue.Queue()
+
+            def read():
+                for line in child.stdout:
+                    lines.put(line)
+
+            thread = threading.Thread(target=read, daemon=True)
+            thread.start()
+
+            def wait_for(message, timeout=15):
+                deadline = time.monotonic() + timeout
+                seen = []
+                while time.monotonic() < deadline:
+                    try:
+                        line = lines.get(timeout=0.1)
+                    except queue.Empty:
+                        continue
+                    seen.append(line)
+                    if message in line:
+                        return
+                self.fail('Missing ' + message + '\n' + ''.join(seen))
+
+            try:
+                source = root / 'backend/src/main.rs'
+                original = source.read_text()
+                wait_for('Published')  # gen 1
+
+                # Trigger a 10s slow build, then edit again right away: cancel-on-edit must abort <4s!
+                t0 = time.monotonic()
+                source.write_text(original + '\n// SLOW_BUILD\n')
+                wait_for('Building reload worker')
+                time.sleep(0.25)
+                source.write_text(original + '\n// gen 2\n')
+                wait_for('Source changed during build; restarting...', timeout=4)
+                wait_for('Published', timeout=4)  # gen 2
+                self.assertLess(time.monotonic() - t0, 5.0)
+
+                time.sleep(0.25)
+                source.write_text(original + '\n// gen 3\n')
+                wait_for('Published')  # gen 3
+
+                gen_dirs = [p for p in output.iterdir() if p.is_dir()]
+                self.assertEqual(len(gen_dirs), 2)
+                active = Path((output / 'current').read_text().strip())
+                self.assertTrue(active.is_file())
+                self.assertIn(active.parent, gen_dirs)
+            finally:
+                child.terminate()
+                child.wait(timeout=5)
+                thread.join(timeout=2)
+                child.stdout.close()
 
 
 if __name__ == '__main__':

@@ -5,14 +5,20 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import queue
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import uuid
+
+CANCELLED = 'cancelled'
+UUID_HEX_RE = re.compile(r'^[0-9a-f]{32}$')
 
 
 def snapshot(root):
@@ -29,27 +35,87 @@ def snapshot(root):
     return result
 
 
-def run_cargo_stream(command, bin_name):
-    """Run a cargo-compatible build command and return (exit_code, artifact_paths)."""
+def terminate_child(child):
+    if child.poll() is not None:
+        return
+    if os.name != 'nt':
+        try:
+            os.killpg(child.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return
+    else:
+        child.terminate()
+    try:
+        child.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        if os.name != 'nt':
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        else:
+            child.kill()
+        child.wait(timeout=2)
+
+
+def run_cargo_stream(command, bin_name, should_cancel=None):
+    """Run a cargo-compatible build command and return (exit_code_or_CANCELLED, artifact_paths)."""
     artifacts = []
     try:
-        with subprocess.Popen(command, stdout=subprocess.PIPE, text=True) as child:
-            for line in child.stdout:
-                try:
-                    event = json.loads(line)
-                except ValueError:
-                    print(line, end='', flush=True)
-                    continue
-                if event.get('reason') == 'compiler-message':
-                    print(event['message'].get('rendered', ''), end='', file=sys.stderr)
-                if (event.get('reason') == 'compiler-artifact'
-                        and event.get('target', {}).get('name') == bin_name
-                        and event.get('executable')):
-                    artifacts.append(event['executable'])
-            status = child.wait()
+        child = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            text=True,
+            start_new_session=(os.name != 'nt'),
+        )
     except OSError as err:
         print(f'Failed to start builder ({command[0]}): {err}', file=sys.stderr, flush=True)
         return 127, []
+
+    lines = queue.Queue()
+
+    def drain():
+        try:
+            for line in child.stdout:
+                lines.put(line)
+        finally:
+            lines.put(None)
+
+    reader = threading.Thread(target=drain, daemon=True)
+    reader.start()
+    cancelled = False
+    try:
+        while True:
+            if should_cancel is not None and should_cancel():
+                cancelled = True
+                terminate_child(child)
+                break
+            try:
+                line = lines.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            if line is None:
+                break
+            try:
+                event = json.loads(line)
+            except ValueError:
+                print(line, end='', flush=True)
+                continue
+            if event.get('reason') == 'compiler-message':
+                print(event['message'].get('rendered', ''), end='', file=sys.stderr)
+            if (event.get('reason') == 'compiler-artifact'
+                    and event.get('target', {}).get('name') == bin_name
+                    and event.get('executable')):
+                artifacts.append(event['executable'])
+        status = child.wait()
+    finally:
+        terminate_child(child)
+        reader.join(timeout=2)
+        if child.stdout and not child.stdout.closed:
+            child.stdout.close()
+
+    if cancelled:
+        return CANCELLED, []
     return status, artifacts
 
 
@@ -120,8 +186,41 @@ def verify_worker(executable, is_remote=False):
         raise RuntimeError(f'Worker preflight rejected handshake ({detail}){hint}')
 
 
-def publish_generation(output_dir, artifact_name, place_fn, started, is_remote=False):
-    """Create an immutable generation directory, verify it, and atomically update `current`."""
+def prune_generations(output_dir, keep):
+    """Best-effort cleanup of older generation directories while keeping `current` and newest `keep`."""
+    if keep <= 0:
+        return
+    active_dir = None
+    try:
+        active_path = Path((output_dir / 'current').read_text().strip())
+        active_dir = active_path.parent.resolve()
+    except OSError:
+        pass
+
+    candidates = []
+    try:
+        entries = list(output_dir.iterdir())
+    except OSError:
+        return
+    for entry in entries:
+        if not UUID_HEX_RE.match(entry.name):
+            continue
+        try:
+            resolved = entry.resolve()
+            if not entry.is_dir() or (active_dir is not None and resolved == active_dir):
+                continue
+            candidates.append((entry.stat().st_mtime_ns, entry))
+        except OSError:
+            continue
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    max_other = max(0, keep - (1 if active_dir is not None else 0))
+    for _, old_dir in candidates[max_other:]:
+        shutil.rmtree(old_dir, ignore_errors=True)
+
+
+def publish_generation(output_dir, artifact_name, place_fn, started, keep=5, is_remote=False):
+    """Create an immutable generation directory, verify it, atomically update `current`, and prune old dirs."""
     generation = output_dir / uuid.uuid4().hex
     generation.mkdir(parents=True)
     executable = generation / artifact_name
@@ -130,14 +229,15 @@ def publish_generation(output_dir, artifact_name, place_fn, started, is_remote=F
         if os.name != 'nt':
             executable.chmod(executable.stat().st_mode | 0o111)
         verify_worker(executable, is_remote=is_remote)
-        # The running host only observes fully copied and verified artifacts. Keep older
-        # files: Windows may still have them open, and an existing host may still use them.
+        # The running host only observes fully copied and verified artifacts. Keep recent
+        # generations: Windows may still have an active binary open during switchover.
         temporary = generation / 'current.tmp'
         temporary.write_text(str(executable.resolve()) + '\n')
         os.replace(temporary, output_dir / 'current')
     except Exception:
         shutil.rmtree(generation, ignore_errors=True)
         raise
+    prune_generations(output_dir, keep)
     print(f'Published {generation.name} in {time.monotonic() - started:.2f}s', flush=True)
     return True
 
@@ -174,41 +274,57 @@ def artifact_basename(path_str):
     return path_str.replace('\\', '/').rsplit('/', 1)[-1]
 
 
-def build_local(args, started):
+def rsync_rsh_args(ssh_opts):
+    if not ssh_opts or 'RSYNC_RSH' in os.environ:
+        return []
+    return ['-e', ' '.join(['ssh', *(shlex.quote(o) for o in ssh_opts)])]
+
+
+def build_local(args, started, should_cancel=None):
     command = [args.runner, 'build', *args.runner_arg, '--manifest-path', str(args.manifest),
                '--bin', args.bin, '--message-format=json-render-diagnostics']
     print('Building reload worker:', ' '.join(command), flush=True)
-    status, artifacts = run_cargo_stream(command, args.bin)
+    status, artifacts = run_cargo_stream(command, args.bin, should_cancel=should_cancel)
+    if status == CANCELLED:
+        print('Source changed during build; restarting...', flush=True)
+        return False
     if status or not artifacts:
         print('Build rejected; previous generation remains active.', flush=True)
         return False
     artifact = Path(artifacts[-1])
     try:
         return publish_generation(
-            args.output, artifact.name, lambda dst: shutil.copy2(artifact, dst), started
+            args.output, artifact.name, lambda dst: shutil.copy2(artifact, dst),
+            started, keep=args.keep,
         )
     except (OSError, RuntimeError) as err:
         print(f'{err}; previous generation remains active.', flush=True)
         return False
 
 
-def build_remote(args, started):
+def build_remote(args, started, should_cancel=None):
+    ssh_opts = getattr(args, '_ssh_opts', [])
+    rsh_args = rsync_rsh_args(ssh_opts)
     remote_workspace = f'{args.remote_dir}/workspace'
     rel_manifest = args.manifest.relative_to(args.sync_root).as_posix()
     remote_manifest = f'{remote_workspace}/{rel_manifest}'
     if not getattr(args, '_remote_ready', False):
         mkdir_cmd = f'mkdir -p {remote_shell_path(remote_workspace)}'
-        if subprocess.run(['ssh', '--', args.remote, mkdir_cmd], check=False).returncode != 0:
+        if subprocess.run(['ssh', *ssh_opts, '--', args.remote, mkdir_cmd], check=False).returncode != 0:
             print('Remote directory setup failed; previous generation remains active.', flush=True)
             return False
         args._remote_ready = True
+
+    if should_cancel is not None and should_cancel():
+        print('Source changed during build; restarting...', flush=True)
+        return False
 
     print(f'Syncing source to {args.remote}:{remote_workspace}...', flush=True)
     excludes = ['--exclude', '/target/', '--exclude', '/.git/', '--exclude', '.reload/']
     if args.output.is_relative_to(args.sync_root):
         excludes.extend(['--exclude', f'/{args.output.relative_to(args.sync_root).as_posix()}/'])
     rsync_cmd = [
-        'rsync', '-az', '--delete', *excludes,
+        'rsync', '-az', '--delete', *rsh_args, *excludes,
         f'{args.sync_root}/', f'{args.remote}:{remote_workspace}/',
     ]
     if subprocess.run(rsync_cmd, check=False).returncode != 0:
@@ -224,7 +340,14 @@ def build_remote(args, started):
         '--message-format=json-render-diagnostics',
     ])
     print(f'Building reload worker on {args.remote}: {args.remote_cargo} build ...', flush=True)
-    status, artifacts = run_cargo_stream(['ssh', '--', args.remote, remote_cargo_cmd], args.bin)
+    status, artifacts = run_cargo_stream(
+        ['ssh', *ssh_opts, '--', args.remote, remote_cargo_cmd],
+        args.bin,
+        should_cancel=should_cancel,
+    )
+    if status == CANCELLED:
+        print('Source changed during build; restarting...', flush=True)
+        return False
     if status or not artifacts:
         print('Build rejected; previous generation remains active.', flush=True)
         return False
@@ -232,22 +355,25 @@ def build_remote(args, started):
     name = artifact_basename(remote_artifact)
 
     def fetch(dst):
-        res = subprocess.run(['rsync', '-az', f'{args.remote}:{remote_artifact}', str(dst)], check=False)
+        res = subprocess.run(
+            ['rsync', '-az', *rsh_args, f'{args.remote}:{remote_artifact}', str(dst)],
+            check=False,
+        )
         if res.returncode != 0:
             raise RuntimeError('Failed to fetch remote artifact')
 
     try:
-        return publish_generation(args.output, name, fetch, started, is_remote=True)
+        return publish_generation(args.output, name, fetch, started, keep=args.keep, is_remote=True)
     except (OSError, RuntimeError) as err:
         print(f'{err}; previous generation remains active.', flush=True)
         return False
 
 
-def build(args):
+def build(args, should_cancel=None):
     started = time.monotonic()
     if args.remote:
-        return build_remote(args, started)
-    return build_local(args, started)
+        return build_remote(args, started, should_cancel=should_cancel)
+    return build_local(args, started, should_cancel=should_cancel)
 
 
 def main():
@@ -260,10 +386,14 @@ def main():
     parser.add_argument('--remote-dir', help='remote staging directory (defaults to ~/.cache/tauri-dev-reload/<name>-<hash>)')
     parser.add_argument('--remote-sync-root', type=Path, help='local source root to sync for --remote (defaults to --manifest directory)')
     parser.add_argument('--remote-cargo', default='cargo', help='cargo binary on the remote host')
+    parser.add_argument('--no-ssh-multiplex', action='store_true', help='disable automatic SSH ControlMaster multiplexing')
     parser.add_argument('--watch', type=Path, action='append', default=[], help='extra local dependency source root')
     parser.add_argument('--output', type=Path, required=True, help='place outside watched source roots')
+    parser.add_argument('--keep', type=int, default=5, help='max published generations to keep locally (default: 5, 0 keeps all)')
     parser.add_argument('--once', action='store_true')
     args = parser.parse_args()
+    if args.keep < 0:
+        parser.error('--keep must be >= 0')
     args.manifest = args.manifest.resolve()
     args.output = args.output.resolve()
     if not args.manifest.is_file():
@@ -297,21 +427,45 @@ def main():
         parser.error('--output must be outside watched/synced roots, or under target/ or .reload/')
     args.output.mkdir(parents=True, exist_ok=True)
 
+    ssh_ctl_dir = None
+    args._ssh_opts = []
+    if args.remote and os.name != 'nt' and not args.no_ssh_multiplex:
+        short_tmp = '/tmp' if Path('/tmp').is_dir() else None
+        ssh_ctl_dir = Path(tempfile.mkdtemp(prefix='tauri-ssh-', dir=short_tmp))
+        ctl_path = ssh_ctl_dir / 'c'
+        args._ssh_opts = [
+            '-o', 'ControlMaster=auto',
+            '-o', f'ControlPath={ctl_path}',
+            '-o', 'ControlPersist=60',
+        ]
+
     def current():
         return [snapshot(root) for root in roots]
 
-    previous = current()
-    success = build(args)
-    if args.once:
-        return 0 if success else 1
-    # Snapshot before each build so edits during compilation trigger another build.
-    while True:
-        time.sleep(0.15)
-        changed = current()
-        if changed != previous:
+    try:
+        previous = current()
+        success = build(args)
+        if args.once:
+            return 0 if success else 1
+        # Snapshot before each build; interrupt stale builds immediately if new edits arrive.
+        while True:
             time.sleep(0.15)
-            previous = current()
-            build(args)
+            changed = current()
+            if changed != previous:
+                time.sleep(0.15)
+                previous = current()
+                build(args, should_cancel=lambda: current() != previous)
+    finally:
+        if ssh_ctl_dir is not None:
+            ctl_path = ssh_ctl_dir / 'c'
+            if ctl_path.exists():
+                subprocess.run(
+                    ['ssh', '-O', 'exit', '-o', f'ControlPath={ctl_path}', '--', args.remote],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+            shutil.rmtree(ssh_ctl_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':

@@ -2095,6 +2095,11 @@ pub enum ScrollBarStyle {
 #[non_exhaustive]
 pub enum OnNewWindow {
   /// Allow the window to be created using the default webview implementation.
+  ///
+  /// The `urls` scope is only checked against the URL initially requested by `window.open`.
+  /// The window is then managed by the webview and Tauri cannot restrict its navigation,
+  /// so it can still be navigated to any URL afterwards (e.g. by the opener or a redirect).
+  /// Use [`Self::AllowTauriWindow`] if navigations must be restricted to the scope too.
   AllowDefault {
     /// Only allow URLs matching the given pattern list when set.
     ///

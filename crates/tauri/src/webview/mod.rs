@@ -324,6 +324,8 @@ fn config_new_window_handler<R: Runtime>(
   #[cfg(desktop)]
   let created_window_count = AtomicUsize::new(0);
 
+  let urls = urls.map(Arc::new);
+
   Some(Box::new(move |url: Url, features| {
     let allowed = urls
       .as_ref()
@@ -353,7 +355,7 @@ fn config_new_window_handler<R: Runtime>(
         }
       };
 
-      let builder = WebviewWindowBuilder::new(
+      let mut builder = WebviewWindowBuilder::new(
         &app_handle,
         label,
         WebviewUrl::External("about:blank".parse().expect("about:blank is a valid URL")),
@@ -366,6 +368,12 @@ fn config_new_window_handler<R: Runtime>(
       })
       .title(url.as_str());
 
+      // the scope must also apply to navigations inside the created window,
+      // otherwise the opener could redirect it to any URL after it is created
+      if let Some(urls) = &urls {
+        builder = builder.on_navigation(created_window_navigation_handler(urls.clone()));
+      }
+
       match builder.build() {
         Ok(window) => Response::Create {
           window_id: window.window.window.id,
@@ -377,6 +385,16 @@ fn config_new_window_handler<R: Runtime>(
       }
     }
   }))
+}
+
+/// Navigation handler for windows created by [`OnNewWindow::AllowTauriWindow`] when `urls` is set.
+///
+/// `about:blank` is always allowed since it is the initial URL of the created window.
+#[cfg(desktop)]
+fn created_window_navigation_handler(
+  urls: Arc<Vec<tauri_utils::url::UrlScope>>,
+) -> impl Fn(&Url) -> bool + Send + 'static {
+  move |url| url.as_str() == "about:blank" || urls.iter().any(|pattern| pattern.test(url))
 }
 
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
@@ -2778,6 +2796,18 @@ mod tests {
     crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
       .build()
       .unwrap()
+  }
+
+  #[cfg(desktop)]
+  #[test]
+  fn created_window_navigation_is_scoped() {
+    let urls: Vec<tauri_utils::url::UrlScope> =
+      serde_json::from_value(serde_json::json!(["https://allowed.com/*"])).unwrap();
+    let handler = super::created_window_navigation_handler(std::sync::Arc::new(urls));
+
+    assert!(handler(&"about:blank".parse().unwrap()));
+    assert!(handler(&"https://allowed.com/page".parse().unwrap()));
+    assert!(!handler(&"https://evil.com/".parse().unwrap()));
   }
 
   #[test]

@@ -1242,7 +1242,7 @@
       "description": "Action to perform when a new window is requested to be created.",
       "oneOf": [
         {
-          "description": "Allow the window to be created using the default webview implementation.",
+          "description": "Allow the window to be created using the default webview implementation.\n\n The `urls` scope is only checked against the URL initially requested by `window.open`.\n The window is then managed by the webview and Tauri cannot restrict its navigation,\n so it can still be navigated to any URL afterwards (e.g. by the opener or a redirect).\n Use [`Self::AllowTauriWindow`] if navigations must be restricted to the scope too.",
           "type": "object",
           "required": [
             "action"

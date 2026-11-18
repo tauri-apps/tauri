@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.10.6]
+
+### Bug Fixes
+
+- [`27f96ecba`](https://www.github.com/tauri-apps/tauri/commit/27f96ecba7ce5c913115ea38daeba02fe77cf35e) ([#16564](https://www.github.com/tauri-apps/tauri/pull/16564) by [@nickrmurphy](https://www.github.com/tauri-apps/tauri/../../nickrmurphy)) Fix the macOS bundle failing under the Node CLI with `failed to run actool` (`Bad file descriptor` or an `NSPlaceholderArray` exception, depending on the Xcode version) when `bundle > icon` includes an Icon Composer `.icon` file, by running `actool` with a null stdin.
+- [`371882e0f`](https://www.github.com/tauri-apps/tauri/commit/371882e0f51dc01e9ef31c3a746d89c09c333ea2) ([#16555](https://www.github.com/tauri-apps/tauri/pull/16555) by [@rawsun007](https://www.github.com/tauri-apps/tauri/../../rawsun007)) Name the `customLanguageFiles` NSIS config key in the warning for untranslated languages, instead of `custom_language_files`, which the config rejects.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+
 ## [2.10.5]
 
 ### Enhancements

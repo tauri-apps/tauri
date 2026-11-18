@@ -62,7 +62,7 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 pub mod parse;
 
 use crate::{
-  TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability, url::UrlScope,
+  TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability, url::UrlPattern,
 };
 
 pub use self::parse::parse;
@@ -2103,10 +2103,11 @@ pub enum OnNewWindow {
   AllowDefault {
     /// Only allow URLs matching the given pattern list when set.
     ///
-    /// By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.
+    /// Each entry is a [URLPattern] string such as `"https://*.tauri.app/*"`.
+    /// A pattern without a path, search or hash such as `"https://tauri.app"` matches any of them.
     ///
     /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
-    urls: Option<Vec<UrlScope>>,
+    urls: Option<Vec<UrlPattern>>,
   },
   /// Allow the window to be created using a Tauri window.
   ///
@@ -2125,10 +2126,11 @@ pub enum OnNewWindow {
   AllowTauriWindow {
     /// Only allow URLs matching the given pattern list when set.
     ///
-    /// By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.
+    /// Each entry is a [URLPattern] string such as `"https://*.tauri.app/*"`.
+    /// A pattern without a path, search or hash such as `"https://tauri.app"` matches any of them.
     ///
     /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
-    urls: Option<Vec<UrlScope>>,
+    urls: Option<Vec<UrlPattern>>,
   },
   /// Deny the window from being created.
   #[default]
@@ -4589,11 +4591,11 @@ mod build {
 
       tokens.append_all(match self {
         Self::AllowDefault { urls } => {
-          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          let urls = opt_vec_lit(urls.as_ref(), url_pattern_lit);
           quote! { #prefix::AllowDefault { urls: #urls } }
         }
         Self::AllowTauriWindow { urls } => {
-          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          let urls = opt_vec_lit(urls.as_ref(), url_pattern_lit);
           quote! { #prefix::AllowTauriWindow { urls: #urls } }
         }
         Self::Deny => quote! { #prefix::Deny },

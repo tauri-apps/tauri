@@ -392,7 +392,7 @@ fn config_new_window_handler<R: Runtime>(
 /// `about:blank` is always allowed since it is the initial URL of the created window.
 #[cfg(desktop)]
 fn created_window_navigation_handler(
-  urls: Arc<Vec<tauri_utils::url::UrlScope>>,
+  urls: Arc<Vec<tauri_utils::url::UrlPattern>>,
 ) -> impl Fn(&Url) -> bool + Send + 'static {
   move |url| url.as_str() == "about:blank" || urls.iter().any(|pattern| pattern.test(url))
 }
@@ -2806,7 +2806,7 @@ mod tests {
   #[cfg(desktop)]
   #[test]
   fn created_window_navigation_is_scoped() {
-    let urls: Vec<tauri_utils::url::UrlScope> =
+    let urls: Vec<tauri_utils::url::UrlPattern> =
       serde_json::from_value(serde_json::json!(["https://allowed.com/*"])).unwrap();
     let handler = super::created_window_navigation_handler(std::sync::Arc::new(urls));
 

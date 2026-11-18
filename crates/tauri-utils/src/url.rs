@@ -9,77 +9,6 @@ use std::{str::FromStr, sync::Arc};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use url::Url;
 
-/// A scope to match URLs.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum UrlScope {
-  /// A [`UrlPattern`] to match URLs.
-  ///
-  /// This is only available if the `url-pattern` feature is enabled.
-  #[cfg(feature = "url-pattern")]
-  UrlPattern(UrlPattern),
-  /// A [`GlobPattern`] to match URLs.
-  #[cfg(not(feature = "url-pattern"))]
-  Glob(GlobPattern),
-}
-
-impl UrlScope {
-  /// Test if a given URL is matched by the scope.
-  pub fn test(&self, url: &Url) -> bool {
-    match self {
-      #[cfg(feature = "url-pattern")]
-      Self::UrlPattern(pattern) => pattern.test(url),
-      #[cfg(not(feature = "url-pattern"))]
-      Self::Glob(pattern) => pattern.0.matches(url.as_str()),
-    }
-  }
-}
-
-/// A [`glob::Pattern`] to match URLs.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GlobPattern(pub(crate) glob::Pattern);
-
-#[cfg(feature = "schema")]
-impl schemars::JsonSchema for GlobPattern {
-  fn schema_name() -> String {
-    "GlobPattern".to_string()
-  }
-
-  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-    String::json_schema(generator)
-  }
-}
-
-impl FromStr for GlobPattern {
-  type Err = glob::PatternError;
-
-  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-    glob::Pattern::new(s).map(Self)
-  }
-}
-
-impl Serialize for GlobPattern {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    serializer.serialize_str(self.0.as_str())
-  }
-}
-
-impl<'de> Deserialize<'de> for GlobPattern {
-  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    let s = String::deserialize(deserializer)?;
-    glob::Pattern::new(&s)
-      .map(Self)
-      .map_err(serde::de::Error::custom)
-  }
-}
-
 /// UrlPattern to match URLs.
 #[derive(Debug, Clone)]
 pub struct UrlPattern(Arc<urlpattern::UrlPattern>, String);
@@ -110,7 +39,8 @@ impl<'de> Deserialize<'de> for UrlPattern {
     D: Deserializer<'de>,
   {
     let s = String::deserialize(deserializer)?;
-    Self::from_str(&s).map_err(serde::de::Error::custom)
+    Self::from_str(&s)
+      .map_err(|e| serde::de::Error::custom(format!("invalid URLPattern `{s}`: {e}")))
   }
 }
 
@@ -169,8 +99,49 @@ impl PartialEq for UrlPattern {
 impl Eq for UrlPattern {}
 
 #[cfg(test)]
+#[cfg(test)]
 mod tests {
   use super::UrlPattern;
+
+  #[test]
+  fn url_pattern_serde() {
+    let patterns: Vec<UrlPattern> =
+      serde_json::from_str(r#"["https://*.tauri.app/*", "http://localhost:*"]"#).unwrap();
+    let json = serde_json::to_value(&patterns).unwrap();
+    assert_eq!(
+      json,
+      serde_json::json!(["https://*.tauri.app/*", "http://localhost:*"])
+    );
+    let roundtrip: Vec<UrlPattern> = serde_json::from_value(json).unwrap();
+    assert_eq!(patterns, roundtrip);
+  }
+
+  #[test]
+  fn url_pattern_error() {
+    let err = serde_json::from_str::<UrlPattern>(r#""https://tauri.app/(a""#)
+      .unwrap_err()
+      .to_string();
+    assert!(
+      err.contains("invalid URLPattern `https://tauri.app/(a`"),
+      "{err}"
+    );
+  }
+
+  #[test]
+  fn url_pattern_host_wildcard_does_not_cross_path() {
+    let pattern: UrlPattern = "https://*.tauri.app/*".parse().unwrap();
+    assert!(pattern.test(&"https://api.tauri.app/path".parse().unwrap()));
+    assert!(!pattern.test(&"https://evil.com/.tauri.app/".parse().unwrap()));
+    assert!(!pattern.test(&"https://api.tauri.app.evil.com/".parse().unwrap()));
+  }
+
+  #[test]
+  fn url_pattern_origin_only() {
+    let pattern: UrlPattern = "https://tauri.app".parse().unwrap();
+    assert!(pattern.test(&"https://tauri.app".parse().unwrap()));
+    assert!(pattern.test(&"https://tauri.app/a/b?q=1#h".parse().unwrap()));
+    assert!(!pattern.test(&"https://tauri.app.evil.com/".parse().unwrap()));
+  }
 
   #[test]
   fn url_pattern_domain_wildcard() {

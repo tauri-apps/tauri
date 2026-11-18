@@ -1255,13 +1255,13 @@
               ]
             },
             "urls": {
-              "description": "Only allow URLs matching the given pattern list when set.\n\n By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
+              "description": "Only allow URLs matching the given pattern list when set.\n\n Each entry is a [URLPattern] string such as `\"https://*.tauri.app/*\"`.\n A pattern without a path, search or hash such as `\"https://tauri.app\"` matches any of them.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
               "type": [
                 "array",
                 "null"
               ],
               "items": {
-                "$ref": "#/definitions/UrlScope"
+                "$ref": "#/definitions/UrlPattern"
               }
             }
           },
@@ -1281,13 +1281,13 @@
               ]
             },
             "urls": {
-              "description": "Only allow URLs matching the given pattern list when set.\n\n By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
+              "description": "Only allow URLs matching the given pattern list when set.\n\n Each entry is a [URLPattern] string such as `\"https://*.tauri.app/*\"`.\n A pattern without a path, search or hash such as `\"https://tauri.app\"` matches any of them.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
               "type": [
                 "array",
                 "null"
               ],
               "items": {
-                "$ref": "#/definitions/UrlScope"
+                "$ref": "#/definitions/UrlPattern"
               }
             }
           },
@@ -1311,20 +1311,7 @@
         }
       ]
     },
-    "UrlScope": {
-      "description": "A scope to match URLs.",
-      "anyOf": [
-        {
-          "description": "A [`GlobPattern`] to match URLs.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/GlobPattern"
-            }
-          ]
-        }
-      ]
-    },
-    "GlobPattern": {
+    "UrlPattern": {
       "type": "string"
     },
     "SecurityConfig": {

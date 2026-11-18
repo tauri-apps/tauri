@@ -89,7 +89,6 @@ config-json5 = ["json5"]
 config-toml = []
 resources = ["walkdir"]
 html-manipulation = ["dep:html5ever", "dep:kuchiki"]
-url-pattern = []
 html-manipulation-2 = ["dep:dom_query"]
 
 [lints]

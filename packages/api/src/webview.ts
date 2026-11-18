@@ -1077,8 +1077,9 @@ interface WebviewOptions {
    *
    * 'allowDefault' lets the webview open the URL using the native implementation.
    * 'allowTauriWindow' creates a Tauri window to load the URL.
-   * Additionally you can provide a list of filters to only allow URLs matching certain glob patterns.
-   * It can leverage the {@link https://developer.mozilla.org/en-US/docs/Web/API/URLPattern|URL pattern spec} if the `url-pattern` Cargo feature is enabled.
+   * Additionally you can provide a list of filters to only allow URLs matching certain patterns.
+   * Each entry is a {@link https://developer.mozilla.org/en-US/docs/Web/API/URLPattern|URL pattern} string such as `https://*.tauri.app/*`.
+   * A pattern without a path, search or hash such as `https://tauri.app` matches any of them.
    *
    * A new window is requested to be opened by the {@link https://developer.mozilla.org/en-US/docs/Web/API/Window/open|window.open API}.
    *

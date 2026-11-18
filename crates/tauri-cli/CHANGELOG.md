@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.12.6]
+
+### Bug Fixes
+
+- [`f5578bc1e`](https://www.github.com/tauri-apps/tauri/commit/f5578bc1e07cc2e87a6b4526bc20299aaba3495e) ([#16547](https://www.github.com/tauri-apps/tauri/pull/16547) by [@Gorkem-Taha](https://www.github.com/tauri-apps/tauri/../../Gorkem-Taha)) Serve the built-in development server's root URL ('/') always as HTML. Fixes HTML auto-reload script not injected.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.10.6`
+- Upgraded to `tauri-utils@2.10.4`
+
 ## [2.12.5]
 
 ### Bug Fixes

@@ -293,7 +293,10 @@ impl<R: Runtime> TrayIconBuilder<R> {
 
   /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
   pub fn icon_as_template(mut self, is_template: bool) -> Self {
-    self.inner = self.inner.with_icon_as_template(is_template);
+    #[allow(deprecated)]
+    {
+      self.inner = self.inner.with_icon_as_template(is_template);
+    }
     self
   }
 
@@ -321,10 +324,17 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
-  /// Set a handler for menu events.
+  /// Set a global handler for menu events.
   ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
+  /// This handler is not specific to this tray icon.
+  /// It receives each menu event of the application.
+  /// This includes the events of the app menu, the window menus, and the menus of all tray icons.
+  ///
+  /// This method operates the same as [`Builder::on_menu_event`](crate::Builder::on_menu_event).
+  /// If you register the same handler here and on the [`Builder`](crate::Builder),
+  /// the handler runs two times for each menu event.
+  ///
+  /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
@@ -460,10 +470,17 @@ impl<R: Runtime> TrayIcon<R> {
     &self.app_handle
   }
 
-  /// Register a handler for menu events.
+  /// Register a global handler for menu events.
   ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
+  /// This handler is not specific to this tray icon.
+  /// It receives each menu event of the application.
+  /// This includes the events of the app menu, the window menus, and the menus of all tray icons.
+  ///
+  /// This method operates the same as [`AppHandle::on_menu_event`].
+  /// If you register the same handler here and on the [`Builder`](crate::Builder) or the [`AppHandle`],
+  /// the handler runs two times for each menu event.
+  ///
+  /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(&self, f: F) {
     self
       .app_handle
@@ -560,6 +577,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
   pub fn set_icon_as_template(&self, #[allow(unused)] is_template: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
+    #[allow(deprecated)]
     run_item_main_thread!(self, |self_: Self| {
       self_.inner.set_icon_as_template(is_template)
     })?;
@@ -585,6 +603,7 @@ impl<R: Runtime> TrayIcon<R> {
         Some(i) => Some(i.try_into()?),
         None => None,
       };
+      #[allow(deprecated)]
       run_item_main_thread!(self, |self_: Self| {
         self_
           .inner

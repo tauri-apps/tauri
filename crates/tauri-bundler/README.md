@@ -45,6 +45,8 @@ These settings apply to bundles for all (or most) OSes.
 - `short_description`: [OPTIONAL] A short, one-line description of the application. If this is not present, then it
   will use the `description` value from your `Cargo.toml` file.
 - `long_description`: [OPTIONAL] A longer, multi-line description of the application.
+- `license_file`: [OPTIONAL] Path to a license file to include in the DMG, NSIS and MSI bundles. The Tauri CLI
+  maps the `licenseFile` configuration value to this field.
 
 ### Debian-specific settings
 
@@ -77,7 +79,6 @@ These settings are used only when bundling `app` and `dmg` packages.
   this config field, you may also want have your `build.rs` script emit
   `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11` (or whatever version number
   you want) to ensure that the compiled binary has the same minimum version.
-- `license`: Path to the license file for the DMG bundle.
 - `exception_domain`: The exception domain to use on the macOS .app bundle. Allows communication to the outside world e.g. a web server you're shipping.
 - `provider_short_name`: If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. See [Customizing the notarization workflow](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/customizing_the_notarization_workflow) and search for `--list-providers` for more information how to obtain your provider short name.
 
@@ -102,13 +103,15 @@ These settings are used only when bundling `app` and `dmg` packages.
       "icons/icon.ico"
     ],
     "resources": ["./assets/**/*.png"],
-    "deb": {
-      "depends": ["debian-dependency1", "debian-dependency2"]
+    "licenseFile": "./LICENSE",
+    "linux": {
+      "deb": {
+        "depends": ["debian-dependency1", "debian-dependency2"]
+      }
     },
     "macOS": {
       "frameworks": [],
-      "minimumSystemVersion": "10.11",
-      "license": "./LICENSE"
+      "minimumSystemVersion": "10.11"
     },
     "externalBin": ["./sidecar-app"]
   }

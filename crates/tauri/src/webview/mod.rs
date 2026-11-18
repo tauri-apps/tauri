@@ -480,6 +480,11 @@ async fn create_window(app: tauri::AppHandle) {
   /// Keep in mind that you can't create 2 webviews with the same `label` so make sure
   /// that the initial webview was closed or change the label of the new [`WebviewBuilder`].
   ///
+  /// New window requests are handled according to [`WindowConfig::on_new_window`].
+  /// Note that windows created by [`OnNewWindow::AllowTauriWindow`] are labeled `{label}-created-{n}`,
+  /// so capabilities matching them with a glob (such as `*` or `{label}*`) also apply to them.
+  /// See [`OnNewWindow::AllowTauriWindow`] for more information.
+  ///
   /// # Known issues
   ///
   /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].

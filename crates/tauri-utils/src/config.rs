@@ -2109,6 +2109,19 @@ pub enum OnNewWindow {
     urls: Option<Vec<UrlScope>>,
   },
   /// Allow the window to be created using a Tauri window.
+  ///
+  /// The created windows are labeled `{label}-created-{n}`, where `{label}` is the label
+  /// of the webview that requested the new window and `{n}` is a counter starting at 0
+  /// (e.g. `main-created-0`).
+  ///
+  /// **Security**: capabilities are matched against window labels with glob patterns,
+  /// so a capability targeting `"windows": ["*"]` or `"windows": ["main*"]` also grants
+  /// its permissions to the windows created for `main`, which may load any URL
+  /// allowed by `urls` (any URL at all if `urls` is not set).
+  /// Scope capabilities to exact window labels (e.g. `"windows": ["main"]`)
+  /// and set `urls` to restrict which URLs these windows can load.
+  ///
+  /// This is only supported on desktop; the new window request is denied on mobile.
   AllowTauriWindow {
     /// Only allow URLs matching the given pattern list when set.
     ///

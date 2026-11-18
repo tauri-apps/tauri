@@ -13,9 +13,10 @@ Default permissions for the plugin, which enables all commands.
 - `allow-set-title`
 - `allow-set-visible`
 - `allow-set-temp-dir-path`
+- `allow-set-icon-templated`
+- `allow-set-show-menu-on-left-click`
 - `allow-set-icon-as-template`
 - `allow-set-icon-with-as-template`
-- `allow-set-show-menu-on-left-click`
 
 ## Permission Table
 
@@ -152,6 +153,32 @@ Enables the set_icon_as_template command without any pre-configured scope.
 <td>
 
 Denies the set_icon_as_template command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:tray:allow-set-icon-templated`
+
+</td>
+<td>
+
+Enables the set_icon_templated command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:tray:deny-set-icon-templated`
+
+</td>
+<td>
+
+Denies the set_icon_templated command without any pre-configured scope.
 
 </td>
 </tr>

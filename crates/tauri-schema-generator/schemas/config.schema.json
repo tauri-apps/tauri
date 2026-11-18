@@ -1909,7 +1909,13 @@
           "type": "string"
         },
         "iconAsTemplate": {
-          "description": "A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.",
+          "description": "**Deprecated since v2.13, use [`Self::icon_is_template`] instead**\n\n A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.",
+          "default": false,
+          "deprecated": true,
+          "type": "boolean"
+        },
+        "iconIsTemplate": {
+          "description": "A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.\n\n A template image is drawn using only its alpha channel, so the system recolors it to match\n the menu bar in light and dark mode.",
           "default": false,
           "type": "boolean"
         },
@@ -3249,7 +3255,7 @@
           ]
         },
         "installerHooks": {
-          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the\n main installer.nsi script.\n\n Supported hooks are:\n\n - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.\n - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.\n - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.\n - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n ### Example\n\n ```nsh\n !macro NSIS_HOOK_PREINSTALL\n   MessageBox MB_OK \"PreInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTINSTALL\n   MessageBox MB_OK \"PostInstall\"\n !macroend\n\n !macro NSIS_HOOK_PREUNINSTALL\n   MessageBox MB_OK \"PreUnInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTUNINSTALL\n   MessageBox MB_OK \"PostUninstall\"\n !macroend\n ```",
+          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the\n main installer.nsi script.\n\n Supported hooks are:\n\n - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.\n - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.\n - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.\n - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,\n   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page\n   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the \"Run\" checkbox).\n\n ### Example\n\n ```nsh\n !macro NSIS_HOOK_PREINSTALL\n   MessageBox MB_OK \"PreInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTINSTALL\n   MessageBox MB_OK \"PostInstall\"\n !macroend\n\n !macro NSIS_HOOK_PREUNINSTALL\n   MessageBox MB_OK \"PreUnInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTUNINSTALL\n   MessageBox MB_OK \"PostUninstall\"\n !macroend\n ```",
           "type": [
             "string",
             "null"
@@ -3536,9 +3542,132 @@
             "string",
             "null"
           ]
+        },
+        "compression": {
+          "description": "Compression algorithm and level. Defaults to `Gzip` with level 6.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DebCompression"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
+    },
+    "DebCompression": {
+      "description": "Compression algorithms used when bundling DEB packages.",
+      "oneOf": [
+        {
+          "description": "Gzip compression",
+          "type": "object",
+          "required": [
+            "level",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "gzip"
+              ]
+            },
+            "level": {
+              "description": "Gzip compression level (0-9).",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Zstd compression",
+          "type": "object",
+          "required": [
+            "level",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "zstd"
+              ]
+            },
+            "level": {
+              "description": "Zstd compression level (-131072 - 22).",
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Xz compression",
+          "type": "object",
+          "required": [
+            "level",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "xz"
+              ]
+            },
+            "level": {
+              "description": "Xz compression level (0-9).",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Bzip2 compression",
+          "type": "object",
+          "required": [
+            "level",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "bzip2"
+              ]
+            },
+            "level": {
+              "description": "Bzip2 compression level (1-9).",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Disable compression",
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "RpmConfig": {
       "description": "Configuration for RPM bundles.",
@@ -3681,7 +3810,7 @@
               ]
             },
             "level": {
-              "description": "Gzip compression level",
+              "description": "Gzip compression level (0-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -3704,7 +3833,7 @@
               ]
             },
             "level": {
-              "description": "Zstd compression level",
+              "description": "Zstd compression level (-131072 - 22).",
               "type": "integer",
               "format": "int32"
             }
@@ -3726,7 +3855,7 @@
               ]
             },
             "level": {
-              "description": "Xz compression level",
+              "description": "Xz compression level (0-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -3749,7 +3878,7 @@
               ]
             },
             "level": {
-              "description": "Bzip2 compression level",
+              "description": "Bzip2 compression level (1-9).",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0

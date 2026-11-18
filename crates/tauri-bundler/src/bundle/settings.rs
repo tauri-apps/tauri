@@ -5,12 +5,9 @@
 
 use super::category::AppCategory;
 use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
-pub use tauri_utils::config::WebviewInstallMode;
+pub use tauri_utils::config::{DebCompression, RpmCompression, WebviewInstallMode};
 use tauri_utils::{
-  config::{
-    BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression,
-    RpmCompression,
-  },
+  config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
   platform::Target as TargetPlatform,
   resources::{ResourcePaths, external_binaries},
 };
@@ -213,6 +210,8 @@ pub struct DebianSettings {
   /// Path to script that will be executed after the package is removed. See
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// The Linux AppImage bundle settings.
@@ -519,6 +518,9 @@ pub struct NsisSettings {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   ///
   /// ### Example

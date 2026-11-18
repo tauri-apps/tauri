@@ -2175,6 +2175,7 @@ tauri::Builder::default()
         if let Err(e) = crate::plugin::mobile::run_command(
           plugin,
           &app_handle,
+          None,
           heck::AsLowerCamelCase(message.command).to_string(),
           payload,
           move |response| match response {

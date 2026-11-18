@@ -497,7 +497,7 @@ impl<R: Runtime> PluginHandle<R> {
   /// This is a blocking operation and must *NOT* be used on the main thread, including
   /// non-`async` commands, which run there: the call is dispatched to the thread hosting the
   /// webview, and waiting for a plugin that resolves asynchronously on it would deadlock.
-  /// Prefer [`Self::run_mobile_plugin_async_with_webview`].
+  /// Prefer [`Self::run_mobile_plugin_with_webview_async`].
   pub fn run_mobile_plugin_with_webview<T: DeserializeOwned>(
     &self,
     webview: &Webview<R>,
@@ -520,7 +520,7 @@ impl<R: Runtime> PluginHandle<R> {
   }
 
   /// Async variant of [`Self::run_mobile_plugin_with_webview`].
-  pub async fn run_mobile_plugin_async_with_webview<T: DeserializeOwned>(
+  pub async fn run_mobile_plugin_with_webview_async<T: DeserializeOwned>(
     &self,
     webview: &Webview<R>,
     command: impl AsRef<str>,

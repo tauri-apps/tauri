@@ -58,7 +58,7 @@ const WIX_REQUIRED_FILES: &[&str] = &[
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
   let tauri_tools_path = tools_directory(settings)?;
 
-  let wix_path = tauri_tools_path.join("WixTools314");
+  let wix_path = tauri_tools_path.join("WixTools-3.14.1");
 
   if !wix_path.exists() {
     get_and_extract_wix(&wix_path)?;

@@ -362,7 +362,7 @@ impl WindowsAttributes {
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
       window_icon_path: None,
       append_rc_content: Vec::new(),
-      link_resource_into_all_targets: false,
+      link_resource_into_all_targets: true,
     }
   }
 
@@ -374,7 +374,7 @@ impl WindowsAttributes {
       window_icon_path: None,
       static_vc_runtime: None,
       append_rc_content: Vec::new(),
-      link_resource_into_all_targets: false,
+      link_resource_into_all_targets: true,
     }
   }
 
@@ -467,18 +467,18 @@ impl WindowsAttributes {
   /// Sets whether to link the generated resource file (application manifest, icon and version info)
   /// into all targets of the package instead of only into binaries.
   ///
-  /// By default the resource is only linked into binaries, so test binaries are built without the
-  /// application manifest. Tauri depends on Common Controls v6, which is enabled by that manifest,
-  /// so tests that link Tauri (e.g. tests using [`tauri::test`]) fail to start with
-  /// `STATUS_ENTRYPOINT_NOT_FOUND` (`0xc0000139`). Enabling this links the resource into the
-  /// library's unit tests, integration tests, examples, benchmarks and `cdylib` targets as well.
+  /// Tauri depends on Common Controls v6, which is enabled by the application manifest, so test
+  /// binaries that link Tauri (e.g. tests using [`tauri::test`]) built without the manifest fail to
+  /// start with `STATUS_ENTRYPOINT_NOT_FOUND` (`0xc0000139`). When enabled, the resource is linked
+  /// into the library's unit tests, integration tests, examples, benchmarks and `cdylib` targets
+  /// as well. Disable it to only link the resource into binaries.
   ///
-  /// Defaults to `false`.
+  /// Defaults to `true`.
   ///
   /// # Example
   ///
   /// ```rust,no_run
-  /// let windows = tauri_build::WindowsAttributes::new().link_resource_into_all_targets(true);
+  /// let windows = tauri_build::WindowsAttributes::new().link_resource_into_all_targets(false);
   /// let attrs = tauri_build::Attributes::new().windows_attributes(windows);
   /// tauri_build::try_build(attrs).expect("failed to run build script");
   /// ```

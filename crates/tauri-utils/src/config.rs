@@ -1003,7 +1003,7 @@ pub struct NsisConfig {
   #[serde(alias = "uninstaller-icon")]
   pub uninstaller_icon: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of uninstallers pages.
-  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `headerImage`
   ///
   /// The recommended dimensions are 150px x 57px.
   #[serde(alias = "uninstaller-header-image")]
@@ -1014,9 +1014,9 @@ pub struct NsisConfig {
   /// A list of installer languages. Default to `["English"]` if not set.
   ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
-  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  /// To allow the user to select the language, set `displayLanguageSelector` to `true`.
   ///
-  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
   /// A key-value pair where the key is the language and the
   /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
@@ -1809,8 +1809,10 @@ pub struct BundleConfig {
   /// If true, tools will be cached in `target/.tauri/`.
   /// If false, tools will be cached in the current user's platform-specific cache directory.
   ///
-  /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),
-  /// because the Window system's app data directory is restricted.
+  /// When building this application as the Windows `SYSTEM` user (e.g., AWS EC2 workloads or CI runners installed as a service),
+  /// that cache directory is inside `C:\Windows\System32`, where the 32-bit NSIS and WiX tools can't find their own files,
+  /// so they are cached in the build's output directory (e.g., `target/release/.tauri/`) instead.
+  /// Setting this to `true` in that case shares them across build profiles and targets.
   #[serde(default, alias = "use-local-tools-dir")]
   pub use_local_tools_dir: bool,
   /// A list of—either absolute or relative—paths to binaries to embed with your application.
@@ -1898,8 +1900,12 @@ impl From<[u8; 3]> for Color {
 
 impl FromStr for Color {
   type Err = String;
-  fn from_str(mut color: &str) -> Result<Self, Self::Err> {
-    color = color.trim().strip_prefix('#').unwrap_or(color);
+  fn from_str(color: &str) -> Result<Self, Self::Err> {
+    let color = color.trim();
+    let color = color.strip_prefix('#').unwrap_or(color);
+    if !color.bytes().all(|b| b.is_ascii_hexdigit()) {
+      return Err("Invalid hex color, must only contain hexadecimal digits, for example: #fff, #ffffff, or #ffffffff".into());
+    }
     let color = match color.len() {
       3 => color.chars()
             .flat_map(|c| std::iter::repeat_n(c, 2))
@@ -2752,7 +2758,7 @@ impl Display for Csp {
   }
 }
 
-/// The possible values for the `dangerous_disable_asset_csp_modification` config option.
+/// The possible values for the `dangerousDisableAssetCspModification` config option.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -3803,7 +3809,7 @@ pub struct AndroidConfig {
   ///
   /// - If `true`, the generator will try to read the last `versionCode` from
   ///   `tauri.properties` and increment it by 1 for every build.
-  /// - If `false` or not set, it falls back to `version_code` or semver-derived logic.
+  /// - If `false` or not set, it falls back to `versionCode` or semver-derived logic.
   ///
   /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]
@@ -5375,6 +5381,11 @@ mod test {
     assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
     assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
     assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
+
+    assert!("#€€".parse::<Color>().is_err());
+    assert!("#€".parse::<Color>().is_err());
+    assert!("#+f+f+f".parse::<Color>().is_err());
+    assert_eq!(Color(255, 255, 255, 255), " fff ".parse().unwrap());
   }
 
   #[test]

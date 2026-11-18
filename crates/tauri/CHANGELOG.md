@@ -1,5 +1,66 @@
 # Changelog
 
+## [2.12.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+- Upgraded to `tauri-runtime@2.12.4`
+- Upgraded to `tauri-runtime-wry@2.12.5`
+- Upgraded to `tauri-macros@2.7.6`
+- Upgraded to `tauri-build@2.7.6`
+
+## [2.12.6]
+
+### Bug Fixes
+
+- [`eebf7c23c`](https://www.github.com/tauri-apps/tauri/commit/eebf7c23c1b55629aac7c8f4913d845bdbb46da3) ([#16438](https://www.github.com/tauri-apps/tauri/pull/16438) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix a deadlock when emitting an event from a non-main thread with the `tracing` feature enabled while the main thread emits an event or looks up a webview, for example in a document title change handler.
+- [`ba1e205f3`](https://www.github.com/tauri-apps/tauri/commit/ba1e205f3bfba19a9cbe6032bb4ece3068429d04) ([#16368](https://www.github.com/tauri-apps/tauri/pull/16368) by [@masonliiu](https://www.github.com/tauri-apps/tauri/../../masonliiu)) Fix a Linux session crash where every touch event near the border of an undecorated window started another resize drag. A resize drag now only starts on touch begin.
+- [`3b769fbd5`](https://www.github.com/tauri-apps/tauri/commit/3b769fbd5314bcb4c2e9849c471eb79b5dd8aa91) ([#16462](https://www.github.com/tauri-apps/tauri/pull/16462) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) On macOS, `process::restart` (and `AppHandle::restart`) no longer brings the relaunched app to the foreground, so it doesn't take focus from the app the user is working in.
+- [`ab1875e19`](https://www.github.com/tauri-apps/tauri/commit/ab1875e194d5a48055f580775b66e683b1ecffe5) ([#16376](https://www.github.com/tauri-apps/tauri/pull/16376) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Preserve the original URL path without percent decoding them when proxying them on mobile dev
+- [`a1ea1b5e5`](https://www.github.com/tauri-apps/tauri/commit/a1ea1b5e5ad4b75759fa773b7b78db288128b4af) ([#16453](https://www.github.com/tauri-apps/tauri/pull/16453) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Keep the drive letter or UNC share of absolute `bundle > resources` and `bundle > externalBin` paths on Windows. Before, a resource on another drive than the current directory, for example `D:/assets/*` in a project on `C:`, failed with a "resource path doesn't exist" error.
+- [`8d5f74c1c`](https://www.github.com/tauri-apps/tauri/commit/8d5f74c1cf476cc92d55648973d0d5abf72df189) ([#16439](https://www.github.com/tauri-apps/tauri/pull/16439) by [@Lorkydey](https://www.github.com/tauri-apps/tauri/../../Lorkydey)) On Windows, let accessibility hit tests pass through the resize helper outside the top border of frameless windows with shadows, so screen readers can reach the window content.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.12.3`
+- Upgraded to `tauri-runtime-wry@2.12.4`
+- Upgraded to `tauri-utils@2.10.3`
+- Upgraded to `tauri-macros@2.7.5`
+- Upgraded to `tauri-build@2.7.5`
+
+## [2.12.5]
+
+### Bug Fixes
+
+- [`52081e04a`](https://www.github.com/tauri-apps/tauri/commit/52081e04a0309620d3eb8121e5ca9b66312f9857) ([#16333](https://www.github.com/tauri-apps/tauri/pull/16333) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Rename the misspelled `choowHowToInstall` NSIS language string to `chooseHowToInstall`. A custom language file in `bundle.windows.nsis.customLanguageFiles` that only defines the old name keeps working for now, but users should migrate to the new name.
+- [`c0e3dbd91`](https://www.github.com/tauri-apps/tauri/commit/c0e3dbd91def4b2c39fc7cca03f0b86407e9d584) ([#16254](https://www.github.com/tauri-apps/tauri/pull/16254) by [@kihyun1998](https://www.github.com/tauri-apps/tauri/../../kihyun1998)) Fix NSIS installers not blocking downgrades over a newer installation made by the MSI installer in silent (`/S`), passive (`/P`) and update (`/UPDATE`) modes when `bundle.windows.allowDowngrades` is `false`.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.7.4`
+- Upgraded to `tauri-runtime-wry@2.12.3`
+- Upgraded to `tauri-macros@2.7.4`
+
+## [2.12.4]
+
+### Enhancements
+
+- [`5d1e8777a`](https://www.github.com/tauri-apps/tauri/commit/5d1e8777a04dfee9eb4e5ef4eb4664c8914ef79c) ([#16286](https://www.github.com/tauri-apps/tauri/pull/16286)) Improve the error message on iOS when the development server cannot be reached through a `localhost` URL, suggesting `tauri ios dev --host`.
+
+### Bug Fixes
+
+- [`9c3fb8865`](https://www.github.com/tauri-apps/tauri/commit/9c3fb8865fcc33982dff31c821d988a9a038ff8c) ([#16197](https://www.github.com/tauri-apps/tauri/pull/16197)) Fix a panic in the IPC and asset protocol handlers when the request URI has an empty path (for example `ipc:foo`).
+- [`7b673ddaa`](https://www.github.com/tauri-apps/tauri/commit/7b673ddaaf885ecaecfe79dfeb4cac1c6880fce6) ([#16146](https://www.github.com/tauri-apps/tauri/pull/16146)) `PluginHandle::run_mobile_plugin_async` and `PluginHandle::run_mobile_plugin` no longer panic (which aborts the process on iOS and Android) when a mobile plugin command resolves after its caller stopped waiting, for example when the async call was cancelled by a timeout. The late response is dropped instead.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.7.3`
+- Upgraded to `tauri-utils@2.10.2`
+- Upgraded to `tauri-runtime@2.12.2`
+- Upgraded to `tauri-runtime-wry@2.12.2`
+- Upgraded to `tauri-macros@2.7.3`
+
 ## [2.12.3]
 
 ### Bug Fixes

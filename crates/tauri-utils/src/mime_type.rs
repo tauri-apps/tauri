@@ -53,48 +53,72 @@ impl MimeType {
 
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType with specified fallback for unknown file extensions.
   pub fn parse_from_uri_with_fallback(uri: &str, fallback: MimeType) -> MimeType {
-    let suffix = uri.split('.').next_back();
+    let suffix = uri.split('.').next_back().map(str::to_ascii_lowercase);
+    Self::from_suffix(suffix.as_deref(), fallback)
+  }
+
+  /// map a lowercase URI suffix to a mime type with specified fallback for unknown file extensions.
+  fn from_suffix(suffix: Option<&str>, fallback: MimeType) -> MimeType {
     match suffix {
       Some("bin") => Self::OctetStream,
-      Some("css" | "less" | "sass" | "styl") => Self::Css,
-      Some("csv") => Self::Csv,
-      Some("html") => Self::Html,
-      Some("ico") => Self::Ico,
-      Some("js") => Self::Js,
-      Some("json") => Self::Json,
-      Some("jsonld") => Self::Jsonld,
-      Some("mjs") => Self::Js,
-      Some("mp4") => Self::Mp4,
-      Some("rtf") => Self::Rtf,
-      Some("svg") => Self::Svg,
-      Some("txt") => Self::Txt,
       // Assume HTML when a TLD is found for eg. `wry:://tauri.app` | `wry://hello.com`
-      Some(_) => fallback,
+      Some(suffix) => Self::from_known_extension(suffix).unwrap_or(fallback),
       // using octet stream according to this:
       // <https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types>
       None => Self::OctetStream,
     }
   }
 
+  /// map a lowercase file extension to a mime type, `None` when it's unknown (or `bin`).
+  fn from_known_extension(suffix: &str) -> Option<MimeType> {
+    let mime = match suffix {
+      "css" | "less" | "sass" | "styl" => Self::Css,
+      "csv" => Self::Csv,
+      "html" => Self::Html,
+      "ico" => Self::Ico,
+      "js" | "mjs" => Self::Js,
+      "json" => Self::Json,
+      "jsonld" => Self::Jsonld,
+      "mp4" => Self::Mp4,
+      "rtf" => Self::Rtf,
+      "svg" => Self::Svg,
+      "txt" => Self::Txt,
+      _ => return None,
+    };
+    Some(mime)
+  }
+
+  /// text types that `infer` can't detect from content, so the extension is used as is.
+  fn is_text(&self) -> bool {
+    matches!(
+      self,
+      Self::Css
+        | Self::Csv
+        | Self::Html
+        | Self::Js
+        | Self::Json
+        | Self::Jsonld
+        | Self::Svg
+        | Self::Txt
+    )
+  }
+
   /// infer mimetype from content (or) URI if needed.
   pub fn parse(content: &[u8], uri: &str) -> String {
     Self::parse_with_fallback(content, uri, Self::Html)
   }
-  /// infer mimetype from content (or) URI if needed with specified fallback for unknown file extensions.
+  /// get the mimetype from the URI extension for text types, otherwise infer it from content (or) URI with specified fallback.
   pub fn parse_with_fallback(content: &[u8], uri: &str, fallback: MimeType) -> String {
-    let mime = if uri.ends_with(".svg") {
-      // when reading svg, we can't use `infer`
-      None
-    } else {
-      infer::get(content).map(|info| info.mime_type())
-    };
-
-    match mime {
-      Some(mime) if mime == MIMETYPE_PLAIN => {
-        Self::parse_from_uri_with_fallback(uri, fallback).to_string()
+    let suffix = uri.split('.').next_back().map(str::to_ascii_lowercase);
+    if let Some(mime) = suffix.as_deref().and_then(Self::from_known_extension) {
+      if mime.is_text() {
+        return mime.to_string();
       }
-      None => Self::parse_from_uri_with_fallback(uri, fallback).to_string(),
-      Some(mime) => mime.to_string(),
+    }
+
+    match infer::get(content).map(|info| info.mime_type()) {
+      Some(mime) if mime != MIMETYPE_PLAIN => mime.to_string(),
+      _ => Self::from_suffix(suffix.as_deref(), fallback).to_string(),
     }
   }
 }
@@ -150,5 +174,53 @@ mod tests {
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.app").to_string();
     assert_eq!(custom_scheme, String::from("text/html"));
+  }
+
+  #[test]
+  fn should_ignore_extension_case() {
+    assert_eq!(
+      MimeType::parse_from_uri("assets/app.JS").to_string(),
+      "text/javascript"
+    );
+    assert_eq!(
+      MimeType::parse_from_uri("assets/Style.Css").to_string(),
+      "text/css"
+    );
+    assert_eq!(
+      MimeType::parse(
+        b"<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>",
+        "Logo.SVG"
+      ),
+      "image/svg+xml"
+    );
+    assert_eq!(
+      MimeType::parse(b"<?xml version=\"1.0\"?><svg></svg>", "Logo.SVG"),
+      "image/svg+xml"
+    );
+  }
+
+  #[test]
+  fn should_prefer_extension_over_content_for_text_types() {
+    let js = b"var e=1;function t(h){if(h.slice(0,5)===`%PDF-`)return`application/pdf`}export{t};";
+    assert_eq!(MimeType::parse(js, "/assets/x.js"), "text/javascript");
+    assert_eq!(MimeType::parse(js, "/assets/x.mjs"), "text/javascript");
+    assert_eq!(
+      MimeType::parse(b"/* %PDF- */ a{}", "/assets/x.css"),
+      "text/css"
+    );
+    assert_eq!(
+      MimeType::parse(b"%PDF-1.7", "/assets/readme.txt"),
+      "text/plain"
+    );
+    // other types still use the content
+    assert_eq!(
+      MimeType::parse(b"%PDF-1.7", "/video.mp4"),
+      "application/pdf"
+    );
+    assert_eq!(MimeType::parse(b"%PDF-1.7", "/doc.pdf"), "application/pdf");
+    assert_eq!(
+      MimeType::parse(b"\0asm\x01\0\0\0", "/app.wasm"),
+      "application/wasm"
+    );
   }
 }

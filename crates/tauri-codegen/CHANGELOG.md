@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.7.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+
+## [2.7.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.3`
+- [`6c20c1844`](https://www.github.com/tauri-apps/tauri/commit/6c20c1844b8fb0124dc253099700f7697bf7cff4) ([#16502](https://www.github.com/tauri-apps/tauri/pull/16502) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated sha2 to 0.11.
+
+## [2.7.4]
+
+### Bug Fixes
+
+- [`bc1136ba6`](https://www.github.com/tauri-apps/tauri/commit/bc1136ba6eef93d57b839a8e3634bb1a97d0befd) ([#16324](https://www.github.com/tauri-apps/tauri/pull/16324) by [@jay-tau](https://www.github.com/tauri-apps/tauri/../../jay-tau)) Set the modification time of the asset, icon and macOS `Info.plist` files `generate_context!` writes to `OUT_DIR` to 2000-01-01 UTC, so the first `cargo build` without changes after a build that created them no longer recompiles the app crate.
+
+### Dependencies
+
+- [`cf40b7337`](https://www.github.com/tauri-apps/tauri/commit/cf40b7337a9657ead88be3b4caed4539d8aabae8) ([#16348](https://www.github.com/tauri-apps/tauri/pull/16348) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated `ico` to 0.6
+
+## [2.7.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+
 ## [2.7.2]
 
 ### Dependencies

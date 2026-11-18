@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.4.3]
+
+### Bug Fixes
+
+- [`0007a43ae`](https://www.github.com/tauri-apps/tauri/commit/0007a43ae74551655357aced98a000965b759ff3) ([#14838](https://www.github.com/tauri-apps/tauri/pull/14838) by [@DeTeam](https://www.github.com/tauri-apps/tauri/../../DeTeam)) Also list legacy `iPhone Distribution:` and `iPhone Developer:` signing certificates when looking up the available development teams.
+- [`152d293dd`](https://www.github.com/tauri-apps/tauri/commit/152d293ddf5680b968dc4853e52d87c12a2deaeb) ([#16298](https://www.github.com/tauri-apps/tauri/pull/16298) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Delete the temporary signing keychain when importing the certificate or resolving the signing identity fails, instead of leaving it behind in `~/Library/Keychains`.
+
+### Dependencies
+
+- [`1d7b93fc5`](https://www.github.com/tauri-apps/tauri/commit/1d7b93fc5927c013e20613e45e7b84602efb0ee9) ([#16321](https://www.github.com/tauri-apps/tauri/pull/16321) by [@FalkWoldmann](https://www.github.com/tauri-apps/tauri/../../FalkWoldmann)) Replace `once_cell` with the `std::sync` equivalents, removing it from the direct dependencies.
+
+## [2.4.2]
+
+### Bug Fixes
+
+- [`b9487627b`](https://www.github.com/tauri-apps/tauri/commit/b9487627b17f07c70db68d890a560112bdbf3505) ([#15844](https://www.github.com/tauri-apps/tauri/pull/15844)) Fixed importing a signing certificate failing with `MAC verification failed during PKCS12 import` for p12 files that use modern PBES2/AES encryption. The certificate format is now detected and passed to `security import` explicitly (PKCS#12 or a PEM bundle), and import failures explain the expected certificate format and password.
+
+### Dependencies
+
+- [`5a3cbfcdc`](https://www.github.com/tauri-apps/tauri/commit/5a3cbfcdcaad82185ce2cc9f4d246c78e144c78c) ([#16279](https://www.github.com/tauri-apps/tauri/pull/16279)) **Breaking Change:** Temporarily inlined the code we need from apple-codesign-rs until its next release to unblock important dependency updates. Technically this is a breaking change to the `CertificateProfile` enum re-export and the `Error::FailedToCreateSelfSignedCertificate` enum variant.
+
 ## [2.4.1]
 
 ### Dependencies

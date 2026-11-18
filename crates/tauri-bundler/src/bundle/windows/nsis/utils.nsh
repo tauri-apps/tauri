@@ -39,6 +39,15 @@
       System::Call 'RSTRTMGR::RmGetList(p R0, *i .r1, *i .r2, p 0, *i .r3) i .r0'
       ; ERROR_SUCCESS means no running processes, ERROR_MORE_DATA means there're some
       ${If} $0 = ${ERROR_MORE_DATA}
+        ; The installer doesn't have permission to shut down the app (for example when the app runs elevated),
+        ; so RmShutdown would fail with ERROR_FAIL_SHUTDOWN. Ask the user to close it instead of offering to kill it
+        IntOp $0 $3 & ${RmRebootReasonPermissionDenied}
+        ${If} $0 <> 0
+          nsis_tauri_utils::StrReplace "$(noPermissionToCloseApp)" "{{product_name}}" "${productName}"
+          Pop $R1
+          StrCpy $R3 $R1
+          Goto kill_failed_${UniqueID}
+        ${EndIf}
         IfSilent kill_${UniqueID} 0
         ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL $R2 IDOK kill_${UniqueID} IDCANCEL cancel_${UniqueID} ${|}
         kill_${UniqueID}:
@@ -47,21 +56,21 @@
           System::Call 'RSTRTMGR::RmShutdown(p R0, i ${RmForceShutdown}, p 0) i .r0'
           ${If} $0 = 0
             Goto app_check_done_${UniqueID}
-          ${Else}
-            IfSilent silent_${UniqueID} ui_${UniqueID}
-            silent_${UniqueID}:
-              System::Call 'kernel32::AttachConsole(i -1)i.r0'
-              ${If} $0 != 0
-                System::Call 'kernel32::GetStdHandle(i -11)i.r0'
-                System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-                FileWrite $0 "$R1$\n"
-              ${EndIf}
-              !insertmacro RestartManager_EndSession $R0
-              Abort
-            ui_${UniqueID}:
-              !insertmacro RestartManager_EndSession $R0
-              Abort $R3
           ${EndIf}
+        kill_failed_${UniqueID}:
+          IfSilent silent_${UniqueID} ui_${UniqueID}
+          silent_${UniqueID}:
+            System::Call 'kernel32::AttachConsole(i -1)i.r0'
+            ${If} $0 != 0
+              System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+              System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
+              FileWrite $0 "$R1$\n"
+            ${EndIf}
+            !insertmacro RestartManager_EndSession $R0
+            Abort
+          ui_${UniqueID}:
+            !insertmacro RestartManager_EndSession $R0
+            Abort $R3
         cancel_${UniqueID}:
           !insertmacro RestartManager_EndSession $R0
           Abort $R1

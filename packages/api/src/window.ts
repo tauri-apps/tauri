@@ -31,11 +31,13 @@ import {
   Position,
   Size
 } from './dpi.js'
-import type { Event, EventName, EventCallback, UnlistenFn } from './event.js'
+import type {
+  Event, EventName, EventCallback, UnlistenFn,
+  // // imported for documentation purposes
+  EventTarget
+} from './event.ts'
 import {
   TauriEvent,
-  // imported for documentation purposes
-  type EventTarget,
   emit,
   emitTo,
   listen,
@@ -43,8 +45,9 @@ import {
 } from './event.js'
 import { invoke } from './core.js'
 import { WebviewWindow } from './webviewWindow.js'
-import type { DragDropEvent } from './webview.js'
-import { type JsImage, transformImage } from './image'
+import type { DragDropEvent } from './webview.ts'
+import { transformImage } from './image.js'
+import type { JsImage } from './image.ts'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -3076,15 +3079,15 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position),
-        size: new PhysicalSize(m.size),
-        workArea: {
-          position: new PhysicalPosition(m.workArea.position),
-          size: new PhysicalSize(m.workArea.size)
-        }
+      name: m.name,
+      scaleFactor: m.scaleFactor,
+      position: new PhysicalPosition(m.position),
+      size: new PhysicalSize(m.size),
+      workArea: {
+        position: new PhysicalPosition(m.workArea.position),
+        size: new PhysicalSize(m.workArea.size)
       }
+    }
 }
 
 /**

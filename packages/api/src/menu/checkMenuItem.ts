@@ -4,7 +4,7 @@
 
 import { MenuItemBase, newMenu } from './base.js'
 import { invoke } from '../core.js'
-import { type MenuItemOptions } from '../menu.js'
+import type { MenuItemOptions } from '../menu.ts'
 
 /** Options for creating a new check menu item. */
 export interface CheckMenuItemOptions extends MenuItemOptions {

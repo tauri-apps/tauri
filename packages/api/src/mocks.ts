@@ -41,7 +41,7 @@
  * @module
  */
 
-import type { InvokeArgs, InvokeOptions } from './core.js'
+import type { InvokeArgs, InvokeOptions } from './core.ts'
 import { EventName } from './event.js'
 
 function mockInternals() {

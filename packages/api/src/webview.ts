@@ -42,18 +42,18 @@
  */
 
 import { PhysicalPosition, PhysicalSize } from './dpi.js'
-import type { LogicalPosition, LogicalSize } from './dpi.js'
+import type { LogicalPosition, LogicalSize } from './dpi.ts'
 import { Position, Size } from './dpi.js'
-import type { EventName, EventCallback, UnlistenFn } from './event.js'
+import type { EventName, EventCallback, UnlistenFn } from './event.ts'
 import {
   TauriEvent,
-  // imported for documentation purposes
-  type EventTarget,
   emit,
   emitTo,
   listen,
   once
 } from './event.js'
+// imported for documentation purposes
+import type { EventTarget } from './event.ts'
 import { invoke } from './core.js'
 import {
   BackgroundThrottlingPolicy,

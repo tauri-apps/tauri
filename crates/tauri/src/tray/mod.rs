@@ -15,7 +15,9 @@ use crate::{
 };
 use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;
+use std::mem::ManuallyDrop;
 use std::path::Path;
+use std::sync::Arc;
 pub use tray_icon::TrayIconId;
 
 /// Describes the mouse button state.
@@ -377,14 +379,14 @@ impl<R: Runtime> TrayIconBuilder<R> {
       })
       .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))??;
 
-    let icon = TrayIcon {
+    let icon = TrayIcon(Arc::new(TrayIconInner {
       id,
-      inner: unsafe_tray.take(),
+      inner: ManuallyDrop::new(unsafe_tray.take()),
       app_handle: app_handle.clone(),
-    };
+    }));
 
     let rid = icon.register(
-      &icon.app_handle,
+      &icon.0.app_handle,
       self.on_menu_event,
       self.on_tray_icon_event,
     );
@@ -399,24 +401,30 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 }
 
-/// Tray icon struct and associated methods.
-///
-/// This type is reference-counted and the icon is removed when the last instance is dropped.
-///
-/// See [`TrayIconBuilder`] to construct this type.
-#[tauri_macros::default_runtime(crate::Wry, wry)]
-pub struct TrayIcon<R: Runtime> {
+struct TrayIconInner<R: Runtime> {
   id: TrayIconId,
-  inner: tray_icon::TrayIcon,
+  // SAFETY: we only call `ManuallyDrop::take` in [`Self::drop`] to drop it on main thread
+  inner: ManuallyDrop<tray_icon::TrayIcon>,
   app_handle: AppHandle<R>,
 }
 
-impl<R: Runtime> Clone for TrayIcon<R> {
-  fn clone(&self) -> Self {
-    Self {
-      id: self.id.clone(),
-      inner: self.inner.clone(),
-      app_handle: self.app_handle.clone(),
+impl<R: Runtime> Drop for TrayIconInner<R> {
+  fn drop(&mut self) {
+    let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
+    // SAFETY: inner was created on main thread and is being dropped on main thread
+    let inner = UnsafeSend(inner);
+    let (sender, receiver) = std::sync::mpsc::channel();
+    if self
+      .app_handle
+      .run_on_main_thread(move || {
+        drop(inner.take());
+        sender.send(0).unwrap();
+      })
+      .is_ok()
+    {
+      // We need to wait for the drop to finish on Windows or if we return too early and the program exits,
+      // there will be a left over tray icon
+      receiver.recv().unwrap();
     }
   }
 }
@@ -424,8 +432,22 @@ impl<R: Runtime> Clone for TrayIcon<R> {
 /// # Safety
 ///
 /// We make sure it always runs on the main thread.
-unsafe impl<R: Runtime> Sync for TrayIcon<R> {}
-unsafe impl<R: Runtime> Send for TrayIcon<R> {}
+unsafe impl<R: Runtime> Sync for TrayIconInner<R> {}
+unsafe impl<R: Runtime> Send for TrayIconInner<R> {}
+
+/// Tray icon struct and associated methods.
+///
+/// This type is reference-counted and the icon is removed when the last instance is dropped.
+///
+/// See [`TrayIconBuilder`] to construct this type.
+#[tauri_macros::default_runtime(crate::Wry, wry)]
+pub struct TrayIcon<R: Runtime>(Arc<TrayIconInner<R>>);
+
+impl<R: Runtime> Clone for TrayIcon<R> {
+  fn clone(&self) -> Self {
+    Self(self.0.clone())
+  }
+}
 
 impl<R: Runtime> TrayIcon<R> {
   fn register(
@@ -451,7 +473,7 @@ impl<R: Runtime> TrayIcon<R> {
         .event_listeners
         .lock()
         .unwrap()
-        .insert(self.id.clone(), handler);
+        .insert(self.0.id.clone(), handler);
     }
 
     let rid = app_handle.resources_table().add(self.clone());
@@ -467,7 +489,7 @@ impl<R: Runtime> TrayIcon<R> {
 
   /// The application handle associated with this type.
   pub fn app_handle(&self) -> &AppHandle<R> {
-    &self.app_handle
+    &self.0.app_handle
   }
 
   /// Register a global handler for menu events.
@@ -483,6 +505,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(&self, f: F) {
     self
+      .0
       .app_handle
       .manager
       .menu
@@ -498,18 +521,19 @@ impl<R: Runtime> TrayIcon<R> {
     f: F,
   ) {
     self
+      .0
       .app_handle
       .manager
       .tray
       .event_listeners
       .lock()
       .unwrap()
-      .insert(self.id.clone(), Box::new(f));
+      .insert(self.0.id.clone(), Box::new(f));
   }
 
   /// Returns the id associated with this tray icon.
   pub fn id(&self) -> &TrayIconId {
-    &self.id
+    &self.0.id
   }
 
   /// Sets a new tray icon. If `None` is provided, it will remove the icon.
@@ -518,7 +542,7 @@ impl<R: Runtime> TrayIcon<R> {
       Some(i) => Some(i.try_into()?),
       None => None,
     };
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_icon(icon))?.map_err(Into::into)
+    run_item_main_thread!(self, |self_: Self| self_.0.inner.set_icon(icon))?.map_err(Into::into)
   }
 
   /// Sets a new tray menu.
@@ -528,7 +552,10 @@ impl<R: Runtime> TrayIcon<R> {
   /// - **Linux**: once a menu is set it cannot be removed so `None` has no effect
   pub fn set_menu<M: ContextMenu + 'static>(&self, menu: Option<M>) -> crate::Result<()> {
     run_item_main_thread!(self, |self_: Self| {
-      self_.inner.set_menu(menu.map(|m| m.inner_context_owned()))
+      self_
+        .0
+        .inner
+        .set_menu(menu.map(|m| m.inner_context_owned()))
     })
   }
 
@@ -539,7 +566,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// - **Linux:** Unsupported
   pub fn set_tooltip<S: AsRef<str>>(&self, tooltip: Option<S>) -> crate::Result<()> {
     let s = tooltip.map(|s| s.as_ref().to_string());
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_tooltip(s))?.map_err(Into::into)
+    run_item_main_thread!(self, |self_: Self| self_.0.inner.set_tooltip(s))?.map_err(Into::into)
   }
 
   /// Sets the title for this tray icon.
@@ -554,12 +581,13 @@ impl<R: Runtime> TrayIcon<R> {
   /// - **Windows:** Unsupported
   pub fn set_title<S: AsRef<str>>(&self, title: Option<S>) -> crate::Result<()> {
     let s = title.map(|s| s.as_ref().to_string());
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_title(s))
+    run_item_main_thread!(self, |self_: Self| self_.0.inner.set_title(s))
   }
 
   /// Show or hide this tray icon.
   pub fn set_visible(&self, visible: bool) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_visible(visible))?.map_err(Into::into)
+    run_item_main_thread!(self, |self_: Self| self_.0.inner.set_visible(visible))?
+      .map_err(Into::into)
   }
 
   /// Sets the tray icon temp dir path. **Linux only**.
@@ -570,7 +598,7 @@ impl<R: Runtime> TrayIcon<R> {
     #[allow(unused)]
     let p = path.map(|p| p.as_ref().to_path_buf());
     #[cfg(target_os = "linux")]
-    run_item_main_thread!(self, |self_: Self| self_.inner.set_temp_dir_path(p))?;
+    run_item_main_thread!(self, |self_: Self| self_.0.inner.set_temp_dir_path(p))?;
     Ok(())
   }
 
@@ -579,7 +607,7 @@ impl<R: Runtime> TrayIcon<R> {
     #[cfg(target_os = "macos")]
     #[allow(deprecated)]
     run_item_main_thread!(self, |self_: Self| {
-      self_.inner.set_icon_as_template(is_template)
+      self_.0.inner.set_icon_as_template(is_template)
     })?;
     Ok(())
   }
@@ -606,6 +634,7 @@ impl<R: Runtime> TrayIcon<R> {
       #[allow(deprecated)]
       run_item_main_thread!(self, |self_: Self| {
         self_
+          .0
           .inner
           .set_icon_with_as_template(tray_icon, is_template)
       })??;
@@ -626,7 +655,7 @@ impl<R: Runtime> TrayIcon<R> {
   pub fn set_show_menu_on_left_click(&self, #[allow(unused)] enable: bool) -> crate::Result<()> {
     #[cfg(any(target_os = "macos", windows))]
     run_item_main_thread!(self, |self_: Self| {
-      self_.inner.set_show_menu_on_left_click(enable)
+      self_.0.inner.set_show_menu_on_left_click(enable)
     })?;
     Ok(())
   }
@@ -638,7 +667,7 @@ impl<R: Runtime> TrayIcon<R> {
   /// - **Linux**: Unsupported, always returns `None`.
   pub fn rect(&self) -> crate::Result<Option<crate::Rect>> {
     run_item_main_thread!(self, |self_: Self| {
-      self_.inner.rect().map(|rect| Rect {
+      self_.0.inner.rect().map(|rect| Rect {
         position: rect.position.into(),
         size: rect.size.into(),
       })
@@ -654,15 +683,15 @@ impl<R: Runtime> TrayIcon<R> {
     F: FnOnce(&tray_icon::TrayIcon) -> T + Send + 'static,
     T: Send + 'static,
   {
-    run_item_main_thread!(self, |self_: Self| { f(&self_.inner) })
+    run_item_main_thread!(self, |self_: Self| { f(&self_.0.inner) })
   }
 }
 
 impl<R: Runtime> Resource for TrayIcon<R> {
   fn close(self: std::sync::Arc<Self>) {
-    let mut icons = self.app_handle.manager.tray.icons.lock().unwrap();
+    let mut icons = self.0.app_handle.manager.tray.icons.lock().unwrap();
     for (i, (tray_icon_id, _rid)) in icons.iter_mut().enumerate() {
-      if tray_icon_id == &self.id {
+      if tray_icon_id == &self.0.id {
         icons.swap_remove(i);
         return;
       }

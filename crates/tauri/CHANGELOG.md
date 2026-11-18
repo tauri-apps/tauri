@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.12.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+- Upgraded to `tauri-runtime@2.12.4`
+- Upgraded to `tauri-runtime-wry@2.12.5`
+- Upgraded to `tauri-macros@2.7.6`
+- Upgraded to `tauri-build@2.7.6`
+
 ## [2.12.6]
 
 ### Bug Fixes

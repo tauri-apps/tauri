@@ -9,6 +9,8 @@ From the repository root, start the watcher in a separate terminal:
 ```sh
 python3 scripts/dev-reload.py --manifest examples/dev-reload/backend/Cargo.toml \
   --bin reload-counter --output examples/dev-reload/backend/.reload
+# To offload compilation and target/ cache to an SSH build host (requires ssh + rsync):
+#   add --remote user@buildbox (and --runner-arg=--target=<local-triple> if OS/arch/libc differs)
 # To use justrust's local builder, add --runner justrust --runner-arg=--local.
 ```
 
@@ -54,7 +56,8 @@ let builder = builder
 Invoke `reload_call` with `{command: "increment", payload: null}`. Change the
 worker label and save. After publication, the next call returns the new label
 and continues counting without recreating the window or reloading the page.
-Add `--watch /path/to/local/dependency` for sources outside the backend directory.
+Add `--watch /path/to/local/dependency` for sources outside the backend directory
+(with `--remote`, also pass `--remote-sync-root /path/to/workspace` covering watched paths).
 
 Protocol v1 is newline-delimited JSON over stdin/stdout. The worker first writes
 `{"protocol":1}`, then receives `{command,payload,state}` and returns

@@ -50,6 +50,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
 };
 
+#[cfg(desktop)]
 use std::sync::atomic::AtomicUsize;
 use std::{
   borrow::Cow,
@@ -288,7 +289,94 @@ unstable_struct!(
 
 pub(crate) enum OnNewWindowHandler<R: Runtime> {
   Fn(Box<NewWindowHandler<R>>),
-  Flag(OnNewWindow),
+  Config(OnNewWindow),
+}
+
+type RuntimeNewWindowHandler =
+  dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse + Send + 'static;
+
+/// Builds the runtime new window handler for a [`OnNewWindow`] configuration.
+///
+/// Returns `None` when new windows are denied, which is also the runtime default.
+fn config_new_window_handler<R: Runtime>(
+  app_handle: AppHandle<R>,
+  webview_label: &str,
+  on_new_window: OnNewWindow,
+) -> Option<Box<RuntimeNewWindowHandler>> {
+  use tauri_runtime::webview::NewWindowResponse as Response;
+
+  let (create_tauri_window, urls) = match on_new_window {
+    OnNewWindow::AllowDefault { urls } => (false, urls),
+    OnNewWindow::AllowTauriWindow { urls } => (true, urls),
+    _ => return None,
+  };
+
+  // Tauri windows can only be used to fulfill a new window request on desktop
+  #[cfg(mobile)]
+  if create_tauri_window {
+    return None;
+  }
+  #[cfg(mobile)]
+  let _ = (&app_handle, webview_label);
+
+  #[cfg(desktop)]
+  let webview_label = webview_label.to_string();
+  #[cfg(desktop)]
+  let created_window_count = AtomicUsize::new(0);
+
+  Some(Box::new(move |url: Url, features| {
+    let allowed = urls
+      .as_ref()
+      .is_none_or(|urls| urls.iter().any(|pattern| pattern.test(&url)));
+    if !allowed {
+      return Response::Deny;
+    }
+    if !create_tauri_window {
+      return Response::Allow;
+    }
+
+    #[cfg(mobile)]
+    {
+      let _ = features;
+      Response::Deny
+    }
+
+    #[cfg(desktop)]
+    {
+      let label = loop {
+        let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let label = format!("{webview_label}-created-{number}");
+        if app_handle.manager.get_webview(&label).is_none()
+          && app_handle.manager.get_window(&label).is_none()
+        {
+          break label;
+        }
+      };
+
+      let builder = WebviewWindowBuilder::new(
+        &app_handle,
+        label,
+        WebviewUrl::External("about:blank".parse().expect("about:blank is a valid URL")),
+      )
+      .window_features(features)
+      .on_document_title_changed(|window, title| {
+        if let Err(e) = window.set_title(&title) {
+          log::error!("failed to set window title: {e}");
+        }
+      })
+      .title(url.as_str());
+
+      match builder.build() {
+        Ok(window) => Response::Create {
+          window_id: window.window.window.id,
+        },
+        Err(e) => {
+          log::error!("failed to create window for new window request: {e}");
+          Response::Deny
+        }
+      }
+    }
+  }))
 }
 
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
@@ -440,7 +528,7 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::from(&config),
       web_resource_request_handler: None,
       navigation_handler: None,
-      on_new_window_handler: Some(OnNewWindowHandler::Flag(config.on_new_window)),
+      on_new_window_handler: Some(OnNewWindowHandler::Config(config.on_new_window)),
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
@@ -769,92 +857,28 @@ tauri::Builder::default()
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
-    let app_handle = manager.app_handle().clone();
-    let label = window_label.to_string();
-    pending.new_window_handler =
-      self
-        .on_new_window_handler
-        .take()
-        .map(|on_new_window| match on_new_window {
-          OnNewWindowHandler::Fn(handler) => {
-            Box::new(
-              move |url, features: NewWindowFeatures| match handler(url, features) {
-                NewWindowResponse::Allow => tauri_runtime::webview::NewWindowResponse::Allow,
-                #[cfg(mobile)]
-                NewWindowResponse::Create { window: _ } => {
-                  tauri_runtime::webview::NewWindowResponse::Allow
-                }
-                #[cfg(desktop)]
-                NewWindowResponse::Create { window } => {
-                  tauri_runtime::webview::NewWindowResponse::Create {
-                    window_id: window.window.window.id,
-                  }
-                }
-                NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
-              },
-            )
-              as Box<
-                dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
-                  + Send
-                  + 'static,
-              >
+    pending.new_window_handler = match self.on_new_window_handler.take() {
+      Some(OnNewWindowHandler::Fn(handler)) => Some(Box::new(
+        move |url, features: NewWindowFeatures| match handler(url, features) {
+          NewWindowResponse::Allow => tauri_runtime::webview::NewWindowResponse::Allow,
+          #[cfg(mobile)]
+          NewWindowResponse::Create { window: _ } => {
+            tauri_runtime::webview::NewWindowResponse::Allow
           }
-          OnNewWindowHandler::Flag(on_new_window) => {
-            let created_window_count = AtomicUsize::new(0);
-            Box::new(move |url, features| match &on_new_window {
-              OnNewWindow::AllowDefault { urls: Some(urls) } => {
-                if urls.iter().any(|pattern| pattern.test(&url)) {
-                  tauri_runtime::webview::NewWindowResponse::Allow
-                } else {
-                  tauri_runtime::webview::NewWindowResponse::Deny
-                }
-              }
-              #[cfg(mobile)]
-              OnNewWindow::AllowTauriWindow { urls: _ } => {
-                tauri_runtime::webview::NewWindowResponse::Deny
-              }
-              #[cfg(desktop)]
-              OnNewWindow::AllowTauriWindow { urls: Some(urls) } => {
-                if urls.iter().any(|pattern| pattern.test(&url)) {
-                  let number =
-                    created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
-                  let builder = WebviewWindowBuilder::new(
-                    &app_handle,
-                    format!("{label}-created-{number}"),
-                    WebviewUrl::External("about:blank".parse().unwrap()),
-                  )
-                  .window_features(features)
-                  .on_document_title_changed(|window, title| {
-                    window.set_title(&title).unwrap();
-                  })
-                  .title(url.as_str());
-
-                  match builder.build() {
-                    Ok(window) => tauri_runtime::webview::NewWindowResponse::Create {
-                      window_id: window.window.window.id,
-                    },
-                    Err(e) => {
-                      log::error!("failed to create window: {:?}", e);
-                      tauri_runtime::webview::NewWindowResponse::Deny
-                    }
-                  }
-                } else {
-                  tauri_runtime::webview::NewWindowResponse::Deny
-                }
-              }
-              OnNewWindow::AllowDefault { urls: None } => {
-                tauri_runtime::webview::NewWindowResponse::Allow
-              }
-              #[cfg(desktop)]
-              OnNewWindow::AllowTauriWindow { urls: None } => {
-                tauri_runtime::webview::NewWindowResponse::Allow
-              }
-              OnNewWindow::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
-              _ => tauri_runtime::webview::NewWindowResponse::Deny,
-            })
+          #[cfg(desktop)]
+          NewWindowResponse::Create { window } => {
+            tauri_runtime::webview::NewWindowResponse::Create {
+              window_id: window.window.window.id,
+            }
           }
-        });
+          NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
+        },
+      ) as Box<RuntimeNewWindowHandler>),
+      Some(OnNewWindowHandler::Config(on_new_window)) => {
+        config_new_window_handler(manager.app_handle().clone(), &self.label, on_new_window)
+      }
+      None => None,
+    };
 
     if let Some(document_title_changed_handler) = self.document_title_changed_handler.take() {
       let label = pending.label.clone();

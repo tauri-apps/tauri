@@ -275,6 +275,10 @@ pub struct PermissionSet {
   pub permissions: Vec<String>,
 }
 
+/// UrlPattern for [`ExecutionContext::Remote`].
+#[deprecated(since = "2.11.0", note = "use `tauri_utils::url::UrlPattern` instead")]
+pub type RemoteUrlPattern = UrlPattern;
+
 /// Execution context of an IPC call.
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub enum ExecutionContext {

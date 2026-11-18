@@ -47,7 +47,7 @@
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
 //! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`], [`Window`] and [`AppHandle`]. Also implements [`specta::Type`] for [`ipc::Channel`], [`ipc::Request`] and [`ipc::Response`].
 //! - **dynamic-acl** *(enabled by default)*: Enables you to add ACLs at runtime, notably it enables the [`Manager::add_capability`] function.
-//! - **url-pattern**: Enables using the [URLPattern] spec for URL scopes on JavaScript APIs.
+//! - **url-pattern**: Enables using the [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) spec for URL scopes on JavaScript APIs.
 //!
 //! ## Cargo allowlist features
 //!

@@ -260,15 +260,15 @@ class Webview {
 
     // @ts-expect-error `skip` is not a public API so it is not defined in WebviewOptions
     if (!options?.skip) {
-      if (typeof options?.onNewWindow === 'string') {
-        options.onNewWindow = { action: options.onNewWindow }
-      }
-
       invoke('plugin:webview|create_webview', {
         windowLabel: window.label,
         options: {
           ...options,
-          label
+          label,
+          onNewWindow:
+            typeof options?.onNewWindow === 'string'
+              ? { action: options.onNewWindow }
+              : options?.onNewWindow
         }
       })
         .then(async () => this.emit('tauri://created'))
@@ -1085,7 +1085,9 @@ interface WebviewOptions {
    * ## Platform-specific
    *
    * - **Android / iOS**: Not supported.
-   * */
+   *
+   * @since 2.13.0
+   */
   onNewWindow?: OnNewWindow
 }
 

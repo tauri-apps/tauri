@@ -23,7 +23,7 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
-use super::freedesktop;
+use super::{freedesktop, gst_plugin};
 use crate::{
   Settings,
   bundle::settings::Arch,
@@ -79,6 +79,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let (data_dir, _) =
     generate_data(settings, &package_dir).context("Failed to build data folders and files")?;
+  copy_gst_plugin(settings, &data_dir)
+    .with_context(|| "Failed to copy the asset GStreamer plugin")?;
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
     .context("Failed to copy custom files")?;
 
@@ -329,6 +331,16 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   let resource_dir = data_dir.join("usr/lib").join(settings.product_name());
   settings.copy_resources(&resource_dir)
+}
+
+fn copy_gst_plugin(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+  if let Some(plugin) = gst_plugin::download(settings)? {
+    let dest = data_dir
+      .join(gst_plugin::plugin_dir(settings.product_name()))
+      .join(gst_plugin::PLUGIN_FILE_NAME);
+    fs_utils::copy_file(&plugin, &dest)?;
+  }
+  Ok(())
 }
 
 /// Create an empty file at the given path, creating any parent directories as

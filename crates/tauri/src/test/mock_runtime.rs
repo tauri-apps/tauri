@@ -321,6 +321,25 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     todo!()
   }
 
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     Ok(PhysicalPosition::new(0.0, 0.0))
   }

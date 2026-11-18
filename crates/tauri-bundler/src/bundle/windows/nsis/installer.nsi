@@ -36,6 +36,15 @@ ManifestDPIAwareness PerMonitorV2
 ${StrCase}
 ${StrLoc}
 
+; The tauri directory, i.e. the one holding `tauri.conf.json`. Defined here
+; rather than with the other defines below because the installer hooks are
+; included on the next line and a hook can only use what is already defined,
+; and pointing at a file kept next to the config is what a hook needs it for:
+;   !define MUI_UNICON "${TAURIDIR}\nsis\uninstall.ico"
+{{#if tauri_dir}}
+!define TAURIDIR "{{tauri_dir}}"
+{{/if}}
+
 {{#if installer_hooks}}
 !include "{{installer_hooks}}"
 {{/if}}
@@ -98,6 +107,10 @@ Var PreviousInstallDir
 ; We used to use the product name as main binary name,
 ; so this is not necessarily `${MAINBINARYNAME}.exe`
 Var OldMainBinaryName
+
+; Install directory passed with `/D=`, empty if there is none.
+; Kept because `MULTIUSER_INIT` overwrites $INSTDIR when install mode is `both`
+Var CmdLineInstallDir
 
 ; Version of a previous installation, empty if there is none
 Var ExistingVersion
@@ -165,9 +178,11 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !include MultiUser.nsh
 !endif
 
-; Installer icon
+; Installer icon, unless an installer hook already defined one
 !if "${INSTALLERICON}" != ""
-  !define MUI_ICON "${INSTALLERICON}"
+  !ifndef MUI_ICON
+    !define MUI_ICON "${INSTALLERICON}"
+  !endif
 !endif
 
 ; Installer sidebar image
@@ -192,9 +207,11 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !define MUI_HEADERIMAGE_UNBITMAP "${UNINSTALLERHEADERIMAGE}"
 !endif
 
-; Uninstaller icon
+; Uninstaller icon, unless an installer hook already defined one
 !if "${UNINSTALLERICON}" != ""
-  !define MUI_UNICON "${UNINSTALLERICON}"
+  !ifndef MUI_UNICON
+    !define MUI_UNICON "${UNINSTALLERICON}"
+  !endif
 !endif
 
 ; Define registry key to store installer language
@@ -253,6 +270,10 @@ Page custom PageReinstall PageLeaveReinstall
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+; Allow hooks to `!undef` or redefine the finish page defines above
+!ifmacrodef NSIS_HOOK_PREFINISHPAGE
+  !insertmacro NSIS_HOOK_PREFINISHPAGE
+!endif
 !insertmacro MUI_PAGE_FINISH
 
 Function RunMainBinary
@@ -308,7 +329,11 @@ Function .onInit
 
   !insertmacro SetContext
 
-  ${If} $INSTDIR == "${PLACEHOLDER_INSTALL_DIR}"
+  ${If} $INSTDIR != "${PLACEHOLDER_INSTALL_DIR}"
+    ; Remember the install dir passed with `/D=`,
+    ; `MULTIUSER_INIT` overwrites $INSTDIR when install mode is `both`
+    StrCpy $CmdLineInstallDir $INSTDIR
+  ${Else}
     ; Set default install location
     !if "${INSTALLMODE}" == "perMachine"
       ${If} ${RunningX64}
@@ -512,6 +537,13 @@ Function un.onInit
   ${IfNot} ${Errors}
     StrCpy $UpdateMode 1
   ${EndIf}
+
+  ; Delete app data without user interaction (e.g. in silent or passive mode),
+  ; also pre-checks the `Delete app data` check box in interactive mode
+  ${GetOptions} $CMDLINE "/DELETEAPPDATA" $DeleteAppDataCheckboxState
+  ${IfNot} ${Errors}
+    StrCpy $DeleteAppDataCheckboxState 1
+  ${EndIf}
 FunctionEnd
 
 {{#if deep_link_protocols}}
@@ -656,6 +688,12 @@ FunctionEnd
 !endif
 
 Function RestorePreviousInstallLocation
+  ; Install dir passed with `/D=` takes precedence
+  ${If} $CmdLineInstallDir != ""
+    StrCpy $INSTDIR $CmdLineInstallDir
+    Return
+  ${EndIf}
+
   ReadRegStr $PreviousInstallDir SHCTX "${MANUPRODUCTKEY}" ""
   StrCmp $PreviousInstallDir "" +2 0
     StrCpy $INSTDIR $PreviousInstallDir

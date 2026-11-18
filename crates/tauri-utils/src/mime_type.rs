@@ -54,7 +54,12 @@ impl MimeType {
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType with specified fallback for unknown file extensions.
   pub fn parse_from_uri_with_fallback(uri: &str, fallback: MimeType) -> MimeType {
     let suffix = uri.split('.').next_back().map(str::to_ascii_lowercase);
-    match suffix.as_deref() {
+    Self::from_suffix(suffix.as_deref(), fallback)
+  }
+
+  /// map a lowercase URI suffix to a mime type with specified fallback for unknown file extensions.
+  fn from_suffix(suffix: Option<&str>, fallback: MimeType) -> MimeType {
+    match suffix {
       Some("bin") => Self::OctetStream,
       // Assume HTML when a TLD is found for eg. `wry:://tauri.app` | `wry://hello.com`
       Some(suffix) => Self::from_known_extension(suffix).unwrap_or(fallback),
@@ -113,7 +118,7 @@ impl MimeType {
 
     match infer::get(content).map(|info| info.mime_type()) {
       Some(mime) if mime != MIMETYPE_PLAIN => mime.to_string(),
-      _ => Self::parse_from_uri_with_fallback(uri, fallback).to_string(),
+      _ => Self::from_suffix(suffix.as_deref(), fallback).to_string(),
     }
   }
 }

@@ -491,8 +491,13 @@ impl<R: Runtime> PluginHandle<R> {
   ///
   /// For a [`WebviewWindow`](crate::WebviewWindow), pass `window.as_ref()`.
   ///
-  /// This is a blocking operation and must *NOT* be used on the UI (main) thread that hosts the
-  /// webview: the call is dispatched to that thread, so waiting there would deadlock.
+  /// The native command runs on the thread hosting the webview (the main thread on iOS, the UI
+  /// thread on Android), so it must not do blocking work there.
+  ///
+  /// This is a blocking operation and must *NOT* be used on the main thread, including
+  /// non-`async` commands, which run there: the call is dispatched to the thread hosting the
+  /// webview, and waiting for a plugin that resolves asynchronously on it would deadlock.
+  /// Prefer [`Self::run_mobile_plugin_async_with_webview`].
   pub fn run_mobile_plugin_with_webview<T: DeserializeOwned>(
     &self,
     webview: &Webview<R>,

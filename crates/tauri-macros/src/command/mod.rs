@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream};
+use quote::quote;
 use syn::{Path, PathSegment};
 
 pub use self::{handler::Handler, wrapper::wrapper};
@@ -21,4 +22,11 @@ fn path_to_command(path: &mut Path) -> &mut PathSegment {
     .segments
     .last_mut()
     .expect("parsed syn::Path has no segment")
+}
+
+/// Expands to the `@metadata` arm of the wrapper of the command at `path`.
+pub fn metadata(mut path: Path) -> TokenStream {
+  let last = path_to_command(&mut path);
+  last.ident = format_command_wrapper(&last.ident);
+  quote!(#path!(@metadata))
 }

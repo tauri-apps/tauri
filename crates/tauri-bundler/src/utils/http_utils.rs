@@ -194,11 +194,30 @@ mod tests {
   const GITHUB_ASSET_URL: &str =
     "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
   const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
+  const MIRROR_TEMPLATE_VAR: &str = "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE";
+
+  /// Sets [`MIRROR_TEMPLATE_VAR`] for as long as it is alive. Environment
+  /// variables belong to the whole process, so a test that leaves this one set
+  /// sends every download after it to `mirror.example.com`.
+  struct MirrorTemplate;
+
+  impl MirrorTemplate {
+    fn set(template: &str) -> Self {
+      unsafe { env::set_var(MIRROR_TEMPLATE_VAR, template) };
+      Self
+    }
+  }
+
+  impl Drop for MirrorTemplate {
+    fn drop(&mut self) {
+      unsafe { env::remove_var(MIRROR_TEMPLATE_VAR) };
+    }
+  }
 
   #[test]
   #[serial_test::serial]
   fn test_generate_mirror_url_no_env_var() {
-    unsafe { env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE") };
+    unsafe { env::remove_var(MIRROR_TEMPLATE_VAR) };
 
     assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
   }
@@ -206,12 +225,9 @@ mod tests {
   #[test]
   #[serial_test::serial]
   fn test_generate_mirror_url_non_github_url() {
-    unsafe {
-      env::set_var(
-        "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
-        "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
-      )
-    };
+    let _template = MirrorTemplate::set(
+      "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+    );
 
     assert!(generate_github_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
   }
@@ -236,7 +252,7 @@ mod tests {
     ];
 
     for case in test_cases {
-      unsafe { env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template) };
+      let _template = MirrorTemplate::set(case.template);
       assert_eq!(
         generate_github_mirror_url_from_template(GITHUB_ASSET_URL),
         Some(case.expected_url.to_string())

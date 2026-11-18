@@ -9,6 +9,7 @@ package {{package}}
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.webkit.WebView
 import app.tauri.plugin.PluginManager
 
 abstract class TauriActivity : WryActivity() {
@@ -17,6 +18,11 @@ abstract class TauriActivity : WryActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     PluginManager.onCreate(this)
+  }
+
+  override fun onWebViewHistoryChanged(webView: WebView) {
+    super.onWebViewHistoryChanged(webView)
+    PluginManager.onWebViewHistoryChanged(webView)
   }
 
   fun getPluginManager(): PluginManager {

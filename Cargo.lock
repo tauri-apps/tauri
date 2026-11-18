@@ -8307,6 +8307,7 @@ dependencies = [
  "heck 0.5.0",
  "hex",
  "image",
+ "liblzma",
  "log",
  "md5",
  "native-tls",
@@ -8335,7 +8336,6 @@ dependencies = [
  "which",
  "windows-registry",
  "windows-sys 0.61.2",
- "xz2",
  "zip",
  "zstd",
 ]

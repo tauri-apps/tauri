@@ -62,9 +62,9 @@ heck = "0.5"
 ar = "0.9"
 md5 = "0.8"
 rpm = { version = "0.30", features = ["bzip2-compression"] }
-xz2 = "0.1"
-zstd = "0.13"
-bzip2 = "0.4"
+liblzma = "0.4"
+zstd = "0.14"
+bzip2 = "0.6"
 
 [target."cfg(unix)".dependencies]
 tar = "0.4"

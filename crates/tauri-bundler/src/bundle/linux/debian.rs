@@ -411,7 +411,7 @@ fn tar_and_compress_dir<P: AsRef<Path>>(
 
   let mut dest_file = match compression {
     DebCompression::Xz { .. } => {
-      let encoder = xz2::write::XzEncoder::new(dest_file, level as u32);
+      let encoder = liblzma::write::XzEncoder::new(dest_file, level as u32);
       let encoder = create_tar_from_dir(src_dir, encoder)?;
       encoder.finish()?
     }

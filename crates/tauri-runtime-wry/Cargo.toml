@@ -12,7 +12,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wry = { version = "0.57.0", default-features = false, features = [
+wry = { version = "0.57.3", default-features = false, features = [
   "os-webview",
   "linux-body",
 ] }

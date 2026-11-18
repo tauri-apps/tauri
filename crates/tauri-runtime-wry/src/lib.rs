@@ -4123,8 +4123,12 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Ready);
     }
 
-    Event::NewEvents(StartCause::Poll) => {
+    Event::Resumed => {
       callback(RunEvent::Resumed);
+    }
+
+    Event::Suspended => {
+      callback(RunEvent::Suspended);
     }
 
     Event::MainEventsCleared => {

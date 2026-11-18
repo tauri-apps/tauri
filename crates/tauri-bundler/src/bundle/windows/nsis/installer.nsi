@@ -32,6 +32,15 @@ ManifestDPIAwareness PerMonitorV2
 ${StrCase}
 ${StrLoc}
 
+; The tauri directory, i.e. the one holding `tauri.conf.json`. Defined here
+; rather than with the other defines below because the installer hooks are
+; included on the next line and a hook can only use what is already defined,
+; and pointing at a file kept next to the config is what a hook needs it for:
+;   !define MUI_UNICON "${TAURIDIR}\nsis\uninstall.ico"
+{{#if tauri_dir}}
+!define TAURIDIR "{{tauri_dir}}"
+{{/if}}
+
 {{#if installer_hooks}}
 !include "{{installer_hooks}}"
 {{/if}}
@@ -128,9 +137,11 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !include MultiUser.nsh
 !endif
 
-; Installer icon
+; Installer icon, unless an installer hook already defined one
 !if "${INSTALLERICON}" != ""
-  !define MUI_ICON "${INSTALLERICON}"
+  !ifndef MUI_ICON
+    !define MUI_ICON "${INSTALLERICON}"
+  !endif
 !endif
 
 ; Installer sidebar image
@@ -155,9 +166,11 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !define MUI_HEADERIMAGE_UNBITMAP "${UNINSTALLERHEADERIMAGE}"
 !endif
 
-; Uninstaller icon
+; Uninstaller icon, unless an installer hook already defined one
 !if "${UNINSTALLERICON}" != ""
-  !define MUI_UNICON "${UNINSTALLERICON}"
+  !ifndef MUI_UNICON
+    !define MUI_UNICON "${UNINSTALLERICON}"
+  !endif
 !endif
 
 ; Define registry key to store installer language

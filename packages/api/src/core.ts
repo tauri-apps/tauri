@@ -125,10 +125,11 @@ class Channel<T = unknown> {
    */
   id: number
   #onmessage: (response: T) => void
+  #deserialize?: (payload: unknown) => T
 
   // the index is used as a mechanism to preserve message order
   #nextMessageIndex = 0
-  #pendingMessages: T[] = []
+  #pendingMessages: unknown[] = []
   #messageEndIndex: number | undefined
 
   constructor(onmessage?: (response: T) => void) {
@@ -136,7 +137,7 @@ class Channel<T = unknown> {
 
     this.id = transformCallback<
       // Normal message
-      | { message: T; index: number }
+      | { message: unknown; index: number }
       // Message when the channel gets dropped in the rust side
       | { end: true; index: number }
     >((rawMessage) => {
@@ -178,9 +179,11 @@ class Channel<T = unknown> {
     })
   }
 
-  #deliver(message: T) {
+  #deliver(message: unknown) {
     try {
-      this.#onmessage(message)
+      this.#onmessage(
+        this.#deserialize ? this.#deserialize(message) : (message as T)
+      )
     } catch (error) {
       // A throwing handler must not stall the channel: the message index would
       // never advance and every later message would stay queued. Rethrow
@@ -208,6 +211,46 @@ class Channel<T = unknown> {
 
   get onmessage(): (response: T) => void {
     return this.#onmessage
+  }
+
+  /**
+   * Sets the function that converts a message sent by the Rust side into the
+   * value passed to {@linkcode Channel.onmessage}, and returns this channel so
+   * it can be registered inline.
+   *
+   * Each message is delivered as whatever JSON value the Rust side serialized,
+   * which is only the type the handler declares when the two sides agree on the
+   * wire format. Use this when they don't, for example to turn a timestamp
+   * string into a `Date`. The transform runs before the handler, so a handler
+   * can still be assigned (or replaced) afterwards.
+   *
+   * Only one deserializer is supported: calling this again replaces the
+   * previous one for every message delivered from then on, including messages
+   * that arrived earlier but are still waiting for their turn.
+   *
+   * The payload is typed `unknown` unless you name the wire shape as the callback's
+   * parameter, because only the sender knows what was serialized. If the transform
+   * throws, that message is dropped and the error is reported as uncaught; later
+   * messages are still delivered.
+   *
+   * @example
+   * ```typescript
+   * import { Channel, invoke } from '@tauri-apps/api/core'
+   *
+   * const onEvent = new Channel<Date>()
+   *   .deserialize((payload: string) => new Date(payload))
+   * onEvent.onmessage = (date) => console.log(date.toISOString())
+   *
+   * await invoke('stream_timestamps', { onEvent })
+   * ```
+   *
+   * @since 2.13.0
+   */
+  deserialize<TWire = unknown>(deserialize: (payload: TWire) => T): this {
+    // `#deliver` only ever has the untyped JSON value; the wire type exists for the
+    // callback's benefit.
+    this.#deserialize = deserialize as (payload: unknown) => T
+    return this
   }
 
   [SERIALIZE_TO_IPC_FN]() {

@@ -7,8 +7,8 @@ version = "0.0.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "3.14.2"
-napi-derive = "3.6.12"
+napi = "3.16.1"
+napi-derive = "3.7.0"
 tauri-cli = { path = "../../crates/tauri-cli", default-features = false }
 log = "0.4.21"
 

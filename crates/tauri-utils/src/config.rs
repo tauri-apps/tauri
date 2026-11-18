@@ -2598,7 +2598,7 @@ pub struct WindowConfig {
   #[serde(default = "default_true", alias = "general-autofill-enabled")]
   pub general_autofill_enabled: bool,
   /// Action to perform when a new window is requested to be created.
-  #[serde(default, alias = "on-window-requested")]
+  #[serde(default, alias = "on-new-window")]
   pub on_new_window: OnNewWindow,
 }
 
@@ -5755,5 +5755,15 @@ mod test {
     let config_from_default: WindowConfig = WindowConfig::default();
 
     assert_eq!(config_from_deserialization, config_from_default);
+  }
+
+  #[test]
+  fn on_new_window_kebab_case_alias() {
+    let config: WindowConfig =
+      serde_json::from_str(r#"{ "on-new-window": { "action": "allowTauriWindow" } }"#).unwrap();
+    assert_eq!(
+      config.on_new_window,
+      OnNewWindow::AllowTauriWindow { urls: None }
+    );
   }
 }

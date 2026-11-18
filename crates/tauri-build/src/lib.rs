@@ -344,8 +344,6 @@ pub struct WindowsAttributes {
   app_manifest: Option<String>,
   /// A series of strings containing additional .rc content to be appended to the generated resource file on Windows.
   append_rc_content: Vec<String>,
-  /// Whether to link the generated resource file into all targets of the package instead of only into binaries.
-  link_resource_into_all_targets: bool,
 }
 
 impl Default for WindowsAttributes {
@@ -362,7 +360,6 @@ impl WindowsAttributes {
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
       window_icon_path: None,
       append_rc_content: Vec::new(),
-      link_resource_into_all_targets: true,
     }
   }
 
@@ -374,7 +371,6 @@ impl WindowsAttributes {
       window_icon_path: None,
       static_vc_runtime: None,
       append_rc_content: Vec::new(),
-      link_resource_into_all_targets: true,
     }
   }
 
@@ -461,32 +457,6 @@ impl WindowsAttributes {
   #[must_use]
   pub fn append_rc_content<S: Into<String>>(mut self, content: S) -> Self {
     self.append_rc_content.push(content.into());
-    self
-  }
-
-  /// Sets whether to link the generated resource file (application manifest, icon and version info)
-  /// into all targets of the package instead of only into binaries.
-  ///
-  /// Tauri depends on Common Controls v6, which is enabled by the application manifest, so test
-  /// binaries that link Tauri (e.g. tests using [`tauri::test`]) built without the manifest fail to
-  /// start with `STATUS_ENTRYPOINT_NOT_FOUND` (`0xc0000139`). When enabled, the resource is linked
-  /// into the library's unit tests, integration tests, examples, benchmarks and `cdylib` targets
-  /// as well. Disable it to only link the resource into binaries.
-  ///
-  /// Defaults to `true`.
-  ///
-  /// # Example
-  ///
-  /// ```rust,no_run
-  /// let windows = tauri_build::WindowsAttributes::new().link_resource_into_all_targets(false);
-  /// let attrs = tauri_build::Attributes::new().windows_attributes(windows);
-  /// tauri_build::try_build(attrs).expect("failed to run build script");
-  /// ```
-  ///
-  /// [`tauri::test`]: https://docs.rs/tauri/latest/tauri/test/index.html
-  #[must_use]
-  pub fn link_resource_into_all_targets(mut self, link_resource_into_all_targets: bool) -> Self {
-    self.link_resource_into_all_targets = link_resource_into_all_targets;
     self
   }
 }
@@ -898,12 +868,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       )));
     }
 
-    let compiled = if attributes.windows_attributes.link_resource_into_all_targets {
-      res.compile_for_everything()
-    } else {
-      res.compile()
-    };
-    compiled.with_context(|| {
+    // link the resource into all targets (not only binaries) so test binaries that link Tauri
+    // also get the app manifest, otherwise they fail with `STATUS_ENTRYPOINT_NOT_FOUND`
+    res.compile_for_everything().with_context(|| {
       format!(
         "failed to compile `{}` into a Windows Resource file during tauri-build",
         window_icon_path.display()

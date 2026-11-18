@@ -866,7 +866,6 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
       "d3dcompiler_47.dll",
       // DirectX compiler support
       // TODO: check if x64 means no arm64
-      "dxil.dll",
       "dxcompiler.dll",
       // SwANGLE support
       "vk_swiftshader.dll",

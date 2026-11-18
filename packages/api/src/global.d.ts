@@ -4,7 +4,7 @@
 
 /** @ignore */
 
-import type { invoke, transformCallback, convertFileSrc } from './core.ts'
+import type { invoke, transformCallback, convertFileSrc } from './core.js'
 
 /** @ignore */
 declare global {

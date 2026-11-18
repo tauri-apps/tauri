@@ -18,10 +18,9 @@
  * @module
  */
 
-import type { Menu, Submenu } from './menu.ts'
+import type { Menu, Submenu } from './menu.js'
 import { Channel, invoke, Resource } from './core.js'
-import type { JsImage } from './image.ts'
-import { transformImage } from './image.js'
+import { type JsImage, transformImage } from './image.js'
 import { PhysicalPosition, PhysicalSize } from './dpi.js'
 
 /** Whether the mouse button was pressed (`Down`) or released (`Up`). */

@@ -40,12 +40,12 @@ import {
   WebviewLabel,
   WebviewOptions
 } from './webview.js'
-import type { WindowOptions } from './window.ts'
+import type { WindowOptions } from './window.js'
 import { Window } from './window.js'
 import { listen, once } from './event.js'
-import type { EventName, EventCallback, UnlistenFn } from './event.ts'
+import type { EventName, EventCallback, UnlistenFn } from './event.js'
 import { invoke } from './core.js'
-import type { Color, DragDropEvent } from './webview.ts'
+import type { Color, DragDropEvent } from './webview.js'
 
 /**
  * Get an instance of `Webview` for the current webview window.
@@ -79,7 +79,7 @@ async function getAllWebviewWindows(): Promise<WebviewWindow[]> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-interface WebviewWindow extends Webview, Window { }
+interface WebviewWindow extends Webview, Window {}
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 class WebviewWindow {
@@ -298,7 +298,7 @@ function applyMixins(
   baseClass: { prototype: unknown },
   extendedClasses: unknown
 ): void {
-  ; (Array.isArray(extendedClasses)
+  ;(Array.isArray(extendedClasses)
     ? extendedClasses
     : [extendedClasses]
   ).forEach((extendedClass: { prototype: unknown }) => {
@@ -314,7 +314,7 @@ function applyMixins(
         name,
         // eslint-disable-next-line
         Object.getOwnPropertyDescriptor(extendedClass.prototype, name)
-        ?? Object.create(null)
+          ?? Object.create(null)
       )
     })
   })

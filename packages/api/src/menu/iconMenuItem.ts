@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { MenuItemBase, newMenu } from './base.js'
-import type { MenuItemOptions } from '../menu.ts'
+import { type MenuItemOptions } from '../menu.js'
 import { invoke } from '../core.js'
 import { transformImage, MenuIcon } from '../image.js'
 

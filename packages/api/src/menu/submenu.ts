@@ -17,9 +17,8 @@ import {
   PhysicalPosition,
   type Window
 } from '../window.js'
-import { MenuItemBase, newMenu, prepareItem } from './base.js'
-import type { ItemKind } from './base.ts'
-import type { MenuOptions } from './menu.ts'
+import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base.js'
+import { type MenuOptions } from './menu.js'
 import { Position } from '../dpi.js'
 import { transformImage, MenuIcon } from '../image.js'
 
@@ -54,12 +53,12 @@ export function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
 
 export type SubmenuOptions = (Omit<MenuItemOptions, 'accelerator' | 'action'>
   & MenuOptions) & {
-    /**
-     * Icon to be used for the submenu.
-     * Note: you may need the `image-ico` or `image-png` Cargo features to use this API.
-     */
-    icon?: MenuIcon
-  }
+  /**
+   * Icon to be used for the submenu.
+   * Note: you may need the `image-ico` or `image-png` Cargo features to use this API.
+   */
+  icon?: MenuIcon
+}
 
 /** A type that is a submenu inside a {@linkcode Menu} or {@linkcode Submenu}. */
 export class Submenu extends MenuItemBase {
@@ -110,16 +109,16 @@ export class Submenu extends MenuItemBase {
    */
   async append<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
-    | MenuItemOptions
-    | SubmenuOptions
-    | IconMenuItemOptions
-    | PredefinedMenuItemOptions
-    | CheckMenuItemOptions
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
@@ -137,16 +136,16 @@ export class Submenu extends MenuItemBase {
    */
   async prepend<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
-    | MenuItemOptions
-    | SubmenuOptions
-    | IconMenuItemOptions
-    | PredefinedMenuItemOptions
-    | CheckMenuItemOptions
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
@@ -164,16 +163,16 @@ export class Submenu extends MenuItemBase {
    */
   async insert<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
-    | MenuItemOptions
-    | SubmenuOptions
-    | IconMenuItemOptions
-    | PredefinedMenuItemOptions
-    | CheckMenuItemOptions
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,

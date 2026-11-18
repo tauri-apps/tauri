@@ -14,12 +14,10 @@ import { CheckMenuItem } from './checkMenuItem.js'
 import { IconMenuItem } from './iconMenuItem.js'
 import { PredefinedMenuItem } from './predefinedMenuItem.js'
 import { itemFromKind, Submenu } from './submenu.js'
-import { PhysicalPosition, Position } from '../dpi.js'
-import type { LogicalPosition } from '../dpi.js'
-import type { Window } from '../window.ts'
+import { type LogicalPosition, PhysicalPosition, Position } from '../dpi.js'
+import { type Window } from '../window.js'
 import { invoke } from '../core.js'
-import { MenuItemBase, newMenu, prepareItem } from './base.js'
-import type { ItemKind } from './base.ts'
+import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base.js'
 
 /** Options for creating a new menu. */
 export interface MenuOptions {
@@ -118,16 +116,16 @@ export class Menu extends MenuItemBase {
    */
   async append<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
-    | MenuItemOptions
-    | SubmenuOptions
-    | IconMenuItemOptions
-    | PredefinedMenuItemOptions
-    | CheckMenuItemOptions
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|append', {
       rid: this.rid,
@@ -145,16 +143,16 @@ export class Menu extends MenuItemBase {
    */
   async prepend<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
-    | MenuItemOptions
-    | SubmenuOptions
-    | IconMenuItemOptions
-    | PredefinedMenuItemOptions
-    | CheckMenuItemOptions
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[]): Promise<void> {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
@@ -172,16 +170,16 @@ export class Menu extends MenuItemBase {
    */
   async insert<
     T extends
-    | Submenu
-    | MenuItem
-    | PredefinedMenuItem
-    | CheckMenuItem
-    | IconMenuItem
-    | MenuItemOptions
-    | SubmenuOptions
-    | IconMenuItemOptions
-    | PredefinedMenuItemOptions
-    | CheckMenuItemOptions
+      | Submenu
+      | MenuItem
+      | PredefinedMenuItem
+      | CheckMenuItem
+      | IconMenuItem
+      | MenuItemOptions
+      | SubmenuOptions
+      | IconMenuItemOptions
+      | PredefinedMenuItemOptions
+      | CheckMenuItemOptions
   >(items: T | T[], position: number): Promise<void> {
     return invoke('plugin:menu|insert', {
       rid: this.rid,

@@ -26,8 +26,8 @@
  * @module
  */
 
-import { Resource, invoke } from './core'
-import { NativeIcon } from './menu/iconMenuItem'
+import { Resource, invoke } from './core.js'
+import { NativeIcon } from './menu/iconMenuItem.js'
 
 /** Image dimensions, in pixels. */
 export interface ImageSize {

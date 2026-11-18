@@ -27,7 +27,7 @@
  * @module
  */
 
-import { SERIALIZE_TO_IPC_FN } from './core'
+import { SERIALIZE_TO_IPC_FN } from './core.js'
 
 /**
  * A size represented in logical pixels.

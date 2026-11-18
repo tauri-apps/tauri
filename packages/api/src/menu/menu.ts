@@ -8,16 +8,16 @@ import {
   IconMenuItemOptions,
   PredefinedMenuItemOptions,
   CheckMenuItemOptions
-} from '../menu'
-import { MenuItem } from './menuItem'
-import { CheckMenuItem } from './checkMenuItem'
-import { IconMenuItem } from './iconMenuItem'
-import { PredefinedMenuItem } from './predefinedMenuItem'
-import { itemFromKind, Submenu } from './submenu'
-import { type LogicalPosition, PhysicalPosition, Position } from '../dpi'
-import { type Window } from '../window'
-import { invoke } from '../core'
-import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base'
+} from '../menu.js'
+import { MenuItem } from './menuItem.js'
+import { CheckMenuItem } from './checkMenuItem.js'
+import { IconMenuItem } from './iconMenuItem.js'
+import { PredefinedMenuItem } from './predefinedMenuItem.js'
+import { itemFromKind, Submenu } from './submenu.js'
+import { type LogicalPosition, PhysicalPosition, Position } from '../dpi.js'
+import { type Window } from '../window.js'
+import { invoke } from '../core.js'
+import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base.js'
 
 /** Options for creating a new menu. */
 export interface MenuOptions {

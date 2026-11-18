@@ -41,8 +41,8 @@
  * @module
  */
 
-import type { InvokeArgs, InvokeOptions } from './core'
-import { EventName } from './event'
+import type { InvokeArgs, InvokeOptions } from './core.js'
+import { EventName } from './event.js'
 
 function mockInternals() {
   window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}

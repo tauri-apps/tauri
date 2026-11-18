@@ -4,6 +4,7 @@
 
 import globals from 'globals'
 import eslint from '@eslint/js'
+import n from 'eslint-plugin-n'
 import prettierConfig from 'eslint-config-prettier'
 import securityPlugin from 'eslint-plugin-security'
 import tseslint from 'typescript-eslint'
@@ -26,6 +27,9 @@ export default [
         project: true,
         tsconfigRootDir: import.meta.dirname
       }
+    },
+    plugins: {
+      n
     },
     rules: {
       'no-console': 'error',
@@ -55,7 +59,8 @@ export default [
           varsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_'
         }
-      ]
+      ],
+      'n/file-extension-in-import': ['error', 'always']
     }
   }
 ]

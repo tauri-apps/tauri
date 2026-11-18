@@ -41,10 +41,10 @@
  * @module
  */
 
-import { PhysicalPosition, PhysicalSize } from './dpi'
-import type { LogicalPosition, LogicalSize } from './dpi'
-import { Position, Size } from './dpi'
-import type { EventName, EventCallback, UnlistenFn } from './event'
+import { PhysicalPosition, PhysicalSize } from './dpi.js'
+import type { LogicalPosition, LogicalSize } from './dpi.js'
+import { Position, Size } from './dpi.js'
+import type { EventName, EventCallback, UnlistenFn } from './event.js'
 import {
   TauriEvent,
   // imported for documentation purposes
@@ -53,16 +53,16 @@ import {
   emitTo,
   listen,
   once
-} from './event'
-import { invoke } from './core'
+} from './event.js'
+import { invoke } from './core.js'
 import {
   BackgroundThrottlingPolicy,
   ScrollBarStyle,
   Color,
   Window,
   getCurrentWindow
-} from './window'
-import { WebviewWindow } from './webviewWindow'
+} from './window.js'
+import { WebviewWindow } from './webviewWindow.js'
 
 /**
  * The payload of a drag and drop event, see {@link Webview.onDragDropEvent}.

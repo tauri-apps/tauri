@@ -2227,7 +2227,7 @@ tauri::Builder::default()
   ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  /// and [webkit_web_context_register_uri_scheme](https://webkitgtk.org/reference/webkit2gtk/stable/method.WebContext.register_uri_scheme.html) on Linux.
   ///
   /// # Arguments
   ///
@@ -2589,10 +2589,15 @@ tauri::Builder::default()
       if let Some(tray_config) = &config.app.tray_icon {
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
-            .icon_as_template(tray_config.icon_as_template)
             .show_menu_on_left_click(tray_config.show_menu_on_left_click);
         if let Some(icon) = &app.manager.tray.icon {
-          tray = tray.icon(icon.clone());
+          #[allow(deprecated)]
+          let is_template = tray_config.icon_is_template || tray_config.icon_as_template;
+          tray = if is_template {
+            tray.icon_templated(icon.clone())
+          } else {
+            tray.icon(icon.clone())
+          };
         }
         if let Some(title) = &tray_config.title {
           tray = tray.title(title);

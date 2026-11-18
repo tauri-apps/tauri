@@ -162,6 +162,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("exit", false),
       ("fetch_data_store_identifiers", false),
       ("remove_data_store", false),
+      ("fetch_profile_identifiers", false),
+      ("remove_profile", false),
       ("default_window_icon", false),
       ("set_app_theme", false),
       ("set_dock_visibility", false),
@@ -221,9 +223,11 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_title", true),
       ("set_visible", true),
       ("set_temp_dir_path", true),
+      ("set_icon_templated", true),
+      ("set_show_menu_on_left_click", true),
+      // TODO: Remove in v3
       ("set_icon_as_template", true),
       ("set_icon_with_as_template", true),
-      ("set_show_menu_on_left_click", true),
     ],
   ),
 ];

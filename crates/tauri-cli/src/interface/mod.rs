@@ -73,6 +73,7 @@ pub trait AppSettings {
       .bundle_settings(self.get_bundle_settings(&options, config, &enabled_features, tauri_dir)?)
       .binaries(bins)
       .project_out_directory(out_dir)
+      .tauri_dir(tauri_dir)
       .target(target)
       .package_types(package_types);
 

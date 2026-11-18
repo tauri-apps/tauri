@@ -331,6 +331,94 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+const ZSTD_MIN_CLEVEL: i32 = -1 << 17;
+
+/// Compression algorithms used when bundling DEB packages.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "type")]
+#[non_exhaustive]
+pub enum DebCompression {
+  /// Gzip compression
+  Gzip {
+    /// Gzip compression level (0-9).
+    level: u32,
+  },
+  /// Zstd compression
+  Zstd {
+    /// Zstd compression level (-131072 - 22).
+    level: i32,
+  },
+  /// Xz compression
+  Xz {
+    /// Xz compression level (0-9).
+    level: u32,
+  },
+  /// Bzip2 compression
+  Bzip2 {
+    /// Bzip2 compression level (1-9).
+    level: u32,
+  },
+  /// Disable compression
+  None,
+}
+
+impl DebCompression {
+  /// The file extension of a tar archive compressed with this algorithm.
+  pub fn ext(&self) -> &'static str {
+    match self {
+      Self::None => "tar",
+      Self::Gzip { .. } => "tar.gz",
+      Self::Xz { .. } => "tar.xz",
+      Self::Zstd { .. } => "tar.zst",
+      Self::Bzip2 { .. } => "tar.bz2",
+    }
+  }
+
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
+}
+
 /// Configuration for Debian (.deb) bundles.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#debconfig>
@@ -386,6 +474,8 @@ pub struct DebConfig {
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// Configuration for Linux bundles.
@@ -415,26 +505,71 @@ pub struct LinuxConfig {
 pub enum RpmCompression {
   /// Gzip compression
   Gzip {
-    /// Gzip compression level
+    /// Gzip compression level (0-9).
     level: u32,
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level
+    /// Zstd compression level (-131072 - 22).
     level: i32,
   },
   /// Xz compression
   Xz {
-    /// Xz compression level
+    /// Xz compression level (0-9).
     level: u32,
   },
   /// Bzip2 compression
   Bzip2 {
-    /// Bzip2 compression level
+    /// Bzip2 compression level (1-9).
     level: u32,
   },
   /// Disable compression
   None,
+}
+
+impl RpmCompression {
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
 }
 
 /// Configuration for RPM bundles.
@@ -878,7 +1013,7 @@ pub struct NsisConfig {
   #[serde(alias = "uninstaller-icon")]
   pub uninstaller_icon: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of uninstallers pages.
-  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `headerImage`
   ///
   /// The recommended dimensions are 150px x 57px.
   #[serde(alias = "uninstaller-header-image")]
@@ -889,7 +1024,7 @@ pub struct NsisConfig {
   /// A list of installer languages. Default to `["English"]` if not set.
   ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
-  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  /// To allow the user to select the language, set `displayLanguageSelector` to `true`.
   ///
   /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
@@ -928,6 +1063,9 @@ pub struct NsisConfig {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   /// ### Example
   ///
@@ -2297,10 +2435,12 @@ pub struct WindowConfig {
   /// #### Platform-specific:
   ///
   /// - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
-  /// - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+  /// - **macOS / iOS**: Unsupported, use `profileIdentifier` instead.
   /// - **Android**: Unsupported.
   #[serde(default, alias = "data-directory")]
   pub data_directory: Option<PathBuf>,
+  /// Deprecated: use [`Self::profile_identifier`] (`profileIdentifier`) instead.
+  ///
   /// Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
   ///
   /// See <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>
@@ -2312,8 +2452,27 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   /// - **Windows / Linux / Android**: Unsupported.
+  #[deprecated(since = "2.11.0", note = "Use `profile_identifier` instead.")]
   #[serde(default, alias = "data-store-identifier")]
   pub data_store_identifier: Option<[u8; 16]>,
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes (usually a UUID).
+  ///
+  /// Webviews using the same identifier share their browsing data,
+  /// while webviews using different identifiers are fully isolated from each other.
+  ///
+  /// The array must contain 16 u8 numbers.
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **macOS / iOS**: Uses a [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc)
+  ///   created with this identifier. Supported on macOS 14.0+ and iOS 17.0+.
+  /// - **Windows**: Uses a [WebView2 profile](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support)
+  ///   named after the lowercase hex representation of the identifier, stored inside the data directory.
+  ///   Requires WebView2 Runtime 101+, older runtimes ignore this setting.
+  /// - **Linux / Android**: Unsupported.
+  #[serde(default, alias = "profile-identifier")]
+  pub profile_identifier: Option<[u8; 16]>,
 
   /// Specifies the native scrollbar style to use with the webview.
   /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
@@ -2414,6 +2573,8 @@ pub struct WindowConfig {
   pub general_autofill_enabled: bool,
 }
 
+// For [`Self::data_store_identifier`]
+#[allow(deprecated)]
 impl Default for WindowConfig {
   fn default() -> Self {
     Self {
@@ -2474,6 +2635,7 @@ impl Default for WindowConfig {
       disable_input_accessory_view: false,
       data_directory: None,
       data_store_identifier: None,
+      profile_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
       limit_navigations_to_app_bound_domains: false,
       activity_name: None,
@@ -2633,7 +2795,7 @@ impl Display for Csp {
   }
 }
 
-/// The possible values for the `dangerous_disable_asset_csp_modification` config option.
+/// The possible values for the `dangerousDisableAssetCspModification` config option.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -3580,9 +3742,19 @@ pub struct TrayIconConfig {
   /// or else it's going to bloat your final executable
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
+  /// **Deprecated since v2.13, use [`Self::icon_is_template`] instead**
+  ///
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  // TODO: Remove in v3
   #[serde(default, alias = "icon-as-template")]
+  #[deprecated(since = "2.13.0", note = "Use `icon_is_template` instead.")]
   pub icon_as_template: bool,
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolors it to match
+  /// the menu bar in light and dark mode.
+  #[serde(default, alias = "icon-is-template")]
+  pub icon_is_template: bool,
   /// **No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**
   ///
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
@@ -3684,7 +3856,7 @@ pub struct AndroidConfig {
   ///
   /// - If `true`, the generator will try to read the last `versionCode` from
   ///   `tauri.properties` and increment it by 1 for every build.
-  /// - If `false` or not set, it falls back to `version_code` or semver-derived logic.
+  /// - If `false` or not set, it falls back to `versionCode` or semver-derived logic.
   ///
   /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]
@@ -4370,6 +4542,9 @@ mod build {
 
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // For [`Self::data_store_identifier`]
+      tokens.append_all(quote!(#[allow(deprecated)]));
+
       let label = str_lit(&self.label);
       let create = &self.create;
       let url = &self.url;
@@ -4426,7 +4601,9 @@ mod build {
       let allow_link_preview = self.allow_link_preview;
       let disable_input_accessory_view = self.disable_input_accessory_view;
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
+      #[allow(deprecated)]
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
+      let profile_identifier = opt_vec_lit(self.profile_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
       let limit_navigations_to_app_bound_domains = self.limit_navigations_to_app_bound_domains;
       let activity_name = opt_lit(self.activity_name.as_ref());
@@ -4494,6 +4671,7 @@ mod build {
         disable_input_accessory_view,
         data_directory,
         data_store_identifier,
+        profile_identifier,
         scroll_bar_style,
         limit_navigations_to_app_bound_domains,
         activity_name,
@@ -4864,11 +5042,13 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      // For [`Self::menu_on_left_click`]
+      // For [`Self::menu_on_left_click`] and [`Self::icon_as_template`]
       tokens.append_all(quote!(#[allow(deprecated)]));
 
       let id = opt_str_lit(self.id.as_ref());
+      #[allow(deprecated)]
       let icon_as_template = self.icon_as_template;
+      let icon_is_template = self.icon_is_template;
       #[allow(deprecated)]
       let menu_on_left_click = self.menu_on_left_click;
       let show_menu_on_left_click = self.show_menu_on_left_click;
@@ -4881,6 +5061,7 @@ mod build {
         id,
         icon_path,
         icon_as_template,
+        icon_is_template,
         menu_on_left_click,
         show_menu_on_left_click,
         title,

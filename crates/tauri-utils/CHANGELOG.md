@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.10.4]
+
+### Bug Fixes
+
+- [`2fd85731c`](https://www.github.com/tauri-apps/tauri/commit/2fd85731ceb871bfd20598b781dc711c33b5062a) ([#16526](https://www.github.com/tauri-apps/tauri/pull/16526) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) `MimeType::parse` now uses the file extension for text types like `.js`, `.css` and `.svg` instead of sniffing the content, so a script that contains `%PDF` near its start is no longer served as `application/pdf`.
+
 ## [2.10.3]
 
 ### Bug Fixes

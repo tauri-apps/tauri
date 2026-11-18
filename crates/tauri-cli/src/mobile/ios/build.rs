@@ -34,6 +34,7 @@ use cargo_mobile2::{
 use rand::distr::{Alphanumeric, SampleString};
 
 use std::{
+  collections::HashMap,
   env::{set_current_dir, var, var_os},
   fs,
   path::{Path, PathBuf},
@@ -557,6 +558,10 @@ fn run_build(
             .join("Products/Applications")
             .join(format!("{}.app", config.app().stylized_name()));
 
+          // nested code (app extensions, watch apps, app clips) is also left unsigned in the archive
+          // so it must be signed with its own entitlements too, before the app that contains it
+          sign_embedded_bundles(config, profile, &app_dir, &self_signed_cert_keychain)?;
+
           self_signed_cert_keychain
             .sign(
               &app_dir.join(config.app().stylized_name()),
@@ -599,6 +604,133 @@ fn run_build(
   }
 
   Ok(handle)
+}
+
+/// Signs the bundles embedded in `app_dir` (app extensions, watch apps, app clips) with the
+/// entitlements declared by their own Xcode target.
+///
+/// When code signing is skipped while archiving, these bundles are left unsigned and
+/// `xcodebuild -exportArchive` only preserves entitlements that are already present in a signature,
+/// so they would otherwise be exported with the provisioning profile defaults only,
+/// silently dropping e.g. their App Groups.
+fn sign_embedded_bundles(
+  config: &AppleConfig,
+  profile: Profile,
+  app_dir: &Path,
+  keychain: &tauri_macos_sign::Keychain,
+) -> Result<()> {
+  let entitlements = match embedded_bundle_entitlements(config, profile) {
+    Ok(entitlements) => entitlements,
+    Err(error) => {
+      log::warn!(
+        "Failed to read the Xcode project build settings, embedded app extensions might lose their entitlements: {error}"
+      );
+      return Ok(());
+    }
+  };
+  if entitlements.is_empty() {
+    return Ok(());
+  }
+
+  let mut bundles = Vec::new();
+  let mut stack = vec![app_dir.to_path_buf()];
+  while let Some(dir) = stack.pop() {
+    for entry in fs::read_dir(&dir).fs_context("failed to read directory", dir.clone())? {
+      let path = entry
+        .fs_context("failed to read directory entry", dir.clone())?
+        .path();
+      // do not follow symlinks, bundles are never symlinked inside the app
+      if !path.is_dir() || path.is_symlink() {
+        continue;
+      }
+      if let Some(entitlements_path) = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| entitlements.get(name))
+      {
+        bundles.push((path.clone(), entitlements_path.clone()));
+      }
+      stack.push(path);
+    }
+  }
+
+  // sign the innermost bundles first, signing a bundle seals the code nested in it
+  bundles.sort_by_key(|(path, _)| std::cmp::Reverse(path.components().count()));
+
+  for (bundle, entitlements_path) in bundles {
+    keychain
+      .sign(&bundle, Some(&entitlements_path), false)
+      .map_err(Box::new)?;
+  }
+
+  Ok(())
+}
+
+/// Maps the product file name (e.g. `ShareExtension.appex`) of every Xcode target
+/// that declares an entitlements file to the absolute path of that file.
+fn embedded_bundle_entitlements(
+  config: &AppleConfig,
+  profile: Profile,
+) -> Result<HashMap<String, PathBuf>> {
+  let project_path = config
+    .project_dir()
+    .join(format!("{}.xcodeproj", config.app().name()));
+  let output = std::process::Command::new("xcodebuild")
+    .arg("-project")
+    .arg(&project_path)
+    .arg("-alltargets")
+    .args(["-configuration", profile.as_str()])
+    .args(["-sdk", "iphoneos"])
+    .arg("-showBuildSettings")
+    .arg("-json")
+    .output()
+    .context("failed to run xcodebuild")?;
+  if !output.status.success() {
+    return Err(Error::GenericError(format!(
+      "xcodebuild -showBuildSettings failed: {}",
+      String::from_utf8_lossy(&output.stderr)
+    )));
+  }
+  let main_app_product_name = format!("{}.app", config.app().stylized_name());
+  parse_bundle_entitlements(&output.stdout, &main_app_product_name)
+}
+
+fn parse_bundle_entitlements(
+  build_settings_json: &[u8],
+  main_app_product_name: &str,
+) -> Result<HashMap<String, PathBuf>> {
+  #[derive(serde::Deserialize)]
+  struct TargetBuildSettings {
+    #[serde(rename = "buildSettings")]
+    build_settings: HashMap<String, serde_json::Value>,
+  }
+
+  let targets: Vec<TargetBuildSettings> = serde_json::from_slice(build_settings_json)
+    .context("failed to parse the xcodebuild build settings")?;
+
+  let mut entitlements = HashMap::new();
+  for target in targets {
+    let settings = target.build_settings;
+    let setting = |key: &str| settings.get(key).and_then(|value| value.as_str());
+    let (Some(product_name), Some(entitlements_path)) = (
+      setting("FULL_PRODUCT_NAME"),
+      setting("CODE_SIGN_ENTITLEMENTS"),
+    ) else {
+      continue;
+    };
+    // the main app is signed with the entitlements file managed by the Tauri CLI
+    if product_name == main_app_product_name || entitlements_path.is_empty() {
+      continue;
+    }
+    // CODE_SIGN_ENTITLEMENTS is relative to SRCROOT unless it is already absolute
+    let entitlements_path = match setting("SRCROOT") {
+      Some(src_root) => Path::new(src_root).join(entitlements_path),
+      None => PathBuf::from(entitlements_path),
+    };
+    entitlements.insert(product_name.to_string(), entitlements_path);
+  }
+
+  Ok(entitlements)
 }
 
 fn create_ipa(app_path: &Path, ipa_path: &Path) -> Result<()> {
@@ -674,5 +806,65 @@ fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCreden
     _ => crate::error::bail!(
       "APPLE_API_KEY, APPLE_API_ISSUER and APPLE_API_KEY_PATH must be provided for code signing"
     ),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::path::PathBuf;
+
+  #[test]
+  fn parse_bundle_entitlements() {
+    let json = br#"[
+      {
+        "action": "build",
+        "target": "app_iOS",
+        "buildSettings": {
+          "FULL_PRODUCT_NAME": "App.app",
+          "CODE_SIGN_ENTITLEMENTS": "app_iOS/app_iOS.entitlements",
+          "SRCROOT": "/project/gen/apple"
+        }
+      },
+      {
+        "action": "build",
+        "target": "ShareExtension",
+        "buildSettings": {
+          "FULL_PRODUCT_NAME": "ShareExtension.appex",
+          "CODE_SIGN_ENTITLEMENTS": "ShareExtension/ShareExtension.entitlements",
+          "SRCROOT": "/project/gen/apple"
+        }
+      },
+      {
+        "action": "build",
+        "target": "Widget",
+        "buildSettings": {
+          "FULL_PRODUCT_NAME": "Widget.appex",
+          "CODE_SIGN_ENTITLEMENTS": "/absolute/Widget.entitlements",
+          "SRCROOT": "/project/gen/apple"
+        }
+      },
+      {
+        "action": "build",
+        "target": "Framework",
+        "buildSettings": {
+          "FULL_PRODUCT_NAME": "Framework.framework",
+          "SRCROOT": "/project/gen/apple"
+        }
+      }
+    ]"#;
+
+    let entitlements = super::parse_bundle_entitlements(json, "App.app").unwrap();
+
+    assert_eq!(entitlements.len(), 2);
+    assert_eq!(
+      entitlements.get("ShareExtension.appex"),
+      Some(&PathBuf::from(
+        "/project/gen/apple/ShareExtension/ShareExtension.entitlements"
+      ))
+    );
+    assert_eq!(
+      entitlements.get("Widget.appex"),
+      Some(&PathBuf::from("/absolute/Widget.entitlements"))
+    );
   }
 }

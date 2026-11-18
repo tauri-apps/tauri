@@ -1213,6 +1213,11 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// ## Warning
   ///
   /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: When `app > androidTauriProtocolHostname` is set, the app itself is always served from
+  ///   `https://<androidTauriProtocolHostname>`; this setting only applies to the other custom protocols.
   #[must_use]
   pub fn use_https_scheme(mut self, enabled: bool) -> Self {
     self.webview_builder = self.webview_builder.use_https_scheme(enabled);

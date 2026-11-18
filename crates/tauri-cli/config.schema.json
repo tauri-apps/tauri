@@ -596,14 +596,29 @@
           "type": "boolean"
         },
         "dataDirectory": {
-          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.),\n **relative to the local data directory (`localDataDir()`), followed by the window label**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n This path is not affected by the `app > appDirectoriesOverride` config.\n To keep the webview data in an overridden directory, leave this unset (the webview then uses the app local data directory)\n or resolve a path from `app.path().app_local_data_dir()` and set it with `WebviewWindowBuilder::data_directory`.\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n - **Android**: Unsupported.",
+          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.),\n **relative to the local data directory (`localDataDir()`), followed by the window label**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n This path is not affected by the `app > appDirectoriesOverride` config.\n To keep the webview data in an overridden directory, leave this unset (the webview then uses the app local data directory)\n or resolve a path from `app.path().app_local_data_dir()` and set it with `WebviewWindowBuilder::data_directory`.\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `profileIdentifier` instead.\n - **Android**: Unsupported.",
           "type": [
             "string",
             "null"
           ]
         },
         "dataStoreIdentifier": {
-          "description": "Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\n\n See <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>\n\n The array must contain 16 u8 numbers.\n\n #### Platform-specific:\n\n - **iOS**: Supported since version 17.0+.\n - **macOS**: Supported since version 14.0+.\n - **Windows / Linux / Android**: Unsupported.",
+          "description": "Deprecated: use [`Self::profile_identifier`] (`profileIdentifier`) instead.\n\n Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\n\n See <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>\n\n The array must contain 16 u8 numbers.\n\n #### Platform-specific:\n\n - **iOS**: Supported since version 17.0+.\n - **macOS**: Supported since version 14.0+.\n - **Windows / Linux / Android**: Unsupported.",
+          "deprecated": true,
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "minimum": 0.0
+          },
+          "maxItems": 16,
+          "minItems": 16
+        },
+        "profileIdentifier": {
+          "description": "Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)\n in a profile identified by the given 16 bytes (usually a UUID).\n\n Webviews using the same identifier share their browsing data,\n while webviews using different identifiers are fully isolated from each other.\n\n The array must contain 16 u8 numbers.\n\n #### Platform-specific:\n\n - **macOS / iOS**: Uses a [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc)\n   created with this identifier. Supported on macOS 14.0+ and iOS 17.0+.\n - **Windows**: Uses a [WebView2 profile](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support)\n   named after the lowercase hex representation of the identifier, stored inside the data directory.\n   Requires WebView2 Runtime 101+, older runtimes ignore this setting.\n - **Linux / Android**: Unsupported.",
           "type": [
             "array",
             "null"

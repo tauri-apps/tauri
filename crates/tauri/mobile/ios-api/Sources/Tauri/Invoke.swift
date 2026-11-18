@@ -45,9 +45,10 @@ import UIKit
     self.isContextual = isContextual
   }
 
-  /// Returns the presenting view controller. Call on the main thread before presenting.
-  /// Contextual calls return nil if the origin is unavailable, detached or being dismissed.
-  /// Full-screen coverage can detach the origin's view without making it unavailable.
+  /// Returns the view controller to present from. Call on the main thread before presenting.
+  /// Contextual calls return the top-most controller presented over the origin (UIKit refuses to
+  /// present from a controller that is already presenting), or nil if the origin is unavailable,
+  /// being dismissed or no longer in a window.
   /// Non-contextual calls use the plugin manager's view controller.
   public func presentingViewController() -> UIViewController? {
     guard isContextual else {
@@ -59,13 +60,14 @@ import UIKit
       return nil
     }
     var controller = viewController
-    while controller.viewIfLoaded?.window == nil {
-      guard let presented = controller.presentedViewController else {
-        return nil
-      }
+    while let presented = controller.presentedViewController, !presented.isBeingDismissed {
       controller = presented
     }
-    return viewController
+    // A full-screen modal detaches the origin's view, so check the controller we present from.
+    guard controller.viewIfLoaded?.window != nil else {
+      return nil
+    }
+    return controller
   }
 
   public func getRawArgs() -> String {

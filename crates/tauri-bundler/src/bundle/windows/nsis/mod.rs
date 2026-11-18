@@ -64,6 +64,7 @@ const NSIS_PLUGIN_FILES: &[&str] = &[
   "StartMenu.dll",
   "System.dll",
   "nsDialogs.dll",
+  "nsExec.dll",
   "additional/nsis_tauri_utils.dll",
 ];
 #[cfg(not(target_os = "windows"))]

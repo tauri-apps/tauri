@@ -413,6 +413,46 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   }
 }
 
+/// What a build needs from the Xcode installation.
+#[derive(Debug, PartialEq, Eq)]
+enum IosRequirement {
+  /// An iOS simulator runtime. A simulator build needs it.
+  SimulatorRuntime,
+  /// The iPhoneOS SDK. A device build needs only this.
+  DeviceSdk,
+}
+
+/// Picks the check for a list of target SDK names.
+/// A list without targets gets the simulator check, because the target is not known.
+fn ios_requirement<'a>(sdks: impl IntoIterator<Item = &'a str>) -> IosRequirement {
+  let mut sdks = sdks.into_iter().peekable();
+  if sdks.peek().is_some() && sdks.all(|sdk| sdk == "iphoneos") {
+    IosRequirement::DeviceSdk
+  } else {
+    IosRequirement::SimulatorRuntime
+  }
+}
+
+/// Checks that Xcode has what the targets need.
+fn ensure_ios_requirements_installed<'a>(sdks: impl IntoIterator<Item = &'a str>) -> Result<()> {
+  match ios_requirement(sdks) {
+    IosRequirement::SimulatorRuntime => ensure_ios_runtime_installed(),
+    IosRequirement::DeviceSdk => ensure_iphoneos_sdk_installed(),
+  }
+}
+
+fn ensure_iphoneos_sdk_installed() -> Result<()> {
+  duct::cmd("xcrun", ["--sdk", "iphoneos", "--show-sdk-path"])
+    .stdout_capture()
+    .stderr_capture()
+    .run()
+    .map_err(|e| Error::CommandFailed {
+      command: "xcrun --sdk iphoneos --show-sdk-path".to_string(),
+      error: e,
+    })?;
+  Ok(())
+}
+
 fn ensure_ios_runtime_installed() -> Result<()> {
   let installed_platforms_json = duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"])
     .read()
@@ -738,7 +778,33 @@ fn synchronize_export_options(
 
 #[cfg(test)]
 mod tests {
-  use super::{ProjectConfig, synchronize_export_options};
+  #[test]
+  fn device_targets_need_only_the_sdk() {
+    assert_eq!(ios_requirement(["iphoneos"]), IosRequirement::DeviceSdk);
+  }
+
+  #[test]
+  fn simulator_targets_need_a_runtime() {
+    assert_eq!(
+      ios_requirement(["iphonesimulator"]),
+      IosRequirement::SimulatorRuntime
+    );
+  }
+
+  #[test]
+  fn a_mixed_list_needs_a_runtime() {
+    assert_eq!(
+      ios_requirement(["iphoneos", "iphonesimulator"]),
+      IosRequirement::SimulatorRuntime
+    );
+  }
+
+  #[test]
+  fn an_unknown_target_needs_a_runtime() {
+    assert_eq!(ios_requirement([]), IosRequirement::SimulatorRuntime);
+  }
+
+  use super::{IosRequirement, ProjectConfig, ios_requirement, synchronize_export_options};
   use crate::helpers::pbxproj;
 
   const IDENTIFIER: &str = "com.tauri.test";

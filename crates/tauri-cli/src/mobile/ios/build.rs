@@ -18,7 +18,7 @@ use crate::{
     plist::merge_plist,
   },
   interface::{AppInterface, Options as InterfaceOptions},
-  mobile::{CliOptions, TargetDevice, ios::ensure_ios_runtime_installed, write_options},
+  mobile::{CliOptions, TargetDevice, ios::ensure_ios_requirements_installed, write_options},
 };
 use clap::{ArgAction, Parser, ValueEnum};
 
@@ -272,7 +272,15 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
   let mut env = env().context("failed to load iOS environment")?;
 
   if !options.open {
-    ensure_ios_runtime_installed()?;
+    let all_targets = Target::all();
+    ensure_ios_requirements_installed(
+      options
+        .targets
+        .iter()
+        .flatten()
+        .filter_map(|name| all_targets.get(name.as_str()))
+        .map(|target| target.sdk),
+    )?;
   }
 
   // start from the user's export options so values only inferred from the Xcode project

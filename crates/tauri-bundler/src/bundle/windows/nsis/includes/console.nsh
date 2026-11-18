@@ -11,10 +11,10 @@ Var ConsoleHandle
   System::Call 'kernel32::AttachConsole(i -1) i .s'
   Pop $ConsoleAttached
   ${If} $ConsoleAttached <> 0
-    System::Call 'kernel32::GetStdHandle(i -11) i .s'
+    System::Call 'kernel32::GetStdHandle(i -11) p .s'
     Pop $ConsoleHandle
     ; 0x0004 is FOREGROUND_RED
-    System::Call 'kernel32::SetConsoleTextAttribute(i $ConsoleHandle, i 0x0004)'
+    System::Call 'kernel32::SetConsoleTextAttribute(p $ConsoleHandle, i 0x0004)'
     FileWrite $ConsoleHandle "${message}"
   ${EndIf}
 !macroend

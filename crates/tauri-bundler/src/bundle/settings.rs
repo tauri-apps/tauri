@@ -9,7 +9,7 @@ pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{
     BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression,
-    RpmCompression,
+    NsisInstallerTarget, RpmCompression,
   },
   platform::Target as TargetPlatform,
   resources::{ResourcePaths, external_binaries},
@@ -464,6 +464,14 @@ pub struct WixSettings {
 pub struct NsisSettings {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
+  /// The CPU architecture and character encoding of the installer executable and its NSIS plugins.
+  /// Defaults to `x86-unicode`, a 32-bit Unicode installer.
+  /// `x86-ansi` produces a 32-bit installer whose text is limited to the system's ANSI code page.
+  ///
+  /// The bundled application keeps the architecture selected when building it. For example,
+  /// a 32-bit `x86-unicode` installer can install a 64-bit application; selecting
+  /// `amd64-unicode` makes the installer itself a native 64-bit executable.
+  pub installer_target: NsisInstallerTarget,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.

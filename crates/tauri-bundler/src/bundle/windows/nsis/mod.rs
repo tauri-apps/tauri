@@ -17,14 +17,16 @@ use crate::{
   error::{ErrorExt, bail},
   utils::{
     CommandExt,
-    http_utils::{HashAlgorithm, download_and_verify, verify_file_hash},
+    http_utils::{HashAlgorithm, download_and_verify, extract_zip, verify_file_hash},
   },
 };
 use tauri_utils::display_path;
 
 use crate::error::Context;
 use handlebars::{Handlebars, to_json};
-use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
+use tauri_utils::config::{
+  NSISInstallerMode, NsisCompression, NsisInstallerTarget, WebviewInstallMode,
+};
 
 use std::{
   collections::BTreeMap,
@@ -33,23 +35,112 @@ use std::{
   process::Command,
 };
 
+struct NsisToolchain {
+  compiler_path: PathBuf,
+  resource_path: PathBuf,
+}
+
+impl NsisToolchain {
+  #[cfg(target_os = "windows")]
+  const COMPILER_NAME: &str = "makensis.exe";
+  #[cfg(not(target_os = "windows"))]
+  const COMPILER_NAME: &str = "makensis";
+
+  fn detect() -> crate::Result<Self> {
+    let custom_nsis_directory = std::env::var_os("NSIS_PATH").map(PathBuf::from);
+    let compiler_path = match custom_nsis_directory {
+      Some(path) => path.join(Self::COMPILER_NAME),
+      None => which::which(Self::COMPILER_NAME)?,
+    };
+
+    Self::new(compiler_path)
+  }
+
+  #[cfg(target_os = "windows")]
+  fn get_or_download(tauri_tools_path: &Path) -> crate::Result<Self> {
+    let nsis_toolset_path = tauri_tools_path.join(NSIS_CACHE_DIRECTORY);
+
+    if !nsis_toolset_path.exists() || !verify_nsis_exe(&nsis_toolset_path) {
+      let _ = fs::remove_dir_all(&nsis_toolset_path);
+      get_and_extract_nsis(&nsis_toolset_path, tauri_tools_path)?;
+    }
+
+    Self::new(nsis_toolset_path.join(Self::COMPILER_NAME))
+  }
+
+  fn new(compiler_path: PathBuf) -> crate::Result<Self> {
+    // Resolve symlinks, including Homebrew's, before invoking the compiler.
+    let compiler_path = dunce::canonicalize(&compiler_path)
+      .fs_context("failed to resolve NSIS compiler", compiler_path)?;
+
+    #[cfg(target_os = "windows")]
+    let resource_path = compiler_path
+      .parent()
+      .context("missing NSIS compiler directory")?
+      .to_path_buf();
+    #[cfg(target_os = "linux")]
+    let resource_path = PathBuf::from("/usr/share/nsis");
+    #[cfg(target_os = "macos")]
+    let resource_path = {
+      // Homebrew installs bin/makensis and share/nsis under the same prefix.
+      // The compiler symlink has already been resolved above.
+      let bin_folder = compiler_path.parent().context("missing makensis parent")?;
+      let root_folder = bin_folder.parent().context("missing makensis root")?;
+      root_folder.join("share").join("nsis")
+    };
+
+    let resource_path = std::path::absolute(&resource_path)
+      .fs_context("failed to resolve NSIS resources", resource_path)?;
+
+    Ok(Self {
+      compiler_path,
+      resource_path,
+    })
+  }
+}
+
 struct NsisPlugin {
   name: &'static str,
   filename: &'static str,
   version: &'static str,
   url: &'static str,
-  sha1: &'static str,
+  sha256: &'static str,
+  dll_sha256: &'static [(&'static str, &'static str)],
+}
+
+impl NsisPlugin {
+  fn is_cache_valid(&self, directory: &Path) -> bool {
+    self.dll_sha256.iter().all(|(target, hash)| {
+      let path = directory.join(target).join(self.filename);
+      verify_file_hash(path, hash, HashAlgorithm::Sha256).is_ok()
+    })
+  }
 }
 
 const NSIS_PLUGINS: &[NsisPlugin] = &[NsisPlugin {
   name: "nsis_tauri_utils",
   filename: "nsis_tauri_utils.dll",
-  version: "0.5.3",
-  url: "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll",
-  sha1: "75197FEE3C6A814FE035788D1C34EAD39349B860",
+  version: "0.6.0",
+  url: "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.6.0/nsis_tauri_utils.zip",
+  sha256: "78C8EB242230C760F7C308C7502C0B0B8A79F1391E9E387AF0087355E0C3021B",
+  dll_sha256: &[
+    (
+      "x86-unicode",
+      "631DC88864D0C21EAFE843891F86D287B69CC50BC968698B374B591EF213A43B",
+    ),
+    (
+      "x86-ansi",
+      "952D944AF73D7373C44CBEAC108B02E51E6A1E2A602419EE13A26204C6ADEC9F",
+    ),
+    (
+      "amd64-unicode",
+      "551D304327B7C8F29A5967258B56AFEEADE7AFA6960437B60B5196351CA0C732",
+    ),
+  ],
 }];
 
 // NSIS toolchain cache directory, download URL, and checksums.
+#[cfg(target_os = "windows")]
 const NSIS_CACHE_DIRECTORY: &str = "NSIS-3.13";
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
@@ -59,21 +150,6 @@ const NSIS_SHA1: &str = "DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E";
 #[cfg(target_os = "windows")]
 const NSIS_EXE_SHA1: &str = "6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2";
 
-#[cfg(target_os = "windows")]
-const NSIS_REQUIRED_FILES: &[&str] = &[
-  "makensis.exe",
-  "Bin/makensis.exe",
-  "Stubs/lzma-x86-unicode",
-  "Stubs/lzma_solid-x86-unicode",
-  "Include/MUI2.nsh",
-  "Include/FileFunc.nsh",
-  "Include/x64.nsh",
-  "Include/nsDialogs.nsh",
-  "Include/WinMessages.nsh",
-  "Include/Win/COM.nsh",
-  "Include/Win/Propkey.nsh",
-  "Include/Win/RestartManager.nsh",
-];
 const NSIS_BUILTIN_PLUGIN_FILES: &[&str] =
   &["NSISdl.dll", "StartMenu.dll", "System.dll", "nsDialogs.dll"];
 
@@ -89,46 +165,50 @@ const NSIS_TEMPLATE_INCLUDES: include_dir::Dir<'_> =
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
   let tauri_tools_path = tools_directory(settings)?;
 
-  let nsis_toolset_path = tauri_tools_path.join(NSIS_CACHE_DIRECTORY);
-
+  let toolchain = NsisToolchain::detect();
   #[cfg(target_os = "windows")]
-  if !nsis_toolset_path.exists() {
-    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
-  } else if NSIS_REQUIRED_FILES
-    .iter()
-    .any(|p| !nsis_toolset_path.join(p).exists())
-  {
-    log::warn!("NSIS directory is missing some files. Recreating it.");
-    std::fs::remove_dir_all(&nsis_toolset_path)?;
-    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
-  } else if cfg!(target_os = "windows")
-    && let Err(e) = verify_file_hash(
-      nsis_toolset_path.join("NSIS.exe"),
-      NSIS_EXE_SHA1,
-      HashAlgorithm::Sha1,
-    )
-  {
-    log::warn!(
-      "NSIS.exe is {}. Recreating it.",
-      if matches!(e, Error::HashError) {
-        "outdated"
-      } else {
-        "missing"
-      }
-    );
-    std::fs::remove_dir_all(&nsis_toolset_path)?;
-    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
-  }
+  let toolchain = toolchain.or_else(|_| NsisToolchain::get_or_download(&tauri_tools_path));
+  let toolchain = toolchain?;
 
   let additional_plugins_paths = prepare_nsis_plugins(&tauri_tools_path)?;
 
   build_nsis_app_installer(
     settings,
-    &nsis_toolset_path,
+    &toolchain,
     &additional_plugins_paths,
     &tauri_tools_path,
     updater,
   )
+}
+
+#[cfg(target_os = "windows")]
+fn verify_nsis_exe(nsis_toolset_path: &Path) -> bool {
+  if let Err(e) = verify_file_hash(
+    nsis_toolset_path.join("NSIS.exe"),
+    NSIS_EXE_SHA1,
+    HashAlgorithm::Sha1,
+  ) {
+    let status = if matches!(e, Error::HashError) {
+      "outdated"
+    } else {
+      "missing"
+    };
+    log::warn!("NSIS.exe is {status}. Recreating it.");
+    return false;
+  }
+
+  true
+}
+
+// Gets NSIS and verifies the download via Sha1
+#[cfg(target_os = "windows")]
+fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> crate::Result<()> {
+  let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
+  log::info!("extracting NSIS");
+  crate::utils::http_utils::extract_zip(&data, tauri_tools_path)?;
+  fs::rename(tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
+
+  Ok(())
 }
 
 fn prepare_nsis_plugins(tauri_tools_path: &Path) -> crate::Result<Vec<PathBuf>> {
@@ -136,32 +216,14 @@ fn prepare_nsis_plugins(tauri_tools_path: &Path) -> crate::Result<Vec<PathBuf>> 
     let directory = tauri_tools_path
       .join("NSIS-plugins")
       .join(format!("{}-{}", plugin.name, plugin.version));
-    let path = directory.join(plugin.filename);
-    if verify_file_hash(&path, plugin.sha1, HashAlgorithm::Sha1).is_err() {
-      let data = download_and_verify(plugin.url, plugin.sha1, HashAlgorithm::Sha1)?;
-      fs::create_dir_all(&directory)?;
-      fs::write(&path, data).fs_context("failed to save NSIS plugin", path)?;
+    if !plugin.is_cache_valid(&directory) {
+      let data = download_and_verify(plugin.url, plugin.sha256, HashAlgorithm::Sha256)?;
+      extract_zip(&data, &directory)?;
     }
     Ok(directory)
   };
 
   NSIS_PLUGINS.iter().map(prepare_plugin).collect()
-}
-
-// Gets NSIS and verifies the download via Sha1
-#[cfg(target_os = "windows")]
-fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> crate::Result<()> {
-  log::info!("Verifying NSIS package");
-
-  #[cfg(target_os = "windows")]
-  {
-    let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
-    log::info!("extracting NSIS");
-    crate::utils::http_utils::extract_zip(&data, _tauri_tools_path)?;
-    fs::rename(_tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
-  }
-
-  Ok(())
 }
 
 fn try_add_numeric_build_number(version_str: &str) -> crate::Result<String> {
@@ -188,67 +250,24 @@ fn try_add_numeric_build_number(version_str: &str) -> crate::Result<String> {
   ))
 }
 
-#[cfg(target_os = "linux")]
-fn system_nsis_path() -> crate::Result<PathBuf> {
-  Ok(PathBuf::from("/usr/share/nsis"))
-}
-
-#[cfg(target_os = "macos")]
-fn system_nsis_path() -> crate::Result<PathBuf> {
-  let mut makensis_path = which::which("makensis").map_err(|error| Error::CommandFailed {
-    command: "makensis".to_string(),
-    error: std::io::Error::other(format!("failed to find makensis: {error}")),
-  })?;
-
-  // homebrew installs it as a symlink
-  if makensis_path.is_symlink() {
-    // read_link might return a path relative to makensis_path so we must use join() and canonicalize
-    let link_target = std::fs::read_link(&makensis_path)
-      .fs_context("failed to resolve makensis symlink", makensis_path.clone())?;
-    let parent = makensis_path.parent().context("missing makensis parent")?;
-    let target_path = parent.join(link_target);
-
-    makensis_path = target_path.canonicalize().fs_context(
-      "failed to canonicalize makensis path",
-      makensis_path.clone(),
-    )?;
-  }
-
-  // file structure:
-  // ├── bin
-  // │   ├── makensis
-  // ├── share
-  // │   ├── nsis
-  let bin_folder = makensis_path.parent().context("missing makensis parent")?;
-  let root_folder = bin_folder.parent().context("missing makensis root")?;
-  crate::Result::Ok(root_folder.join("share").join("nsis"))
-}
-
 fn copy_nsis_plugins_for_signing(
-  #[allow(unused_variables)] nsis_toolset_path: &Path,
+  toolchain: &NsisToolchain,
   additional_plugins_paths: &[PathBuf],
   output_path: &Path,
+  plugin_target: &str,
 ) -> crate::Result<PathBuf> {
-  #[cfg(any(target_os = "linux", target_os = "macos"))]
-  let system_nsis_toolset_path = match std::env::var_os("NSIS_PATH") {
-    Some(path) => PathBuf::from(path),
-    None => system_nsis_path()?,
-  };
-  #[cfg(windows)]
-  let system_nsis_toolset_path = nsis_toolset_path.to_path_buf();
-
   let plugins_path = output_path.join("Plugins");
 
   // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)
   crate::utils::fs_utils::copy_dir(
-    &system_nsis_toolset_path.join("Plugins").join("x86-unicode"),
-    &plugins_path.join("x86-unicode"),
+    &toolchain.resource_path.join("Plugins").join(plugin_target),
+    &plugins_path.join(plugin_target),
   )
   .context("failed to copy system NSIS Plugins folder to local copy")?;
 
   // Copy downloaded plugins only when signing, leaving cached DLLs untouched.
   for directory in additional_plugins_paths {
-    crate::utils::fs_utils::copy_dir(directory, &plugins_path.join("x86-unicode"))
+    crate::utils::fs_utils::copy_dir(directory, &plugins_path.join(plugin_target))
       .context("failed to copy additional NSIS Plugins folder to local copy")?;
   }
   Ok(plugins_path)
@@ -256,11 +275,25 @@ fn copy_nsis_plugins_for_signing(
 
 fn build_nsis_app_installer(
   settings: &Settings,
-  #[allow(unused_variables)] nsis_toolset_path: &Path,
+  toolchain: &NsisToolchain,
   additional_plugins_paths: &[PathBuf],
   tauri_tools_path: &Path,
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
+  let installer_target = settings
+    .windows()
+    .nsis
+    .as_ref()
+    .map(|nsis| nsis.installer_target)
+    .unwrap_or_default();
+
+  let plugin_target = installer_target.as_str();
+
+  let additional_plugins_paths: Vec<_> = additional_plugins_paths
+    .iter()
+    .map(|path| path.join(plugin_target))
+    .collect();
+
   let arch = match settings.binary_arch() {
     Arch::X86_64 => "x64",
     Arch::X86 => "x86",
@@ -281,11 +314,12 @@ fn build_nsis_app_installer(
   fs::create_dir_all(&output_path)?;
 
   // Copy DLLs before signing so cached and system plugins remain unchanged.
-  let plugins_to_sign_path = if settings.windows().can_sign() {
+  let plugins_to_sign_path = if settings.windows().can_sign() && !settings.no_sign() {
     Some(copy_nsis_plugins_for_signing(
-      nsis_toolset_path,
-      additional_plugins_paths,
+      toolchain,
+      &additional_plugins_paths,
       &output_path,
+      plugin_target,
     )?)
   } else {
     None
@@ -301,12 +335,12 @@ fn build_nsis_app_installer(
   // See the compatibility note below for this legacy template variable.
   let additional_plugins_path = plugins_to_sign_path
     .as_ref()
-    .map(|p| p.join("x86-unicode"))
+    .map(|p| p.join(plugin_target))
     .or_else(|| additional_plugins_paths.first().cloned());
 
   let additional_plugins_paths = plugins_to_sign_path
     .is_none()
-    .then_some(additional_plugins_paths);
+    .then_some(additional_plugins_paths.as_slice());
 
   data.insert(
     "additional_plugins_paths",
@@ -323,11 +357,12 @@ fn build_nsis_app_installer(
   //           nsis_tauri_utils.dll
   // Current cache layout:
   //   NSIS-plugins/
-  //     <name>-<version>/                <- variable value when unsigned (first plugin)
-  //       <filename>
+  //     <name>-<version>/
+  //       <target>/                     <- variable value when unsigned (first plugin)
+  //         <filename>
   // Build-local layout when signing:
   //   Plugins/
-  //     x86-unicode/                     <- variable value when signing
+  //     <target>/                       <- variable value when signing
   //       <built-in and downloaded DLLs>
   // Unsigned compatibility assumes a single downloaded plugin; adding or
   // reordering plugins can break templates using this variable.
@@ -336,11 +371,16 @@ fn build_nsis_app_installer(
   if let Some(plugin_copy_path) = &plugins_to_sign_path {
     data.insert(
       "signed_plugins_path",
-      to_json(plugin_copy_path.join("x86-unicode")),
+      to_json(plugin_copy_path.join(plugin_target)),
     );
   }
 
   data.insert("arch", to_json(arch));
+  data.insert("installer_target", to_json(plugin_target));
+  data.insert(
+    "unicode",
+    to_json(installer_target != NsisInstallerTarget::X86Ansi),
+  );
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
@@ -727,7 +767,7 @@ fn build_nsis_app_installer(
 
   if settings.windows().can_sign() {
     if let Some(plugin_copy_path) = &plugins_to_sign_path {
-      let plugin_copy_path = plugin_copy_path.join("x86-unicode");
+      let plugin_copy_path = plugin_copy_path.join(plugin_target);
       log::info!("Signing NSIS plugins");
       let downloaded_plugins = NSIS_PLUGINS.iter().map(|plugin| plugin.filename);
       for dll in NSIS_BUILTIN_PLUGIN_FILES
@@ -747,12 +787,7 @@ fn build_nsis_app_installer(
 
   log::info!(action = "Running"; "makensis to produce {}", display_path(&nsis_installer_path));
 
-  #[cfg(target_os = "windows")]
-  let mut nsis_cmd = Command::new(nsis_toolset_path.join("makensis.exe"));
-  #[cfg(not(target_os = "windows"))]
-  let mut nsis_cmd = Command::new("makensis");
-
-  let status = nsis_cmd
+  let status = Command::new(&toolchain.compiler_path)
     .args(["-INPUTCHARSET", "UTF8", "-OUTPUTCHARSET", "UTF8"])
     .arg(match settings.log_level() {
       log::Level::Error => "-V1",
@@ -761,12 +796,10 @@ fn build_nsis_app_installer(
       _ => "-V4",
     })
     .arg(installer_nsi_path)
-    .env_remove("NSISDIR")
-    .env_remove("NSISCONFDIR")
     .current_dir(output_path)
     .piped()
     .map_err(|error| Error::CommandFailed {
-      command: "makensis.exe".to_string(),
+      command: toolchain.compiler_path.display().to_string(),
       error,
     })?;
   if !status.success() {

@@ -14,12 +14,12 @@
       ${IPersistFile::Load} $1 '("${shortcut}", ${STGM_READWRITE})'
       ${IUnknown::QueryInterface} $0 '("${IID_IPropertyStore}",.r2)'
       ${If} $2 P<> 0
-        System::Call 'Oleaut32::SysAllocString(w "${BUNDLEID}") i.r3'
+        System::Call 'Oleaut32::SysAllocString(w "${BUNDLEID}") p.r3'
         System::Call '*${SYSSTRUCT_PROPERTYKEY}(${PKEY_AppUserModel_ID})p.r4'
-        System::Call '*${SYSSTRUCT_PROPVARIANT}(${VT_BSTR},,&i4 $3)p.r5'
+        System::Call '*${SYSSTRUCT_PROPVARIANT}(${VT_BSTR},,&i${NSIS_PTR_SIZE} $3)p.r5'
         ${IPropertyStore::SetValue} $2 '($4,$5)'
 
-        System::Call 'Oleaut32::SysFreeString($3)'
+        System::Call 'Oleaut32::SysFreeString(p r3)'
         System::Free $4
         System::Free $5
         ${IPropertyStore::Commit} $2 ""

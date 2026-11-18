@@ -3148,6 +3148,15 @@
             "null"
           ]
         },
+        "installerTarget": {
+          "description": "The executable target of the installer, independent of the application target.\n Defaults to `x86-unicode`.",
+          "default": "x86-unicode",
+          "allOf": [
+            {
+              "$ref": "#/definitions/NsisInstallerTarget"
+            }
+          ]
+        },
         "headerImage": {
           "description": "The path to a bitmap file to display on the header of installers pages.\n\n The recommended dimensions are 150px x 57px.",
           "type": [
@@ -3250,6 +3259,32 @@
         }
       },
       "additionalProperties": false
+    },
+    "NsisInstallerTarget": {
+      "description": "The executable target of the NSIS installer, independent of the application target.",
+      "oneOf": [
+        {
+          "description": "A 32-bit Unicode installer (default).",
+          "type": "string",
+          "enum": [
+            "x86-unicode"
+          ]
+        },
+        {
+          "description": "A 32-bit ANSI installer. Text is limited to the system's ANSI code page.",
+          "type": "string",
+          "enum": [
+            "x86-ansi"
+          ]
+        },
+        {
+          "description": "A native 64-bit Unicode installer.\n\n Requires a compatible NSIS distribution with amd64 stubs and plugins,\n such as [negrutiu's NSIS distribution](https://github.com/negrutiu/nsis/releases).\n Set `NSIS_PATH` to the directory containing that distribution's `makensis` executable.\n On Windows, use the installation directory containing the top-level `makensis.exe`.\n If unset, Tauri searches `PATH` and downloads NSIS on Windows if it is not found.\n When signing, Tauri locates built-in plugins beside the compiler on Windows,\n under `/usr/share/nsis` on Linux, or under the resolved compiler's `<prefix>/share/nsis` on macOS.",
+          "type": "string",
+          "enum": [
+            "amd64-unicode"
+          ]
+        }
+      ]
     },
     "NSISInstallerMode": {
       "description": "Install Modes for the NSIS installer.",

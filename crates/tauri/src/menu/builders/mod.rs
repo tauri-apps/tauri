@@ -50,7 +50,16 @@ mod icon;
 pub use icon::IconMenuItemBuilder;
 
 // GTK menu items require initialization on GTK's event-loop thread.
-#[cfg(all(test, not(gtk)))]
+#[cfg(all(
+  test,
+  not(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd"
+  ))
+))]
 mod tests {
   use std::sync::Arc;
 

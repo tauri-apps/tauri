@@ -868,7 +868,7 @@ pub struct NsisConfig {
   #[serde(alias = "uninstaller-icon")]
   pub uninstaller_icon: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of uninstallers pages.
-  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `headerImage`
   ///
   /// The recommended dimensions are 150px x 57px.
   #[serde(alias = "uninstaller-header-image")]
@@ -879,7 +879,7 @@ pub struct NsisConfig {
   /// A list of installer languages. Default to `["English"]` if not set.
   ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
-  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  /// To allow the user to select the language, set `displayLanguageSelector` to `true`.
   ///
   /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
@@ -918,6 +918,9 @@ pub struct NsisConfig {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   /// ### Example
   ///
@@ -2623,7 +2626,7 @@ impl Display for Csp {
   }
 }
 
-/// The possible values for the `dangerous_disable_asset_csp_modification` config option.
+/// The possible values for the `dangerousDisableAssetCspModification` config option.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -3674,7 +3677,7 @@ pub struct AndroidConfig {
   ///
   /// - If `true`, the generator will try to read the last `versionCode` from
   ///   `tauri.properties` and increment it by 1 for every build.
-  /// - If `false` or not set, it falls back to `version_code` or semver-derived logic.
+  /// - If `false` or not set, it falls back to `versionCode` or semver-derived logic.
   ///
   /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]

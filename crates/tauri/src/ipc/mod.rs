@@ -162,6 +162,14 @@ impl Request<'_> {
   }
 }
 
+#[cfg(feature = "specta")]
+const _: () = {
+  #[derive(specta::Type)]
+  #[specta(remote = Request)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_REQUEST<'a>(std::marker::PhantomData<&'a ()>);
+};
+
 impl<'a, R: Runtime> CommandArg<'a, R> for Request<'a> {
   /// Returns the invoke [`Request`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
@@ -203,6 +211,14 @@ impl Response {
     Self { body: body.into() }
   }
 }
+
+#[cfg(feature = "specta")]
+const _: () = {
+  #[derive(specta::Type)]
+  #[specta(remote = Response)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_RESPONSE(std::marker::PhantomData<()>);
+};
 
 /// The message and resolver given to a custom command.
 ///

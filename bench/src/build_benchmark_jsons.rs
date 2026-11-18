@@ -17,12 +17,19 @@ use std::{fs::File, io::BufReader};
 mod utils;
 
 fn main() {
+  let platform = if cfg!(target_os = "macos") {
+    "macos"
+  } else if cfg!(target_os = "windows") {
+    "windows"
+  } else {
+    "linux"
+  };
   let tauri_data = &utils::tauri_root_path()
     .join("gh-pages")
-    .join("tauri-data.json");
+    .join(format!("tauri-data-{platform}.json"));
   let tauri_recent = &utils::tauri_root_path()
     .join("gh-pages")
-    .join("tauri-recent.json");
+    .join(format!("tauri-recent-{platform}.json"));
 
   // current data
   let current_data_buffer = BufReader::new(
@@ -49,18 +56,14 @@ fn main() {
 
   // write json's
   utils::write_json(
-    tauri_data
-      .to_str()
-      .expect("Something wrong with tauri_data"),
-    &serde_json::to_value(all_data).expect("Unable to build final json (all)"),
+    tauri_data,
+    &serde_json::to_value(&all_data).expect("Unable to build final json (all)"),
   )
-  .unwrap_or_else(|_| panic!("Unable to write {tauri_data:?}"));
+  .unwrap_or_else(|_| panic!("Unable to write {}", tauri_data.display()));
 
   utils::write_json(
-    tauri_recent
-      .to_str()
-      .expect("Something wrong with tauri_recent"),
+    tauri_recent,
     &serde_json::to_value(recent).expect("Unable to build final json (recent)"),
   )
-  .unwrap_or_else(|_| panic!("Unable to write {tauri_recent:?}"));
+  .unwrap_or_else(|_| panic!("Unable to write {}", tauri_recent.display()));
 }

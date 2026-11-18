@@ -9,6 +9,9 @@ Default permissions for the plugin.
 - `allow-tauri-version`
 - `allow-identifier`
 - `allow-bundle-type`
+- `allow-register-listener`
+- `allow-remove-listener`
+- `allow-supports-multiple-windows`
 
 ## Permission Table
 
@@ -126,6 +129,32 @@ Denies the default_window_icon command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-exit`
+
+</td>
+<td>
+
+Enables the exit command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-exit`
+
+</td>
+<td>
+
+Denies the exit command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-fetch-data-store-identifiers`
 
 </td>
@@ -145,6 +174,32 @@ Enables the fetch_data_store_identifiers command without any pre-configured scop
 <td>
 
 Denies the fetch_data_store_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-fetch-profile-identifiers`
+
+</td>
+<td>
+
+Enables the fetch_profile_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-fetch-profile-identifiers`
+
+</td>
+<td>
+
+Denies the fetch_profile_identifiers command without any pre-configured scope.
 
 </td>
 </tr>
@@ -204,6 +259,32 @@ Denies the name command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-register-listener`
+
+</td>
+<td>
+
+Enables the register_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-register-listener`
+
+</td>
+<td>
+
+Denies the register_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-remove-data-store`
 
 </td>
@@ -223,6 +304,58 @@ Enables the remove_data_store command without any pre-configured scope.
 <td>
 
 Denies the remove_data_store command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-remove-listener`
+
+</td>
+<td>
+
+Enables the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-remove-listener`
+
+</td>
+<td>
+
+Denies the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-remove-profile`
+
+</td>
+<td>
+
+Enables the remove_profile command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-remove-profile`
+
+</td>
+<td>
+
+Denies the remove_profile command without any pre-configured scope.
 
 </td>
 </tr>
@@ -275,6 +408,32 @@ Enables the set_dock_visibility command without any pre-configured scope.
 <td>
 
 Denies the set_dock_visibility command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-supports-multiple-windows`
+
+</td>
+<td>
+
+Enables the supports_multiple_windows command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-supports-multiple-windows`
+
+</td>
+<td>
+
+Denies the supports_multiple_windows command without any pre-configured scope.
 
 </td>
 </tr>

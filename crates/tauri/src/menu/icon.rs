@@ -8,7 +8,7 @@ use super::run_item_main_thread;
 use super::{IconMenuItem, NativeIcon};
 use crate::menu::IconMenuItemInner;
 use crate::run_main_thread;
-use crate::{image::Image, menu::MenuId, AppHandle, Manager, Runtime};
+use crate::{AppHandle, Manager, Runtime, image::Image, menu::MenuId};
 
 impl<R: Runtime> IconMenuItem<R> {
   /// Create a new menu item.
@@ -39,11 +39,7 @@ impl<R: Runtime> IconMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::IconMenuItem::new(text, enabled, icon, accelerator);
-      IconMenuItemInner {
-        id: item.id().clone(),
-        inner: Some(item),
-        app_handle,
-      }
+      IconMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -78,13 +74,9 @@ impl<R: Runtime> IconMenuItem<R> {
       None => None,
     };
 
-    let item = run_main_thread!(handle, || {
-      let item = muda::IconMenuItem::with_id(id.clone(), text, enabled, icon, accelerator);
-      IconMenuItemInner {
-        id,
-        inner: Some(item),
-        app_handle,
-      }
+    let item = run_main_thread!(handle, move || {
+      let item = muda::IconMenuItem::with_id(id, text, enabled, icon, accelerator);
+      IconMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -118,11 +110,7 @@ impl<R: Runtime> IconMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::IconMenuItem::with_native_icon(text, enabled, icon, accelerator);
-      IconMenuItemInner {
-        id: item.id().clone(),
-        inner: Some(item),
-        app_handle,
-      }
+      IconMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -157,14 +145,9 @@ impl<R: Runtime> IconMenuItem<R> {
     let icon = native_icon.map(Into::into);
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
 
-    let item = run_main_thread!(handle, || {
-      let item =
-        muda::IconMenuItem::with_id_and_native_icon(id.clone(), text, enabled, icon, accelerator);
-      IconMenuItemInner {
-        id,
-        inner: Some(item),
-        app_handle,
-      }
+    let item = run_main_thread!(handle, move || {
+      let item = muda::IconMenuItem::with_id_and_native_icon(id, text, enabled, icon, accelerator);
+      IconMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -177,7 +160,7 @@ impl<R: Runtime> IconMenuItem<R> {
 
   /// Returns a unique identifier associated with this menu item.
   pub fn id(&self) -> &MenuId {
-    &self.0.id
+    self.0.inner.id()
   }
 
   /// Get the text for this menu item.
@@ -219,6 +202,44 @@ impl<R: Runtime> IconMenuItem<R> {
       None => None,
     };
     run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_icon(icon))
+  }
+
+  /// Change this menu item icon, or remove it, and draw it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu the way the built-in items do. [`IconMenuItem::set_icon`] draws the icon as-is instead.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Same as [`IconMenuItem::set_icon`], as only macOS has template images.
+  pub fn set_icon_templated(&self, icon: Option<Image<'_>>) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+      let icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| (*self_.0)
+        .as_ref()
+        .set_icon_templated(icon))?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    self.set_icon(icon)?;
+    Ok(())
+  }
+
+  /// Whether this menu item's icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// See [`IconMenuItem::set_icon_templated`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Always `false`, as only macOS has template images.
+  pub fn icon_is_template(&self) -> crate::Result<bool> {
+    #[cfg(target_os = "macos")]
+    return run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().icon_is_template());
+    #[allow(unreachable_code)]
+    Ok(false)
   }
 
   /// Change this menu item icon to a native image or remove it.

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{error::Context, ErrorExt, Result};
+use crate::{ErrorExt, Result, error::Context};
 
 use serde_json::{Map, Value};
 use tauri_utils::acl::{
-  capability::{Capability, PermissionEntry},
   Scopes, Value as AclValue,
+  capability::{Capability, PermissionEntry},
 };
 
 use std::{
@@ -104,7 +104,7 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       }
 
       // dangerousUseHttpScheme/useHttpsScheme
-      let dangerouse_use_http = tauri_config
+      let dangerous_use_http = tauri_config
         .get("security")
         .and_then(|w| w.as_object())
         .and_then(|w| {
@@ -120,7 +120,7 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       {
         for window in windows {
           if let Some(window) = window.as_object_mut() {
-            window.insert("useHttpsScheme".to_string(), (!dangerouse_use_http).into());
+            window.insert("useHttpsScheme".to_string(), (!dangerous_use_http).into());
           }
         }
       }
@@ -410,7 +410,7 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
             csp.insert(
               "connect-src".into(),
               tauri_utils::config_v1::CspDirectiveSources::List(vec![
-                "ipc: http://ipc.localhost".to_string()
+                "ipc: http://ipc.localhost".to_string(),
               ]),
             );
           }
@@ -427,7 +427,9 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
     .remove("dangerousRemoteDomainIpcAccess")
     .or_else(|| security.remove("dangerous-remote-domain-ipc-access"))
   {
-    println!("dangerous remote domain IPC access config ({dangerous_remote_domain_ipc_access:?}) no longer exists, see documentation for capabilities and remote access: https://v2.tauri.app/security/capabilities/#remote-api-access")
+    println!(
+      "dangerous remote domain IPC access config ({dangerous_remote_domain_ipc_access:?}) no longer exists, see documentation for capabilities and remote access: https://v2.tauri.app/security/capabilities/#remote-api-access"
+    )
   }
   security
     .remove("dangerousUseHttpScheme")
@@ -1138,10 +1140,12 @@ mod test {
       migrated["app"]["security"]["csp"]["default-src"],
       original["tauri"]["security"]["csp"]["default-src"]
     );
-    assert!(migrated["app"]["security"]["csp"]["connect-src"]
-      .as_array()
-      .expect("connect-src isn't an array")
-      .contains(&"ipc: http://ipc.localhost".into()));
+    assert!(
+      migrated["app"]["security"]["csp"]["connect-src"]
+        .as_array()
+        .expect("connect-src isn't an array")
+        .contains(&"ipc: http://ipc.localhost".into())
+    );
   }
 
   #[test]

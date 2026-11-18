@@ -13,7 +13,7 @@ import { IconMenuItem } from './iconMenuItem'
 import { PredefinedMenuItem } from './predefinedMenuItem'
 import { invoke } from '../core'
 import { type LogicalPosition, PhysicalPosition, type Window } from '../window'
-import { type ItemKind, MenuItemBase, newMenu } from './base'
+import { type ItemKind, MenuItemBase, newMenu, prepareItem } from './base'
 import { type MenuOptions } from './menu'
 import { Position } from '../dpi'
 import { transformImage, MenuIcon } from '../image'
@@ -119,9 +119,7 @@ export class Submenu extends MenuItemBase {
     return invoke('plugin:menu|append', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      )
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem)
     })
   }
 
@@ -148,9 +146,7 @@ export class Submenu extends MenuItemBase {
     return invoke('plugin:menu|prepend', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      )
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem)
     })
   }
 
@@ -177,9 +173,7 @@ export class Submenu extends MenuItemBase {
     return invoke('plugin:menu|insert', {
       rid: this.rid,
       kind: this.kind,
-      items: (Array.isArray(items) ? items : [items]).map((i) =>
-        'rid' in i ? [i.rid, i.kind] : i
-      ),
+      items: (Array.isArray(items) ? items : [items]).map(prepareItem),
       position
     })
   }

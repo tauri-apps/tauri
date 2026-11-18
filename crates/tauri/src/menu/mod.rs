@@ -13,13 +13,14 @@ mod normal;
 pub(crate) mod plugin;
 mod predefined;
 mod submenu;
-use std::sync::Arc;
+use std::mem::ManuallyDrop;
 
 pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
-use crate::{image::Image, AppHandle, Runtime};
+use crate::menu::plugin::remove_menu_channel;
+use crate::{AppHandle, Runtime, image::Image};
 pub use muda::MenuId;
 
 macro_rules! run_item_main_thread {
@@ -65,14 +66,26 @@ macro_rules! gen_wrappers {
     $(
       $(#[$attr:meta])*
       $type:ident($inner:ident$(, $kind:ident)?)
+      $({ $($(#[$field_attr:meta])* $field:ident: $field_type:ty),* })?
     ),*
   ) => {
     $(
       #[tauri_macros::default_runtime(crate::Wry, wry)]
       pub(crate) struct $inner<R: $crate::Runtime> {
-        id: $crate::menu::MenuId,
-        inner: ::std::option::Option<::muda::$type>,
+        // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
+        inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
+        $($( $(#[$field_attr])* $field: $field_type,)*)?
+      }
+
+      impl<R: $crate::Runtime> $inner<R> {
+        fn new(app_handle: $crate::AppHandle<R>, menu: ::muda::$type) -> Self {
+          Self {
+            inner: ManuallyDrop::new(menu),
+            app_handle,
+            $($($field: Default::default(),)*)?
+          }
+        }
       }
 
       /// # Safety
@@ -83,19 +96,11 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> $crate::Resource for $type<R> {}
 
-      impl<R: $crate::Runtime> Clone for $inner<R> {
-        fn clone(&self) -> Self {
-          Self {
-            id: self.id.clone(),
-            inner: self.inner.clone(),
-            app_handle: self.app_handle.clone(),
-          }
-        }
-      }
-
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
-          let inner = self.inner.take();
+          remove_menu_channel(&self.app_handle, self.inner.id());
+          // SAFETY: we will not access `self.inner` after this
+          let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
           // SAFETY: inner was created on main thread and is being dropped on main thread
           let inner = $crate::UnsafeSend(inner);
           let _ = self.app_handle.run_on_main_thread(move || {
@@ -106,10 +111,9 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> AsRef<::muda::$type> for $inner<R> {
         fn as_ref(&self) -> &::muda::$type {
-          self.inner.as_ref().unwrap()
+          &self.inner
         }
       }
-
 
       $(#[$attr])*
       pub struct $type<R: $crate::Runtime>(::std::sync::Arc<$inner<R>>);
@@ -133,7 +137,7 @@ macro_rules! gen_wrappers {
           }
 
           fn id(&self) -> &MenuId {
-            &self.0.id
+            self.0.inner.id()
           }
         }
       )*
@@ -148,11 +152,17 @@ gen_wrappers!(
   /// ## Platform-specific:
   ///
   /// - **macOS**: if using [`Menu`] for the global menubar, it can only contain [`Submenu`]s
-  Menu(MenuInner),
+  Menu(MenuInner) {
+    /// **SAFTY:** Must only be modified in sync with the inner [`muda::Menu::items`]
+    items: std::sync::Mutex<Vec<MenuItemKind<R>>>
+  },
   /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
   MenuItem(MenuItemInner, MenuItem),
   /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
-  Submenu(SubmenuInner, Submenu),
+  Submenu(SubmenuInner, Submenu) {
+    /// **SAFTY:** Must only be modified in sync with the inner [`muda::Submenu::items`]
+    items: std::sync::Mutex<Vec<MenuItemKind<R>>>
+  },
   /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
   PredefinedMenuItem(PredefinedMenuItemInner, Predefined),
   /// A menu item inside a [`Menu`] or [`Submenu`]
@@ -570,38 +580,6 @@ impl<R: Runtime> MenuItemKind<R> {
       MenuItemKind::Predefined(i) => i,
       MenuItemKind::Check(i) => i,
       MenuItemKind::Icon(i) => i,
-    }
-  }
-
-  pub(crate) fn from_muda(app_handle: AppHandle<R>, i: muda::MenuItemKind) -> Self {
-    match i {
-      muda::MenuItemKind::MenuItem(i) => Self::MenuItem(MenuItem(Arc::new(MenuItemInner {
-        id: i.id().clone(),
-        inner: i.into(),
-        app_handle,
-      }))),
-      muda::MenuItemKind::Submenu(i) => Self::Submenu(Submenu(Arc::new(SubmenuInner {
-        id: i.id().clone(),
-        inner: i.into(),
-        app_handle,
-      }))),
-      muda::MenuItemKind::Predefined(i) => {
-        Self::Predefined(PredefinedMenuItem(Arc::new(PredefinedMenuItemInner {
-          id: i.id().clone(),
-          inner: i.into(),
-          app_handle,
-        })))
-      }
-      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(CheckMenuItemInner {
-        id: i.id().clone(),
-        inner: i.into(),
-        app_handle,
-      }))),
-      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner {
-        id: i.id().clone(),
-        inner: i.into(),
-        app_handle,
-      }))),
     }
   }
 

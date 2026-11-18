@@ -1,4 +1,4 @@
-/src/main/{{package-path}}/generated
+/src/main/**/generated
 /src/main/jniLibs/**/*.so
 /src/main/assets/tauri.conf.json
 /tauri.build.gradle.kts

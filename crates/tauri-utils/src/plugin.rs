@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 //! Compile-time and runtime types for Tauri plugins.
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 pub use build::*;
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use std::{
     env::vars_os,

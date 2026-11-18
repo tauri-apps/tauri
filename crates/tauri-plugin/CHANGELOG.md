@@ -1,5 +1,103 @@
 # Changelog
 
+## [2.7.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+
+## [2.7.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.3`
+
+## [2.7.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+
+## [2.7.1]
+
+### Bug Fixes
+
+- [`a4dcca829`](https://www.github.com/tauri-apps/tauri/commit/a4dcca829100304ad0fadfd66b03ba58a50e893f) ([#16186](https://www.github.com/tauri-apps/tauri/pull/16186) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Skip the Android and iOS project setup in `Builder::build` and `Builder::try_build` when building on docs.rs, which mounts the sources read-only, so plugins with native mobile projects can build their documentation for mobile targets.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+
+## [2.7.0]
+
+### What's Changed
+
+- [`2e6e33c85`](https://www.github.com/tauri-apps/tauri/commit/2e6e33c8501c66c9a49aad861048d39345cfb26f) ([#16029](https://www.github.com/tauri-apps/tauri/pull/16029)) Moved to edition 2024
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+
+## \[2.6.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+
+## \[2.6.0]
+
+### New Features
+
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Implement file association for Android and iOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+
+## \[2.5.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+
+## \[2.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+
+## \[2.5.1]
+
+### Bug Fixes
+
+- [`4b6b8690a`](https://www.github.com/tauri-apps/tauri/commit/4b6b8690ab886ebdf1307951cffbe03e31280baa) ([#14347](https://www.github.com/tauri-apps/tauri/pull/14347) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused docs.rs builds to fail. No user facing changes.
+
+## \[2.5.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- [`6aa7f2d85`](https://www.github.com/tauri-apps/tauri/commit/6aa7f2d852870aeba1d4dd0e07f8be2bc9b66286) Upgraded to `tauri-utils@2.8.0`
+
 ## \[2.4.0]
 
 ### New Features

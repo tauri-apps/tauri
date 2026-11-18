@@ -9,7 +9,7 @@ use std::{
   path::PathBuf,
 };
 
-use crate::{error::NotarizeAuthError, Entitlements, Settings};
+use crate::{Entitlements, Settings, error::NotarizeAuthError};
 
 pub struct SignTarget {
   pub path: PathBuf,
@@ -21,7 +21,7 @@ pub fn keychain(identity: Option<&str>) -> crate::Result<Option<tauri_macos_sign
     var_os("APPLE_CERTIFICATE"),
     var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    // import user certificate - useful for for CI build
+    // import user certificate - useful for CI build
     let keychain =
       tauri_macos_sign::Keychain::with_certificate(&certificate_encoded, &certificate_password)
         .map_err(Box::new)?;
@@ -161,9 +161,5 @@ pub fn notarize_auth() -> Result<tauri_macos_sign::AppleNotarizationCredentials,
 
 fn find_api_key(folder: PathBuf, file_name: &OsString) -> Option<PathBuf> {
   let path = folder.join(file_name);
-  if path.exists() {
-    Some(path)
-  } else {
-    None
-  }
+  if path.exists() { Some(path) } else { None }
 }

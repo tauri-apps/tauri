@@ -30,12 +30,7 @@ use tauri_utils::config::HookCommand;
 
 #[cfg(not(target_os = "windows"))]
 use crate::Error;
-use crate::{
-  interface::{AppInterface, Interface},
-  CommandExt,
-};
-
-use self::app_paths::frontend_dir;
+use crate::{CommandExt, interface::AppInterface};
 
 pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
@@ -62,12 +57,9 @@ pub fn resolve_tauri_path<P: AsRef<Path>>(path: P, crate_name: &str) -> PathBuf 
 }
 
 pub fn cross_command(bin: &str) -> Command {
+  // Resolve the actual executable (e.g. `npm.cmd`, `bun.exe`)
   #[cfg(target_os = "windows")]
-  let cmd = {
-    let mut cmd = Command::new("cmd");
-    cmd.arg("/c").arg(bin);
-    cmd
-  };
+  let cmd = Command::new(which::which(bin).unwrap_or_else(|_| bin.into()));
   #[cfg(not(target_os = "windows"))]
   let cmd = Command::new(bin);
   cmd
@@ -78,13 +70,14 @@ pub fn run_hook(
   hook: HookCommand,
   interface: &AppInterface,
   debug: bool,
+  frontend_dir: &Path,
 ) -> crate::Result<()> {
   let (script, script_cwd) = match hook {
     HookCommand::Script(s) if s.is_empty() => (None, None),
     HookCommand::Script(s) => (Some(s), None),
     HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
   };
-  let cwd = script_cwd.unwrap_or_else(|| frontend_dir().clone());
+  let cwd = script_cwd.unwrap_or_else(|| frontend_dir.to_owned());
   if let Some(script) = script {
     log::info!(action = "Running"; "{} `{}`", name, script);
 
@@ -136,15 +129,12 @@ pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Resu
   if !version.pre.is_empty() {
     if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
       version.pre = semver::Prerelease::EMPTY;
-      version.build = semver::BuildMetadata::new(&format!(
-        "{prefix}{number}",
-        prefix = if version.build.is_empty() {
-          "".to_string()
-        } else {
-          format!(".{}", version.build.as_str())
-        }
-      ))
-      .with_context(|| {
+      let build = if version.build.is_empty() {
+        number.to_string()
+      } else {
+        format!("{number}.{}", version.build)
+      };
+      version.build = semver::BuildMetadata::new(&build).with_context(|| {
         format!(
           "failed to parse {version} as semver: bundle version {number:?} prerelease is invalid"
         )
@@ -153,4 +143,24 @@ pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Resu
   }
 
   Ok(())
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+  use super::strip_semver_prerelease_tag;
+
+  #[test]
+  fn strips_semver_prerelease_tag() {
+    for (input, expected) in [
+      ("1.2.3-beta.4", "1.2.3+4"),
+      ("1.2.3-beta.4+5", "1.2.3+4.5"),
+      ("1.2.3-rc.7+10", "1.2.3+7.10"),
+    ] {
+      let mut version = semver::Version::parse(input).unwrap();
+
+      strip_semver_prerelease_tag(&mut version).unwrap();
+
+      assert_eq!(version.to_string(), expected);
+    }
+  }
 }

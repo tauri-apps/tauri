@@ -5,9 +5,9 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{
+  Expr, Token,
   parse::{Parse, ParseStream},
   punctuated::Punctuated,
-  Expr, Token,
 };
 
 pub struct DoMenuItemInput {
@@ -130,7 +130,7 @@ pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
         #expr
       }
       )*
-      _ => unreachable!(),
+      _ => return Err(crate::Error::UnexpectedMenuKind),
     }
   }
 }

@@ -11,7 +11,7 @@ use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
 use crate::{
-  image::Image, menu::run_item_main_thread, AppHandle, Manager, PhysicalPosition, Rect, Runtime,
+  AppHandle, Manager, PhysicalPosition, Rect, Runtime, image::Image, menu::run_item_main_thread,
 };
 use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;
@@ -19,18 +19,13 @@ use std::path::Path;
 pub use tray_icon::TrayIconId;
 
 /// Describes the mouse button state.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Serialize)]
 pub enum MouseButtonState {
   /// Mouse button pressed.
+  #[default]
   Up,
   /// Mouse button released.
   Down,
-}
-
-impl Default for MouseButtonState {
-  fn default() -> Self {
-    Self::Up
-  }
 }
 
 impl From<tray_icon::MouseButtonState> for MouseButtonState {
@@ -43,20 +38,15 @@ impl From<tray_icon::MouseButtonState> for MouseButtonState {
 }
 
 /// Describes which mouse button triggered the event..
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Default)]
 pub enum MouseButton {
   /// Left mouse button.
+  #[default]
   Left,
   /// Right mouse button.
   Right,
   /// Middle mouse button.
   Middle,
-}
-
-impl Default for MouseButton {
-  fn default() -> Self {
-    Self::Left
-  }
 }
 
 impl From<tray_icon::MouseButton> for MouseButton {
@@ -73,7 +63,7 @@ impl From<tray_icon::MouseButton> for MouseButton {
 ///
 /// ## Platform-specific:
 ///
-/// - **Linux**: Unsupported. The event is not emmited even though the icon is shown
+/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown
 ///   and will still show a context menu on right click.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
@@ -267,6 +257,29 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
+  /// Set an icon for this tray icon and draw it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu bar in light and dark mode. [`TrayIconBuilder::icon`] uses the icon as-is instead.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Same as [`TrayIconBuilder::icon`], as only macOS has template images.
+  pub fn icon_templated(mut self, icon: Image<'_>) -> Self {
+    let icon = icon.try_into().ok();
+    if let Some(icon) = icon {
+      #[cfg(target_os = "macos")]
+      {
+        self.inner = self.inner.with_icon_templated(icon);
+      }
+      #[cfg(not(target_os = "macos"))]
+      {
+        self.inner = self.inner.with_icon(icon);
+      }
+    }
+    self
+  }
+
   /// Set a tooltip for this tray icon.
   ///
   /// ## Platform-specific:
@@ -302,8 +315,16 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIconBuilder::icon_templated` instead, which takes the icon to draw as a template."
+  )]
   pub fn icon_as_template(mut self, is_template: bool) -> Self {
-    self.inner = self.inner.with_icon_as_template(is_template);
+    #[allow(deprecated)]
+    {
+      self.inner = self.inner.with_icon_as_template(is_template);
+    }
     self
   }
 
@@ -314,7 +335,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// - **Linux:** Unsupported.
   #[deprecated(
     since = "2.2.0",
-    note = "Use `TrayIconBuiler::show_menu_on_left_click` instead."
+    note = "Use `TrayIconBuilder::show_menu_on_left_click` instead."
   )]
   pub fn menu_on_left_click(mut self, enable: bool) -> Self {
     self.inner = self.inner.with_menu_on_left_click(enable);
@@ -331,10 +352,17 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
-  /// Set a handler for menu events.
+  /// Set a global handler for menu events.
   ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
+  /// This handler is not specific to this tray icon.
+  /// It receives each menu event of the application.
+  /// This includes the events of the app menu, the window menus, and the menus of all tray icons.
+  ///
+  /// This method operates the same as [`Builder::on_menu_event`](crate::Builder::on_menu_event).
+  /// If you register the same handler here and on the [`Builder`](crate::Builder),
+  /// the handler runs two times for each menu event.
+  ///
+  /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
@@ -403,7 +431,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
 ///
 /// This type is reference-counted and the icon is removed when the last instance is dropped.
 ///
-/// See [TrayIconBuilder] to construct this type.
+/// See [`TrayIconBuilder`] to construct this type.
 #[tauri_macros::default_runtime(crate::Wry, wry)]
 pub struct TrayIcon<R: Runtime> {
   id: TrayIconId,
@@ -470,10 +498,17 @@ impl<R: Runtime> TrayIcon<R> {
     &self.app_handle
   }
 
-  /// Register a handler for menu events.
+  /// Register a global handler for menu events.
   ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
+  /// This handler is not specific to this tray icon.
+  /// It receives each menu event of the application.
+  /// This includes the events of the app menu, the window menus, and the menus of all tray icons.
+  ///
+  /// This method operates the same as [`AppHandle::on_menu_event`].
+  /// If you register the same handler here and on the [`Builder`](crate::Builder) or the [`AppHandle`],
+  /// the handler runs two times for each menu event.
+  ///
+  /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(&self, f: F) {
     self
       .app_handle
@@ -567,13 +602,92 @@ impl<R: Runtime> TrayIcon<R> {
     Ok(())
   }
 
+  /// Sets a new tray icon, or removes it, and draws it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu bar in light and dark mode. [`TrayIcon::set_icon`] draws the icon as-is instead.
+  ///
+  /// Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+  /// To enable it, change your Cargo.toml file:
+  ///
+  /// ```toml
+  /// [dependencies]
+  /// tauri = { version = "...", features = ["...", "image-png"] }
+  /// ```
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Same as [`TrayIcon::set_icon`], as only macOS has template images.
+  pub fn set_icon_templated(&self, icon: Option<Image<'_>>) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+      let tray_icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| {
+        self_.inner.set_icon_templated(tray_icon)
+      })??;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+      self.set_icon(icon)?;
+    }
+    Ok(())
+  }
+
+  /// Whether the current tray icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// See [`TrayIcon::set_icon_templated`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Always `false`, as only macOS has template images.
+  pub fn icon_is_template(&self) -> crate::Result<bool> {
+    #[cfg(target_os = "macos")]
+    return run_item_main_thread!(self, |self_: Self| self_.inner.icon_is_template());
+    #[allow(unreachable_code)]
+    Ok(false)
+  }
+
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIcon::set_icon_templated` instead, which sets the icon and draws it as a template in one call."
+  )]
   pub fn set_icon_as_template(&self, #[allow(unused)] is_template: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
+    #[allow(deprecated)]
     run_item_main_thread!(self, |self_: Self| {
       self_.inner.set_icon_as_template(is_template)
     })?;
     Ok(())
+  }
+
+  /// Sets the tray icon and template status atomically. **macOS only**.
+  ///
+  /// On macOS, calling `set_icon` followed by `set_icon_as_template` causes a visible
+  /// flicker as the icon is rendered twice. This method sets both atomically to prevent that.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux / Windows:** Falls back to calling `set_icon`.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIcon::set_icon_templated` for a template icon, or `TrayIcon::set_icon` for a plain one."
+  )]
+  pub fn set_icon_with_as_template(
+    &self,
+    icon: Option<Image<'_>>,
+    is_template: bool,
+  ) -> crate::Result<()> {
+    if is_template {
+      self.set_icon_templated(icon)
+    } else {
+      self.set_icon(icon)
+    }
   }
 
   /// Disable or enable showing the tray menu on left click.

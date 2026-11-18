@@ -3,17 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  cmp::Ordering,
   env::current_dir,
   ffi::OsStr,
   path::{Path, PathBuf},
   sync::OnceLock,
 };
 
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, gitignore::GitignoreBuilder};
 
 use tauri_utils::{
-  config::parse::{folder_has_configuration_file, is_configuration_file, ConfigFormat},
+  config::parse::{ConfigFormat, folder_has_configuration_file, is_configuration_file},
   platform::Target,
 };
 
@@ -23,25 +22,38 @@ const ENV_TAURI_APP_PATH: &str = "TAURI_APP_PATH";
 // path to the frontend app directory, usually `<project>/`
 const ENV_TAURI_FRONTEND_PATH: &str = "TAURI_FRONTEND_PATH";
 
+pub struct Dirs {
+  pub tauri: &'static Path,
+  pub frontend: &'static Path,
+}
+
 static FRONTEND_DIR: OnceLock<PathBuf> = OnceLock::new();
 static TAURI_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn walk_builder(path: &Path) -> WalkBuilder {
-  let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".gitignore");
-  if !default_gitignore.exists() {
-    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      use std::io::Write;
-      let _ = file.write_all(TAURI_GITIGNORE);
-    }
-  }
-
   let mut builder = WalkBuilder::new(path);
   builder.add_custom_ignore_filename(".taurignore");
   builder.git_global(false);
   builder.parents(false);
-  let _ = builder.add_ignore(default_gitignore);
+  skip_ignored_entries(&mut builder, path, TAURI_GITIGNORE);
   builder
+}
+
+/// Skips the walked entries matching the given `.gitignore`-style rules.
+///
+/// The rules are matched in memory instead of being written to a temporary ignore file,
+/// which could be tampered with by other users.
+pub fn skip_ignored_entries(builder: &mut WalkBuilder, root: &Path, rules: &[u8]) {
+  let mut gitignore = GitignoreBuilder::new(root);
+  for line in String::from_utf8_lossy(rules).lines() {
+    let _ = gitignore.add_line(None, line);
+  }
+  if let Ok(gitignore) = gitignore.build() {
+    builder.filter_entry(move |entry| {
+      let is_dir = entry.file_type().is_some_and(|t| t.is_dir());
+      !gitignore.matched(entry.path(), is_dir).is_ignore()
+    });
+  }
 }
 
 fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
@@ -57,12 +69,12 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
         })
         .unwrap_or(3),
     ))
-    .sort_by_file_path(|a, _| {
-      if a.extension().is_some() {
-        Ordering::Less
-      } else {
-        Ordering::Greater
-      }
+    // entries with an extension (files) first
+    .sort_by_file_path(|a, b| {
+      a.extension()
+        .is_none()
+        .cmp(&b.extension().is_none())
+        .then_with(|| a.cmp(b))
     });
 
   for entry in builder.build().flatten() {
@@ -75,21 +87,13 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
 }
 
 fn env_tauri_app_path() -> Option<PathBuf> {
-  std::env::var(ENV_TAURI_APP_PATH)
-    .map(PathBuf::from)
-    .ok()?
-    .canonicalize()
-    .ok()
-    .map(|p| dunce::simplified(&p).to_path_buf())
+  let p = PathBuf::from(std::env::var_os(ENV_TAURI_APP_PATH)?);
+  dunce::canonicalize(p).ok()
 }
 
 fn env_tauri_frontend_path() -> Option<PathBuf> {
-  std::env::var(ENV_TAURI_FRONTEND_PATH)
-    .map(PathBuf::from)
-    .ok()?
-    .canonicalize()
-    .ok()
-    .map(|p| dunce::simplified(&p).to_path_buf())
+  let p = PathBuf::from(std::env::var_os(ENV_TAURI_FRONTEND_PATH)?);
+  dunce::canonicalize(p).ok()
 }
 
 pub fn resolve_tauri_dir() -> Option<PathBuf> {
@@ -130,8 +134,8 @@ pub fn resolve_tauri_dir() -> Option<PathBuf> {
   })
 }
 
-pub fn resolve() {
-  TAURI_DIR.set(resolve_tauri_dir().unwrap_or_else(|| {
+pub fn resolve_dirs() -> Dirs {
+  let tauri = TAURI_DIR.get_or_init(|| resolve_tauri_dir().unwrap_or_else(|| {
     let env_var_name = env_tauri_app_path().is_some().then(|| format!("`{ENV_TAURI_APP_PATH}`"));
     panic!("Couldn't recognize the {} folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",
       env_var_name.as_deref().unwrap_or("current"),
@@ -139,16 +143,11 @@ pub fn resolve() {
       ConfigFormat::Json5.into_file_name(),
       ConfigFormat::Toml.into_file_name()
     )
-  })).expect("tauri dir already resolved");
-  FRONTEND_DIR
-    .set(resolve_frontend_dir().unwrap_or_else(|| tauri_dir().parent().unwrap().to_path_buf()))
-    .expect("app dir already resolved");
-}
-
-pub fn tauri_dir() -> &'static PathBuf {
-  TAURI_DIR
-    .get()
-    .expect("app paths not initialized, this is a Tauri CLI bug")
+  }));
+  let frontend = FRONTEND_DIR.get_or_init(|| {
+    resolve_frontend_dir().unwrap_or_else(|| tauri.parent().unwrap().to_path_buf())
+  });
+  Dirs { tauri, frontend }
 }
 
 pub fn resolve_frontend_dir() -> Option<PathBuf> {
@@ -174,8 +173,69 @@ pub fn resolve_frontend_dir() -> Option<PathBuf> {
   .map(|p| p.parent().unwrap().to_path_buf())
 }
 
-pub fn frontend_dir() -> &'static PathBuf {
-  FRONTEND_DIR
-    .get()
-    .expect("app paths not initialized, this is a Tauri CLI bug")
+#[cfg(test)]
+mod tests {
+  use std::{cell::RefCell, fs, path::PathBuf};
+
+  #[test]
+  fn walk_builder_skips_default_ignored_entries() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    for path in [
+      "node_modules/pkg/package.json",
+      "target/debug/app",
+      "src/main.rs",
+    ] {
+      let path = root.join(path);
+      fs::create_dir_all(path.parent().unwrap()).unwrap();
+      fs::write(path, "").unwrap();
+    }
+
+    let paths = super::walk_builder(root)
+      .require_git(false)
+      .build()
+      .flatten()
+      .map(|entry| entry.path().strip_prefix(root).unwrap().to_path_buf())
+      .collect::<Vec<_>>();
+
+    assert!(paths.contains(&PathBuf::from("src/main.rs")), "{paths:?}");
+    assert!(
+      !paths
+        .iter()
+        .any(|p| p.starts_with("node_modules") || p.starts_with("target")),
+      "{paths:?}"
+    );
+  }
+
+  #[test]
+  fn lookup_visits_files_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join("a/b")).unwrap();
+    fs::write(root.join("a/b/tauri.conf.json"), "").unwrap();
+    fs::write(root.join("z.json"), "").unwrap();
+    fs::write(root.join("c.json"), "").unwrap();
+
+    let visited = RefCell::new(Vec::new());
+    super::lookup(root, |path| {
+      visited
+        .borrow_mut()
+        .push(path.strip_prefix(root).unwrap().to_path_buf());
+      false
+    });
+    let visited = visited.into_inner();
+
+    // the walk root comes first, then the files of each directory before its subdirectories
+    assert_eq!(
+      visited,
+      vec![
+        PathBuf::from(""),
+        PathBuf::from("c.json"),
+        PathBuf::from("z.json"),
+        PathBuf::from("a"),
+        PathBuf::from("a/b"),
+        PathBuf::from("a/b/tauri.conf.json"),
+      ]
+    );
+  }
 }

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::run_item_main_thread;
 use crate::menu::MenuItemInner;
 use crate::run_main_thread;
-use crate::{menu::MenuId, AppHandle, Manager, Runtime};
+use crate::{AppHandle, Manager, Runtime, menu::MenuId};
 
 use super::MenuItem;
 
@@ -35,11 +35,7 @@ impl<R: Runtime> MenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::MenuItem::new(text, enabled, accelerator);
-      MenuItemInner {
-        id: item.id().clone(),
-        inner: Some(item),
-        app_handle,
-      }
+      MenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -69,13 +65,9 @@ impl<R: Runtime> MenuItem<R> {
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
     let text = text.as_ref().to_owned();
 
-    let item = run_main_thread!(handle, || {
-      let item = muda::MenuItem::with_id(id.clone(), text, enabled, accelerator);
-      MenuItemInner {
-        id,
-        inner: Some(item),
-        app_handle,
-      }
+    let item = run_main_thread!(handle, move || {
+      let item = muda::MenuItem::with_id(id, text, enabled, accelerator);
+      MenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -88,7 +80,7 @@ impl<R: Runtime> MenuItem<R> {
 
   /// Returns a unique identifier associated with this menu item.
   pub fn id(&self) -> &MenuId {
-    &self.0.id
+    self.0.inner.id()
   }
 
   /// Get the text for this menu item.

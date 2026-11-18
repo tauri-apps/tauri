@@ -3,22 +3,22 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  detect_target_ok, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  log_finished, open_and_wait, project_config, synchronize_project_config, MobileTarget,
-  OptionsHandle,
+  MobileTarget, OptionsHandle, detect_target_ok, ensure_init, env, get_app, get_config,
+  inject_resources, load_pbxproj, log_finished, open_and_wait, project_config,
+  synchronize_project_config,
 };
 use crate::{
+  ConfigValue, Error, Result,
   build::Options as BuildOptions,
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_tauri_config, ConfigHandle},
+    app_paths::Dirs,
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
     plist::merge_plist,
   },
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
-  mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions, TargetDevice},
-  ConfigValue, Error, Result,
+  interface::{AppInterface, Options as InterfaceOptions},
+  mobile::{CliOptions, TargetDevice, ios::ensure_ios_runtime_installed, write_options},
 };
 use clap::{ArgAction, Parser, ValueEnum};
 
@@ -29,14 +29,15 @@ use cargo_mobile2::{
   },
   env::Env,
   opts::{NoiseLevel, Profile},
-  target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
+  target::{TargetInvalid, TargetTrait, call_for_targets_with_fallback},
 };
 use rand::distr::{Alphanumeric, SampleString};
 
 use std::{
+  collections::HashMap,
   env::{set_current_dir, var, var_os},
   fs,
-  path::PathBuf,
+  path::{Path, PathBuf},
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -59,8 +60,8 @@ pub struct Options {
   )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
+  pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
@@ -94,6 +95,12 @@ pub struct Options {
   /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
   pub ignore_version_mismatches: bool,
+  /// Skip code signing when bundling the app
+  #[clap(long)]
+  pub no_sign: bool,
+  /// Only archive the app, skip generating the IPA.
+  #[clap(long)]
+  pub archive_only: bool,
   /// Target device of this build
   #[clap(skip)]
   pub target_device: Option<TargetDevice>,
@@ -154,7 +161,8 @@ impl From<Options> for BuildOptions {
       ci: options.ci,
       skip_stapling: false,
       ignore_version_mismatches: options.ignore_version_mismatches,
-      no_sign: false,
+      no_sign: options.no_sign,
+      no_binary_patching: false,
     }
   }
 }
@@ -165,11 +173,16 @@ pub struct BuiltApplication {
   // prevent drop
   #[allow(dead_code)]
   options_handle: OptionsHandle,
+  #[allow(dead_code)]
+  export_options_tmp: Option<tempfile::NamedTempFile>,
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  run(options, noise_level, &dirs)
+}
 
+pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<BuiltApplication> {
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -189,26 +202,29 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
-  let (interface, mut config) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+  let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
+  interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
-    let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
-    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
+  let (mut config, _) = get_config(
+    &app,
+    &tauri_config,
+    &build_options.features,
+    &CliOptions {
+      dev: false,
+      features: build_options.features.clone(),
+      args: build_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: build_options.config.clone(),
+      target_device: None,
+    },
+    dirs.tauri,
+  )?;
 
-    let app = get_app(MobileTarget::Ios, tauri_config_, &interface);
-    let (config, _metadata) = get_config(
-      &app,
-      tauri_config_,
-      build_options.features.as_ref(),
-      &Default::default(),
-    )?;
-    (interface, config)
-  };
-
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).context("failed to set current directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
   ensure_init(
     &tauri_config,
@@ -217,7 +233,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     MobileTarget::Ios,
     options.ci,
   )?;
-  inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+  inject_resources(&config, &tauri_config)?;
 
   let mut plist = plist::Dictionary::new();
   plist.insert(
@@ -231,22 +247,21 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     .join("Info.plist");
   let mut src_plists = vec![info_plist_path.clone().into()];
   src_plists.push(plist::Value::Dictionary(plist).into());
-  if tauri_path.join("Info.plist").exists() {
-    src_plists.push(tauri_path.join("Info.plist").into());
+  if dirs.tauri.join("Info.plist").exists() {
+    src_plists.push(dirs.tauri.join("Info.plist").into());
   }
-  if tauri_path.join("Info.ios.plist").exists() {
-    src_plists.push(tauri_path.join("Info.ios.plist").into());
+  if dirs.tauri.join("Info.ios.plist").exists() {
+    src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .bundle
-    .ios
-    .info_plist
   {
-    src_plists.push(info_plist.clone().into());
+    if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
+      src_plists.push(info_plist.clone().into());
+    }
+    if let Some(associations) = tauri_config.bundle.file_associations.as_ref() {
+      if let Some(file_associations) = tauri_utils::config::file_associations_plist(associations) {
+        src_plists.push(file_associations.into());
+      }
+    }
   }
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist
@@ -260,7 +275,22 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     ensure_ios_runtime_installed()?;
   }
 
-  let mut export_options_plist = plist::Dictionary::new();
+  // start from the user's export options so values only inferred from the Xcode project
+  // (like the signing certificate) do not override what they explicitly configured
+  let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+  let mut export_options_plist = if export_options_plist_path.exists() {
+    plist::Value::from_file(&export_options_plist_path)
+      .with_context(|| {
+        format!(
+          "failed to parse plist from {}",
+          export_options_plist_path.display()
+        )
+      })?
+      .into_dictionary()
+      .unwrap_or_default()
+  } else {
+    plist::Dictionary::new()
+  };
   if let Some(method) = options.export_method {
     let xcode_version =
       crate::info::env_system::xcode_version().context("failed to determine Xcode version")?;
@@ -304,17 +334,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
-  // merge export options and write to temp file
-  let _export_options_tmp = if !export_options_plist.is_empty() {
-    let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+  // write the merged export options to a temp file
+  let export_options_tmp = if !export_options_plist.is_empty() {
     let export_options =
       tempfile::NamedTempFile::new().context("failed to create temporary file")?;
 
-    let merged_plist = merge_plist(vec![
-      export_options_plist_path.clone().into(),
-      plist::Value::from(export_options_plist).into(),
-    ])?;
-    merged_plist
+    plist::Value::from(export_options_plist)
       .to_file_xml(export_options.path())
       .map_err(std::io::Error::other)
       .fs_context(
@@ -338,6 +363,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     &mut config,
     &mut env,
     noise_level,
+    dirs,
   )?;
 
   if open {
@@ -348,6 +374,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     config,
     interface,
     options_handle,
+    export_options_tmp,
   })
 }
 
@@ -356,10 +383,11 @@ fn run_build(
   interface: &AppInterface,
   options: Options,
   mut build_options: BuildOptions,
-  tauri_config: ConfigHandle,
+  tauri_config: ConfigMetadata,
   config: &mut AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
+  dirs: &Dirs,
 ) -> Result<OptionsHandle> {
   let profile = if options.debug {
     Profile::Debug
@@ -367,15 +395,18 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(interface, &mut build_options, tauri_config.clone(), true)?;
+  crate::build::setup(interface, &mut build_options, &tauri_config, dirs, true)?;
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&InterfaceOptions {
-    debug: build_options.debug,
-    target: build_options.target.clone(),
-    args: build_options.args.clone(),
-    ..Default::default()
-  })?;
+  let out_dir = app_settings.out_dir(
+    &InterfaceOptions {
+      debug: build_options.debug,
+      target: build_options.target.clone(),
+      args: build_options.args.clone(),
+      ..Default::default()
+    },
+    dirs.tauri,
+  )?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let cli_options = CliOptions {
@@ -387,7 +418,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+  let handle = write_options(MobileTarget::Ios, dirs.tauri, cli_options)?;
 
   if options.open {
     return Ok(handle);
@@ -413,20 +444,26 @@ fn run_build(
       }
 
       let credentials = auth_credentials_from_env()?;
-      let skip_signing = credentials.is_some();
+      let skip_signing = options.no_sign || credentials.is_some();
 
-      let mut build_config = BuildConfig::new().allow_provisioning_updates();
-      if let Some(credentials) = &credentials {
-        build_config = build_config
-          .authentication_credentials(credentials.clone())
-          .skip_codesign();
+      if !(options.archive_only || options.no_sign) {
+        let mut build_config = BuildConfig::new().allow_provisioning_updates();
+        if let Some(credentials) = &credentials {
+          build_config = build_config.authentication_credentials(credentials.clone());
+        }
+        if skip_signing {
+          build_config = build_config.skip_codesign();
+        }
+
+        target
+          .build(None, config, env, noise_level, profile, build_config)
+          .context("failed to build iOS app")?;
       }
 
-      target
-        .build(None, config, env, noise_level, profile, build_config)
-        .context("failed to build iOS app")?;
-
-      let mut archive_config = ArchiveConfig::new();
+      let mut archive_config = ArchiveConfig::new().allow_provisioning_updates();
+      if let Some(credentials) = &credentials {
+        archive_config = archive_config.authentication_credentials(credentials.clone());
+      }
       if skip_signing {
         archive_config = archive_config.skip_codesign();
       }
@@ -441,6 +478,15 @@ fn run_build(
           archive_config,
         )
         .context("failed to archive iOS app")?;
+
+      if options.archive_only {
+        out_files.push(
+          config
+            .archive_dir()
+            .join(format!("{}.xcarchive", config.scheme())),
+        );
+        return Ok(());
+      }
 
       let out_dir = config.export_dir().join(target.arch);
 
@@ -457,8 +503,29 @@ fn run_build(
           .with_extension("app");
 
         let path = out_dir.join(app_path.file_name().unwrap());
+        // `rename` does not replace a non-empty directory, such as the previous build
+        if path.exists() {
+          fs::remove_dir_all(&path).fs_context("failed to remove previous app", path.clone())?;
+        }
         fs::rename(&app_path, &path).fs_context("failed to rename app", app_path)?;
         out_files.push(path);
+      } else if options.no_sign {
+        fs::create_dir_all(&out_dir)
+          .fs_context("failed to create Xcode output directory", out_dir.clone())?;
+
+        let app_path = config
+          .archive_dir()
+          .join(format!("{}.xcarchive", config.scheme()))
+          .join("Products")
+          .join("Applications")
+          .join(config.app().stylized_name())
+          .with_extension("app");
+
+        let ipa_path = out_dir
+          .join(config.app().stylized_name())
+          .with_extension("ipa");
+        create_ipa(&app_path, &ipa_path)?;
+        out_files.push(ipa_path);
       } else {
         // if we skipped code signing, we do not have the entitlements applied to our exported IPA
         // we must force sign the app binary with a dummy certificate just to preserve the entitlements
@@ -490,6 +557,10 @@ fn run_build(
             .join(format!("{}.xcarchive", config.scheme()))
             .join("Products/Applications")
             .join(format!("{}.app", config.app().stylized_name()));
+
+          // nested code (app extensions, watch apps, app clips) is also left unsigned in the archive
+          // so it must be signed with its own entitlements too, before the app that contains it
+          sign_embedded_bundles(config, profile, &app_dir, &self_signed_cert_keychain)?;
 
           self_signed_cert_keychain
             .sign(
@@ -535,6 +606,189 @@ fn run_build(
   Ok(handle)
 }
 
+/// Signs the bundles embedded in `app_dir` (app extensions, watch apps, app clips) with the
+/// entitlements declared by their own Xcode target.
+///
+/// When code signing is skipped while archiving, these bundles are left unsigned and
+/// `xcodebuild -exportArchive` only preserves entitlements that are already present in a signature,
+/// so they would otherwise be exported with the provisioning profile defaults only,
+/// silently dropping e.g. their App Groups.
+fn sign_embedded_bundles(
+  config: &AppleConfig,
+  profile: Profile,
+  app_dir: &Path,
+  keychain: &tauri_macos_sign::Keychain,
+) -> Result<()> {
+  let entitlements = match embedded_bundle_entitlements(config, profile) {
+    Ok(entitlements) => entitlements,
+    Err(error) => {
+      log::warn!(
+        "Failed to read the Xcode project build settings, embedded app extensions might lose their entitlements: {error}"
+      );
+      return Ok(());
+    }
+  };
+  if entitlements.is_empty() {
+    return Ok(());
+  }
+
+  let mut bundles = Vec::new();
+  let mut stack = vec![app_dir.to_path_buf()];
+  while let Some(dir) = stack.pop() {
+    for entry in fs::read_dir(&dir).fs_context("failed to read directory", dir.clone())? {
+      let path = entry
+        .fs_context("failed to read directory entry", dir.clone())?
+        .path();
+      // do not follow symlinks, bundles are never symlinked inside the app
+      if !path.is_dir() || path.is_symlink() {
+        continue;
+      }
+      if let Some(entitlements_path) = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| entitlements.get(name))
+      {
+        bundles.push((path.clone(), entitlements_path.clone()));
+      }
+      stack.push(path);
+    }
+  }
+
+  // sign the innermost bundles first, signing a bundle seals the code nested in it
+  bundles.sort_by_key(|(path, _)| std::cmp::Reverse(path.components().count()));
+
+  for (bundle, entitlements_path) in bundles {
+    keychain
+      .sign(&bundle, Some(&entitlements_path), false)
+      .map_err(Box::new)?;
+  }
+
+  Ok(())
+}
+
+/// Maps the product file name (e.g. `ShareExtension.appex`) of every Xcode target
+/// that declares an entitlements file to the absolute path of that file.
+fn embedded_bundle_entitlements(
+  config: &AppleConfig,
+  profile: Profile,
+) -> Result<HashMap<String, PathBuf>> {
+  let project_path = config
+    .project_dir()
+    .join(format!("{}.xcodeproj", config.app().name()));
+  let output = std::process::Command::new("xcodebuild")
+    .arg("-project")
+    .arg(&project_path)
+    .arg("-alltargets")
+    .args(["-configuration", profile.as_str()])
+    .args(["-sdk", "iphoneos"])
+    .arg("-showBuildSettings")
+    .arg("-json")
+    .output()
+    .context("failed to run xcodebuild")?;
+  if !output.status.success() {
+    return Err(Error::GenericError(format!(
+      "xcodebuild -showBuildSettings failed: {}",
+      String::from_utf8_lossy(&output.stderr)
+    )));
+  }
+  let main_app_product_name = format!("{}.app", config.app().stylized_name());
+  parse_bundle_entitlements(&output.stdout, &main_app_product_name)
+}
+
+fn parse_bundle_entitlements(
+  build_settings_json: &[u8],
+  main_app_product_name: &str,
+) -> Result<HashMap<String, PathBuf>> {
+  #[derive(serde::Deserialize)]
+  struct TargetBuildSettings {
+    #[serde(rename = "buildSettings")]
+    build_settings: HashMap<String, serde_json::Value>,
+  }
+
+  let targets: Vec<TargetBuildSettings> = serde_json::from_slice(build_settings_json)
+    .context("failed to parse the xcodebuild build settings")?;
+
+  let mut entitlements = HashMap::new();
+  for target in targets {
+    let settings = target.build_settings;
+    let setting = |key: &str| settings.get(key).and_then(|value| value.as_str());
+    let (Some(product_name), Some(entitlements_path)) = (
+      setting("FULL_PRODUCT_NAME"),
+      setting("CODE_SIGN_ENTITLEMENTS"),
+    ) else {
+      continue;
+    };
+    // the main app is signed with the entitlements file managed by the Tauri CLI
+    if product_name == main_app_product_name || entitlements_path.is_empty() {
+      continue;
+    }
+    // CODE_SIGN_ENTITLEMENTS is relative to SRCROOT unless it is already absolute
+    let entitlements_path = match setting("SRCROOT") {
+      Some(src_root) => Path::new(src_root).join(entitlements_path),
+      None => PathBuf::from(entitlements_path),
+    };
+    entitlements.insert(product_name.to_string(), entitlements_path);
+  }
+
+  Ok(entitlements)
+}
+
+fn create_ipa(app_path: &Path, ipa_path: &Path) -> Result<()> {
+  let ipa_file =
+    fs::File::create(ipa_path).fs_context("failed to create IPA file", ipa_path.to_path_buf())?;
+  let mut zip = zip::ZipWriter::new(ipa_file);
+  let options = zip::write::SimpleFileOptions::default()
+    .compression_method(zip::CompressionMethod::Deflated)
+    .unix_permissions(0o755);
+
+  zip
+    .add_directory("Payload/", options)
+    .context("failed to add Payload directory to zip")?;
+
+  let mut app_files = Vec::new();
+  let mut stack = vec![app_path.to_path_buf()];
+  while let Some(path) = stack.pop() {
+    if path.is_dir() {
+      app_files.push(path.clone());
+      for entry in fs::read_dir(&path).fs_context("failed to read directory", path.clone())? {
+        stack.push(
+          entry
+            .fs_context("failed to read directory entry", path.clone())?
+            .path(),
+        );
+      }
+    } else {
+      app_files.push(path);
+    }
+  }
+
+  for file_path in app_files {
+    let name = file_path.strip_prefix(app_path.parent().unwrap()).unwrap();
+    let mut name_str = name.to_string_lossy().to_string();
+    // zip expects forward slashes
+    if std::path::MAIN_SEPARATOR == '\\' {
+      name_str = name_str.replace('\\', "/");
+    }
+    let mut name_in_zip = format!("Payload/{name_str}");
+
+    if file_path.is_dir() {
+      name_in_zip.push('/');
+      zip
+        .add_directory(name_in_zip, options)
+        .context("failed to add directory to zip")?;
+    } else {
+      zip
+        .start_file(name_in_zip, options)
+        .context("failed to start file in zip")?;
+      let mut f = fs::File::open(&file_path).fs_context("failed to open file", file_path)?;
+      std::io::copy(&mut f, &mut zip).context("failed to copy file to zip")?;
+    }
+  }
+
+  zip.finish().context("failed to finish zip")?;
+  Ok(())
+}
+
 fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCredentials>> {
   match (
     var("APPLE_API_KEY"),
@@ -552,5 +806,65 @@ fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCreden
     _ => crate::error::bail!(
       "APPLE_API_KEY, APPLE_API_ISSUER and APPLE_API_KEY_PATH must be provided for code signing"
     ),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::path::PathBuf;
+
+  #[test]
+  fn parse_bundle_entitlements() {
+    let json = br#"[
+      {
+        "action": "build",
+        "target": "app_iOS",
+        "buildSettings": {
+          "FULL_PRODUCT_NAME": "App.app",
+          "CODE_SIGN_ENTITLEMENTS": "app_iOS/app_iOS.entitlements",
+          "SRCROOT": "/project/gen/apple"
+        }
+      },
+      {
+        "action": "build",
+        "target": "ShareExtension",
+        "buildSettings": {
+          "FULL_PRODUCT_NAME": "ShareExtension.appex",
+          "CODE_SIGN_ENTITLEMENTS": "ShareExtension/ShareExtension.entitlements",
+          "SRCROOT": "/project/gen/apple"
+        }
+      },
+      {
+        "action": "build",
+        "target": "Widget",
+        "buildSettings": {
+          "FULL_PRODUCT_NAME": "Widget.appex",
+          "CODE_SIGN_ENTITLEMENTS": "/absolute/Widget.entitlements",
+          "SRCROOT": "/project/gen/apple"
+        }
+      },
+      {
+        "action": "build",
+        "target": "Framework",
+        "buildSettings": {
+          "FULL_PRODUCT_NAME": "Framework.framework",
+          "SRCROOT": "/project/gen/apple"
+        }
+      }
+    ]"#;
+
+    let entitlements = super::parse_bundle_entitlements(json, "App.app").unwrap();
+
+    assert_eq!(entitlements.len(), 2);
+    assert_eq!(
+      entitlements.get("ShareExtension.appex"),
+      Some(&PathBuf::from(
+        "/project/gen/apple/ShareExtension/ShareExtension.entitlements"
+      ))
+    );
+    assert_eq!(
+      entitlements.get("Widget.appex"),
+      Some(&PathBuf::from("/absolute/Widget.entitlements"))
+    );
   }
 }

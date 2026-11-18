@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_app, Target};
+use super::{Target, get_app};
 use crate::{
-  helpers::{config::get as get_tauri_config, template::JsonMap},
-  interface::{AppInterface, Interface},
   ConfigValue, Result,
+  helpers::app_paths::Dirs,
+  helpers::{config::get_config as get_tauri_config, template::JsonMap},
+  interface::AppInterface,
 };
 use cargo_mobile2::{
   config::app::App,
@@ -29,6 +30,7 @@ pub fn command(
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
 ) -> Result<()> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   let wrapper = TextWrapper::default();
 
   exec(
@@ -38,30 +40,31 @@ pub fn command(
     reinstall_deps,
     skip_targets_install,
     config,
+    dirs,
   )?;
   Ok(())
 }
 
-pub fn exec(
+fn exec(
   target: Target,
   wrapper: &TextWrapper,
   #[allow(unused_variables)] non_interactive: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
+  dirs: Dirs,
 ) -> Result<App> {
   let tauri_config = get_tauri_config(
     target.platform_target(),
     &config.iter().map(|conf| &conf.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
-
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
   let app = get_app(
     target,
-    tauri_config_,
-    &AppInterface::new(tauri_config_, None)?,
+    &tauri_config,
+    &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+    dirs.tauri,
   );
 
   let (handlebars, mut map) = handlebars(&app);
@@ -81,6 +84,8 @@ pub fn exec(
             return ("pnpm".into(), build_args);
           } else if is_pnpm_dlx() {
             return ("pnpm".into(), vec!["dlx", "@tauri-apps/cli"]);
+          } else if is_pnpm_run() {
+            return ("pnpm".into(), build_args);
           } else if let Some(npm_execpath) = var_os("npm_execpath") {
             let manager_stem = PathBuf::from(&npm_execpath)
               .file_stem()
@@ -128,16 +133,30 @@ pub fn exec(
 
   map.insert("tauri-binary", binary);
   map.insert("tauri-binary-args", &build_args);
-  map.insert("tauri-binary-args-str", build_args.join(" "));
+  map.insert(
+    "tauri-binary-args-str",
+    build_args
+      .iter()
+      .map(|arg| shell_escape(arg))
+      .collect::<Vec<_>>()
+      .join(" "),
+  );
 
   let app = match target {
     // Generate Android Studio project
     Target::Android => {
       let _env = super::android::env(non_interactive)?;
       let (config, metadata) =
-        super::android::get_config(&app, tauri_config_, None, &Default::default());
+        super::android::get_config(&app, &tauri_config, &[], &Default::default());
       map.insert("android", &config);
-      super::android::project::gen(
+
+      // Add application_id_suffix to the map for template access
+      // The template will access it via a helper or we'll modify template to use root context
+      if let Some(suffix) = &tauri_config.bundle.android.debug_application_id_suffix {
+        map.insert("android-debug-application-id-suffix", suffix);
+      }
+
+      super::android::project::generate(
         &config,
         &metadata,
         (handlebars, map),
@@ -150,10 +169,10 @@ pub fn exec(
     // Generate Xcode project
     Target::Ios => {
       let (config, metadata) =
-        super::ios::get_config(&app, tauri_config_, None, &Default::default())?;
+        super::ios::get_config(&app, &tauri_config, &[], &Default::default(), dirs.tauri)?;
       map.insert("apple", &config);
-      super::ios::project::gen(
-        tauri_config_,
+      super::ios::project::generate(
+        &tauri_config,
         &config,
         &metadata,
         (handlebars, map),
@@ -185,6 +204,7 @@ fn handlebars(app: &App) -> (Handlebars<'static>, JsonMap) {
     "quote-and-join-colon-prefix",
     Box::new(quote_and_join_colon_prefix),
   );
+  h.register_helper("shell-escape", Box::new(shell_escape_helper));
   h.register_helper("snake-case", Box::new(snake_case));
   h.register_helper("escape-kotlin-keyword", Box::new(escape_kotlin_keyword));
   // don't mix these up or very bad things will happen to all of us
@@ -221,6 +241,31 @@ fn html_escape(
 ) -> HelperResult {
   out
     .write(&handlebars::html_escape(get_str(helper)))
+    .map_err(Into::into)
+}
+
+/// Quotes a string so it is interpreted as a single word by a POSIX shell.
+fn shell_escape(s: &str) -> String {
+  if !s.is_empty()
+    && s
+      .chars()
+      .all(|c| c.is_ascii_alphanumeric() || "-_./:@%+=,".contains(c))
+  {
+    s.to_string()
+  } else {
+    format!("'{}'", s.replace('\'', r"'\''"))
+  }
+}
+
+fn shell_escape_helper(
+  helper: &Helper,
+  _: &Handlebars,
+  _: &Context,
+  _: &mut RenderContext,
+  out: &mut dyn Output,
+) -> HelperResult {
+  out
+    .write(&shell_escape(get_str(helper)))
     .map_err(Into::into)
 }
 
@@ -380,6 +425,13 @@ fn unprefix_path(
     .map_err(Into::into)
 }
 
+/// pnpm's native binary (pnpm >= 11) runs package scripts without setting `PNPM_PACKAGE_NAME`,
+/// and `npm_execpath` points at the binary itself, which is not necessarily named `pnpm`
+/// (corepack downloads it as `pnpm-native`), so the user agent is what identifies it.
+fn is_pnpm_run() -> bool {
+  std::env::var("npm_config_user_agent").is_ok_and(|user_agent| user_agent.starts_with("pnpm/"))
+}
+
 fn is_pnpm_dlx() -> bool {
   var_os("NODE_PATH")
     .map(PathBuf::from)
@@ -392,4 +444,25 @@ fn is_pnpm_dlx() -> bool {
       }
       false
     })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::shell_escape;
+
+  #[test]
+  fn shell_escape_words() {
+    assert_eq!(shell_escape("cargo"), "cargo");
+    assert_eq!(shell_escape("xcode-script"), "xcode-script");
+    assert_eq!(
+      shell_escape("/Users/me/node_modules/.bin/tauri"),
+      "/Users/me/node_modules/.bin/tauri"
+    );
+    assert_eq!(
+      shell_escape("/Users/me/My Projects/tauri"),
+      "'/Users/me/My Projects/tauri'"
+    );
+    assert_eq!(shell_escape("it's $HOME"), r"'it'\''s $HOME'");
+    assert_eq!(shell_escape(""), "''");
+  }
 }

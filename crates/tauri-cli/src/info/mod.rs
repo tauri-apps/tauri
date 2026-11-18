@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Result,
   error::Context,
   helpers::app_paths::{resolve_frontend_dir, resolve_tauri_dir},
-  Result,
 };
 use clap::Parser;
 use colored::{ColoredString, Colorize};
-use dialoguer::{theme::ColorfulTheme, Confirm};
+use dialoguer::{Confirm, theme::ColorfulTheme};
 use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
+use tauri_utils::platform::Target;
 
 mod app;
 mod env_nodejs;
@@ -265,11 +266,6 @@ pub fn command(options: Options) -> Result<()> {
   let frontend_dir = resolve_frontend_dir();
   let tauri_dir = resolve_tauri_dir();
 
-  if tauri_dir.is_some() {
-    // safe to initialize
-    crate::helpers::app_paths::resolve();
-  }
-
   let package_manager = frontend_dir
     .as_ref()
     .map(packages_nodejs::package_manager)
@@ -313,9 +309,11 @@ pub fn command(options: Options) -> Result<()> {
     interactive,
     items: Vec::new(),
   };
-  app
-    .items
-    .extend(app::items(frontend_dir.as_ref(), tauri_dir.as_deref()));
+  if let Some(tauri_dir) = &tauri_dir {
+    if let Ok(config) = crate::helpers::config::get_config(Target::current(), &[], tauri_dir) {
+      app.items.extend(app::items(&config, frontend_dir.as_ref()));
+    };
+  }
 
   environment.display();
 

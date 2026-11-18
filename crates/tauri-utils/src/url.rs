@@ -46,8 +46,8 @@ impl schemars::JsonSchema for GlobPattern {
     "GlobPattern".to_string()
   }
 
-  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    String::json_schema(_gen)
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(generator)
   }
 }
 
@@ -90,8 +90,8 @@ impl schemars::JsonSchema for UrlPattern {
     "UrlPattern".to_string()
   }
 
-  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    String::json_schema(_gen)
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(generator)
   }
 }
 

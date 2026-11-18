@@ -8,14 +8,14 @@ use clap::Parser;
 use tauri_utils::acl::capability::{Capability, PermissionEntry};
 
 use crate::{
-  acl::FileFormat,
-  error::ErrorExt,
-  helpers::{app_paths::tauri_dir, prompts},
   Result,
+  acl::{FileFormat, split_comma_separated, validate_capability_identifier},
+  error::ErrorExt,
+  helpers::prompts,
 };
 
 #[derive(Debug, Parser)]
-#[clap(about = "Create a new permission file")]
+#[clap(about = "Create a new capability file")]
 pub struct Options {
   /// Capability identifier.
   identifier: Option<String>,
@@ -37,17 +37,18 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let identifier = match options.identifier {
     Some(i) => i,
     None => prompts::input("What's the capability identifier?", None, false, false)?.unwrap(),
   };
+  validate_capability_identifier(&identifier)?;
 
   let description = match options.description {
     Some(d) => Some(d),
     None => prompts::input::<String>("What's the capability description?", None, false, true)?
-      .and_then(|d| if d.is_empty() { None } else { Some(d) }),
+      .filter(|d| !d.is_empty()),
   };
 
   let windows = match options.windows.map(FromIterator::from_iter) {
@@ -62,7 +63,7 @@ pub fn command(options: Options) -> Result<()> {
       if d.is_empty() {
         None
       } else {
-        Some(d.split(',').map(ToString::to_string).collect())
+        Some(split_comma_separated(&d).collect())
       }
     })
     .unwrap_or_default(),
@@ -80,11 +81,19 @@ pub fn command(options: Options) -> Result<()> {
       if p.is_empty() {
         None
       } else {
-        Some(p.split(',').map(ToString::to_string).collect())
+        Some(split_comma_separated(&p).collect())
       }
     })
     .unwrap_or_default(),
   };
+
+  let permissions = permissions
+    .into_iter()
+    .map(|p| match p.clone().try_into() {
+      Ok(identifier) => Ok(PermissionEntry::PermissionRef(identifier)),
+      Err(e) => crate::error::bail!("invalid permission `{}`: {}", p, e),
+    })
+    .collect::<Result<Vec<_>>>()?;
 
   let capability = Capability {
     identifier,
@@ -93,26 +102,15 @@ pub fn command(options: Options) -> Result<()> {
     local: true,
     windows,
     webviews: Vec::new(),
-    permissions: permissions
-      .into_iter()
-      .map(|p| {
-        PermissionEntry::PermissionRef(
-          p.clone()
-            .try_into()
-            .unwrap_or_else(|_| panic!("invalid permission {p}")),
-        )
-      })
-      .collect(),
+    permissions,
     platforms: None,
   };
 
   let path = match options.out {
-    Some(o) => o
-      .canonicalize()
-      .fs_context("failed to canonicalize capability file path", o.clone())?,
+    // the file may not exist yet, so it cannot be canonicalized
+    Some(o) => o,
     None => {
-      let dir = tauri_dir();
-      let capabilities_dir = dir.join("capabilities");
+      let capabilities_dir = dirs.tauri.join("capabilities");
       capabilities_dir.join(format!(
         "{}.{}",
         capability.identifier,

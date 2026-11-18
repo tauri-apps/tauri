@@ -26,6 +26,7 @@ Resolved {
                             ),
                         ],
                         is_recursive: false,
+                        has_metachars: false,
                     },
                 ],
                 webviews: [],

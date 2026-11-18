@@ -10,7 +10,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::interface::rust::get_workspace_dir;
+use crate::{error::Context, interface::rust::get_workspace_dir};
 
 #[derive(Clone, Deserialize)]
 pub struct CargoLockPackage {
@@ -42,7 +42,18 @@ pub enum CargoManifestDependency {
 
 #[derive(Deserialize)]
 pub struct CargoManifestPackage {
-  pub version: String,
+  /// `None` when the version is inherited from the workspace (`version.workspace = true`).
+  #[serde(default, deserialize_with = "deserialize_package_version")]
+  pub version: Option<String>,
+}
+
+fn deserialize_package_version<'de, D: serde::Deserializer<'de>>(
+  deserializer: D,
+) -> Result<Option<String>, D::Error> {
+  match toml::Value::deserialize(deserializer)? {
+    toml::Value::String(version) => Ok(Some(version)),
+    _ => Ok(None),
+  }
 }
 
 #[derive(Deserialize)]
@@ -56,7 +67,7 @@ pub fn cargo_manifest_and_lock(tauri_dir: &Path) -> (Option<CargoManifest>, Opti
     .ok()
     .and_then(|manifest_contents| toml::from_str(&manifest_contents).ok());
 
-  let lock: Option<CargoLock> = get_workspace_dir()
+  let lock: Option<CargoLock> = get_workspace_dir(tauri_dir)
     .ok()
     .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
     .and_then(|s| toml::from_str(&s).ok());
@@ -128,13 +139,24 @@ struct CrateIoGetResponse {
   krate: CrateMetadata,
 }
 
-pub fn crate_latest_version(name: &str) -> Option<String> {
+/// Fetches the default version of the given crate from crates.io.
+///
+/// Returns `Ok(None)` if crates.io does not report a default version for the crate.
+pub fn crate_latest_version(name: &str) -> crate::Result<Option<semver::Version>> {
   // Reference: https://github.com/rust-lang/crates.io/blob/98c83c8231cbcd15d6b8f06d80a00ad462f71585/src/controllers/krate/metadata.rs#L88
   let url = format!("https://crates.io/api/v1/crates/{name}?include");
-  let mut response = super::http::get(&url).ok()?;
-  let metadata: CrateIoGetResponse =
-    serde_json::from_reader(response.body_mut().as_reader()).unwrap();
-  metadata.krate.default_version
+  let mut response =
+    super::http::get(&url).with_context(|| format!("failed to fetch crate metadata from {url}"))?;
+  let metadata: CrateIoGetResponse = serde_json::from_reader(response.body_mut().as_reader())
+    .with_context(|| format!("failed to parse crate metadata from {url}"))?;
+  metadata
+    .krate
+    .default_version
+    .map(|version| {
+      semver::Version::parse(&version)
+        .with_context(|| format!("failed to parse version `{version}` of crate `{name}`"))
+    })
+    .transpose()
 }
 
 pub fn crate_version(
@@ -180,7 +202,7 @@ pub fn crate_version(
             let v = fs::read_to_string(manifest_path)
               .ok()
               .and_then(|m| toml::from_str::<CargoManifest>(&m).ok())
-              .map(|m| m.package.version);
+              .and_then(|m| m.package.version);
             version.version = v;
             version.path = Some(p);
           } else if let Some(g) = p.git {
@@ -192,7 +214,8 @@ pub fn crate_version(
       }
     }
 
-    if lock.is_some() && crate_lock_packages.is_empty() {
+    // multiple versions of the crate are locked, list them all
+    if !crate_lock_packages.is_empty() {
       let lock_version = crate_lock_packages
         .iter()
         .map(|p| p.version.clone())
@@ -206,4 +229,54 @@ pub fn crate_version(
   }
 
   version
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn lock_package(version: &str) -> CargoLockPackage {
+    CargoLockPackage {
+      name: "tauri".into(),
+      version: version.into(),
+      source: None,
+    }
+  }
+
+  #[test]
+  fn parses_manifest_with_inherited_package_version() {
+    let manifest: CargoManifest = toml::from_str(
+      r#"
+        [package]
+        name = "app"
+        version.workspace = true
+
+        [dependencies]
+        tauri = { workspace = true }
+      "#,
+    )
+    .unwrap();
+
+    let lock = CargoLock {
+      package: vec![lock_package("1.8.0")],
+    };
+    let version = crate_version(Path::new("."), Some(&manifest), Some(&lock), "tauri");
+    assert_eq!(version.version.as_deref(), Some("1.8.0"));
+  }
+
+  #[test]
+  fn crate_version_lists_all_locked_versions() {
+    let lock = CargoLock {
+      package: vec![lock_package("2.0.0"), lock_package("2.1.0")],
+    };
+    let version = crate_version(Path::new("."), None, Some(&lock), "tauri");
+    assert_eq!(version.lock_version.as_deref(), Some("2.0.0, 2.1.0"));
+
+    let lock = CargoLock {
+      package: vec![lock_package("2.1.0")],
+    };
+    let version = crate_version(Path::new("."), None, Some(&lock), "tauri");
+    assert_eq!(version.version.as_deref(), Some("2.1.0"));
+    assert!(version.lock_version.is_none());
+  }
 }

@@ -1,13 +1,15 @@
-<script>
+<script lang="ts">
   import { invoke } from '@tauri-apps/api/core'
   import {
     getName,
     getVersion,
     getTauriVersion,
-    getBundleType
+    getBundleType,
+    exit
   } from '@tauri-apps/api/app'
+  import type { ViewProps } from '../App.svelte'
 
-  let { onMessage } = $props()
+  let { onMessage }: ViewProps = $props()
 
   let version = $state('1.0.0')
   let tauriVersion = $state('1.0.0')
@@ -32,6 +34,10 @@
   function contextMenu() {
     invoke('plugin:app-menu|popup')
   }
+
+  function exitApp() {
+    exit().catch(onMessage)
+  }
 </script>
 
 <div class="grid gap-8 justify-items-start">
@@ -49,5 +55,8 @@
     Bundle type: <code>{bundleType}</code>
   </pre>
 
-  <button class="btn" onclick={contextMenu}>Context menu</button>
+  <div class="flex gap-2">
+    <button class="btn" onclick={contextMenu}>Context menu</button>
+    <button class="btn" id="exit" onclick={exitApp}>Exit</button>
+  </div>
 </div>

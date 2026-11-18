@@ -29,6 +29,27 @@
         "https://github.com/microsoft/windows-rs",
         "https://github.com/wravery/webview2-rs"
       ]
+    },
+    {
+      "description": "Group worker-rs crates",
+      "groupName": "worker-rs crates",
+      "matchSourceUrls": ["https://github.com/cloudflare/workers-rs"]
+    },
+    {
+      "description": "Group jsonrpsee crates",
+      "groupName": "jsonrpsee crates",
+      "matchSourceUrls": ["https://github.com/paritytech/jsonrpsee"]
+    },
+    {
+      "description": "Group napi-rs packages",
+      "groupName": "napi-rs packages",
+      "matchPackageNames": [
+        "napi",
+        "napi-build",
+        "napi-derive",
+        "@napi-rs/cli"
+      ],
+      "rangeStrategy": "bump"
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

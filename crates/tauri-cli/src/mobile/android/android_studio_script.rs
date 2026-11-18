@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
+use super::{MobileTarget, detect_target_ok, ensure_init, env, get_app, get_config, read_options};
 use crate::{
-  error::{Context, ErrorExt},
-  helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
-  interface::{AppInterface, Interface},
-  mobile::CliOptions,
   Error, Result,
+  error::{Context, ErrorExt},
+  helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
+  interface::AppInterface,
+  mobile::CliOptions,
 };
 use clap::{ArgAction, Parser};
 
 use cargo_mobile2::{
-  android::{adb, target::Target},
+  android::{adb, device::ConnectionStatus, target::Target},
   opts::Profile,
-  target::{call_for_targets_with_fallback, TargetTrait},
+  target::{TargetTrait, call_for_targets_with_fallback},
 };
 
 use std::path::Path;
@@ -38,7 +38,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let profile = if options.release {
     Profile::Release
@@ -46,45 +46,33 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let (tauri_config, cli_options) = {
-    let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[])?;
-    let cli_options = {
-      let tauri_config_guard = tauri_config.lock().unwrap();
-      let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-      read_options(tauri_config_)
-    };
+  let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[], dirs.tauri)?;
+  let cli_options = read_options(MobileTarget::Android, dirs.tauri)?;
 
-    let tauri_config = if cli_options.config.is_empty() {
-      tauri_config
-    } else {
-      // reload config with merges from the android dev|build script
-      reload_tauri_config(
-        &cli_options
-          .config
-          .iter()
-          .map(|conf| &conf.0)
-          .collect::<Vec<_>>(),
-      )?
-    };
-
-    (tauri_config, cli_options)
+  if !cli_options.config.is_empty() {
+    // reload config with merges from the android dev|build script
+    reload_tauri_config(
+      &mut tauri_config,
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+      dirs.tauri,
+    )?
   };
 
-  let (config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let (config, metadata) = get_config(
-      &get_app(
-        MobileTarget::Android,
-        tauri_config_,
-        &AppInterface::new(tauri_config_, None)?,
-      ),
-      tauri_config_,
-      None,
-      &cli_options,
-    );
-    (config, metadata)
-  };
+  let (config, metadata) = get_config(
+    &get_app(
+      MobileTarget::Android,
+      &tauri_config,
+      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      dirs.tauri,
+    ),
+    &tauri_config,
+    &[],
+    &cli_options,
+  );
 
   ensure_init(
     &tauri_config,
@@ -95,7 +83,8 @@ pub fn command(options: Options) -> Result<()> {
   )?;
 
   if !cli_options.config.is_empty() {
-    crate::helpers::config::merge_with(
+    crate::helpers::config::merge_config_with(
+      &mut tauri_config,
       &cli_options
         .config
         .iter()
@@ -107,16 +96,7 @@ pub fn command(options: Options) -> Result<()> {
   let env = env(std::env::var("CI").is_ok())?;
 
   if cli_options.dev {
-    let dev_url = tauri_config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_url
-      .clone();
-
-    if let Some(url) = dev_url {
+    if let Some(url) = &tauri_config.build.dev_url {
       let localhost = match url.host() {
         Some(url::Host::Domain(d)) => d == "localhost",
         Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,
@@ -214,7 +194,11 @@ fn adb_forward_port(
   let forward = format!("tcp:{port}");
   log::info!("Forwarding port {port} with adb");
 
-  let mut devices = adb::device_list(env).unwrap_or_default();
+  let mut devices = adb::device_list(env)
+    .unwrap_or_default()
+    .into_iter()
+    .filter(|d| d.status() == ConnectionStatus::Connected)
+    .collect::<Vec<_>>();
   // if we could not detect any running device, let's wait a few seconds, it might be booting up
   if devices.is_empty() {
     log::warn!(
@@ -226,7 +210,11 @@ fn adb_forward_port(
     loop {
       std::thread::sleep(std::time::Duration::from_secs(1));
 
-      devices = adb::device_list(env).unwrap_or_default();
+      devices = adb::device_list(env)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|d| d.status() == ConnectionStatus::Connected)
+        .collect::<Vec<_>>();
       if !devices.is_empty() {
         break;
       }
@@ -244,8 +232,14 @@ fn adb_forward_port(
     let device = devices.first().unwrap();
     Some((device.serial_no().to_string(), device.name().to_string()))
   } else if devices.len() > 1 {
-    crate::error::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
-      devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
+    crate::error::bail!(
+      "Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
+      devices
+        .iter()
+        .map(|d| d.name())
+        .collect::<Vec<_>>()
+        .join(", ")
+    );
   } else {
     // when building the app without running to a device, we might have an empty devices list
     None
@@ -254,7 +248,7 @@ fn adb_forward_port(
   if let Some((target_device_serial_no, target_device_name)) = target_device {
     let mut already_forwarded = false;
 
-    // clear port forwarding for all devices
+    // clear port forwarding for all devices other than the target
     for device in &devices {
       let reverse_list_output =
         adb_reverse_list(env, device.serial_no()).map_err(|error| Error::CommandFailed {
@@ -263,17 +257,26 @@ fn adb_forward_port(
         })?;
 
       // check if the device has the port forwarded
-      if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
+      if !reverse_list_has_forward(
+        &String::from_utf8_lossy(&reverse_list_output.stdout),
+        &forward,
+      ) {
+        continue;
+      }
+
+      if device.serial_no() == target_device_serial_no {
         // device matches our target, we can skip forwarding
-        if device.serial_no() == target_device_serial_no {
-          log::debug!(
-            "device {} already has the forward for {}",
-            device.name(),
-            forward
-          );
-          already_forwarded = true;
-        }
-        break;
+        log::debug!(
+          "device {} already has the forward for {}",
+          device.name(),
+          forward
+        );
+        already_forwarded = true;
+      } else if let Err(error) = adb_reverse_remove(env, device.serial_no(), &forward) {
+        log::warn!(
+          "failed to remove the {forward} forward from device {}: {error}",
+          device.name()
+        );
       }
     }
 
@@ -281,7 +284,10 @@ fn adb_forward_port(
     if already_forwarded {
       log::info!("{forward} already forwarded to {target_device_name}");
     } else {
+      const MAX_ATTEMPTS: u32 = 5;
+      let mut attempt = 0;
       loop {
+        attempt += 1;
         run_adb_reverse(env, &target_device_serial_no, &forward, &forward).map_err(|error| {
           Error::CommandFailed {
             command: format!("adb reverse {forward} {forward}"),
@@ -297,7 +303,15 @@ fn adb_forward_port(
             }
           })?;
         // wait and retry until the port has actually been forwarded
-        if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
+        if reverse_list_has_forward(
+          &String::from_utf8_lossy(&reverse_list_output.stdout),
+          &forward,
+        ) {
+          break;
+        } else if attempt >= MAX_ATTEMPTS {
+          log::warn!(
+            "could not verify that {forward} was forwarded to {target_device_name} after {MAX_ATTEMPTS} attempts; the app might not be able to reach the dev server"
+          );
           break;
         } else {
           log::warn!(
@@ -337,4 +351,48 @@ fn adb_reverse_list(
     .stdout_capture()
     .stderr_capture()
     .run()
+}
+
+fn adb_reverse_remove(
+  env: &cargo_mobile2::android::env::Env,
+  device_serial_no: &str,
+  remote: &str,
+) -> std::io::Result<std::process::Output> {
+  adb::adb(env, ["-s", device_serial_no, "reverse", "--remove", remote])
+    .stdin_file(os_pipe::dup_stdin().unwrap())
+    .stdout_capture()
+    .stderr_capture()
+    .run()
+}
+
+/// Checks whether the output of `adb reverse --list` contains the given `tcp:<port>` forward.
+///
+/// Each line has the format `<serial> <remote> <local>`, so we compare the remote column exactly
+/// to avoid e.g. `tcp:80` matching `tcp:8080`.
+fn reverse_list_has_forward(output: &str, forward: &str) -> bool {
+  output
+    .lines()
+    .any(|line| line.split_whitespace().nth(1) == Some(forward))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::reverse_list_has_forward;
+
+  #[test]
+  fn reverse_list_matches_exact_port() {
+    let output = "emulator-5554 tcp:8080 tcp:8080\nemulator-5554 tcp:1420 tcp:1420\n";
+    assert!(reverse_list_has_forward(output, "tcp:8080"));
+    assert!(reverse_list_has_forward(output, "tcp:1420"));
+    assert!(!reverse_list_has_forward(output, "tcp:80"));
+    assert!(!reverse_list_has_forward(output, "tcp:142"));
+    assert!(!reverse_list_has_forward("", "tcp:1420"));
+  }
+
+  #[test]
+  fn reverse_list_ignores_local_column() {
+    let output = "UsbFfs tcp:5173 tcp:1420\n";
+    assert!(reverse_list_has_forward(output, "tcp:5173"));
+    assert!(!reverse_list_has_forward(output, "tcp:1420"));
+  }
 }

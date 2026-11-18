@@ -109,8 +109,16 @@ extension PluginManager: NSCopying {
   }
 }
 
+private var stdoutRedirector: StdoutRedirector?
+
+@_cdecl("log_stdout")
+public func logStdout() {
+  stdoutRedirector = StdoutRedirector()
+  stdoutRedirector!.start()
+}
+
 @_cdecl("register_plugin")
-func registerPlugin(name: SRString, plugin: NSObject, config: SRString, webview: WKWebView?) {
+public func registerPlugin(name: SRString, plugin: NSObject, config: SRString, webview: WKWebView?) {
   PluginManager.shared.load(
     name: name.toString(),
     plugin: plugin as! Plugin,
@@ -120,19 +128,49 @@ func registerPlugin(name: SRString, plugin: NSObject, config: SRString, webview:
 }
 
 @_cdecl("on_webview_created")
-func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
+public func onWebviewCreated(webview: WKWebView, viewController: UIViewController) {
   PluginManager.shared.viewController = viewController
   PluginManager.shared.onWebviewCreated(webview)
 }
 
 @_cdecl("run_plugin_command")
-func runCommand(
+public func runCommand(
   id: Int,
   name: SRString,
   command: SRString,
   data: SRString,
   callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>) -> Void,
   sendChannelData: @escaping @convention(c) (UInt64, UnsafePointer<CChar>) -> Void
+) {
+  dispatchCommand(
+    id: id, name: name, command: command, data: data, callback: callback,
+    sendChannelData: sendChannelData, viewController: nil, isContextual: false)
+}
+
+@_cdecl("run_plugin_command_with_context")
+public func runCommandWithContext(
+  id: Int,
+  name: SRString,
+  command: SRString,
+  data: SRString,
+  callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>) -> Void,
+  sendChannelData: @escaping @convention(c) (UInt64, UnsafePointer<CChar>) -> Void,
+  viewController: UIViewController?
+) {
+  dispatchCommand(
+    id: id, name: name, command: command, data: data, callback: callback,
+    sendChannelData: sendChannelData, viewController: viewController, isContextual: true)
+}
+
+private func dispatchCommand(
+  id: Int,
+  name: SRString,
+  command: SRString,
+  data: SRString,
+  callback: @escaping @convention(c) (Int, Bool, UnsafePointer<CChar>) -> Void,
+  sendChannelData: @escaping @convention(c) (UInt64, UnsafePointer<CChar>) -> Void,
+  viewController: UIViewController?,
+  isContextual: Bool
 ) {
   let callbackId: UInt64 = 0
   let errorId: UInt64 = 1
@@ -144,6 +182,6 @@ func runCommand(
     },
     sendChannelData: { (id: UInt64, payload: String) -> Void in
       sendChannelData(id, payload)
-    }, data: data.toString())
+    }, data: data.toString(), viewController: viewController, isContextual: isContextual)
   PluginManager.shared.invoke(name: name.toString(), invoke: invoke)
 }

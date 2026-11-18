@@ -13,8 +13,8 @@
 pub use tokio::{
   runtime::{Handle as TokioHandle, Runtime as TokioRuntime},
   sync::{
-    mpsc::{channel, Receiver, Sender},
     Mutex, RwLock,
+    mpsc::{Receiver, Sender, channel},
   },
   task::JoinHandle as TokioJoinHandle,
 };
@@ -42,6 +42,7 @@ impl GlobalRuntime {
     }
   }
 
+  #[track_caller]
   fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
     F: Future + Send + 'static,
@@ -54,6 +55,8 @@ impl GlobalRuntime {
     }
   }
 
+  #[track_caller]
+  /// Runs the provided function on an executor dedicated to blocking operations.
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
     F: FnOnce() -> R + Send + 'static,
@@ -66,6 +69,7 @@ impl GlobalRuntime {
     }
   }
 
+  #[track_caller]
   fn block_on<F: Future>(&self, task: F) -> F::Output {
     if let Some(r) = &self.runtime {
       r.block_on(task)
@@ -95,6 +99,7 @@ impl Runtime {
     }
   }
 
+  #[track_caller]
   /// Spawns a future onto the runtime.
   pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
@@ -109,6 +114,7 @@ impl Runtime {
     }
   }
 
+  #[track_caller]
   /// Runs the provided function on an executor dedicated to blocking operations.
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
@@ -120,6 +126,7 @@ impl Runtime {
     }
   }
 
+  #[track_caller]
   /// Runs a future to completion on runtime.
   pub fn block_on<F: Future>(&self, task: F) -> F::Output {
     match self {
@@ -177,7 +184,28 @@ impl RuntimeHandle {
     h
   }
 
+  #[track_caller]
   /// Runs the provided function on an executor dedicated to blocking operations.
+  ///
+  /// Use this instead of [`Self::spawn`] for code that blocks the thread it runs on
+  /// (synchronous file or network I/O, heavy computation, FFI calls) so the async executor
+  /// is not blocked. The returned [`JoinHandle`] resolves to the closure's return value.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle().clone();
+  ///     tauri::async_runtime::handle().spawn_blocking(move || {
+  ///       let contents = std::fs::read_to_string("file.txt").unwrap_or_default();
+  ///       handle.package_info().name.len() + contents.len()
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
     F: FnOnce() -> R + Send + 'static,
@@ -188,6 +216,7 @@ impl RuntimeHandle {
     }
   }
 
+  #[track_caller]
   /// Spawns a future onto the runtime.
   pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
@@ -202,6 +231,7 @@ impl RuntimeHandle {
     }
   }
 
+  #[track_caller]
   /// Runs a future to completion on runtime.
   pub fn block_on<F: Future>(&self, task: F) -> F::Output {
     match self {
@@ -258,12 +288,14 @@ pub fn handle() -> RuntimeHandle {
   runtime.handle()
 }
 
+#[track_caller]
 /// Runs a future to completion on runtime.
 pub fn block_on<F: Future>(task: F) -> F::Output {
   let runtime = RUNTIME.get_or_init(default_runtime);
   runtime.block_on(task)
 }
 
+#[track_caller]
 /// Spawns a future onto the runtime.
 pub fn spawn<F>(task: F) -> JoinHandle<F::Output>
 where
@@ -274,6 +306,7 @@ where
   runtime.spawn(task)
 }
 
+#[track_caller]
 /// Runs the provided function on an executor dedicated to blocking operations.
 pub fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
 where
@@ -282,24 +315,6 @@ where
 {
   let runtime = RUNTIME.get_or_init(default_runtime);
   runtime.spawn_blocking(func)
-}
-
-#[allow(dead_code)]
-pub(crate) fn safe_block_on<F>(task: F) -> F::Output
-where
-  F: Future + Send + 'static,
-  F::Output: Send + 'static,
-{
-  if let Ok(handle) = tokio::runtime::Handle::try_current() {
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    let handle_ = handle.clone();
-    handle.spawn_blocking(move || {
-      tx.send(handle_.block_on(task)).unwrap();
-    });
-    rx.recv().unwrap()
-  } else {
-    block_on(task)
-  }
 }
 
 #[cfg(test)]

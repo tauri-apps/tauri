@@ -59,9 +59,9 @@ use serialize_to_javascript::DefaultTemplate;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug};
 
 use crate::{
+  App, Assets, Builder, Context, Pattern, Runtime, Webview,
   ipc::{InvokeError, InvokeResponse, InvokeResponseBody},
   webview::InvokeRequest,
-  App, Assets, Builder, Context, Pattern, Runtime, Webview,
 };
 use tauri_utils::{
   acl::resolved::Resolved,
@@ -121,6 +121,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
         tray_icon: None,
         macos_private_api: false,
         enable_gtk_app_id: false,
+        app_directories_override: None,
       },
       bundle: Default::default(),
       build: Default::default(),
@@ -216,7 +217,11 @@ pub fn mock_app() -> App<MockRuntime> {
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
-///             url: "http://tauri.localhost".parse().unwrap(),
+///             url: if cfg!(any(windows, target_os = "android")) {
+///                 "http://tauri.localhost"
+///             } else {
+///                 "tauri://localhost"
+///             }.parse().unwrap(),
 ///             body: tauri::ipc::InvokeBody::default(),
 ///             headers: Default::default(),
 ///             invoke_key: tauri::test::INVOKE_KEY.to_string(),
@@ -243,6 +248,7 @@ pub fn assert_ipc_response<
   );
 }
 
+#[allow(clippy::needless_doctest_main)]
 /// Executes the given IPC message and get the return value.
 ///
 /// # Examples
@@ -274,7 +280,11 @@ pub fn assert_ipc_response<
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
-///             url: "http://tauri.localhost".parse().unwrap(),
+///             url: if cfg!(any(windows, target_os = "android")) {
+///                 "http://tauri.localhost"
+///             } else {
+///                 "tauri://localhost"
+///             }.parse().unwrap(),
 ///             body: tauri::ipc::InvokeBody::default(),
 ///             headers: Default::default(),
 ///             invoke_key: tauri::test::INVOKE_KEY.to_string(),

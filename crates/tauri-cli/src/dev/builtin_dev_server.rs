@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use axum::{
-  extract::{ws, State, WebSocketUpgrade},
-  http::{header, StatusCode, Uri},
+  extract::{State, WebSocketUpgrade, ws},
+  http::{HeaderMap, HeaderValue, StatusCode, Uri, header, uri::Authority},
   response::{IntoResponse, Response},
 };
-use html5ever::{namespace_url, ns, LocalName, QualName};
-use kuchiki::{traits::TendrilSink, NodeRef};
 use std::{
   net::{IpAddr, SocketAddr},
   path::{Path, PathBuf},
@@ -16,7 +14,7 @@ use std::{
   time::Duration,
 };
 use tauri_utils::mime_type::MimeType;
-use tokio::sync::broadcast::{channel, Sender};
+use tokio::sync::broadcast::{Sender, channel};
 
 use crate::error::ErrorExt;
 
@@ -81,9 +79,16 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
   Ok(address)
 }
 
-async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
+async fn handler(uri: Uri, headers: HeaderMap, state: State<ServerState>) -> impl IntoResponse {
+  if request_host(&headers, &uri).is_none_or(|host| !is_allowed_host(&host.0, &state.address)) {
+    return forbidden();
+  }
+
   // Frontend files should not contain query parameters. This seems to be how Vite handles it.
-  let uri = uri.path();
+  // The path is percent-encoded, decode it like the `tauri://` protocol does so files with spaces
+  // or non-ASCII characters in their names are found.
+  let path = percent_encoding::percent_decode_str(uri.path()).decode_utf8_lossy();
+  let uri = path.as_ref();
 
   let uri = if uri == "/" {
     uri
@@ -92,13 +97,16 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
   };
 
   let bytes = fs_read_scoped(state.dir.join(uri), &state.dir)
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}.html", &uri)), &state.dir))
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}/index.html", &uri)), &state.dir))
-    .or_else(|_| std::fs::read(state.dir.join("index.html")));
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}.html")), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}/index.html")), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join("index.html"), &state.dir));
 
   match bytes {
     Ok(mut bytes) => {
-      let mime_type = MimeType::parse_with_fallback(&bytes, uri, MimeType::OctetStream);
+      // The root URL is served from index.html, so use its extension when
+      // inferring the content type. Otherwise `/` falls back to octet-stream.
+      let mime_uri = if uri == "/" { "index.html" } else { uri };
+      let mime_type = MimeType::parse_with_fallback(&bytes, mime_uri, MimeType::OctetStream);
       if mime_type == MimeType::Html.to_string() {
         bytes = inject_address(bytes, &state.address);
       }
@@ -112,52 +120,128 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
   }
 }
 
-async fn ws_handler(ws: WebSocketUpgrade, state: State<ServerState>) -> Response {
+async fn ws_handler(
+  ws: WebSocketUpgrade,
+  uri: Uri,
+  headers: HeaderMap,
+  state: State<ServerState>,
+) -> Response {
+  let Some(host) = request_host(&headers, &uri) else {
+    return forbidden().into_response();
+  };
+  if !is_allowed_host(&host.0, &state.address)
+    || !is_allowed_origin(headers.get(header::ORIGIN), &host)
+  {
+    return forbidden().into_response();
+  }
+
   ws.on_upgrade(move |mut ws| async move {
     let mut rx = state.tx.subscribe();
-    while tokio::select! {
-        _ = ws.recv() => return,
-        fs_reload_event = rx.recv() => fs_reload_event.is_ok(),
-    } {
-      let msg = ws::Message::Text(r#"{"reload": true}"#.into());
-      if ws.send(msg).await.is_err() {
-        break;
+    loop {
+      tokio::select! {
+        msg = ws.recv() => match msg {
+          // the client disconnected
+          None | Some(Err(_)) | Some(Ok(ws::Message::Close(_))) => break,
+          // ignore any other client message, pings are answered automatically
+          Some(Ok(_)) => {}
+        },
+        fs_reload_event = rx.recv() => {
+          if fs_reload_event.is_err() {
+            break;
+          }
+          let msg = ws::Message::Text(r#"{"reload": true}"#.into());
+          if ws.send(msg).await.is_err() {
+            break;
+          }
+        }
       }
     }
   })
 }
 
-fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
-  fn with_html_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {
-    if let Ok(ref node) = document.select_first("head") {
-      f(node.as_node())
-    } else {
-      let node = NodeRef::new_element(
-        QualName::new(None, ns!(html), LocalName::from("head")),
-        None,
-      );
-      f(&node);
-      document.prepend(node)
-    }
+fn forbidden() -> (StatusCode, [(header::HeaderName, String); 1], Vec<u8>) {
+  (
+    StatusCode::FORBIDDEN,
+    [(header::CONTENT_TYPE, "text/plain".into())],
+    vec![],
+  )
+}
+
+/// Hostname (lowercase, without IPv6 brackets) and port of the request,
+/// read from the `Host` header or the request URI authority (HTTP/2).
+fn request_host(headers: &HeaderMap, uri: &Uri) -> Option<(String, Option<u16>)> {
+  match headers.get(header::HOST) {
+    Some(host) => parse_authority(host.to_str().ok()?.parse().ok()?),
+    None => parse_authority(uri.authority()?.clone()),
+  }
+}
+
+fn parse_authority(authority: Authority) -> Option<(String, Option<u16>)> {
+  let host = authority.host();
+  let host = host
+    .strip_prefix('[')
+    .and_then(|h| h.strip_suffix(']'))
+    .unwrap_or(host);
+  if host.is_empty() {
+    return None;
+  }
+  Some((host.to_ascii_lowercase(), authority.port_u16()))
+}
+
+/// Only accept requests addressed to the server itself to prevent DNS rebinding attacks.
+fn is_allowed_host(host: &str, address: &SocketAddr) -> bool {
+  // `localhost` and its subdomains always resolve to the loopback interface
+  // (`tauri.localhost` is used by the dev proxy on Android and Windows)
+  if host == "localhost" || host.ends_with(".localhost") {
+    return true;
+  }
+  match host.parse::<IpAddr>() {
+    // an IP address can't be rebound
+    Ok(ip) => ip.is_loopback() || ip == address.ip() || address.ip().is_unspecified(),
+    Err(_) => false,
+  }
+}
+
+/// Reject cross-site WebSocket connections.
+fn is_allowed_origin(origin: Option<&HeaderValue>, host: &(String, Option<u16>)) -> bool {
+  let Some(origin) = origin else {
+    return true;
+  };
+  let Some(origin) = origin.to_str().ok().and_then(|o| url::Url::parse(o).ok()) else {
+    return false;
+  };
+  let Some(origin_host) = origin.host_str() else {
+    return false;
+  };
+  let origin_host = origin_host
+    .strip_prefix('[')
+    .and_then(|h| h.strip_suffix(']'))
+    .unwrap_or(origin_host)
+    .to_ascii_lowercase();
+
+  // Tauri pages served through the dev proxy on mobile (`tauri://localhost` or `http(s)://tauri.localhost`)
+  if origin.scheme() == "tauri" || origin_host == "tauri.localhost" {
+    return true;
   }
 
-  let mut document = kuchiki::parse_html()
-    .one(String::from_utf8_lossy(&html_bytes).into_owned())
-    .document_node;
-  with_html_head(&mut document, |head| {
-    let script = RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli"));
-    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-    script_el.append(NodeRef::new_text(script));
-    head.prepend(script_el);
-  });
+  origin_host == host.0 && origin.port_or_known_default() == Some(host.1.unwrap_or(80))
+}
 
-  tauri_utils::html::serialize_node(&document)
+fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
+  let document = tauri_utils::html2::parse_doc(String::from_utf8_lossy(&html_bytes).into_owned());
+
+  tauri_utils::html2::append_script_to_head(
+    &document,
+    &RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli")),
+  );
+
+  tauri_utils::html2::serialize_doc(&document)
 }
 
 fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
-  let path = dunce::canonicalize(&path).fs_context("failed to canonicalize path", path.clone())?;
+  let path = dunce::canonicalize(&path).fs_context("failed to canonicalize path", path)?;
   if path.starts_with(scope) {
-    std::fs::read(&path).fs_context("failed to read file", path.clone())
+    std::fs::read(&path).fs_context("failed to read file", &path)
   } else {
     crate::error::bail!("forbidden path")
   }
@@ -184,4 +268,182 @@ fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
       }
     }
   });
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn host_of(host: &str) -> Option<(String, Option<u16>)> {
+    let mut headers = HeaderMap::new();
+    headers.insert(header::HOST, HeaderValue::from_str(host).unwrap());
+    request_host(&headers, &Uri::from_static("/"))
+  }
+
+  fn allowed(host: &str, address: &str) -> bool {
+    let address: SocketAddr = address.parse().unwrap();
+    host_of(host).is_some_and(|host| is_allowed_host(&host.0, &address))
+  }
+
+  #[test]
+  fn parses_host_header() {
+    assert_eq!(
+      host_of("127.0.0.1:1430"),
+      Some(("127.0.0.1".into(), Some(1430)))
+    );
+    assert_eq!(host_of("[::1]:1430"), Some(("::1".into(), Some(1430))));
+    assert_eq!(host_of("LocalHost"), Some(("localhost".into(), None)));
+    assert_eq!(host_of(""), None);
+    assert_eq!(
+      request_host(&HeaderMap::new(), &Uri::from_static("/")),
+      None
+    );
+    assert_eq!(
+      request_host(
+        &HeaderMap::new(),
+        &Uri::from_static("http://127.0.0.1:1430/")
+      ),
+      Some(("127.0.0.1".into(), Some(1430)))
+    );
+  }
+
+  #[test]
+  fn host_check() {
+    let local = "127.0.0.1:1430";
+    assert!(allowed("127.0.0.1:1430", local));
+    assert!(allowed("localhost:1430", local));
+    assert!(allowed("[::1]:1430", local));
+    assert!(allowed("tauri.localhost", local));
+    assert!(!allowed("evil.com:1430", local));
+    assert!(!allowed("localhost.evil.com", local));
+    assert!(!allowed("192.168.1.10:1430", local));
+
+    // mobile dev binds to the LAN address
+    let lan = "192.168.1.10:1430";
+    assert!(allowed("192.168.1.10:1430", lan));
+    assert!(allowed("127.0.0.1:1430", lan));
+    assert!(!allowed("192.168.1.11:1430", lan));
+    assert!(!allowed("evil.com:1430", lan));
+
+    // the unspecified address accepts any IP but no domain
+    let any = "0.0.0.0:1430";
+    assert!(allowed("192.168.1.11:1430", any));
+    assert!(!allowed("evil.com:1430", any));
+  }
+
+  #[test]
+  fn origin_check() {
+    let host = ("127.0.0.1".to_string(), Some(1430));
+    let check =
+      |origin: &str| is_allowed_origin(Some(&HeaderValue::from_str(origin).unwrap()), &host);
+
+    assert!(is_allowed_origin(None, &host));
+    assert!(check("http://127.0.0.1:1430"));
+    assert!(check("tauri://localhost"));
+    assert!(check("http://tauri.localhost"));
+    assert!(check("https://tauri.localhost"));
+    assert!(!check("http://127.0.0.1:3000"));
+    assert!(!check("http://evil.com"));
+    assert!(!check("null"));
+
+    let ipv6 = ("::1".to_string(), Some(1430));
+    assert!(is_allowed_origin(
+      Some(&HeaderValue::from_static("http://[::1]:1430")),
+      &ipv6
+    ));
+
+    let default_port = ("localhost".to_string(), None);
+    assert!(is_allowed_origin(
+      Some(&HeaderValue::from_static("http://localhost")),
+      &default_port
+    ));
+  }
+
+  #[test]
+  fn fs_read_scoped_rejects_outside_scope() {
+    let dir = tempfile::tempdir().unwrap();
+    let scope = dunce::canonicalize(dir.path()).unwrap();
+    let inner = scope.join("dist");
+    std::fs::create_dir(&inner).unwrap();
+    std::fs::write(inner.join("index.html"), "inner").unwrap();
+    std::fs::write(scope.join("secret.txt"), "secret").unwrap();
+
+    assert_eq!(
+      fs_read_scoped(inner.join("index.html"), &inner).unwrap(),
+      b"inner"
+    );
+    assert!(fs_read_scoped(inner.join("../secret.txt"), &inner).is_err());
+  }
+
+  #[tokio::test]
+  async fn serves_root_as_html_and_injects_reload_script() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = dunce::canonicalize(temp.path()).unwrap();
+    std::fs::write(
+      dir.join("index.html"),
+      "<html><head></head><body>app</body></html>",
+    )
+    .unwrap();
+
+    let state = ServerState {
+      dir,
+      address: "127.0.0.1:1430".parse().unwrap(),
+      tx: channel(1).0,
+    };
+    let mut headers = HeaderMap::new();
+    headers.insert(header::HOST, HeaderValue::from_static("127.0.0.1:1430"));
+
+    let response = handler(Uri::from_static("/"), headers, State(state))
+      .await
+      .into_response();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+      response.headers().get(header::CONTENT_TYPE).unwrap(),
+      "text/html"
+    );
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+      .await
+      .unwrap();
+    assert!(String::from_utf8_lossy(&body).contains("ws://127.0.0.1:1430/__tauri_cli"));
+  }
+
+  #[tokio::test]
+  async fn serves_percent_encoded_paths() {
+    let temp = tempfile::tempdir().unwrap();
+    let temp = dunce::canonicalize(temp.path()).unwrap();
+    let dir = temp.join("dist");
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::write(dir.join("index.html"), "<html></html>").unwrap();
+    std::fs::write(dir.join("my font.woff2"), "font").unwrap();
+    std::fs::write(dir.join("页面.css"), "css").unwrap();
+    std::fs::write(temp.join("secret.txt"), "secret").unwrap();
+
+    let state = ServerState {
+      dir,
+      address: "127.0.0.1:1430".parse().unwrap(),
+      tx: channel(1).0,
+    };
+    let get = |path: &str| {
+      let mut headers = HeaderMap::new();
+      headers.insert(header::HOST, HeaderValue::from_static("127.0.0.1:1430"));
+      let response = handler(path.parse().unwrap(), headers, State(state.clone()));
+      async move {
+        let response = response.await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        axum::body::to_bytes(response.into_body(), usize::MAX)
+          .await
+          .unwrap()
+      }
+    };
+
+    assert_eq!(get("/my%20font.woff2").await, "font");
+    assert_eq!(get("/%E9%A1%B5%E9%9D%A2.css").await, "css");
+    // decoded paths are still scoped to the served directory
+    assert_ne!(get("/%2E%2E/secret.txt").await, "secret");
+    assert_ne!(get("/..%2Fsecret.txt").await, "secret");
+    let secret = temp.join("secret.txt").display().to_string();
+    let secret = percent_encoding::utf8_percent_encode(&secret, percent_encoding::NON_ALPHANUMERIC);
+    assert_ne!(get(&format!("/{secret}")).await, "secret");
+  }
 }

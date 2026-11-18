@@ -5,16 +5,16 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
+  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
   app::UriSchemeResponder,
   ipc::{Invoke, InvokeHandler, ScopeObject, ScopeValue},
   manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
   webview::PageLoadPayload,
-  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
 };
 use serde::{
-  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
   Serialize, Serializer,
+  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
 };
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
@@ -32,6 +32,9 @@ use std::{
 /// Mobile APIs.
 #[cfg(mobile)]
 pub mod mobile;
+
+#[cfg(any(mobile, test))]
+mod mobile_response;
 
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {
@@ -90,7 +93,7 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn webview_created(&mut self, webview: Webview<R>) {}
 
-  /// Callback invoked when webview tries to navigate to the given Url. Returning falses cancels navigation.
+  /// Callback invoked when webview tries to navigate to the given Url. Returning false cancels navigation.
   #[allow(unused_variables)]
   fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
     true
@@ -104,6 +107,7 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
 
+  // TODO: Change this to `run_invoke_handler` in v3
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
   fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
@@ -596,7 +600,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  /// and [webkit_web_context_register_uri_scheme](https://webkitgtk.org/reference/webkit2gtk/stable/method.WebContext.register_uri_scheme.html) on Linux.
   ///
   /// # Known limitations
   ///
@@ -642,13 +646,13 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   >(
     mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(move |ctx, request, responder| {
-          responder.respond(protocol(ctx, request))
+        handler: Box::new(move |ctx, request, responder| {
+          responder.respond(protocol_handler(ctx, request))
         }),
       }),
     );
@@ -712,12 +716,12 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   >(
     mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(protocol),
+        handler: Box::new(protocol_handler),
       }),
     );
     self
@@ -979,10 +983,10 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
-  /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
-  pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
+  pub(crate) fn run_invoke_handler(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
     for p in self.store.iter_mut() {
       if p.name() == plugin {
         #[cfg(feature = "tracing")]

@@ -5,14 +5,11 @@
 
 use super::category::AppCategory;
 use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
-pub use tauri_utils::config::WebviewInstallMode;
+pub use tauri_utils::config::{DebCompression, RpmCompression, WebviewInstallMode};
 use tauri_utils::{
-  config::{
-    BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression,
-    RpmCompression,
-  },
+  config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
   platform::Target as TargetPlatform,
-  resources::{external_binaries, ResourcePaths},
+  resources::{ResourcePaths, external_binaries},
 };
 
 use std::{
@@ -126,7 +123,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  #[cfg(target_os = "windows")]
+  // NSIS installers can be built on all platforms but it's hidden in the --help output on macOS/Linux.
   PackageType::Nsis,
   #[cfg(target_os = "macos")]
   PackageType::MacOsBundle,
@@ -213,6 +210,8 @@ pub struct DebianSettings {
   /// Path to script that will be executed after the package is removed. See
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// The Linux AppImage bundle settings.
@@ -223,6 +222,10 @@ pub struct AppImageSettings {
   /// Whether to include gstreamer plugins for audio/media support.
   pub bundle_media_framework: bool,
   /// Whether to include the `xdg-open` binary.
+  #[deprecated(
+    since = "2.12.0",
+    note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
+  )]
   pub bundle_xdg_open: bool,
 }
 
@@ -231,7 +234,7 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
-  /// the list of of RPM dependencies your application recommends.
+  /// the list of RPM dependencies your application recommends.
   pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
@@ -345,7 +348,7 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
-  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  /// Skip stapling the notarization ticket onto the app and do not wait for notarization to finish.
   ///
   /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
   /// reaching out to Apple's servers which is helpful in offline environments.
@@ -470,20 +473,28 @@ pub struct NsisSettings {
   pub sidebar_image: Option<PathBuf>,
   /// The path to an icon file used as the installer icon.
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   pub install_mode: NSISInstallerMode,
-  /// A list of installer languages.
-  /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
-  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  /// A list of installer languages. Default to `["English"]` if not set.
   ///
-  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
+  /// To allow the user to select the language, set [`Self::display_language_selector`] to `true`.
+  ///
+  /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
   /// An key-value pair where the key is the language and the
   /// value is the path to a custom `.nsi` file that holds the translated text for tauri's custom messages.
   ///
   /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsi` file.
   ///
-  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`]languages array,
+  /// **Note**: the key must be a valid NSIS language and it must be added to the [`Self::languages`] array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
@@ -507,6 +518,9 @@ pub struct NsisSettings {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   ///
   /// ### Example
@@ -532,6 +546,10 @@ pub struct NsisSettings {
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.8.0",
+    note = "Use `WindowsSettings::minimum_webview2_version` instead."
+  )]
   pub minimum_webview2_version: Option<String>,
 }
 
@@ -567,11 +585,15 @@ pub struct WindowsSettings {
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,
-  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  /// Whether an older version can be installed when a newer one is already installed.
   ///
-  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  /// For instance, if `1.2.1` is installed and this is set to `false`:
   ///
-  /// /// The default value of this flag is `true`.
+  /// - The MSI installer won't install version `1.2.0` or `1.1.5`.
+  /// - The NSIS installer won't install them over `1.2.1` in silent, passive or update mode.
+  ///   The interactive installer only lets the user install them after uninstalling `1.2.1` first.
+  ///
+  /// The default value of this flag is `true`.
   pub allow_downgrades: bool,
 
   /// Specify a custom command to sign the binaries.
@@ -587,6 +609,17 @@ pub struct WindowsSettings {
   /// if you are on another platform and want to cross-compile and sign you will
   /// need to use another tool like `osslsigncode`.
   pub sign_command: Option<CustomSignCommandSettings>,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  pub minimum_webview2_version: Option<String>,
+  /// Whether to bundle the Visual C++ runtime DLLs alongside the application.
+  ///
+  /// This can be particularly useful when the application includes sidecars or DLLs that do not
+  /// statically link the Visual C++ runtime and require the runtime DLLs at runtime, and users
+  /// should not be required to install the Visual C++ Redistributable. This can also be useful
+  /// when `static_vc_runtime` is set to `false`.
+  pub bundle_vc_runtime: bool,
 }
 
 impl WindowsSettings {
@@ -612,6 +645,8 @@ mod _default {
         webview_install_mode: Default::default(),
         allow_downgrades: true,
         sign_command: None,
+        minimum_webview2_version: None,
+        bundle_vc_runtime: false,
       }
     }
   }
@@ -790,11 +825,16 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
+  /// the directory holding the project's `tauri.conf.json`, if the caller knows
+  /// it. `None` when the bundler is driven by something other than the CLI.
+  tauri_dir: Option<PathBuf>,
   /// the directory to place tools used by the bundler,
   /// if `None`, tools are placed in the current user's platform-specific cache directory.
   local_tools_directory: Option<PathBuf>,
   /// the bundle settings.
   bundle_settings: BundleSettings,
+  /// Same as `bundle_settings.icon`, but without the .icon directory.
+  icon_files: Option<Vec<String>>,
   /// the binaries to bundle.
   binaries: Vec<BundleBinary>,
   /// The target platform.
@@ -803,13 +843,15 @@ pub struct Settings {
   target: String,
   /// Whether to disable code signing during the bundling process.
   no_sign: bool,
+  /// Whether to patch the main binary with bundle type information.
+  binary_patching: bool,
 }
 
 /// A builder for [`Settings`].
-#[derive(Default)]
 pub struct SettingsBuilder {
   log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
+  tauri_dir: Option<PathBuf>,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
   bundle_settings: BundleSettings,
@@ -817,12 +859,32 @@ pub struct SettingsBuilder {
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
   no_sign: bool,
+  binary_patching: bool,
+}
+
+impl Default for SettingsBuilder {
+  fn default() -> Self {
+    Self {
+      log_level: None,
+      project_out_directory: None,
+      tauri_dir: None,
+      package_types: None,
+      package_settings: None,
+      bundle_settings: BundleSettings::default(),
+      binaries: Vec::new(),
+      target: None,
+      local_tools_directory: None,
+      no_sign: false,
+      // Binary patching is on by default; disabled via `--no-binary-patching`.
+      binary_patching: true,
+    }
+  }
 }
 
 impl SettingsBuilder {
   /// Creates the default settings builder.
   pub fn new() -> Self {
-    Default::default()
+    Self::default()
   }
 
   /// Sets the project output directory. It's used as current working directory.
@@ -831,6 +893,16 @@ impl SettingsBuilder {
     self
       .project_out_directory
       .replace(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// Sets the tauri directory, i.e. the one holding `tauri.conf.json`.
+  ///
+  /// Optional: the bundler works without it, and the formats that can use it
+  /// leave the corresponding value out when it is not set.
+  #[must_use]
+  pub fn tauri_dir<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self.tauri_dir.replace(path.as_ref().to_path_buf());
     self
   }
 
@@ -893,6 +965,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets whether to patch the main binary with bundle type information. Defaults to `true`.
+  #[must_use]
+  pub fn binary_patching(mut self, binary_patching: bool) -> Self {
+    self.binary_patching = binary_patching;
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -906,6 +985,14 @@ impl SettingsBuilder {
     };
     let target_platform = TargetPlatform::from_triple(&target);
 
+    let icon_files = self.bundle_settings.icon.as_ref().map(|paths| {
+      paths
+        .iter()
+        .filter(|p| !p.ends_with(".icon"))
+        .cloned()
+        .collect()
+    });
+
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
       package: self
@@ -915,6 +1002,7 @@ impl SettingsBuilder {
       project_out_directory: self
         .project_out_directory
         .ok_or_else(|| crate::Error::GenericError("out directory is required".into()))?,
+      tauri_dir: self.tauri_dir,
       local_tools_directory: self.local_tools_directory,
       binaries: self.binaries,
       bundle_settings: BundleSettings {
@@ -925,9 +1013,11 @@ impl SettingsBuilder {
           .map(|bins| external_binaries(bins, &target, &target_platform)),
         ..self.bundle_settings
       },
+      icon_files,
       target_platform,
       target,
       no_sign: self.no_sign,
+      binary_patching: self.binary_patching,
     })
   }
 }
@@ -948,6 +1038,12 @@ impl Settings {
     &self.project_out_directory
   }
 
+  /// Returns the tauri directory (the one holding `tauri.conf.json`), if the
+  /// caller provided it.
+  pub fn tauri_dir(&self) -> Option<&Path> {
+    self.tauri_dir.as_deref()
+  }
+
   /// Returns the target triple.
   pub fn target(&self) -> &str {
     &self.target
@@ -956,6 +1052,11 @@ impl Settings {
   /// Returns the [`TargetPlatform`].
   pub fn target_platform(&self) -> &TargetPlatform {
     &self.target_platform
+  }
+
+  /// Raw list of icons.
+  pub fn icons(&self) -> Option<&Vec<String>> {
+    self.bundle_settings.icon.as_ref()
   }
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
@@ -1053,7 +1154,7 @@ impl Settings {
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."
-        )))
+        )));
       }
     };
 
@@ -1092,7 +1193,7 @@ impl Settings {
 
   /// Returns an iterator over the icon files to be used for this bundle.
   pub fn icon_files(&self) -> ResourcePaths<'_> {
-    match self.bundle_settings.icon {
+    match self.icon_files {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), false),
       None => ResourcePaths::new(&[], false),
     }
@@ -1282,5 +1383,15 @@ impl Settings {
   /// Set whether to skip signing.
   pub fn set_no_sign(&mut self, no_sign: bool) {
     self.no_sign = no_sign;
+  }
+
+  /// Whether the main binary is patched with bundle type information.
+  pub fn binary_patching(&self) -> bool {
+    self.binary_patching
+  }
+
+  /// Set whether to patch the main binary with bundle type information.
+  pub fn set_binary_patching(&mut self, binary_patching: bool) {
+    self.binary_patching = binary_patching;
   }
 }

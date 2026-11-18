@@ -6,7 +6,6 @@ package app.tauri.plugin
 
 import android.app.Activity
 import android.content.Intent
-import android.content.SharedPreferences
 import android.webkit.WebView
 import androidx.activity.result.IntentSenderRequest
 import androidx.core.app.ActivityCompat
@@ -18,8 +17,15 @@ import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.lang.reflect.Method
+import androidx.core.content.edit
 
-class PluginHandle(private val manager: PluginManager, val name: String, val instance: Plugin, val config: String, val jsonMapper: ObjectMapper) {
+class PluginHandle(
+  private val manager: PluginManager,
+  val name: String,
+  val instance: Plugin,
+  val config: String,
+  val jsonMapper: ObjectMapper
+) {
   private val commands: HashMap<String, CommandData> = HashMap()
   private val permissionCallbackMethods: HashMap<String, Method> = HashMap()
   private val startActivityCallbackMethods: HashMap<String, Method> = HashMap()
@@ -38,22 +44,53 @@ class PluginHandle(private val manager: PluginManager, val name: String, val ins
   }
 
   fun startActivityForResult(invoke: Invoke, intent: Intent, callbackName: String) {
-    manager.startActivityForResult(intent) { result ->
+    val callback = activityCallback(invoke, callbackName)
+    if (invoke.isContextual) {
+      launchContextual(invoke) { origin, onOriginDestroyed ->
+        manager.startActivityForResult(origin, intent, callback, onOriginDestroyed)
+      }
+    } else {
+      manager.startActivityForResult(intent, callback)
+    }
+  }
+
+  fun startIntentSenderForResult(
+    invoke: Invoke,
+    intentSender: IntentSenderRequest,
+    callbackName: String
+  ) {
+    val callback = activityCallback(invoke, callbackName)
+    if (invoke.isContextual) {
+      launchContextual(invoke) { origin, onOriginDestroyed ->
+        manager.startIntentSenderForResult(origin, intentSender, callback, onOriginDestroyed)
+      }
+    } else {
+      manager.startIntentSenderForResult(intentSender, callback)
+    }
+  }
+
+  private fun activityCallback(invoke: Invoke, callbackName: String) =
+    PluginManager.ActivityResultCallback { result ->
       val method = startActivityCallbackMethods[callbackName]
       if (method != null) {
         method.isAccessible = true
         method(instance, invoke, result)
       }
     }
-  }
 
-  fun startIntentSenderForResult(invoke: Invoke, intentSender: IntentSenderRequest, callbackName: String) {
-    manager.startIntentSenderForResult(intentSender) { result ->
-      val method = startActivityCallbackMethods[callbackName]
-      if (method != null) {
-        method.isAccessible = true
-        method(instance, invoke, result)
+  private fun launchContextual(
+    invoke: Invoke,
+    launch: (origin: Activity, onOriginDestroyed: () -> Unit) -> Unit
+  ) {
+    try {
+      val origin = invoke.activity ?: throw OriginUnavailableException()
+      launch(origin) {
+        invoke.reject(OriginUnavailableException().message, "ORIGIN_UNAVAILABLE")
       }
+    } catch (e: OriginUnavailableException) {
+      invoke.reject(e.message, "ORIGIN_UNAVAILABLE")
+    } catch (e: ResultPendingException) {
+      invoke.reject(e.message, "RESULT_PENDING")
     }
   }
 
@@ -84,7 +121,7 @@ class PluginHandle(private val manager: PluginManager, val name: String, val ins
     invoke: Invoke,
     permissions: Map<String, Boolean>
   ): Boolean {
-    val activity = manager.activity
+    val activity = manager.activity!!
     val prefs =
       activity.getSharedPreferences("PluginPermStates", Activity.MODE_PRIVATE)
     for ((permString, isGranted) in permissions) {
@@ -92,24 +129,24 @@ class PluginHandle(private val manager: PluginManager, val name: String, val ins
         // Permission granted. If previously denied, remove cached state
         val state = prefs.getString(permString, null)
         if (state != null) {
-          val editor: SharedPreferences.Editor = prefs.edit()
-          editor.remove(permString)
-          editor.apply()
+          prefs.edit {
+            remove(permString)
+          }
         }
       } else {
-        val editor: SharedPreferences.Editor = prefs.edit()
-        if (ActivityCompat.shouldShowRequestPermissionRationale(
-            activity,
-            permString
-          )
-        ) {
-          // Permission denied, can prompt again with rationale
-          editor.putString(permString, PermissionState.PROMPT_WITH_RATIONALE.toString())
-        } else {
-          // Permission denied permanently, store this state for future reference
-          editor.putString(permString, PermissionState.DENIED.toString())
+        prefs.edit {
+          if (ActivityCompat.shouldShowRequestPermissionRationale(
+              activity,
+              permString
+            )
+          ) {
+            // Permission denied, can prompt again with rationale
+            putString(permString, PermissionState.PROMPT_WITH_RATIONALE.toString())
+          } else {
+            // Permission denied permanently, store this state for future reference
+            putString(permString, PermissionState.DENIED.toString())
+          }
         }
-        editor.apply()
       }
     }
     val permStrings = permissions.keys.toTypedArray()

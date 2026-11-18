@@ -533,6 +533,13 @@ Function un.onInit
   ${IfNot} ${Errors}
     StrCpy $UpdateMode 1
   ${EndIf}
+
+  ; Delete app data without user interaction (e.g. in silent or passive mode),
+  ; also pre-checks the `Delete app data` check box in interactive mode
+  ${GetOptions} $CMDLINE "/DELETEAPPDATA" $DeleteAppDataCheckboxState
+  ${IfNot} ${Errors}
+    StrCpy $DeleteAppDataCheckboxState 1
+  ${EndIf}
 FunctionEnd
 
 {{#if deep_link_protocols}}

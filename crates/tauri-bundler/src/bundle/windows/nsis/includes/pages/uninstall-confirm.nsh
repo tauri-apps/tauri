@@ -46,6 +46,9 @@ Function un.ConfirmShow ; Add a `Delete app data` check box
 
   SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $ConfirmPageFont
   SendMessage $DeleteAppDataCheckbox ${WM_SETFONT} $ConfirmPageFont 1
+  ${If} $DeleteAppDataCheckboxState = 1 ; Pre-checked by `/DELETEAPPDATA`
+    SendMessage $DeleteAppDataCheckbox ${BM_SETCHECK} ${BST_CHECKED} 0
+  ${EndIf}
 FunctionEnd
 
 Function un.ConfirmLeave

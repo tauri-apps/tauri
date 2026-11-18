@@ -430,14 +430,42 @@ impl<R: Runtime> AppHandle<R> {
   /// Fetches all Data Store Identifiers by this app
   ///
   /// Needs to be called from Main Thread
+  #[deprecated(since = "2.13.0", note = "Use `fetch_profile_identifiers` instead.")]
   pub async fn fetch_data_store_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
+    self.fetch_profile_identifiers().await
+  }
+
+  /// Deletes a Data Store of this app
+  ///
+  /// Needs to be called from Main Thread
+  #[deprecated(since = "2.13.0", note = "Use `remove_profile` instead.")]
+  pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
+    self.remove_profile(uuid).await
+  }
+}
+
+#[cfg(any(target_vendor = "apple", windows))]
+impl<R: Runtime> AppHandle<R> {
+  /// Fetches the identifiers of the browsing data profiles of this app,
+  /// see [`WebviewBuilder::profile_identifier`](crate::webview::WebviewBuilder::profile_identifier).
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Lists the identifiers of the app's [`WKWebsiteDataStore`]s.
+  ///   Available on macOS >= 14 and iOS >= 17.
+  /// - **Windows**: Lists the WebView2 profiles stored in the app local data directory, which is the default data directory,
+  ///   and in the [data directories](crate::webview::WebviewBuilder::data_directory) of the webviews created since the app started.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore
+  pub async fn fetch_profile_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<Vec<[u8; 16]>, tauri_runtime::Error>>();
     let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
     let runtime_handle = self.runtime_handle.clone();
+    let data_directories = self.profile_data_directories();
 
     self.run_on_main_thread(move || {
       let cloned_lock = lock.clone();
-      if let Err(err) = runtime_handle.fetch_data_store_identifiers(move |ids| {
+      if let Err(err) = runtime_handle.fetch_profile_identifiers(data_directories, move |ids| {
         if let Some(tx) = cloned_lock.lock().unwrap().take() {
           let _ = tx.send(Ok(ids));
         }
@@ -450,27 +478,66 @@ impl<R: Runtime> AppHandle<R> {
 
     rx.await?.map_err(Into::into)
   }
-  /// Deletes a Data Store of this app
+
+  /// Deletes the browsing data profile with the given identifier,
+  /// see [`WebviewBuilder::profile_identifier`](crate::webview::WebviewBuilder::profile_identifier).
   ///
-  /// Needs to be called from Main Thread
-  pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
+  /// Every webview using this profile must be closed before calling this function.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Removes the app's [`WKWebsiteDataStore`] with this identifier.
+  ///   Available on macOS >= 14 and iOS >= 17.
+  /// - **Windows**: Removes the WebView2 profile from the same data directories [`Self::fetch_profile_identifiers`] looks in.
+  ///   Returns an error if a webview still uses the profile. Closing a webview is asynchronous and WebView2 releases
+  ///   the profile files shortly after, so the removal can fail right after closing the last webview using it,
+  ///   in which case the profile is left untouched and the removal can be retried later.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore
+  pub async fn remove_profile(&self, profile_identifier: [u8; 16]) -> crate::Result<()> {
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), tauri_runtime::Error>>();
     let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
     let runtime_handle = self.runtime_handle.clone();
+    let data_directories = self.profile_data_directories();
 
     self.run_on_main_thread(move || {
       let cloned_lock = lock.clone();
-      if let Err(err) = runtime_handle.remove_data_store(uuid, move |result| {
-        if let Some(tx) = cloned_lock.lock().unwrap().take() {
-          let _ = tx.send(result);
-        }
-      }) {
+      if let Err(err) =
+        runtime_handle.remove_profile(data_directories, profile_identifier, move |result| {
+          if let Some(tx) = cloned_lock.lock().unwrap().take() {
+            let _ = tx.send(result);
+          }
+        })
+      {
         if let Some(tx) = lock.lock().unwrap().take() {
           let _ = tx.send(Err(err));
         }
       }
     })?;
     rx.await?.map_err(Into::into)
+  }
+
+  /// The data directories where the webview profiles might be stored, only used on Windows.
+  fn profile_data_directories(&self) -> Vec<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+      let mut data_directories: Vec<_> = self
+        .manager
+        .webview
+        .data_directories
+        .lock()
+        .unwrap()
+        .iter()
+        .cloned()
+        .collect();
+      // the default data directory, see `WebviewManager::prepare_webview`
+      if let Ok(app_local_data_dir) = self.path().app_local_data_dir() {
+        data_directories.push(app_local_data_dir);
+      }
+      data_directories
+    }
+    #[cfg(not(windows))]
+    Vec::new()
   }
 }
 

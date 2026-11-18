@@ -331,6 +331,94 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+const ZSTD_MIN_CLEVEL: i32 = -1 << 17;
+
+/// Compression algorithms used when bundling DEB packages.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "type")]
+#[non_exhaustive]
+pub enum DebCompression {
+  /// Gzip compression
+  Gzip {
+    /// Gzip compression level (0-9).
+    level: u32,
+  },
+  /// Zstd compression
+  Zstd {
+    /// Zstd compression level (-131072 - 22).
+    level: i32,
+  },
+  /// Xz compression
+  Xz {
+    /// Xz compression level (0-9).
+    level: u32,
+  },
+  /// Bzip2 compression
+  Bzip2 {
+    /// Bzip2 compression level (1-9).
+    level: u32,
+  },
+  /// Disable compression
+  None,
+}
+
+impl DebCompression {
+  /// The file extension of a tar archive compressed with this algorithm.
+  pub fn ext(&self) -> &'static str {
+    match self {
+      Self::None => "tar",
+      Self::Gzip { .. } => "tar.gz",
+      Self::Xz { .. } => "tar.xz",
+      Self::Zstd { .. } => "tar.zst",
+      Self::Bzip2 { .. } => "tar.bz2",
+    }
+  }
+
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
+}
+
 /// Configuration for Debian (.deb) bundles.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#debconfig>
@@ -381,6 +469,8 @@ pub struct DebConfig {
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// Configuration for Linux bundles.
@@ -410,26 +500,71 @@ pub struct LinuxConfig {
 pub enum RpmCompression {
   /// Gzip compression
   Gzip {
-    /// Gzip compression level
+    /// Gzip compression level (0-9).
     level: u32,
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level
+    /// Zstd compression level (-131072 - 22).
     level: i32,
   },
   /// Xz compression
   Xz {
-    /// Xz compression level
+    /// Xz compression level (0-9).
     level: u32,
   },
   /// Bzip2 compression
   Bzip2 {
-    /// Bzip2 compression level
+    /// Bzip2 compression level (1-9).
     level: u32,
   },
   /// Disable compression
   None,
+}
+
+impl RpmCompression {
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
 }
 
 /// Configuration for RPM bundles.
@@ -2290,10 +2425,12 @@ pub struct WindowConfig {
   /// #### Platform-specific:
   ///
   /// - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
-  /// - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+  /// - **macOS / iOS**: Unsupported, use `profileIdentifier` instead.
   /// - **Android**: Unsupported.
   #[serde(default, alias = "data-directory")]
   pub data_directory: Option<PathBuf>,
+  /// Deprecated: use [`Self::profile_identifier`] (`profileIdentifier`) instead.
+  ///
   /// Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
   ///
   /// See <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>
@@ -2305,8 +2442,27 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   /// - **Windows / Linux / Android**: Unsupported.
+  #[deprecated(since = "2.11.0", note = "Use `profile_identifier` instead.")]
   #[serde(default, alias = "data-store-identifier")]
   pub data_store_identifier: Option<[u8; 16]>,
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes (usually a UUID).
+  ///
+  /// Webviews using the same identifier share their browsing data,
+  /// while webviews using different identifiers are fully isolated from each other.
+  ///
+  /// The array must contain 16 u8 numbers.
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **macOS / iOS**: Uses a [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc)
+  ///   created with this identifier. Supported on macOS 14.0+ and iOS 17.0+.
+  /// - **Windows**: Uses a [WebView2 profile](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support)
+  ///   named after the lowercase hex representation of the identifier, stored inside the data directory.
+  ///   Requires WebView2 Runtime 101+, older runtimes ignore this setting.
+  /// - **Linux / Android**: Unsupported.
+  #[serde(default, alias = "profile-identifier")]
+  pub profile_identifier: Option<[u8; 16]>,
 
   /// Specifies the native scrollbar style to use with the webview.
   /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
@@ -2407,6 +2563,8 @@ pub struct WindowConfig {
   pub general_autofill_enabled: bool,
 }
 
+// For [`Self::data_store_identifier`]
+#[allow(deprecated)]
 impl Default for WindowConfig {
   fn default() -> Self {
     Self {
@@ -2467,6 +2625,7 @@ impl Default for WindowConfig {
       disable_input_accessory_view: false,
       data_directory: None,
       data_store_identifier: None,
+      profile_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
       limit_navigations_to_app_bound_domains: false,
       activity_name: None,
@@ -4373,6 +4532,9 @@ mod build {
 
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // For [`Self::data_store_identifier`]
+      tokens.append_all(quote!(#[allow(deprecated)]));
+
       let label = str_lit(&self.label);
       let create = &self.create;
       let url = &self.url;
@@ -4429,7 +4591,9 @@ mod build {
       let allow_link_preview = self.allow_link_preview;
       let disable_input_accessory_view = self.disable_input_accessory_view;
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
+      #[allow(deprecated)]
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
+      let profile_identifier = opt_vec_lit(self.profile_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
       let limit_navigations_to_app_bound_domains = self.limit_navigations_to_app_bound_domains;
       let activity_name = opt_lit(self.activity_name.as_ref());
@@ -4497,6 +4661,7 @@ mod build {
         disable_input_accessory_view,
         data_directory,
         data_store_identifier,
+        profile_identifier,
         scroll_bar_style,
         limit_navigations_to_app_bound_domains,
         activity_name,

@@ -157,6 +157,8 @@ mod monitor;
 mod undecorated_resizing;
 mod util;
 mod webview;
+#[cfg(windows)]
+mod webview2_profile;
 mod webview_permissions;
 mod window;
 
@@ -222,11 +224,7 @@ macro_rules! webview_getter {
     getter!(
       $self,
       rx,
-      Message::Webview(
-        *$self.window_id.lock().unwrap(),
-        $self.webview_id,
-        $message(tx)
-      )
+      Message::Webview($self.window_id(), $self.webview_id, $message(tx))
     )
   }};
 }
@@ -1301,6 +1299,12 @@ pub enum ApplicationMessage {
   FetchDataStoreIdentifiers(Box<dyn FnOnce(Vec<[u8; 16]>) + Send + 'static>),
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   RemoveDataStore([u8; 16], Box<dyn FnOnce(Result<()>) + Send + 'static>),
+  #[cfg(windows)]
+  RemoveProfile(
+    Vec<PathBuf>,
+    [u8; 16],
+    Box<dyn FnOnce(Result<()>) + Send + 'static>,
+  ),
 }
 
 pub enum WindowMessage {
@@ -1527,9 +1531,16 @@ impl<T: UserEvent> Clone for Message<T> {
 /// The Tauri [`WebviewDispatch`] for [`Wry`].
 #[derive(Debug, Clone)]
 pub struct WryWebviewDispatcher<T: UserEvent> {
+  // This was in a [`Mutex`] because we could change it in [`Self::reparent`]
   window_id: Arc<Mutex<WindowId>>,
   webview_id: WebviewId,
   context: Context<T>,
+}
+
+impl<T: UserEvent> WryWebviewDispatcher<T> {
+  fn window_id(&self) -> WindowId {
+    *self.window_id.lock().unwrap()
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
@@ -1542,7 +1553,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
     let id = self.context.next_webview_event_id();
     let _ = self.context.proxy.send_event(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::AddEventListener(id, Box::new(f)),
     ));
@@ -1551,7 +1562,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
     ))
@@ -1560,7 +1571,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
     let _ = self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::OpenDevTools,
     ));
@@ -1569,7 +1580,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn close_devtools(&self) {
     let _ = self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::CloseDevTools,
     ));
@@ -1603,7 +1614,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn navigate(&self, url: Url) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Navigate(url),
     ))
@@ -1611,7 +1622,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn reload(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Reload,
     ))
@@ -1619,7 +1630,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn print(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Print,
     ))
@@ -1627,7 +1638,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn close(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Close,
     ))
@@ -1635,7 +1646,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetBounds(bounds),
     ))
@@ -1643,7 +1654,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_size(&self, size: Size) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetSize(size),
     ))
@@ -1651,7 +1662,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_position(&self, position: Position) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetPosition(position),
     ))
@@ -1659,7 +1670,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_focus(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetFocus,
     ))
@@ -1683,7 +1694,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>> {
     let (tx, rx) = channel();
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::CookiesForUrl(url, tx),
     ))?;
@@ -1697,7 +1708,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetCookie(cookie.into_owned()),
     ))?;
@@ -1706,7 +1717,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn delete_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::DeleteCookie(cookie.into_owned()),
     ))?;
@@ -1715,7 +1726,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetAutoResize(auto_resize),
     ))
@@ -1729,7 +1740,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       self,
       rx,
       Message::Webview(
-        *self.window_id.lock().unwrap(),
+        self.window_id(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into(), tx, tracing::Span::current()),
       )
@@ -1739,7 +1750,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::EvaluateScript(script.into()),
     ))
@@ -1757,7 +1768,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       self,
       rx,
       Message::Webview(
-        *self.window_id.lock().unwrap(),
+        self.window_id(),
         self.webview_id,
         WebviewMessage::EvaluateScriptWithCallback(
           script.into(),
@@ -1776,7 +1787,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     callback: impl Fn(String) + Send + 'static,
   ) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
     ))
@@ -1784,7 +1795,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_zoom(&self, scale_factor: f64) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetZoom(scale_factor),
     ))
@@ -1792,7 +1803,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn clear_all_browsing_data(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::ClearAllBrowsingData,
     ))
@@ -1800,7 +1811,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn hide(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Hide,
     ))
@@ -1808,7 +1819,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn show(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Show,
     ))
@@ -1816,7 +1827,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_background_color(&self, color: Option<Color>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetBackgroundColor(color),
     ))
@@ -2729,6 +2740,53 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
         Box::new(cb),
       )))
   }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    self.fetch_data_store_identifiers(cb)
+  }
+
+  #[cfg(windows)]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    cb(webview2_profile::fetch_profile_identifiers(
+      &data_directories,
+    ));
+    Ok(())
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self.remove_data_store(profile_identifier, cb)
+  }
+
+  #[cfg(windows)]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self
+      .context
+      .send_user_message(Message::Application(ApplicationMessage::RemoveProfile(
+        data_directories,
+        profile_identifier,
+        Box::new(cb),
+      )))
+  }
 }
 
 impl<T: UserEvent> Wry<T> {
@@ -3209,6 +3267,10 @@ fn handle_user_message<T: UserEvent>(
         WebView::remove_data_store(&uuid, move |res| {
           cb(res.map_err(|_| Error::FailedToRemoveDataStore))
         })
+      }
+      #[cfg(windows)]
+      ApplicationMessage::RemoveProfile(data_directories, profile_identifier, cb) => {
+        webview2_profile::remove_profile(windows, data_directories, profile_identifier, cb)
       }
     },
     Message::Window(id, window_message) => {
@@ -4830,6 +4892,11 @@ You may have it installed on another user account, but it is not available for t
     #[cfg(desktop)]
     let context = context.clone();
     webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
+      let url = if url.is_empty() {
+        "about:blank"
+      } else {
+        url.as_str()
+      };
       let Ok(url) = url.parse() else {
         return wry::NewWindowResponse::Deny;
       };
@@ -5038,8 +5105,11 @@ You may have it installed on another user account, but it is not available for t
 
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   {
-    if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
-      webview_builder = webview_builder.with_data_store_identifier(*data_store_identifier);
+    if let Some(profile_identifier) = webview_attributes
+      .profile_identifier
+      .or(webview_attributes.data_store_identifier)
+    {
+      webview_builder = webview_builder.with_data_store_identifier(profile_identifier);
     }
 
     webview_builder =
@@ -5072,6 +5142,20 @@ You may have it installed on another user account, but it is not available for t
           log::error!("failed to borrow windows")
         }
       });
+    }
+  }
+
+  // Windows: use `profile_identifier` as a WebView2 named profile. Webviews that
+  // share the same data directory but use different identifiers get fully isolated
+  // cookies/storage while sharing one browser process.
+  // The deprecated `data_store_identifier` is intentionally not used here, so apps that
+  // already set it don't silently move to a new, empty profile.
+  // See https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+  #[cfg(windows)]
+  {
+    if let Some(profile_identifier) = &webview_attributes.profile_identifier {
+      webview_builder =
+        webview_builder.with_profile_name(webview2_profile::profile_name(profile_identifier));
     }
   }
 

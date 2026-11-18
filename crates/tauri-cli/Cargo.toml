@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.12.3"
+version = "2.12.6"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2024"
 rust-version = "1.90"
@@ -40,9 +40,8 @@ cargo-mobile2 = { version = "0.22.5", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.26", features = ["server"] }
-jsonrpsee-core = "0.26"
+jsonrpsee-core = { version = "0.26", features = ["async-client"] }
 jsonrpsee-client-transport = { version = "0.26", features = ["ws"] }
-jsonrpsee-ws-client = { version = "0.26", default-features = false }
 tower = { version = "0.5", default-features = false }
 sublime_fuzzy = "0.7"
 clap_complete = "4"
@@ -68,13 +67,13 @@ tauri-utils = { workspace = true, features = [
   "html-manipulation-2",
 ] }
 toml = "1"
-jsonschema = { version = "0.49", default-features = false }
+jsonschema = { version = "0.61", default-features = false }
 handlebars = "6"
 include_dir = "0.7"
 dirs = "7"
 # Careful with updating minisign, often broke our updater signatures.
 # See https://github.com/tauri-apps/tauri/pull/15022 for example.
-minisign = "0.9"
+minisign = "0.10"
 base64 = "0.23"
 ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"
@@ -83,6 +82,7 @@ regex = "1"
 heck = "0.5"
 dialoguer = "0.12"
 url = { version = "2", features = ["serde"] }
+percent-encoding = "2"
 os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3"
@@ -97,7 +97,7 @@ serde-value = "0.7"
 itertools = "0.15"
 local-ip-address = "0.6"
 css-color = "0.2"
-resvg = "0.47"
+resvg = "0.50"
 dunce = "1"
 glob = "0.3"
 # 0.111 raised msrv to 1.91
@@ -137,7 +137,7 @@ libc = "0.2"
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
 tauri-macos-sign = { workspace = true }
-object = { version = "0.39", default-features = false, features = [
+object = { version = "0.41", default-features = false, features = [
   "macho",
   "read_core",
   "std",

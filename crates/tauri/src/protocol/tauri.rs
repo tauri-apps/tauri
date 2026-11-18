@@ -201,13 +201,10 @@ async fn proxy_dev_request(
   mut builder: http::response::Builder,
   request: &Request<Vec<u8>>,
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
-  let decoded_path = percent_encoding::percent_decode(path.as_bytes())
-    .decode_utf8_lossy()
-    .to_string();
   let url = format!(
     "{}/{}",
     url.trim_end_matches('/'),
-    decoded_path.trim_start_matches('/')
+    path.trim_start_matches('/')
   );
 
   let mut proxy_builder = client.request(request.method().clone(), &url);

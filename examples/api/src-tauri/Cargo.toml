@@ -49,3 +49,6 @@ features = ["test"]
 prod = ["tauri/custom-protocol"]
 # Enables the WebDriver automation bridge; set by the e2e suite's build (packages/api-e2e).
 automation = ["dep:tauri-plugin-automation"]
+
+[lints]
+workspace = true

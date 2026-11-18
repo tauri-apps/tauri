@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::debian::{generate_data, tar_and_gzip_dir};
+use tauri_utils::config::DebCompression;
+
+use super::debian::{generate_data, tar_and_compress_dir};
 use crate::{
   Settings,
   bundle::settings::Arch,
   error::{Context, ErrorExt},
   utils::fs_utils,
 };
-use flate2::Compression;
 use heck::AsKebabCase;
 use sha2::{Digest, Sha512};
 
@@ -18,6 +19,11 @@ use std::{
   io::Write,
   path::{Path, PathBuf},
 };
+
+/// The compression used for the archive the PKGBUILD downloads.
+/// makepkg extracts it and repackages the result with its own `PKGEXT`,
+/// so this only affects the download size.
+const COMPRESSION: DebCompression = DebCompression::Gzip { level: 6 };
 
 /// Bundles the project.
 /// Returns the paths of the generated `.tar.gz` archive, its `PKGBUILD`, `.SRCINFO`,
@@ -78,8 +84,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs_utils::copy_file(&license_file, &dest).context("Failed to copy the license file")?;
   }
 
-  // Apply tar/gzip to create the final package file.
-  let package_path = tar_and_gzip_dir(package_dir, Compression::default())
+  // Tar and compress the package directory into the final archive.
+  let package_path = tar_and_compress_dir(package_dir, COMPRESSION)
     .context("Failed to create the tar.gz package")?;
 
   let package = Package::new(settings, arch, pkgname, &package_path)?;

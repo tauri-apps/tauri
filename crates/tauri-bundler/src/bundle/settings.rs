@@ -5,12 +5,9 @@
 
 use super::category::AppCategory;
 use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
-pub use tauri_utils::config::WebviewInstallMode;
+pub use tauri_utils::config::{DebCompression, RpmCompression, WebviewInstallMode};
 use tauri_utils::{
-  config::{
-    BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression,
-    RpmCompression,
-  },
+  config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
   platform::Target as TargetPlatform,
   resources::{ResourcePaths, external_binaries},
 };
@@ -221,6 +218,8 @@ pub struct DebianSettings {
   /// Path to script that will be executed after the package is removed. See
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// The Linux AppImage bundle settings.
@@ -592,7 +591,7 @@ pub struct NsisSettings {
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
   /// To allow the user to select the language, set [`Self::display_language_selector`] to `true`.
   ///
-  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
   /// An key-value pair where the key is the language and the
   /// value is the path to a custom `.nsi` file that holds the translated text for tauri's custom messages.
@@ -623,6 +622,9 @@ pub struct NsisSettings {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   ///
   /// ### Example
@@ -929,6 +931,9 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
+  /// the directory holding the project's `tauri.conf.json`, if the caller knows
+  /// it. `None` when the bundler is driven by something other than the CLI.
+  tauri_dir: Option<PathBuf>,
   /// the directory to place tools used by the bundler,
   /// if `None`, tools are placed in the current user's platform-specific cache directory.
   local_tools_directory: Option<PathBuf>,
@@ -952,6 +957,7 @@ pub struct Settings {
 pub struct SettingsBuilder {
   log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
+  tauri_dir: Option<PathBuf>,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
   bundle_settings: BundleSettings,
@@ -967,6 +973,7 @@ impl Default for SettingsBuilder {
     Self {
       log_level: None,
       project_out_directory: None,
+      tauri_dir: None,
       package_types: None,
       package_settings: None,
       bundle_settings: BundleSettings::default(),
@@ -992,6 +999,16 @@ impl SettingsBuilder {
     self
       .project_out_directory
       .replace(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// Sets the tauri directory, i.e. the one holding `tauri.conf.json`.
+  ///
+  /// Optional: the bundler works without it, and the formats that can use it
+  /// leave the corresponding value out when it is not set.
+  #[must_use]
+  pub fn tauri_dir<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self.tauri_dir.replace(path.as_ref().to_path_buf());
     self
   }
 
@@ -1091,6 +1108,7 @@ impl SettingsBuilder {
       project_out_directory: self
         .project_out_directory
         .ok_or_else(|| crate::Error::GenericError("out directory is required".into()))?,
+      tauri_dir: self.tauri_dir,
       local_tools_directory: self.local_tools_directory,
       binaries: self.binaries,
       bundle_settings: BundleSettings {
@@ -1124,6 +1142,12 @@ impl Settings {
   /// Returns the directory where the bundle should be placed.
   pub fn project_out_directory(&self) -> &Path {
     &self.project_out_directory
+  }
+
+  /// Returns the tauri directory (the one holding `tauri.conf.json`), if the
+  /// caller provided it.
+  pub fn tauri_dir(&self) -> Option<&Path> {
+    self.tauri_dir.as_deref()
   }
 
   /// Returns the target triple.

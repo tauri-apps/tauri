@@ -8349,6 +8349,7 @@ dependencies = [
  "anyhow",
  "ar",
  "bytesize",
+ "bzip2",
  "dirs",
  "dunce",
  "flate2",
@@ -8357,6 +8358,7 @@ dependencies = [
  "heck 0.5.0",
  "hex",
  "image",
+ "liblzma",
  "log",
  "md5",
  "native-tls",
@@ -8386,6 +8388,7 @@ dependencies = [
  "windows-registry",
  "windows-sys 0.61.2",
  "zip",
+ "zstd",
 ]
 
 [[package]]

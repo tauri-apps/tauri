@@ -83,6 +83,13 @@
         </Property>
 
         <!-- launch app checkbox -->
+        <!-- Only re-create the desktop shortcut during a major upgrade if the user still has it -->
+        <Property Id="DESKTOPSHORTCUTEXISTS" Secure="yes">
+            <DirectorySearch Id="DesktopShortcutSearch" Path="[DesktopFolder]" Depth="0">
+                <FileSearch Id="DesktopShortcutFile" Name="{{product_name}}.lnk" />
+            </DirectorySearch>
+        </Property>
+
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
         <CustomAction Id="LaunchApplication" Impersonate="yes" FileKey="Path" ExeCommand="[LAUNCHAPPARGS]" Return="asyncNoWait" />
@@ -113,6 +120,7 @@
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="DesktopFolder" Name="Desktop">
                 <Component Id="ApplicationShortcutDesktop" Guid="*">
+                    <Condition>NOT WIX_UPGRADE_DETECTED OR DESKTOPSHORTCUTEXISTS</Condition>
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{product_name}}" Description="Runs {{product_name}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
                     <RemoveFolder Id="DesktopFolder" On="uninstall" />
                     <RegistryValue Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />

@@ -17,4 +17,6 @@ ignore = [
   # ml-dsa timing side-channel, only reachable when signing RPMs with a post-quantum ML-DSA key locally,
   # pulled in by rpm (enables pgp's draft-pqc feature); no pgp release uses a patched ml-dsa yet
   "RUSTSEC-2025-0144",
+  # crypto-bigint timing attacks, only reachable when signing RPMs
+  "RUSTSEC-2026-0387",
 ]

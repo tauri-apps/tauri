@@ -2,6 +2,7 @@ LangString addOrReinstall ${LANG_RUSSIAN} "Добавить/Переустано
 LangString alreadyInstalled ${LANG_RUSSIAN} "Уже установлено"
 LangString alreadyInstalledLong ${LANG_RUSSIAN} "${PRODUCTNAME} ${VERSION} уже установлен. Выберите действие, которое вы хотите выполнить и нажмите Далее для продолжения."
 LangString appRunning ${LANG_RUSSIAN} "{{product_name}} запущен! Пожалуйста, закройте приложение и попробуйте еще раз."
+LangString noPermissionToCloseApp ${LANG_RUSSIAN} "Нет прав на закрытие {{product_name}}, закройте его и попробуйте снова"
 LangString appRunningOkKill ${LANG_RUSSIAN} "{{product_name}} запущен!$\nНажмите OK чтобы закрыть приложение"
 LangString chooseMaintenanceOption ${LANG_RUSSIAN} "Выберите действие, которое вы хотите выполнить."
 LangString chooseHowToInstall ${LANG_RUSSIAN} "Выберите, как вы хотите установить ${PRODUCTNAME}."

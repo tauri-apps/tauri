@@ -1,5 +1,36 @@
 # Changelog
 
+## [2.12.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+- Upgraded to `tauri-runtime@2.12.4`
+
+## [2.12.4]
+
+### Bug Fixes
+
+- [`ba1e205f3`](https://www.github.com/tauri-apps/tauri/commit/ba1e205f3bfba19a9cbe6032bb4ece3068429d04) ([#16368](https://www.github.com/tauri-apps/tauri/pull/16368) by [@masonliiu](https://www.github.com/tauri-apps/tauri/../../masonliiu)) Fix a Linux session crash where every touch event near the border of an undecorated window started another resize drag. A resize drag now only starts on touch begin.
+- [`e86f1a61c`](https://www.github.com/tauri-apps/tauri/commit/e86f1a61cc42a9dd3711c06104508992bee7388f) ([#16427](https://www.github.com/tauri-apps/tauri/pull/16427) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix `window.open('')` being denied on macOS before reaching the `on_new_window` handler. An empty URL is now passed to the handler as `about:blank`.
+- [`d5e56b8fd`](https://www.github.com/tauri-apps/tauri/commit/d5e56b8fde3b2b150ae3d2054da29eca0a66fced) ([#16510](https://www.github.com/tauri-apps/tauri/pull/16510) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Release `WryWindowDispatcher::window_id` early without holding the lock across the entire handlers
+- [`8d5f74c1c`](https://www.github.com/tauri-apps/tauri/commit/8d5f74c1cf476cc92d55648973d0d5abf72df189) ([#16439](https://www.github.com/tauri-apps/tauri/pull/16439) by [@Lorkydey](https://www.github.com/tauri-apps/tauri/../../Lorkydey)) On Windows, let accessibility hit tests pass through the resize helper outside the top border of frameless windows with shadows, so screen readers can reach the window content.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.12.3`
+- Upgraded to `tauri-utils@2.10.3`
+
+## [2.12.3]
+
+### Bug Fixes
+
+- [`9d0ab831f`](https://www.github.com/tauri-apps/tauri/commit/9d0ab831fe38566157e3296ac00fa1b6323e44e4) ([#15513](https://www.github.com/tauri-apps/tauri/pull/15513) by [@papercupai](https://www.github.com/tauri-apps/tauri/../../papercupai)) Fix undecorated window resizing on Linux when the webview was moved into another GTK container (e.g. a `GtkPaned`).
+
+### Dependencies
+
+- [`1d7b93fc5`](https://www.github.com/tauri-apps/tauri/commit/1d7b93fc5927c013e20613e45e7b84602efb0ee9) ([#16321](https://www.github.com/tauri-apps/tauri/pull/16321) by [@FalkWoldmann](https://www.github.com/tauri-apps/tauri/../../FalkWoldmann)) Replace `once_cell` with the `std::sync` equivalents, removing it from the direct dependencies.
+
 ## [2.12.2]
 
 ### Dependencies

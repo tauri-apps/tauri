@@ -918,6 +918,9 @@ pub struct NsisConfig {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   /// ### Example
   ///

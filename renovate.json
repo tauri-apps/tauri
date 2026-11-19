@@ -50,6 +50,22 @@
         "@napi-rs/cli"
       ],
       "rangeStrategy": "bump"
+    },
+    {
+      "description": "Group webdriverio packages",
+      "groupName": "WebdriverIO packages",
+      "matchSourceUrls": ["https://github.com/webdriverio/webdriverio"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Group appium packages",
+      "groupName": "appium packages",
+      "matchPackageNames": [
+        "appium",
+        "appium-uiautomator2-driver",
+        "appium-xcuitest-driver"
+      ],
+      "rangeStrategy": "bump"
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

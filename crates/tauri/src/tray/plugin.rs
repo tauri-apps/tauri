@@ -12,7 +12,7 @@ use crate::{
   AppHandle, Manager, Runtime, Webview, command,
   image::JsImage,
   ipc::Channel,
-  menu::{Menu, Submenu, plugin::ItemKind},
+  menu::{Menu, NativeIcon, Submenu, plugin::ItemKind},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
@@ -26,14 +26,17 @@ struct TrayIconOptions {
   id: Option<String>,
   menu: Option<(ResourceId, ItemKind)>,
   icon: Option<JsImage>,
+  native_icon: Option<NativeIcon>,
   tooltip: Option<String>,
   title: Option<String>,
   temp_dir_path: Option<PathBuf>,
+  autosave_name: Option<String>,
   // TODO: Remove in v3
   icon_as_template: Option<bool>,
   icon_is_template: Option<bool>,
   menu_on_left_click: Option<bool>,
   show_menu_on_left_click: Option<bool>,
+  show_menu_on_right_click: Option<bool>,
 }
 
 #[command(root = "crate")]
@@ -76,6 +79,8 @@ fn new<R: Runtime>(
     } else {
       builder.icon(icon)
     };
+  } else if let Some(native_icon) = options.native_icon {
+    builder = builder.native_icon(native_icon);
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -86,12 +91,18 @@ fn new<R: Runtime>(
   if let Some(temp_dir_path) = options.temp_dir_path {
     builder = builder.temp_dir_path(temp_dir_path);
   }
+  if let Some(autosave_name) = options.autosave_name {
+    builder = builder.autosave_name(autosave_name);
+  }
   #[allow(deprecated)]
   if let Some(menu_on_left_click) = options.menu_on_left_click {
     builder = builder.menu_on_left_click(menu_on_left_click);
   }
   if let Some(show_menu_on_left_click) = options.show_menu_on_left_click {
     builder = builder.show_menu_on_left_click(show_menu_on_left_click);
+  }
+  if let Some(show_menu_on_right_click) = options.show_menu_on_right_click {
+    builder = builder.show_menu_on_right_click(show_menu_on_right_click);
   }
 
   let (tray, rid) = builder.build_inner(webview.app_handle())?;
@@ -215,6 +226,35 @@ fn set_icon_templated<R: Runtime>(
   tray.set_icon_templated(icon)
 }
 
+#[command(root = "crate")]
+fn set_native_icon<R: Runtime>(
+  app: AppHandle<R>,
+  rid: ResourceId,
+  icon: Option<NativeIcon>,
+) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_native_icon(icon)
+}
+
+#[command(root = "crate")]
+fn set_show_menu_on_right_click<R: Runtime>(
+  app: AppHandle<R>,
+  rid: ResourceId,
+  on_right: bool,
+) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_show_menu_on_right_click(on_right)
+}
+
+#[command(root = "crate")]
+fn show_menu<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.show_menu()
+}
+
 // TODO: Remove in v3
 #[command(root = "crate")]
 #[allow(deprecated)]
@@ -273,7 +313,10 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_visible,
       set_temp_dir_path,
       set_icon_templated,
+      set_native_icon,
       set_show_menu_on_left_click,
+      set_show_menu_on_right_click,
+      show_menu,
       // TODO: Remove in v3
       set_icon_as_template,
       set_icon_with_as_template,

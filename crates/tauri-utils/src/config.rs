@@ -138,6 +138,8 @@ pub enum BundleType {
   Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The Pacman bundle (PKGBUILD and .tar.gz).
+  Pacman,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -155,6 +157,7 @@ impl BundleType {
       BundleType::Deb,
       BundleType::Rpm,
       BundleType::AppImage,
+      BundleType::Pacman,
       BundleType::Msi,
       BundleType::Nsis,
       BundleType::App,
@@ -172,6 +175,7 @@ impl Display for BundleType {
         Self::Deb => "deb",
         Self::Rpm => "rpm",
         Self::AppImage => "appimage",
+        Self::Pacman => "pacman",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",
@@ -200,6 +204,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "deb" => Ok(Self::Deb),
       "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
+      "pacman" => Ok(Self::Pacman),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
@@ -452,7 +457,12 @@ pub struct DebConfig {
   pub changelog: Option<PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg`, `icon`,
+  /// `name`, `mime_type` (optional) and `long_description`.
+  ///
+  /// `exec_arg` is the `Exec` field code with a leading space: ` %U` when deep link schemes are
+  /// configured, ` %F` when only file associations are, and empty otherwise, so launchers pass the
+  /// opened URLs or files to the app. Use it as `Exec={{exec}}{{exec_arg}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -492,6 +502,105 @@ pub struct LinuxConfig {
   /// Configuration for the RPM bundle.
   #[serde(default)]
   pub rpm: RpmConfig,
+  /// Configuration for the Pacman bundle.
+  #[serde(default)]
+  pub pacman: PacmanConfig,
+}
+
+/// Configuration for Pacman bundles.
+///
+/// See <https://wiki.archlinux.org/title/PKGBUILD>
+///
+/// The package license is `bundle > license` (`unknown` when it is not set),
+/// and `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PacmanConfig {
+  /// The package name.
+  ///
+  /// Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for
+  /// packages that ship prebuilt binaries, for instance `my-app-bin`.
+  /// When the name ends with `-bin`, the package also provides and conflicts with the name
+  /// without the suffix.
+  ///
+  /// See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>
+  pub pkgname: Option<String>,
+  /// The package release number, to be incremented when the package changes but the app
+  /// version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.
+  /// Defaults to `1`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>
+  pub pkgrel: Option<String>,
+  /// Forces the package to be seen as newer than any previous version with a lower epoch,
+  /// used when the versioning scheme changes. Must not be decreased.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>
+  pub epoch: Option<u32>,
+  /// The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top
+  /// of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.
+  /// Defaults to the app authors.
+  pub maintainer: Option<String>,
+  /// List of softwares that must be installed for the app to build and run.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>
+  pub depends: Option<Vec<String>>,
+  /// Optional packages that enable additional features of the app, but are not required to run it.
+  /// Each entry is the package name, optionally followed by `: ` and the reason,
+  /// for instance `libappindicator-gtk3: tray icon support`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#optdepends>
+  pub optdepends: Option<Vec<String>>,
+  /// Additional packages that are provided by this app.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+  pub provides: Option<Vec<String>>,
+  /// Packages that conflict or cause problems with the app.
+  /// All these packages and packages providing this item will need to be removed
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>
+  pub conflicts: Option<Vec<String>>,
+  /// Only use if this app replaces some obsolete packages.
+  /// For example, if you rename any package.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
+  pub replaces: Option<Vec<String>>,
+  /// The files to include on the package.
+  /// Maps the path on the package to the path of the file to include (relative to the current working directory).
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+  /// Path to the install script, a bash script that defines any of the `pre_install`,
+  /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
+  /// pacman runs when the package is installed, upgraded or removed.
+  /// It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#install>
+  pub install: Option<PathBuf>,
+  /// Path to the changelog file, shown by `pacman -Qc`.
+  /// It is written next to the PKGBUILD as `<pkgname>.changelog` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#changelog>
+  pub changelog: Option<PathBuf>,
+  /// Source of the package to be stored at PKGBUILD.
+  /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  ///
+  /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
+  /// first entry to its download URL, for instance
+  /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
+  /// `${pkgver}` has `-` (and any `:`, `/` or whitespace) replaced with `_`, `${_pkgver}` is the app version as is.
+  /// The first entry is saved under the archive name and its checksum is written to
+  /// `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).
+  /// Defaults to the local archive file name.
+  ///
+  /// The sources are architecture specific (`source_<arch>`), so the PKGBUILDs generated
+  /// for each target architecture can be merged into one that supports all of them by
+  /// combining their `arch`, `source_<arch>` and `sha512sums_<arch>` entries.
+  pub source: Option<Vec<String>>,
 }
 
 /// Compression algorithms used when bundling RPM packages.
@@ -598,7 +707,12 @@ pub struct RpmConfig {
   pub files: HashMap<PathBuf, PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg`, `icon`,
+  /// `name`, `mime_type` (optional) and `long_description`.
+  ///
+  /// `exec_arg` is the `Exec` field code with a leading space: ` %U` when deep link schemes are
+  /// configured, ` %F` when only file associations are, and empty otherwise, so launchers pass the
+  /// opened URLs or files to the app. Use it as `Exec={{exec}}{{exec_arg}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -980,6 +1094,41 @@ pub enum NSISInstallerMode {
   Both,
 }
 
+/// The executable target of the NSIS installer, independent of the application target.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum NsisInstallerTarget {
+  /// A 32-bit Unicode installer (default).
+  #[default]
+  #[serde(rename = "x86-unicode")]
+  X86Unicode,
+  /// A 32-bit ANSI installer. Text is limited to the system's ANSI code page.
+  #[serde(rename = "x86-ansi")]
+  X86Ansi,
+  /// A native 64-bit Unicode installer.
+  ///
+  /// Requires a compatible NSIS distribution with amd64 stubs and plugins,
+  /// such as [negrutiu's NSIS distribution](https://github.com/negrutiu/nsis/releases).
+  /// Set `NSIS_PATH` to the directory containing that distribution's `makensis` executable.
+  /// On Windows, use the installation directory containing the top-level `makensis.exe`.
+  /// If unset, Tauri searches `PATH` and downloads NSIS on Windows if it is not found.
+  /// When signing, Tauri locates built-in plugins beside the compiler on Windows,
+  /// under `/usr/share/nsis` on Linux, or under the resolved compiler's `<prefix>/share/nsis` on macOS.
+  #[serde(rename = "amd64-unicode")]
+  Amd64Unicode,
+}
+
+impl NsisInstallerTarget {
+  /// The target name used by NSIS for its stubs and plugin directories.
+  pub fn as_str(self) -> &'static str {
+    match self {
+      Self::X86Unicode => "x86-unicode",
+      Self::X86Ansi => "x86-ansi",
+      Self::Amd64Unicode => "amd64-unicode",
+    }
+  }
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -987,6 +1136,10 @@ pub enum NSISInstallerMode {
 pub struct NsisConfig {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
+  /// The executable target of the installer, independent of the application target.
+  /// Defaults to `x86-unicode`.
+  #[serde(default, alias = "installer-target")]
+  pub installer_target: NsisInstallerTarget,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.
@@ -1724,7 +1877,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "pacman", "nsis", "msi", "app", "dmg"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   #[serde(default)]
@@ -2406,6 +2559,16 @@ pub struct WindowConfig {
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
   #[serde(default, alias = "browser-extensions-enabled")]
   pub browser_extensions_enabled: bool,
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[serde(default = "default_true", alias = "browser-accelerator-keys")]
+  pub browser_accelerator_keys: bool,
 
   /// Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
   ///
@@ -2678,6 +2841,7 @@ impl Default for WindowConfig {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      browser_accelerator_keys: true,
       use_https_scheme: false,
       devtools: None,
       background_color: None,
@@ -3828,10 +3992,30 @@ pub struct TrayIconConfig {
   /// - **Linux**: Unsupported.
   #[serde(default = "default_true", alias = "show-menu-on-left-click")]
   pub show_menu_on_left_click: bool,
+  /// A Boolean value that determines whether the menu should appear when the tray icon receives a right click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  #[serde(default = "default_true", alias = "show-menu-on-right-click")]
+  pub show_menu_on_right_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
   /// Tray icon tooltip on Windows and macOS
   pub tooltip: Option<String>,
+  /// A stable key for the tray icon's saved position in the menu bar. **macOS only**.
+  ///
+  /// macOS restores where the user Cmd+dragged the tray icon on the next launch either way,
+  /// keyed by the order in which the app created its tray icons (`Item-0`, `Item-1`, and so on)
+  /// when no name is given. Set one when that numbering isn't stable from launch to launch,
+  /// as in an app that creates more tray icons at runtime, so that two icons don't come back
+  /// holding each other's positions.
+  ///
+  /// Use one fixed string, typically a reverse-DNS identifier such as `com.example.app.tray`.
+  /// The position is saved under that name, so changing it abandons the position saved under
+  /// the old one.
+  #[serde(alias = "autosave-name")]
+  pub autosave_name: Option<String>,
 }
 
 /// General configuration for the iOS target.
@@ -4664,6 +4848,7 @@ mod build {
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let browser_extensions_enabled = self.browser_extensions_enabled;
+      let browser_accelerator_keys = self.browser_accelerator_keys;
       let use_https_scheme = self.use_https_scheme;
       let devtools = opt_lit(self.devtools.as_ref());
       let background_color = opt_lit(self.background_color.as_ref());
@@ -4734,6 +4919,7 @@ mod build {
         parent,
         zoom_hotkeys_enabled,
         browser_extensions_enabled,
+        browser_accelerator_keys,
         use_https_scheme,
         devtools,
         background_color,
@@ -5125,9 +5311,11 @@ mod build {
       #[allow(deprecated)]
       let menu_on_left_click = self.menu_on_left_click;
       let show_menu_on_left_click = self.show_menu_on_left_click;
+      let show_menu_on_right_click = self.show_menu_on_right_click;
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
       let tooltip = opt_str_lit(self.tooltip.as_ref());
+      let autosave_name = opt_str_lit(self.autosave_name.as_ref());
       literal_struct!(
         tokens,
         ::tauri::utils::config::TrayIconConfig,
@@ -5137,8 +5325,10 @@ mod build {
         icon_is_template,
         menu_on_left_click,
         show_menu_on_left_click,
+        show_menu_on_right_click,
         title,
-        tooltip
+        tooltip,
+        autosave_name
       );
     }
   }

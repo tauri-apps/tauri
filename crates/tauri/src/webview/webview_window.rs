@@ -1179,6 +1179,20 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn browser_accelerator_keys(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.browser_accelerator_keys(enabled);
+    self
+  }
+
   /// Set the path from which to load extensions from. Extensions stored in this path should be unpacked Chrome extensions on Windows, and compiled `.so` extensions on Linux.
   ///
   /// ## Platform-specific:

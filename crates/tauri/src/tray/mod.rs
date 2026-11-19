@@ -9,6 +9,7 @@ pub(crate) mod plugin;
 use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
+use crate::menu::NativeIcon;
 use crate::resources::Resource;
 use crate::{
   AppHandle, Manager, PhysicalPosition, Rect, Runtime, image::Image, menu::run_item_main_thread,
@@ -280,6 +281,17 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
+  /// Set a platform-native icon for this tray icon.
+  ///
+  /// Note that this overrides any icon set with [`TrayIconBuilder::icon`] or
+  /// [`TrayIconBuilder::icon_templated`].
+  ///
+  /// See [`TrayIcon::set_native_icon`] for the platform-specific behavior.
+  pub fn native_icon(mut self, icon: NativeIcon) -> Self {
+    self.inner = self.inner.with_native_icon(icon.into());
+    self
+  }
+
   /// Set a tooltip for this tray icon.
   ///
   /// ## Platform-specific:
@@ -311,6 +323,22 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
   pub fn temp_dir_path<P: AsRef<Path>>(mut self, s: P) -> Self {
     self.inner = self.inner.with_temp_dir_path(s);
+    self
+  }
+
+  /// Set a stable key for this tray icon's saved position in the menu bar. **macOS only**.
+  ///
+  /// macOS restores where the user <kbd>Cmd</kbd>+dragged a tray icon on the next launch
+  /// either way, keyed by the order in which the app created its tray icons (`Item-0`,
+  /// `Item-1`, and so on) when no name is given. Set one when that numbering isn't stable
+  /// from launch to launch, as in an app that creates several tray icons or creates one
+  /// conditionally, so that two icons don't come back holding each other's positions.
+  ///
+  /// Use one fixed string per tray icon, typically a reverse-DNS identifier such as
+  /// `"com.example.app.tray"`. The position is saved under that name, so changing it
+  /// abandons the position saved under the old one.
+  pub fn autosave_name<S: AsRef<str>>(mut self, name: S) -> Self {
+    self.inner = self.inner.with_autosave_name(name);
     self
   }
 
@@ -349,6 +377,16 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// - **Linux:** Unsupported.
   pub fn show_menu_on_left_click(mut self, enable: bool) -> Self {
     self.inner = self.inner.with_menu_on_left_click(enable);
+    self
+  }
+
+  /// Whether to show the tray menu on right click or not, default is `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported.
+  pub fn show_menu_on_right_click(mut self, enable: bool) -> Self {
+    self.inner = self.inner.with_menu_on_right_click(enable);
     self
   }
 
@@ -638,7 +676,8 @@ impl<R: Runtime> TrayIcon<R> {
 
   /// Whether the current tray icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
   ///
-  /// See [`TrayIcon::set_icon_templated`].
+  /// See [`TrayIcon::set_icon_templated`]. An icon set with [`TrayIcon::set_native_icon`] reports
+  /// `false`, as the system flags those itself.
   ///
   /// ## Platform-specific:
   ///
@@ -648,6 +687,23 @@ impl<R: Runtime> TrayIcon<R> {
     return run_item_main_thread!(self, |self_: Self| self_.inner.icon_is_template());
     #[allow(unreachable_code)]
     Ok(false)
+  }
+
+  /// Sets a new tray icon from a platform-native icon. If `None` is provided, it will remove the icon.
+  ///
+  /// Note that this overrides any icon set with [`TrayIcon::set_icon`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Known variants map to freedesktop icon names, so the icon is resolved by the
+  ///   desktop icon theme and follows its light and dark variants.
+  /// - **macOS:** Known variants map to AppKit image names.
+  /// - **Windows:** Known variants map to stock shell icons where an equivalent exists, and an
+  ///   error is returned otherwise.
+  pub fn set_native_icon(&self, icon: Option<NativeIcon>) -> crate::Result<()> {
+    let icon = icon.map(Into::into);
+    run_item_main_thread!(self, |self_: Self| self_.inner.set_native_icon(icon))?
+      .map_err(Into::into)
   }
 
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
@@ -702,6 +758,32 @@ impl<R: Runtime> TrayIcon<R> {
       self_.inner.set_show_menu_on_left_click(enable)
     })?;
     Ok(())
+  }
+
+  /// Disable or enable showing the tray menu on right click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  pub fn set_show_menu_on_right_click(&self, #[allow(unused)] enable: bool) -> crate::Result<()> {
+    #[cfg(any(target_os = "macos", windows))]
+    run_item_main_thread!(self, |self_: Self| {
+      self_.inner.set_show_menu_on_right_click(enable)
+    })?;
+    Ok(())
+  }
+
+  /// Show the tray menu at the current cursor position.
+  ///
+  /// Useful with [`TrayIconBuilder::show_menu_on_left_click`] and
+  /// [`TrayIconBuilder::show_menu_on_right_click`] disabled, to control when the menu shows up,
+  /// for instance after updating its items.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  pub fn show_menu(&self) -> crate::Result<()> {
+    run_item_main_thread!(self, |self_: Self| self_.inner.show_menu())
   }
 
   /// Get tray icon rect.

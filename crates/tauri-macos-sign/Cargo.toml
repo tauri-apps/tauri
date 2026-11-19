@@ -29,11 +29,9 @@ base64 = "0.23"
 
 # apple-codesign
 rsa = "0.10"
-rand08 = { package = "rand", version = "0.8" }
 hex = "0.4"
 bcder = "0.7"
 bytes = "1"
-pkcs8 = { version = "0.10.2", features = ["alloc", "std"] }
 
 [lints]
 workspace = true

@@ -3522,7 +3522,10 @@ impl<T: UserEvent> CefRuntime<T> {
     {
       // Chromium's process singleton handed this launch to the instance already running
       // on this root cache path, and CEF asks it to exit.
-      if cef::get_exit_code() == Resultcode::NORMAL_EXIT_PROCESS_NOTIFIED.get_raw() {
+      if cef::get_exit_code()
+        == sys::cef_resultcode_t::CEF_RESULT_CODE_NORMAL_EXIT_PROCESS_NOTIFIED
+          as std::os::raw::c_int
+      {
         std::process::exit(0);
       }
       return Err(Error::WebviewRuntimeNotInstalled);

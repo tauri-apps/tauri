@@ -36,3 +36,7 @@ audit:
     - GHSA-gcqx-w48m-w2h4
     # picomatch ReDoS, pulled in by vite, doesn't affect us since only used in dev server, no fix available yet
     - GHSA-fc5q-39xc-vjpf
+
+minimumReleaseAgeExclude:
+  - appium-uiautomator2-driver@9.2.2
+  - appium-xcuitest-driver@13.1.3

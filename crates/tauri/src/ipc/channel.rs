@@ -191,13 +191,27 @@ pub struct Channel<TSend = InvokeResponseBody> {
 }
 
 #[cfg(feature = "specta")]
-impl<TSend: specta::Type> specta::Type for Channel<TSend> {
-  fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
-    // The message datatype is the opaque state so binding generators can
-    // downcast it without depending on a Tauri-only metadata type.
-    specta::datatype::Reference::opaque(TSend::definition(types)).into()
+const _: () = {
+  /// Sealed identity for the opaque channel body.
+  #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+  struct ChannelOpaque;
+
+  const CHANNEL_OPAQUE: ChannelOpaque = ChannelOpaque;
+
+  struct ChannelMarker<TSend>(std::marker::PhantomData<TSend>);
+
+  impl<TSend> specta::Type for ChannelMarker<TSend> {
+    fn definition(_types: &mut specta::Types) -> specta::datatype::DataType {
+      specta::datatype::Reference::opaque(CHANNEL_OPAQUE).into()
+    }
   }
-}
+
+  #[derive(specta::Type)]
+  #[specta(remote = super::Channel)]
+  #[specta(type = ChannelMarker<TSend>)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_CHANNEL<TSend>(std::marker::PhantomData<TSend>);
+};
 
 impl<TSend> Clone for Channel<TSend> {
   fn clone(&self) -> Self {

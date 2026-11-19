@@ -2,4 +2,4 @@
 "tauri": "major:breaking"
 ---
 
-Represent `ipc::Channel<T>` as an opaque Specta reference whose state is `T`'s datatype instead of the synthetic `TAURI_CHANNEL` named type. Binding generators must downcast the opaque reference to `specta::datatype::DataType` and render the channel from it.
+Represent the synthetic `TAURI_CHANNEL` Specta type with a sealed, opaque body instead of a struct. The named type still carries `T` as a generic so binding generators can render `Channel<T>`, but the body can no longer be constructed outside Tauri.

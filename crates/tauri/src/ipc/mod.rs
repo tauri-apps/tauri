@@ -35,9 +35,6 @@ pub use authority::{
 };
 #[cfg(feature = "dynamic-acl")]
 pub use capability_builder::{CapabilityBuilder, RuntimeCapability};
-#[cfg(feature = "specta")]
-#[cfg_attr(docsrs, doc(cfg(feature = "specta")))]
-pub use channel::ChannelType;
 pub use channel::{Channel, JavaScriptChannelId};
 pub use command::{CommandArg, CommandItem, private};
 

@@ -190,25 +190,12 @@ pub struct Channel<TSend = InvokeResponseBody> {
   phantom: std::marker::PhantomData<TSend>,
 }
 
-/// Opaque Specta metadata for a [`Channel`].
-///
-/// Binding generators can downcast an opaque reference to this type to access the message datatype.
-#[cfg(feature = "specta")]
-#[cfg_attr(docsrs, doc(cfg(feature = "specta")))]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub struct ChannelType {
-  /// The datatype sent from Rust to the frontend by this channel.
-  pub message: specta::datatype::DataType,
-}
-
 #[cfg(feature = "specta")]
 impl<TSend: specta::Type> specta::Type for Channel<TSend> {
   fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
-    specta::datatype::Reference::opaque(ChannelType {
-      message: TSend::definition(types),
-    })
-    .into()
+    // The message datatype is the opaque state so binding generators can
+    // downcast it without depending on a Tauri-only metadata type.
+    specta::datatype::Reference::opaque(TSend::definition(types)).into()
   }
 }
 
@@ -547,8 +534,10 @@ mod tests {
     else {
       panic!("expected an opaque channel reference");
     };
-    let channel = reference.downcast_ref::<ChannelType>().unwrap();
-    assert_eq!(channel.message, Message::definition(&mut types));
+    assert_eq!(
+      reference.downcast_ref::<DataType>(),
+      Some(&Message::definition(&mut types))
+    );
     assert_eq!(types.len(), 1, "only the message type should be registered");
     assert_ne!(
       Channel::<String>::definition(&mut types),

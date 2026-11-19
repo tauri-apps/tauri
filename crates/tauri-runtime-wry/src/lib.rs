@@ -4466,6 +4466,31 @@ fn parse_proxy_url(url: &Url) -> Result<ProxyConfig> {
   }
 }
 
+/// wry passes the proxy to WebView2 as a `--proxy-server` browser argument,
+/// but additional browser arguments replace every argument wry would set,
+/// so add it back unless the arguments already set a proxy server.
+#[cfg(windows)]
+fn add_proxy_server_arg(additional_browser_args: &mut String, proxy: &ProxyConfig) {
+  if additional_browser_args
+    .split_whitespace()
+    .any(|arg| arg.starts_with("--proxy-server="))
+  {
+    return;
+  }
+
+  let (scheme, endpoint) = match proxy {
+    ProxyConfig::Http(endpoint) => ("http", endpoint),
+    ProxyConfig::Socks5(endpoint) => ("socks5", endpoint),
+  };
+  if !additional_browser_args.is_empty() {
+    additional_browser_args.push(' ');
+  }
+  additional_browser_args.push_str(&format!(
+    "--proxy-server={scheme}://{}:{}",
+    endpoint.host, endpoint.port
+  ));
+}
+
 fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   window_id: WindowId,
   webview_id: u32,
@@ -5040,15 +5065,18 @@ You may have it installed on another user account, but it is not available for t
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
 
-  if let Some(proxy_url) = webview_attributes.proxy_url {
-    let config = parse_proxy_url(&proxy_url)?;
+  if let Some(proxy_url) = &webview_attributes.proxy_url {
+    let config = parse_proxy_url(proxy_url)?;
 
     webview_builder = webview_builder.with_proxy_config(config);
   }
 
   #[cfg(windows)]
   {
-    if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
+    if let Some(mut additional_browser_args) = webview_attributes.additional_browser_args {
+      if let Some(proxy_url) = &webview_attributes.proxy_url {
+        add_proxy_server_arg(&mut additional_browser_args, &parse_proxy_url(proxy_url)?);
+      }
       webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
     }
 
@@ -5496,6 +5524,46 @@ fn add_focus_change_listeners<T: UserEvent>(
   } {
     log::error!(
       "Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}"
+    );
+  }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+  use super::*;
+
+  fn proxy(url: &str) -> ProxyConfig {
+    parse_proxy_url(&url.parse().unwrap()).unwrap()
+  }
+
+  #[test]
+  fn proxy_url_is_kept_with_additional_browser_args() {
+    let mut args = String::from("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection");
+    add_proxy_server_arg(&mut args, &proxy("http://127.0.0.1:5380"));
+    assert_eq!(
+      args,
+      "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --proxy-server=http://127.0.0.1:5380"
+    );
+
+    let mut args = String::from("--allow-file-access-from-files");
+    add_proxy_server_arg(&mut args, &proxy("socks5://localhost:1080"));
+    assert_eq!(
+      args,
+      "--allow-file-access-from-files --proxy-server=socks5://localhost:1080"
+    );
+
+    let mut args = String::new();
+    add_proxy_server_arg(&mut args, &proxy("http://127.0.0.1:5380"));
+    assert_eq!(args, "--proxy-server=http://127.0.0.1:5380");
+  }
+
+  #[test]
+  fn proxy_server_in_additional_browser_args_wins() {
+    let mut args = String::from("--proxy-server=http://10.0.0.1:8080 --disable-web-security");
+    add_proxy_server_arg(&mut args, &proxy("http://127.0.0.1:5380"));
+    assert_eq!(
+      args,
+      "--proxy-server=http://10.0.0.1:8080 --disable-web-security"
     );
   }
 }

@@ -28,7 +28,7 @@ p12 = "0.6"
 base64 = "0.23"
 
 # apple-codesign
-rsa = "0.9"
+rsa = "0.10"
 rand08 = { package = "rand", version = "0.8" }
 hex = "0.4"
 bcder = "0.7"

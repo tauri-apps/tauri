@@ -1255,13 +1255,13 @@
               ]
             },
             "urls": {
-              "description": "Only allow URLs matching the given pattern list when set.\n\n Each entry is a [URLPattern] string such as `\"https://*.tauri.app/*\"`.\n A pattern without a path, search or hash such as `\"https://tauri.app\"` matches any of them.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
+              "description": "Only allow URLs matching the given pattern list when set.\n\n Each entry is a glob pattern such as `\"https://*.tauri.app/**\"`, where `*` does not match `/`\n and `**` matches any number of path segments.\n A pattern without a path such as `\"https://tauri.app\"` matches any path on that origin.\n\n The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.\n See [`UrlScope`] for details.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
               "type": [
                 "array",
                 "null"
               ],
               "items": {
-                "$ref": "#/definitions/UrlPattern"
+                "$ref": "#/definitions/UrlScope"
               }
             }
           },
@@ -1281,13 +1281,13 @@
               ]
             },
             "urls": {
-              "description": "Only allow URLs matching the given pattern list when set.\n\n Each entry is a [URLPattern] string such as `\"https://*.tauri.app/*\"`.\n A pattern without a path, search or hash such as `\"https://tauri.app\"` matches any of them.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
+              "description": "Only allow URLs matching the given pattern list when set.\n\n Each entry is a glob pattern such as `\"https://*.tauri.app/**\"`, where `*` does not match `/`\n and `**` matches any number of path segments.\n A pattern without a path such as `\"https://tauri.app\"` matches any path on that origin.\n\n The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.\n See [`UrlScope`] for details.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
               "type": [
                 "array",
                 "null"
               ],
               "items": {
-                "$ref": "#/definitions/UrlPattern"
+                "$ref": "#/definitions/UrlScope"
               }
             }
           },
@@ -1311,7 +1311,7 @@
         }
       ]
     },
-    "UrlPattern": {
+    "UrlScope": {
       "type": "string"
     },
     "SecurityConfig": {

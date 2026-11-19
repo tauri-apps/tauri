@@ -305,8 +305,8 @@ importers:
         specifier: ^8.7.0
         version: 8.7.0(@types/node@26.6.6)(appium@3.7.0(@types/node@26.6.6)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       appium-xcuitest-driver:
-        specifier: ^12.12.4
-        version: 12.12.4(@types/node@26.6.6)(appium@3.7.0(@types/node@26.6.6)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
+        specifier: ^13.0.0
+        version: 13.1.1(@types/node@26.6.6)(appium@3.7.0(@types/node@26.6.6)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -2390,21 +2390,19 @@ packages:
       - portscanner
       - teen_process
 
-  appium-xcuitest-driver@12.12.4:
-    resolution: {integrity: sha512-pI98iJSAGXrUUpuv2CjanfGoYJHfu84trTqBLAnZ3fkCjfTQIlfeH8LndCeJkanJPz8dRxesbfc3yG7ztf++Wg==}
-    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0, npm: '>=10'}
+  appium-xcuitest-driver@13.1.1:
+    resolution: {integrity: sha512-7hS4K0p6t40Vy1H0wYK2994R/UuEmBhIhB1qD66tipR/ppBv5Irknynof7Cq01vLM2gTacxDU8I7oMUQMUdMeQ==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
     peerDependencies:
-      appium: ^3.0.0-rc.2
+      appium: ^4.0.0-beta.8
     bundledDependencies:
       - '@appium/css-locator-to-native'
       - '@appium/strongbox'
-      - '@colors/colors'
-      - appium-ios-device
+      - appium-ios-remotexpc
       - appium-ios-simulator
       - appium-remote-debugger
       - appium-webdriveragent
       - appium-xcode
-      - async-lock
       - asyncbox
       - axios
       - commander
@@ -2412,13 +2410,11 @@ packages:
       - js2xmlparser2
       - lru-cache
       - node-devicectl
-      - node-simctl
       - portscanner
       - semver
       - teen_process
       - winston
       - ws
-      - appium-ios-remotexpc
 
   appium@3.7.0:
     resolution: {integrity: sha512-2AWajtPbjYGTJmVqpavGctO7zK9M7Q74L3vK9lFKPs6qr3N3/xy3STHnkXJk/wgaZ+BDgeKD68zQQ5sAP6A/cA==}
@@ -6705,7 +6701,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  appium-xcuitest-driver@12.12.4(@types/node@26.6.6)(appium@3.7.0(@types/node@26.6.6)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
+  appium-xcuitest-driver@13.1.1(@types/node@26.6.6)(appium@3.7.0(@types/node@26.6.6)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
     dependencies:
       appium: 3.7.0(@types/node@26.6.6)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
     optionalDependencies:

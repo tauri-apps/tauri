@@ -25,7 +25,7 @@
     "@wdio/spec-reporter": "^10.2.0",
     "appium": "^3.7.0",
     "appium-uiautomator2-driver": "^8.7.0",
-    "appium-xcuitest-driver": "^12.12.4",
+    "appium-xcuitest-driver": "^13.0.0",
     "cross-env": "^10.1.0",
     "exit-hook": "^5.1.0",
     "typescript": "^6.0.3",

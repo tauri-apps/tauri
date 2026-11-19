@@ -24,7 +24,7 @@
     "@wdio/mocha-framework": "^10.2.0",
     "@wdio/spec-reporter": "^10.2.0",
     "appium": "^3.7.0",
-    "appium-uiautomator2-driver": "^8.7.0",
+    "appium-uiautomator2-driver": "^9.0.0",
     "appium-xcuitest-driver": "^12.12.4",
     "cross-env": "^10.1.0",
     "exit-hook": "^5.1.0",

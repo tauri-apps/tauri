@@ -65,7 +65,9 @@ wrap_browser_process_handler! {
           return 1;
         }
       }
-      // TODO: add event
+      if let Some(handler) = &self.context.relaunch_handler {
+        handler();
+      }
       1
     }
   }

@@ -499,6 +499,7 @@ pub struct Cef {
   downgrade: DowngradePolicy,
   settings_callback: Option<Box<SettingsCallback>>,
   window_event_handler: Option<Arc<NativeWindowEventHandler>>,
+  relaunch_handler: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl fmt::Debug for Cef {
@@ -538,6 +539,7 @@ impl fmt::Debug for Cef {
       .field("downgrade", &self.downgrade)
       .field("settings_callback", &self.settings_callback.is_some())
       .field("window_event_handler", &self.window_event_handler.is_some())
+      .field("relaunch_handler", &self.relaunch_handler.is_some())
       .finish()
   }
 }
@@ -558,6 +560,18 @@ impl Cef {
       + 'static,
   {
     self.window_event_handler = Some(Arc::new(handler));
+    self
+  }
+
+  /// Called on the main thread when the application is launched again with the same root
+  /// cache path, which Chromium's process singleton ends. A deep link launch arrives as
+  /// [`RunEvent::Opened`] instead.
+  #[must_use]
+  pub fn on_relaunch<F>(mut self, handler: F) -> Self
+  where
+    F: Fn() + Send + Sync + 'static,
+  {
+    self.relaunch_handler = Some(Arc::new(handler));
     self
   }
 
@@ -1253,6 +1267,7 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   /// the per-webview `WebviewAttributes::devtools`, which can only narrow it further.
   pub(crate) devtools_allowed: bool,
   window_event_handler: Option<Arc<NativeWindowEventHandler>>,
+  pub(crate) relaunch_handler: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 /// Scoped access to the current winit callback state.
@@ -3117,6 +3132,7 @@ impl<T: UserEvent> CefRuntime<T> {
       downgrade: downgrade_policy,
       settings_callback,
       window_event_handler,
+      relaunch_handler,
       // Already applied, above, before the first CEF call.
       api_version: _,
     } = runtime_args.runtime_init_attrs;
@@ -3366,6 +3382,7 @@ impl<T: UserEvent> CefRuntime<T> {
     };
     let context = RuntimeContext {
       window_event_handler,
+      relaunch_handler,
       sender: sender.clone(),
       #[cfg(not(target_os = "macos"))]
       proxy,
@@ -3503,6 +3520,11 @@ impl<T: UserEvent> CefRuntime<T> {
       std::ptr::null_mut(),
     ) != 1
     {
+      // Chromium's process singleton handed this launch to the instance already running
+      // on this root cache path, and CEF asks it to exit.
+      if cef::get_exit_code() == Resultcode::NORMAL_EXIT_PROCESS_NOTIFIED.get_raw() {
+        std::process::exit(0);
+      }
       return Err(Error::WebviewRuntimeNotInstalled);
     }
 

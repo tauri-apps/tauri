@@ -65,6 +65,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: {{apple.bundle-version-short}}
         CFBundleVersion: "{{apple.bundle-version}}"
+        UIApplicationSupportsMultipleScenes: true
+        UISceneConfigurations: {}
         {{~#each apple.plist-pairs}}
         {{this.key}}: {{this.value}}{{/each}}
     entitlements:

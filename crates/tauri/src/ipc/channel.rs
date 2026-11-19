@@ -190,13 +190,27 @@ pub struct Channel<TSend = InvokeResponseBody> {
   phantom: std::marker::PhantomData<TSend>,
 }
 
+/// Opaque Specta metadata for a [`Channel`].
+///
+/// Binding generators can downcast an opaque reference to this type to access the message datatype.
 #[cfg(feature = "specta")]
-const _: () = {
-  #[derive(specta::Type)]
-  #[specta(remote = super::Channel)]
-  #[allow(dead_code, non_camel_case_types)]
-  struct TAURI_CHANNEL<TSend>(std::marker::PhantomData<TSend>);
-};
+#[cfg_attr(docsrs, doc(cfg(feature = "specta")))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct ChannelType {
+  /// The datatype sent from Rust to the frontend by this channel.
+  pub message: specta::datatype::DataType,
+}
+
+#[cfg(feature = "specta")]
+impl<TSend: specta::Type> specta::Type for Channel<TSend> {
+  fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
+    specta::datatype::Reference::opaque(ChannelType {
+      message: TSend::definition(types),
+    })
+    .into()
+  }
+}
 
 impl<TSend> Clone for Channel<TSend> {
   fn clone(&self) -> Self {
@@ -515,6 +529,36 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[cfg(feature = "specta")]
+  #[test]
+  fn specta_channel_is_opaque_and_preserves_message_type() {
+    use specta::{
+      Type, Types,
+      datatype::{DataType, Reference},
+    };
+
+    #[derive(specta::Type)]
+    struct Message;
+
+    let mut types = Types::default();
+    let DataType::Reference(Reference::Opaque(reference)) =
+      Channel::<Message>::definition(&mut types)
+    else {
+      panic!("expected an opaque channel reference");
+    };
+    let channel = reference.downcast_ref::<ChannelType>().unwrap();
+    assert_eq!(channel.message, Message::definition(&mut types));
+    assert_eq!(types.len(), 1, "only the message type should be registered");
+    assert_ne!(
+      Channel::<String>::definition(&mut types),
+      Channel::<u32>::definition(&mut types)
+    );
+    assert_eq!(
+      Channel::<String>::definition(&mut types),
+      Channel::<String>::definition(&mut types)
+    );
+  }
 
   fn json_body(s: &str) -> InvokeResponseBody {
     InvokeResponseBody::Json(s.to_string())

@@ -41,7 +41,7 @@ Function un.ConfirmShow ; Add a `Delete app data` check box
   ${ScaleToDpi} 400 $ConfirmPageDpi $CheckboxWidth
   ${ScaleToDpi} 25 $ConfirmPageDpi $CheckboxHeight
 
-  System::Call 'user32::CreateWindowEx(i $CheckboxExStyle, w "${__NSD_CheckBox_CLASS}", w "$(deleteAppData)", i ${__NSD_CheckBox_STYLE}, i $CheckboxX, i $CheckboxY, i $CheckboxWidth, i $CheckboxHeight, p $ConfirmPageDialog, i0, i0, i0) i .s'
+  System::Call 'user32::CreateWindowExW(i $CheckboxExStyle, w "${__NSD_CheckBox_CLASS}", w "$(deleteAppData)", i ${__NSD_CheckBox_STYLE}, i $CheckboxX, i $CheckboxY, i $CheckboxWidth, i $CheckboxHeight, p $ConfirmPageDialog, p0, p0, p0) p .s'
   Pop $DeleteAppDataCheckbox
 
   SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $ConfirmPageFont

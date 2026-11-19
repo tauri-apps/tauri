@@ -1,4 +1,5 @@
-Unicode true
+Target {{installer_target}}
+Unicode {{unicode}}
 ManifestDPIAware true
 ; Add in `dpiAwareness` `PerMonitorV2` to manifest for Windows 10 1607+ (note this should not affect lower versions since they should be able to ignore this and pick up `dpiAware` `true` set by `ManifestDPIAware true`)
 ; Currently undocumented on NSIS's website but is in the Docs folder of source tree, see
@@ -172,7 +173,7 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_KEY "${UNINSTKEY}"
   !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "CurrentUser"
   !define MULTIUSER_INSTALLMODEPAGE_SHOWUSERNAME
-  !define MULTIUSER_INSTALLMODE_FUNCTION RestorePreviousInstallLocation
+  !define MULTIUSER_INSTALLMODE_FUNCTION SetMultiUserInstallLocation
   !define MULTIUSER_EXECUTIONLEVEL Highest
   !include MultiUser.nsh
 !endif
@@ -341,7 +342,7 @@ Function .onInit
         !else if "${ARCH}" == "arm64"
           StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
         !else
-          StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+          StrCpy $INSTDIR "$PROGRAMFILES32\${PRODUCTNAME}"
         !endif
       ${Else}
         StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
@@ -671,6 +672,20 @@ Section Uninstall
     SetAutoClose true
   ${EndIf}
 SectionEnd
+
+!if "${INSTALLMODE}" == "both"
+Function SetMultiUserInstallLocation
+  ; MultiUser defaults to the installer's Program Files folder. Use the app's
+  ; architecture when a native x64 installer contains a 32-bit application.
+  !if "${ARCH}" == "x86"
+    ${If} $MultiUser.InstallMode == "AllUsers"
+      StrCpy $INSTDIR "$PROGRAMFILES32\${PRODUCTNAME}"
+    ${EndIf}
+  !endif
+
+  Call RestorePreviousInstallLocation
+FunctionEnd
+!endif
 
 Function RestorePreviousInstallLocation
   ; Install dir passed with `/D=` takes precedence

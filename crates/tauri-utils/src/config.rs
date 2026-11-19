@@ -1082,6 +1082,41 @@ pub enum NSISInstallerMode {
   Both,
 }
 
+/// The executable target of the NSIS installer, independent of the application target.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum NsisInstallerTarget {
+  /// A 32-bit Unicode installer (default).
+  #[default]
+  #[serde(rename = "x86-unicode")]
+  X86Unicode,
+  /// A 32-bit ANSI installer. Text is limited to the system's ANSI code page.
+  #[serde(rename = "x86-ansi")]
+  X86Ansi,
+  /// A native 64-bit Unicode installer.
+  ///
+  /// Requires a compatible NSIS distribution with amd64 stubs and plugins,
+  /// such as [negrutiu's NSIS distribution](https://github.com/negrutiu/nsis/releases).
+  /// Set `NSIS_PATH` to the directory containing that distribution's `makensis` executable.
+  /// On Windows, use the installation directory containing the top-level `makensis.exe`.
+  /// If unset, Tauri searches `PATH` and downloads NSIS on Windows if it is not found.
+  /// When signing, Tauri locates built-in plugins beside the compiler on Windows,
+  /// under `/usr/share/nsis` on Linux, or under the resolved compiler's `<prefix>/share/nsis` on macOS.
+  #[serde(rename = "amd64-unicode")]
+  Amd64Unicode,
+}
+
+impl NsisInstallerTarget {
+  /// The target name used by NSIS for its stubs and plugin directories.
+  pub fn as_str(self) -> &'static str {
+    match self {
+      Self::X86Unicode => "x86-unicode",
+      Self::X86Ansi => "x86-ansi",
+      Self::Amd64Unicode => "amd64-unicode",
+    }
+  }
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1089,6 +1124,10 @@ pub enum NSISInstallerMode {
 pub struct NsisConfig {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
+  /// The executable target of the installer, independent of the application target.
+  /// Defaults to `x86-unicode`.
+  #[serde(default, alias = "installer-target")]
+  pub installer_target: NsisInstallerTarget,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.

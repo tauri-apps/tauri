@@ -27,7 +27,7 @@ dom_query = { version = "0.29", optional = true, default-features = false }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
 # Our code requires at least 0.8.22 so don't change this to 0.8
-schemars = { version = "0.8.22", features = ["url", "uuid1"], optional = true }
+schemars = { version = "0.9.0", features = ["url", "uuid1"], optional = true }
 serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }

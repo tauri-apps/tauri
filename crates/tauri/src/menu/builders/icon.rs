@@ -81,6 +81,8 @@ impl<'a> IconMenuItemBuilder<'a> {
   ///
   /// **Note:** This method conflicts with [`Self::icon`]
   /// so calling one of them, will reset the other.
+  ///
+  /// See [`IconMenuItem::set_native_icon`] for the platform-specific behavior.
   pub fn native_icon(mut self, icon: NativeIcon) -> Self {
     self.native_icon.replace(icon);
     self.icon = None;

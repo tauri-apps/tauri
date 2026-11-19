@@ -28,7 +28,7 @@ overrides:
   morgan@<1.12.0: ^1.12.0
   sharp@<0.35.5: ^0.35.5
   shell-quote@>=1.8.4 <1.11.0: ^1.11.0
-  undici@>=7.0.0 <7.30.1: ^7.30.1
+  undici@>=7.0.0 <7.30.1: ^8.0.0
 
 audit:
   ignore:

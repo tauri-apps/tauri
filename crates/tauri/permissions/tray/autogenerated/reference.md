@@ -16,6 +16,8 @@ Default permissions for the plugin, which enables all commands.
 - `allow-set-icon-templated`
 - `allow-set-native-icon`
 - `allow-set-show-menu-on-left-click`
+- `allow-set-show-menu-on-right-click`
+- `allow-show-menu`
 - `allow-set-icon-as-template`
 - `allow-set-icon-with-as-template`
 
@@ -291,6 +293,32 @@ Denies the set_show_menu_on_left_click command without any pre-configured scope.
 <tr>
 <td>
 
+`core:tray:allow-set-show-menu-on-right-click`
+
+</td>
+<td>
+
+Enables the set_show_menu_on_right_click command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:tray:deny-set-show-menu-on-right-click`
+
+</td>
+<td>
+
+Denies the set_show_menu_on_right_click command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:tray:allow-set-temp-dir-path`
 
 </td>
@@ -388,6 +416,32 @@ Enables the set_visible command without any pre-configured scope.
 <td>
 
 Denies the set_visible command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:tray:allow-show-menu`
+
+</td>
+<td>
+
+Enables the show_menu command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:tray:deny-show-menu`
+
+</td>
+<td>
+
+Denies the show_menu command without any pre-configured scope.
 
 </td>
 </tr>

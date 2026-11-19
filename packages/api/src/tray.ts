@@ -179,6 +179,16 @@ export interface TrayIconOptions {
    * @since 2.2.0
    */
   showMenuOnLeftClick?: boolean
+  /**
+   * Whether to show the tray menu on right click or not, default is `true`.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @since 2.13.0
+   */
+  showMenuOnRightClick?: boolean
   /** A handler for an event on the tray icon. */
   action?: (event: TrayIconEvent) => void
 }
@@ -583,6 +593,51 @@ export class TrayIcon extends Resource {
     return invoke('plugin:tray|set_show_menu_on_left_click', {
       rid: this.rid,
       onLeft
+    })
+  }
+
+  /**
+   *  Disable or enable showing the tray menu on right click.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @example
+   * ```typescript
+   * await tray.setShowMenuOnRightClick(false);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  async setShowMenuOnRightClick(onRight: boolean): Promise<void> {
+    return invoke('plugin:tray|set_show_menu_on_right_click', {
+      rid: this.rid,
+      onRight
+    })
+  }
+
+  /**
+   * Show the tray menu at the current cursor position.
+   *
+   * Useful with {@linkcode TrayIconOptions.showMenuOnLeftClick} and
+   * {@linkcode TrayIconOptions.showMenuOnRightClick} disabled, to control when
+   * the menu shows up, for instance after updating its items.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @example
+   * ```typescript
+   * await tray.showMenu();
+   * ```
+   *
+   * @since 2.13.0
+   */
+  async showMenu(): Promise<void> {
+    return invoke('plugin:tray|show_menu', {
+      rid: this.rid
     })
   }
 }

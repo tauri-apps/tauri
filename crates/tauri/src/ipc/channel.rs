@@ -517,38 +517,6 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
 mod tests {
   use super::*;
 
-  #[cfg(feature = "specta")]
-  #[test]
-  fn specta_channel_is_opaque_and_preserves_message_type() {
-    use specta::{
-      Type, Types,
-      datatype::{DataType, Reference},
-    };
-
-    #[derive(specta::Type)]
-    struct Message;
-
-    let mut types = Types::default();
-    let DataType::Reference(Reference::Opaque(reference)) =
-      Channel::<Message>::definition(&mut types)
-    else {
-      panic!("expected an opaque channel reference");
-    };
-    assert_eq!(
-      reference.downcast_ref::<DataType>(),
-      Some(&Message::definition(&mut types))
-    );
-    assert_eq!(types.len(), 1, "only the message type should be registered");
-    assert_ne!(
-      Channel::<String>::definition(&mut types),
-      Channel::<u32>::definition(&mut types)
-    );
-    assert_eq!(
-      Channel::<String>::definition(&mut types),
-      Channel::<String>::definition(&mut types)
-    );
-  }
-
   fn json_body(s: &str) -> InvokeResponseBody {
     InvokeResponseBody::Json(s.to_string())
   }

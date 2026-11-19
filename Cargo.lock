@@ -878,7 +878,7 @@ dependencies = [
  "ureq",
  "which",
  "windows 0.61.1",
- "x509-certificate",
+ "x509-certificate 0.24.0",
 ]
 
 [[package]]
@@ -8574,7 +8574,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
- "x509-certificate",
+ "x509-certificate 0.25.0",
 ]
 
 [[package]]
@@ -10697,6 +10697,25 @@ dependencies = [
  "signature",
  "spki",
  "thiserror 1.0.69",
+ "zeroize",
+]
+
+[[package]]
+name = "x509-certificate"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca9eb9a0c822c67129d5b8fcc2806c6bc4f50496b420825069a440669bcfbf7f"
+dependencies = [
+ "bcder",
+ "bytes",
+ "chrono",
+ "der",
+ "hex",
+ "pem",
+ "ring",
+ "signature",
+ "spki",
+ "thiserror 2.0.21",
  "zeroize",
 ]
 

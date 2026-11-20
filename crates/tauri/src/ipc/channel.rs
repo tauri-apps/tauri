@@ -192,10 +192,6 @@ pub struct Channel<TSend = InvokeResponseBody> {
 
 #[cfg(feature = "specta")]
 const _: () = {
-  /// Sealed identity for the opaque channel body.
-  ///
-  /// `TSend` only appears so the derived named type records it as a generic. The state
-  /// Tauri stores is always the default `()`, so every channel body is the same opaque value.
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
   struct ChannelOpaque<T = ()>(std::marker::PhantomData<T>);
 

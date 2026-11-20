@@ -294,14 +294,15 @@ impl JavaScriptChannelId {
           InvokeResponseBody::Json(json_string)
             if json_string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD =>
           {
-            webview.eval(format_raw_js(
-              callback_id,
-              format!("{{ message: {json_string}, index: {current_index} }}"),
+            webview.eval(format!(
+              "window.__TAURI_INTERNALS__.runCallback({callback_id}, {{ message: {json_string}, index: {current_index} }})"
             ))?;
           }
           InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
             let bytes_as_json_array = serde_json::to_string(&bytes)?;
-            webview.eval(format_raw_js(callback_id, format!("{{ message: new Uint8Array({bytes_as_json_array}).buffer, index: {current_index} }}")))?;
+            webview.eval(format!(
+              "window.__TAURI_INTERNALS__.runCallback({callback_id}, {{ message: new Uint8Array({bytes_as_json_array}).buffer, index: {current_index} }})"
+            ))?;
           }
           // use the fetch API to speed up larger response payloads
           _ => {
@@ -416,13 +417,14 @@ impl<TSend> Channel<TSend> {
           InvokeResponseBody::Json(json_string)
             if json_string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD =>
           {
-            webview.eval(format_raw_js(callback_id, json_string))?;
+            webview.eval(format!(
+              "window.__TAURI_INTERNALS__.runCallback({callback_id}, {json_string})"
+            ))?;
           }
           InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
             let bytes_as_json_array = serde_json::to_string(&bytes)?;
-            webview.eval(format_raw_js(
-              callback_id,
-              format!("new Uint8Array({bytes_as_json_array}).buffer"),
+            webview.eval(format!(
+              "window.__TAURI_INTERNALS__.runCallback({callback_id}, new Uint8Array({bytes_as_json_array}).buffer)"
             ))?;
           }
           // use the fetch API to speed up larger response payloads

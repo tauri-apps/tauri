@@ -192,8 +192,20 @@ pub struct Channel<TSend = InvokeResponseBody> {
 
 #[cfg(feature = "specta")]
 const _: () = {
+  #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+  struct ChannelOpaque<T = ()>(std::marker::PhantomData<T>);
+
+  const CHANNEL_OPAQUE: ChannelOpaque = ChannelOpaque(std::marker::PhantomData);
+
+  impl<T> specta::Type for ChannelOpaque<T> {
+    fn definition(_types: &mut specta::Types) -> specta::datatype::DataType {
+      specta::datatype::Reference::opaque(CHANNEL_OPAQUE).into()
+    }
+  }
+
   #[derive(specta::Type)]
   #[specta(remote = super::Channel)]
+  #[specta(type = ChannelOpaque<TSend>)]
   #[allow(dead_code, non_camel_case_types)]
   struct TAURI_CHANNEL<TSend>(std::marker::PhantomData<TSend>);
 };

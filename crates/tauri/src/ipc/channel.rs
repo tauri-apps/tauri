@@ -193,14 +193,15 @@ pub struct Channel<TSend = InvokeResponseBody> {
 #[cfg(feature = "specta")]
 const _: () = {
   /// Sealed identity for the opaque channel body.
+  ///
+  /// `TSend` only appears so the derived named type records it as a generic. The state
+  /// Tauri stores is always the default `()`, so every channel body is the same opaque value.
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-  struct ChannelOpaque;
+  struct ChannelOpaque<T = ()>(std::marker::PhantomData<T>);
 
-  const CHANNEL_OPAQUE: ChannelOpaque = ChannelOpaque;
+  const CHANNEL_OPAQUE: ChannelOpaque = ChannelOpaque(std::marker::PhantomData);
 
-  struct ChannelMarker<TSend>(std::marker::PhantomData<TSend>);
-
-  impl<TSend> specta::Type for ChannelMarker<TSend> {
+  impl<T> specta::Type for ChannelOpaque<T> {
     fn definition(_types: &mut specta::Types) -> specta::datatype::DataType {
       specta::datatype::Reference::opaque(CHANNEL_OPAQUE).into()
     }
@@ -208,7 +209,7 @@ const _: () = {
 
   #[derive(specta::Type)]
   #[specta(remote = super::Channel)]
-  #[specta(type = ChannelMarker<TSend>)]
+  #[specta(type = ChannelOpaque<TSend>)]
   #[allow(dead_code, non_camel_case_types)]
   struct TAURI_CHANNEL<TSend>(std::marker::PhantomData<TSend>);
 };

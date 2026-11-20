@@ -6,7 +6,7 @@ LangString noPermissionToCloseApp ${LANG_ITALIAN} "Permessi insufficienti per ch
 LangString appRunningOkKill ${LANG_ITALIAN} "{{product_name}} è in esecuzione!$\nPer chiudere {{product_name}} seleziona 'OK'"
 LangString chooseMaintenanceOption ${LANG_ITALIAN} "Scegli l'operazione di manutenzione da eseguire."
 LangString chooseHowToInstall ${LANG_ITALIAN} "Scegli come vuoi installare ${PRODUCTNAME}."
-LangString createDesktop ${LANG_ITALIAN} "Crea collegamento sul desktop"
+LangString createDesktop ${LANG_ITALIAN} "Crea collegamento programma sul desktop"
 LangString dontUninstall ${LANG_ITALIAN} "Non disinstallare"
 LangString dontUninstallDowngrade ${LANG_ITALIAN} "Non disinstallare (per questo installer il downgrade senza la disinstallazione è disabilitato)"
 LangString failedToKillApp ${LANG_ITALIAN} "Impossibile chiudere {{product_name}}.$\nChiudi {{product_name}} e poi riprova"

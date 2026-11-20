@@ -13,6 +13,27 @@ use std::{fs::read_to_string, str::FromStr};
 
 mod migrations;
 
+// The version comes from the lockfile when available, otherwise from the manifest,
+// where it may be a requirement such as `1` or `^1.5`.
+fn parse_tauri_version(version: &str) -> Result<semver::Version> {
+  if let Ok(version) = semver::Version::from_str(version) {
+    return Ok(version);
+  }
+
+  let comparator = semver::VersionReq::parse(version)
+    .ok()
+    .and_then(|req| req.comparators.into_iter().next())
+    .with_context(|| format!("failed to parse tauri version {version}"))?;
+
+  Ok(semver::Version {
+    major: comparator.major,
+    minor: comparator.minor.unwrap_or(0),
+    patch: comparator.patch.unwrap_or(0),
+    pre: comparator.pre,
+    build: semver::BuildMetadata::EMPTY,
+  })
+}
+
 pub fn command() -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
@@ -42,8 +63,7 @@ pub fn command() -> Result<()> {
   let tauri_version = crate_version(dirs.tauri, Some(&manifest), lock.as_ref(), "tauri")
     .version
     .context("failed to get tauri version")?;
-  let tauri_version = semver::Version::from_str(&tauri_version)
-    .with_context(|| format!("failed to parse tauri version {tauri_version}"))?;
+  let tauri_version = parse_tauri_version(&tauri_version)?;
 
   if tauri_version.major == 1 {
     migrations::v1::run(&dirs).context("failed to migrate from v1")?;
@@ -69,4 +89,46 @@ pub fn command() -> Result<()> {
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::parse_tauri_version;
+
+  #[test]
+  fn parses_complete_versions() {
+    assert_eq!(parse_tauri_version("1.8.3").unwrap().to_string(), "1.8.3");
+    assert_eq!(
+      parse_tauri_version("2.0.0-beta.12").unwrap().to_string(),
+      "2.0.0-beta.12"
+    );
+  }
+
+  #[test]
+  fn parses_version_requirements() {
+    for (input, expected) in [
+      ("1", "1.0.0"),
+      ("1.8", "1.8.0"),
+      ("^1.5", "1.5.0"),
+      ("~1.5.2", "1.5.2"),
+      ("=1.0.0", "1.0.0"),
+      (">=1.2, <2", "1.2.0"),
+      ("1.*", "1.0.0"),
+      ("2", "2.0.0"),
+      ("^2.0.0-beta.12", "2.0.0-beta.12"),
+    ] {
+      assert_eq!(
+        parse_tauri_version(input).unwrap().to_string(),
+        expected,
+        "input: {input}"
+      );
+    }
+  }
+
+  #[test]
+  fn rejects_invalid_versions() {
+    for input in ["", "*", "garbage"] {
+      assert!(parse_tauri_version(input).is_err(), "input: {input}");
+    }
+  }
 }

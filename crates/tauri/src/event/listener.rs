@@ -217,9 +217,13 @@ impl Listeners {
         if let Some(handlers) = lock.get(&emit_args.event) {
           let handlers = handlers.iter();
           let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, &filter));
+          let mut shared_payload: Option<Arc<str>> = None;
           for (&id, Handler { callback, .. }) in handlers {
             maybe_pending = true;
-            (callback)(Event::new(id, emit_args.payload.clone()))
+            let data = shared_payload
+              .get_or_insert_with(|| Arc::from(emit_args.payload.as_str()))
+              .clone();
+            (callback)(Event::new(id, data))
           }
         }
       }

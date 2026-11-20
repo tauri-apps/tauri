@@ -678,6 +678,17 @@
           "description": "Controls the WebView's browser-level general autofill behavior.\n\n **This option does not disable password or credit card autofill.**\n\n When set to `false`, the WebView will not automatically populate\n general form fields using previously stored data such as addresses\n or contact information.\n\n If not specified, this is `true` by default.\n\n ## Platform-specific\n\n - **Windows**: Supported. WebView2's autofill feature (called\n   \"Suggestions\") may not honor `autocomplete=\"off\"` on input\n   elements in some cases.\n - **Linux / Android / iOS / macOS**: Unsupported and performs no\n   operation.",
           "default": true,
           "type": "boolean"
+        },
+        "onNewWindow": {
+          "description": "Action to perform when a new window is requested to be created.",
+          "default": {
+            "action": "deny"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/OnNewWindow"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1234,6 +1245,82 @@
           ]
         }
       ]
+    },
+    "OnNewWindow": {
+      "description": "Action to perform when a new window is requested to be created.",
+      "oneOf": [
+        {
+          "description": "Allow the window to be created using the default webview implementation.\n\n The `urls` scope is only checked against the URL initially requested by `window.open`.\n The window is then managed by the webview and Tauri cannot restrict its navigation,\n so it can still be navigated to any URL afterwards (e.g. by the opener or a redirect).\n Use [`Self::AllowTauriWindow`] if navigations must be restricted to the scope too.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "allowDefault"
+              ]
+            },
+            "urls": {
+              "description": "Only allow URLs matching the given pattern list when set.\n\n Each entry is a glob pattern such as `\"https://*.tauri.app/**\"`, where `*` does not match `/`\n and `**` matches any number of path segments.\n A pattern without a path such as `\"https://tauri.app\"` matches any path on that origin.\n\n The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.\n See [`UrlScope`] for details.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/UrlScope"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Allow the window to be created using a Tauri window.\n\n The created windows are labeled `{label}-created-{n}`, where `{label}` is the label\n of the webview that requested the new window and `{n}` is a counter starting at 0\n (e.g. `main-created-0`).\n\n **Security**: capabilities are matched against window labels with glob patterns,\n so a capability targeting `\"windows\": [\"*\"]` or `\"windows\": [\"main*\"]` also grants\n its permissions to the windows created for `main`, which may load any URL\n allowed by `urls` (any URL at all if `urls` is not set).\n Scope capabilities to exact window labels (e.g. `\"windows\": [\"main\"]`)\n and set `urls` to restrict which URLs these windows can load.\n\n This is only supported on desktop; the new window request is denied on mobile.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "allowTauriWindow"
+              ]
+            },
+            "urls": {
+              "description": "Only allow URLs matching the given pattern list when set.\n\n Each entry is a glob pattern such as `\"https://*.tauri.app/**\"`, where `*` does not match `/`\n and `**` matches any number of path segments.\n A pattern without a path such as `\"https://tauri.app\"` matches any path on that origin.\n\n The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.\n See [`UrlScope`] for details.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/UrlScope"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Deny the window from being created.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "deny"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "UrlScope": {
+      "type": "string"
     },
     "SecurityConfig": {
       "description": "Security configuration.\n\n See more: <https://v2.tauri.app/reference/config/#securityconfig>",

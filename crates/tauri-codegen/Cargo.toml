@@ -41,6 +41,7 @@ compression = ["brotli", "tauri-utils/compression"]
 isolation = ["tauri-utils/isolation"]
 config-json5 = ["tauri-utils/config-json5"]
 config-toml = ["tauri-utils/config-toml"]
+url-pattern = ["tauri-utils/url-pattern"]
 
 [lints]
 workspace = true

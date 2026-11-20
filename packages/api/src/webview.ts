@@ -264,7 +264,11 @@ class Webview {
         windowLabel: window.label,
         options: {
           ...options,
-          label
+          label,
+          onNewWindow:
+            typeof options?.onNewWindow === 'string'
+              ? { action: options.onNewWindow }
+              : options?.onNewWindow
         }
       })
         .then(async () => this.emit('tauri://created'))
@@ -1068,8 +1072,37 @@ interface WebviewOptions {
    * @since 2.11.0
    */
   generalAutofillEnabled?: boolean
+  /**
+   * Action to perform when a new window is requested to be created.
+   *
+   * 'allowDefault' lets the webview open the URL using the native implementation.
+   * 'allowTauriWindow' creates a Tauri window to load the URL.
+   * Additionally you can provide a list of filters to only allow URLs matching certain patterns.
+   * Each entry is a glob pattern such as `https://*.tauri.app/**`, where `*` does not match `/`
+   * and `**` matches any number of path segments.
+   * A pattern without a path such as `https://tauri.app` matches any path on that origin.
+   * The full {@link https://developer.mozilla.org/en-US/docs/Web/API/URLPattern|URL pattern spec} is used instead
+   * when the `url-pattern` Cargo feature is enabled.
+   *
+   * A new window is requested to be opened by the {@link https://developer.mozilla.org/en-US/docs/Web/API/Window/open|window.open API}.
+   *
+   * ## Platform-specific
+   *
+   * - **Android / iOS**: Not supported.
+   *
+   * @since 2.13.0
+   */
+  onNewWindow?: OnNewWindow
 }
+
+type OnNewWindow =
+  | 'allowDefault'
+  | 'allowTauriWindow'
+  | 'deny'
+  | { action: 'allowDefault'; urls?: string[] }
+  | { action: 'allowTauriWindow'; urls?: string[] }
+  | { action: 'deny' }
 
 export { Webview, getCurrentWebview, getAllWebviews }
 
-export type { DragDropEvent, WebviewOptions, Color }
+export type { DragDropEvent, WebviewOptions, Color, OnNewWindow }

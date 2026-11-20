@@ -54,7 +54,7 @@ version = "0.61"
 features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 
 [target."cfg(target_os = \"macos\")".dependencies]
-icns = { package = "tauri-icns", version = "0.1" }
+icns = { package = "tauri-icns", version = "0.2" }
 time = { version = "0.3", features = ["formatting"] }
 tauri-macos-sign = { workspace = true }
 

@@ -6,6 +6,7 @@ use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, Rustu
 use crate::{
   CommandExt, Error,
   error::{Context, ErrorExt},
+  helpers::app_paths::Dirs,
 };
 
 use shared_child::SharedChild;
@@ -20,22 +21,47 @@ use std::{
   },
   time::Duration,
 };
-use tauri_utils::platform::Target as TargetPlatform;
+use tauri_utils::{
+  config::{BundleConfig, BundleResources, WebviewInstallMode},
+  platform::Target as TargetPlatform,
+  resources::{ResourcePaths, external_binaries},
+};
 
 pub struct DevChild {
   manually_killed_app: Arc<AtomicBool>,
   dev_child: Arc<SharedChild>,
+  /// The `winapp run` process, set once the build succeeds. `None` unless `--packaged` is used.
+  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
 }
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
-    self.dev_child.kill()?;
+    // flag the kill first: the exit handler reads it as soon as a killed process exits,
+    // which can be before we are done killing the rest
     self.manually_killed_app.store(true, Ordering::SeqCst);
-    Ok(())
+
+    // `winapp run` is spawned by the CLI rather than by cargo, so killing cargo does not
+    // reach it. It launches the app through an alias, so its whole tree is killed or the
+    // app would outlive it.
+    let app_child = self.app_child.lock().unwrap().clone();
+    // a failure here must not leave cargo running, so it is only reported at the end
+    let app_killed = app_child.map_or(Ok(()), |app_child| {
+      kill_tree(app_child.id());
+      app_child.kill()
+    });
+
+    self.dev_child.kill()?;
+    app_killed
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
-    self.dev_child.wait()
+    let status = self.dev_child.wait()?;
+    // a guard in the `match` scrutinee would keep the lock until the app exits
+    let app_child = self.app_child.lock().unwrap().clone();
+    match app_child {
+      Some(app_child) => app_child.wait(),
+      None => Ok(status),
+    }
   }
 
   fn manually_killed_process(&self) -> bool {
@@ -43,14 +69,35 @@ impl DevProcess for DevChild {
   }
 }
 
+/// Kills `pid` along with every process it spawned. Only used for `winapp`, so Windows only.
+fn kill_tree(pid: u32) {
+  // `/T` terminates the whole process tree, `/F` forces it
+  let pid = pid.to_string();
+  let _ = Command::new("taskkill")
+    .args(["/T", "/F", "/PID", pid.as_str()])
+    .status();
+}
+
 pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   options: Options,
   run_args: &[String],
+  launcher: Option<Arc<WinappLauncher>>,
+  bundle: &BundleConfig,
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
 ) -> crate::Result<DevChild> {
-  let mut dev_cmd = cargo_command(true, options, available_targets, config_features)?;
+  // the files staged with the app come from the config, which can change between runs
+  let launcher = launcher.map(|launcher| (launcher, bundle.clone()));
+
+  // under package identity cargo only builds; `winapp run` launches the app from a
+  // registered loose layout package, because identity is tied to the activation path.
+  let mut dev_cmd = cargo_command(
+    launcher.is_none(),
+    options,
+    available_targets,
+    config_features,
+  )?;
   let runner = dev_cmd.get_program().to_string_lossy().into_owned();
 
   dev_cmd
@@ -74,11 +121,15 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   dev_cmd.stdout(os_pipe::dup_stdout().unwrap());
   dev_cmd.stderr(Stdio::piped());
 
-  dev_cmd.arg("--");
-  dev_cmd.args(run_args);
+  if launcher.is_none() {
+    dev_cmd.arg("--");
+    dev_cmd.args(run_args);
+  }
 
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
+  let app_child: Arc<Mutex<Option<Arc<SharedChild>>>> = Default::default();
+  let app_child_ = app_child.clone();
 
   log::info!(action = "Running"; "DevCommand (`{} {}`)", dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
@@ -120,7 +171,31 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   });
   let dev_child_ = dev_child.clone();
   std::thread::spawn(move || {
-    let status = dev_child_.wait().expect("failed to build app");
+    let mut status = dev_child_.wait().expect("failed to build app");
+
+    if let (true, Some((launcher, bundle))) = (status.success(), &launcher) {
+      // hold the lock until the child is stored: `kill()` flags the kill before taking it,
+      // so it either finds the child or the launch sees the flag and is skipped
+      let mut app_child = app_child_.lock().unwrap();
+      if manually_killed_app_.load(Ordering::SeqCst) {
+        on_exit(status.code(), ExitReason::TriggeredKill);
+        return;
+      }
+
+      match launcher.spawn(bundle) {
+        Ok(child) => {
+          let child = Arc::new(child);
+          app_child.replace(child.clone());
+          drop(app_child);
+          status = child.wait().expect("failed to wait for winapp");
+        }
+        Err(e) => {
+          log::error!("{e:#}");
+          on_exit(Some(1), ExitReason::NormalExit);
+          return;
+        }
+      }
+    }
 
     if status.success() {
       on_exit(status.code(), ExitReason::NormalExit);
@@ -151,7 +226,196 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   Ok(DevChild {
     manually_killed_app,
     dev_child,
+    app_child,
   })
+}
+
+/// Launches the built app under Windows package identity with Microsoft's `winapp` CLI.
+///
+/// `winapp run` copies its input folder into a loose layout package, so we stage just the
+/// app files instead of pointing it at the whole cargo target directory.
+///
+/// Resolved once per dev session, since resolving the binary path runs `cargo metadata`.
+pub struct WinappLauncher {
+  bin_path: PathBuf,
+  target_triple: String,
+  staging_dir: PathBuf,
+  appx_dir: PathBuf,
+  manifest: PathBuf,
+  app_args: Vec<String>,
+}
+
+impl WinappLauncher {
+  /// Also selects the binary to build in `options.args`: `cargo run` builds just the binary it
+  /// runs, while `cargo build` would build every target.
+  pub fn resolve(
+    options: &mut Options,
+    run_args: &[String],
+    app_settings: &RustAppSettings,
+    dirs: &Dirs,
+  ) -> crate::Result<Self> {
+    // the platform is validated by the dev command, before the dev server starts
+    let manifest = winapp_manifest(dirs)?;
+    let bin_path = match cargo_bin(&options.args) {
+      Some(bin) => app_settings
+        .out_dir(options, dirs.tauri)?
+        .join(format!("{bin}.exe")),
+      None => {
+        let bin_path = app_settings.app_binary_path(options, dirs.tauri)?;
+        // the `.exe` extension is appended to the binary name, so the stem is the full name
+        let bin = bin_path
+          .file_stem()
+          .expect("app binary path has no file name");
+        options.args.push("--bin".into());
+        options.args.push(bin.to_string_lossy().into_owned());
+        bin_path
+      }
+    };
+    let out_dir = bin_path
+      .parent()
+      .expect("app binary path has no parent directory");
+
+    Ok(Self {
+      staging_dir: out_dir.join("winapp-dev"),
+      // kept out of the staging directory, otherwise each run would copy the previous layout
+      appx_dir: out_dir.join("winapp-dev-appx"),
+      bin_path,
+      target_triple: app_settings.target_triple.clone(),
+      manifest,
+      app_args: run_args.to_vec(),
+    })
+  }
+
+  fn spawn(&self, bundle: &BundleConfig) -> crate::Result<SharedChild> {
+    let out_dir = self
+      .bin_path
+      .parent()
+      .expect("app binary path has no parent directory");
+    let exe_name = self
+      .bin_path
+      .file_name()
+      .expect("app binary path has no file name");
+
+    // the app looks up its resources and sidecars next to its executable, where tauri-build
+    // copies them, so they are staged along with it
+    for file in std::iter::once(PathBuf::from(exe_name)).chain(self.bundled_files(bundle)?) {
+      let (from, to) = (out_dir.join(&file), self.staging_dir.join(&file));
+      let to_dir = to.parent().expect("staged file has no parent directory");
+      fs::create_dir_all(to_dir).fs_context("failed to create winapp staging directory", to_dir)?;
+      link_or_copy(&from, &to).fs_context("failed to stage app file for winapp", &from)?;
+    }
+
+    // `Command` only looks for `winapp.exe`, which the winget install provides, while npm
+    // installs a `winapp.cmd` shim; `which` resolves both through `PATHEXT`
+    let Ok(winapp) = which::which("winapp") else {
+      crate::error::bail!(
+        "`winapp` command not found. Install it with `npm install --save-dev @microsoft/winappcli`, or see https://github.com/microsoft/winappCli."
+      );
+    };
+
+    let mut cmd = Command::new(winapp);
+    cmd
+      .arg("run")
+      .arg(&self.staging_dir)
+      .arg("--exe")
+      .arg(exe_name)
+      .arg("--manifest")
+      .arg(&self.manifest)
+      .arg("--output-appx-directory")
+      .arg(&self.appx_dir)
+      // keep the app attached to this terminal so its output still reaches the dev console
+      .arg("--with-alias")
+      .arg("--unregister-on-exit");
+    if !self.app_args.is_empty() {
+      // unlike a joined `--args` string, arguments after `--` keep their boundaries
+      cmd.arg("--").args(&self.app_args);
+    }
+
+    log::info!(action = "Running"; "app with package identity (`winapp run`)");
+
+    SharedChild::spawn(&mut cmd).map_err(|error| Error::CommandFailed {
+      command: "winapp".into(),
+      error,
+    })
+  }
+
+  /// The files tauri-build copies next to the app binary, relative to the target directory.
+  fn bundled_files(&self, bundle: &BundleConfig) -> crate::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+
+    if let Some(external_bin) = &bundle.external_bin {
+      let paths = external_binaries(external_bin, &self.target_triple, &TargetPlatform::Windows);
+      for path in ResourcePaths::new(&paths, true) {
+        let path = path.context("failed to resolve external binary")?;
+        let file_name = path
+          .file_name()
+          .expect("failed to extract external binary filename")
+          .to_string_lossy()
+          .replace(&format!("-{}", self.target_triple), "");
+        files.push(file_name.into());
+      }
+    }
+
+    let mut resources = bundle
+      .resources
+      .clone()
+      .unwrap_or(BundleResources::List(Vec::new()));
+    if let WebviewInstallMode::FixedRuntime { path } = &bundle.windows.webview_install_mode {
+      resources.push(path.display().to_string());
+    }
+    let resources = match &resources {
+      BundleResources::List(list) => ResourcePaths::new(list, true),
+      BundleResources::Map(map) => ResourcePaths::from_map(map, true),
+    };
+    for resource in resources.iter() {
+      let resource = resource.context("failed to resolve resource")?;
+      files.push(resource.target().to_path_buf());
+    }
+
+    // copied for `-gnu` targets, which load the WebView2 loader dynamically
+    if self.bin_path.with_file_name("WebView2Loader.dll").exists() {
+      files.push("WebView2Loader.dll".into());
+    }
+
+    Ok(files)
+  }
+}
+
+/// The binary selected with `--bin` in the cargo arguments, if any.
+fn cargo_bin(args: &[String]) -> Option<&str> {
+  args
+    .iter()
+    .enumerate()
+    .find_map(|(i, arg)| match arg.strip_prefix("--bin")? {
+      "" => args.get(i + 1).map(String::as_str),
+      value => value.strip_prefix('='),
+    })
+}
+
+/// Finds the package manifest `winapp init` created, in the Tauri directory or in the project
+/// root, which is where it lands when `winapp init` runs next to `package.json`. The file names
+/// are the ones `winapp` itself looks for, in the same order.
+pub fn winapp_manifest(dirs: &Dirs) -> crate::Result<PathBuf> {
+  [dirs.tauri, dirs.frontend]
+    .into_iter()
+    .flat_map(|dir| ["Package.appxmanifest", "appxmanifest.xml"].map(|name| dir.join(name)))
+    .find(|path| path.exists())
+    .with_context(|| {
+      format!(
+        "`--packaged` needs a `Package.appxmanifest` in {} or {}. Create one with `winapp init` (https://github.com/microsoft/winappCli).",
+        dirs.tauri.display(),
+        dirs.frontend.display()
+      )
+    })
+}
+
+/// Hard links `from` at `to`, replacing any file there, or copies it where links are not supported.
+fn link_or_copy(from: &Path, to: &Path) -> std::io::Result<()> {
+  match fs::remove_file(to) {
+    Err(e) if e.kind() != ErrorKind::NotFound => return Err(e),
+    _ => {}
+  }
+  fs::hard_link(from, to).or_else(|_| fs::copy(from, to).map(|_| ()))
 }
 
 pub fn build(
@@ -435,7 +699,13 @@ mod terminal {
 
 #[cfg(test)]
 mod tests {
-  use super::{Options, cargo_command};
+  use super::{Options, WinappLauncher, cargo_bin, cargo_command};
+  use std::{collections::HashMap, fs, path::PathBuf};
+  use tauri_utils::config::{BundleConfig, BundleResources};
+
+  fn args(args: &[&str]) -> Vec<String> {
+    args.iter().map(|arg| arg.to_string()).collect()
+  }
 
   fn release_args(args: &[&str]) -> Vec<String> {
     let options = Options {
@@ -454,5 +724,55 @@ mod tests {
     assert!(release_args(&[]).contains(&"--release".to_string()));
     assert!(!release_args(&["--profile", "custom"]).contains(&"--release".to_string()));
     assert!(!release_args(&["--profile=custom"]).contains(&"--release".to_string()));
+  }
+
+  #[test]
+  fn cargo_bin_reads_both_forms() {
+    assert_eq!(cargo_bin(&args(&["--bin", "app"])), Some("app"));
+    assert_eq!(cargo_bin(&args(&["--release", "--bin=app"])), Some("app"));
+    assert_eq!(cargo_bin(&args(&["--bins", "--release"])), None);
+    assert_eq!(cargo_bin(&args(&["--bin"])), None);
+  }
+
+  #[test]
+  fn bundled_files_match_tauri_build_layout() {
+    let triple = "x86_64-pc-windows-msvc";
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src");
+    let out_dir = dir.path().join("target");
+    fs::create_dir_all(src.join("binaries")).unwrap();
+    fs::create_dir_all(src.join("assets/nested")).unwrap();
+    fs::create_dir_all(&out_dir).unwrap();
+    fs::write(src.join(format!("binaries/sidecar-{triple}.exe")), "").unwrap();
+    fs::write(src.join("assets/nested/data.json"), "").unwrap();
+    fs::write(out_dir.join("WebView2Loader.dll"), "").unwrap();
+
+    let launcher = WinappLauncher {
+      bin_path: out_dir.join("app.exe"),
+      target_triple: triple.into(),
+      staging_dir: out_dir.join("winapp-dev"),
+      appx_dir: out_dir.join("winapp-dev-appx"),
+      manifest: src.join("Package.appxmanifest"),
+      app_args: Vec::new(),
+    };
+    let bundle = BundleConfig {
+      external_bin: Some(vec![src.join("binaries/sidecar").display().to_string()]),
+      resources: Some(BundleResources::Map(HashMap::from([(
+        src.join("assets").display().to_string(),
+        "res".into(),
+      )]))),
+      ..Default::default()
+    };
+
+    let mut files = launcher.bundled_files(&bundle).unwrap();
+    files.sort();
+    assert_eq!(
+      files,
+      [
+        PathBuf::from("WebView2Loader.dll"),
+        PathBuf::from("res/nested/data.json"),
+        PathBuf::from("sidecar.exe"),
+      ]
+    );
   }
 }

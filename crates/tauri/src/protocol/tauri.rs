@@ -17,6 +17,14 @@ use crate::{
 use std::{collections::HashMap, sync::Mutex};
 
 #[cfg(all(dev, mobile))]
+/// Bounds requests in flight through the dev server proxy. Each proxied
+/// request opens its own TCP connection to the dev server, and a cold start
+/// with a large module graph can exceed the server's accept backlog, which
+/// makes the kernel reset the excess connections (ECONNRESET) and the proxy
+/// answer 500 for them.
+static DEV_PROXY_SEMAPHORE: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(32);
+
+#[cfg(all(dev, mobile))]
 #[derive(Clone)]
 struct CachedResponse {
   status: http::StatusCode,
@@ -212,6 +220,10 @@ async fn proxy_dev_request(
     proxy_builder = proxy_builder.header(name, value);
   }
   proxy_builder = proxy_builder.body(request.body().clone());
+
+  // Bound concurrent connections to the dev server so its accept backlog
+  // cannot overflow; see DEV_PROXY_SEMAPHORE.
+  let _permit = DEV_PROXY_SEMAPHORE.acquire().await?;
 
   let response = proxy_builder.send().await.map_err(|e|{
     let error_message = format!(

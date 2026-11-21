@@ -17,6 +17,7 @@ use crate::{
   Manager, Runtime, State, Webview, command,
   ipc::{CommandArg, CommandItem},
   plugin::{Builder as PluginBuilder, TauriPlugin},
+  sealed::ManagerBase,
 };
 
 use super::{
@@ -30,6 +31,8 @@ pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
 // TODO: Change this to `plugin:channel|fetch` in v3
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
 const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
+/// Makes the fetch command return the events emitted to the webview that its JavaScript side has not received yet.
+pub(crate) const EVENT_QUEUE_HEADER_NAME: &str = "Tauri-Event-Queue";
 
 /// Maximum size a JSON we should send directly without going through the fetch process
 // 8192 byte JSON payload runs roughly 2x faster through eval than through fetch on WebView2 v135
@@ -487,6 +490,15 @@ fn fetch<R: Runtime>(
   request: Request<'_>,
   cache: State<'_, ChannelDataIpcQueue>,
 ) -> Result<Response, &'static str> {
+  // the events queued for the calling webview, see `Listeners::queue_js_event`
+  if request.headers().contains_key(EVENT_QUEUE_HEADER_NAME) {
+    let events = webview
+      .manager()
+      .listeners()
+      .take_js_events(webview.label());
+    return Ok(Response::new(InvokeResponseBody::Json(events)));
+  }
+
   if let Some(id) = request
     .headers()
     .get(CHANNEL_ID_HEADER_NAME)

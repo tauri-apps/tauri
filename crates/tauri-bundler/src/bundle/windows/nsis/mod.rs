@@ -120,21 +120,21 @@ impl NsisPlugin {
 const NSIS_PLUGINS: &[NsisPlugin] = &[NsisPlugin {
   name: "nsis_tauri_utils",
   filename: "nsis_tauri_utils.dll",
-  version: "0.6.0",
-  url: "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.6.0/nsis_tauri_utils.zip",
-  sha256: "78C8EB242230C760F7C308C7502C0B0B8A79F1391E9E387AF0087355E0C3021B",
+  version: "0.6.1",
+  url: "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.6.1/nsis_tauri_utils.zip",
+  sha256: "83AEDE92017AC290A7F2BD606B01950CAB2C0E88093D5F2DC9D2AE83BD94DB96",
   dll_sha256: &[
     (
       "x86-unicode",
-      "631DC88864D0C21EAFE843891F86D287B69CC50BC968698B374B591EF213A43B",
+      "FC918620B9B0CF5166BF2D341E961C60A10B27161F668225E6BFF41E5371A8B9",
     ),
     (
       "x86-ansi",
-      "952D944AF73D7373C44CBEAC108B02E51E6A1E2A602419EE13A26204C6ADEC9F",
+      "F4987CF181A1B52DCDCE0FC0CE5E1674BEE9B6D10BDA9BFD69E136B36D517014",
     ),
     (
       "amd64-unicode",
-      "551D304327B7C8F29A5967258B56AFEEADE7AFA6960437B60B5196351CA0C732",
+      "5DC24F5CEB783D7E90BFBE62548CFBB059B1CB9AD7618CBDBFA28FA5D3B992D6",
     ),
   ],
 }];
@@ -216,11 +216,12 @@ fn prepare_nsis_plugins(tauri_tools_path: &Path) -> crate::Result<Vec<PathBuf>> 
     let directory = tauri_tools_path
       .join("NSIS-plugins")
       .join(format!("{}-{}", plugin.name, plugin.version));
-    if !plugin.is_cache_valid(&directory) {
+    let plugins_directory = directory.join("Plugins");
+    if !plugin.is_cache_valid(&plugins_directory) {
       let data = download_and_verify(plugin.url, plugin.sha256, HashAlgorithm::Sha256)?;
       extract_zip(&data, &directory)?;
     }
-    Ok(directory)
+    Ok(plugins_directory)
   };
 
   NSIS_PLUGINS.iter().map(prepare_plugin).collect()
@@ -358,8 +359,9 @@ fn build_nsis_app_installer(
   // Current cache layout:
   //   NSIS-plugins/
   //     <name>-<version>/
-  //       <target>/                     <- variable value when unsigned (first plugin)
-  //         <filename>
+  //       Plugins/
+  //         <target>/                   <- variable value when unsigned (first plugin)
+  //           <filename>
   // Build-local layout when signing:
   //   Plugins/
   //     <target>/                       <- variable value when signing

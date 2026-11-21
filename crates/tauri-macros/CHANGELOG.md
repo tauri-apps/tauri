@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.8.0]
+
+### New Features
+
+- [`2a7f592c2`](https://www.github.com/tauri-apps/tauri/commit/2a7f592c2481fa72cbae4b55c58bf6ac51190a6b) ([#15326](https://www.github.com/tauri-apps/tauri/pull/15326) by [@oscartbeaumont](https://www.github.com/tauri-apps/tauri/../../oscartbeaumont)) Added `tauri::command_metadata!` and `tauri::ipc::CommandMetadata` to introspect a command's name, documentation, deprecation and argument names.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.11.0`
+- Upgraded to `tauri-codegen@2.7.7`
+
 ## [2.7.6]
 
 ### Dependencies

@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.11.0]
+
+### New Features
+
+- [`9eda95fa0`](https://www.github.com/tauri-apps/tauri/commit/9eda95fa0af7863c04644cae1fea0f233e94b1ca) ([#8656](https://www.github.com/tauri-apps/tauri/pull/8656) by [@naman-crabnebula](https://www.github.com/tauri-apps/tauri/../../naman-crabnebula)) Add the `pacman` bundle target for Arch Linux. It produces a `.tar.gz` archive with a `PKGBUILD` and `.SRCINFO` ready to be published to the AUR; see `bundle > linux > pacman` for the package name (`<name>-bin` by default), release, dependencies, install script, changelog and source options. `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+    
+    The `pacman` target is part of `"all"`, so Linux builds that bundle all targets now also produce the pacman package; list the targets explicitly in `bundle > targets` to opt out.
+- [`988cd2ea0`](https://www.github.com/tauri-apps/tauri/commit/988cd2ea02495a39ecfd6208d3413a4ddc39ca80) ([#16296](https://www.github.com/tauri-apps/tauri/pull/16296) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Add `bundle > linux > deb > compression` config option to control Debian bundle compression type and level.
+- [`57d142556`](https://www.github.com/tauri-apps/tauri/commit/57d1425567c61a1076f2ceae4296db0848f5cc32) ([#16168](https://www.github.com/tauri-apps/tauri/pull/16168) by [@RubenPari](https://www.github.com/tauri-apps/tauri/../../RubenPari)) Add `NSIS_HOOK_PREFINISHPAGE` NSIS installer hook, inserted right before the finish page is created, to allow `!undef`ing or redefining its `MUI_FINISHPAGE_*` defines (e.g. to remove the "Run" or "Create desktop shortcut" checkboxes).
+- [`f69d1f98e`](https://www.github.com/tauri-apps/tauri/commit/f69d1f98ebae6cce509ef79688bdbb963914612b) ([#16562](https://www.github.com/tauri-apps/tauri/pull/16562) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `bundle.windows.nsis.installerTarget` to select `x86-unicode` (default), `x86-ansi`, or `amd64-unicode` independently of the application architecture.
+- [`e1d7dca25`](https://www.github.com/tauri-apps/tauri/commit/e1d7dca25598b8a9843cec2de120337de5c19c34) ([#16267](https://www.github.com/tauri-apps/tauri/pull/16267) by [@savvasioakeim](https://www.github.com/tauri-apps/tauri/../../savvasioakeim)) Added the `TAURIDIR` NSIS define, holding the path of the directory that contains `tauri.conf.json`. It is defined before the installer hooks are included, so a hook can refer to files kept next to the config, for example `!define MUI_UNICON "${TAURIDIR}\nsis\uninstall.ico"`.
+- [`90747a598`](https://www.github.com/tauri-apps/tauri/commit/90747a5986ff55f7956867f606bae152099cf86f) ([#16157](https://www.github.com/tauri-apps/tauri/pull/16157) by [@ThomasBraun1979](https://www.github.com/tauri-apps/tauri/../../ThomasBraun1979)) Add `/DELETEAPPDATA` flag to the NSIS uninstaller to delete the application data without user interaction (e.g. in silent or passive mode). In interactive mode, the flag pre-checks the `Delete the application data` check box.
+
+### Enhancements
+
+- [`0875cb074`](https://www.github.com/tauri-apps/tauri/commit/0875cb0740156014eba8325597ee2a9a27f7b916) ([#16384](https://www.github.com/tauri-apps/tauri/pull/16384) by [@Wheatlay](https://www.github.com/tauri-apps/tauri/../../Wheatlay)) Add Polish translation for the NSIS installer.
+- [`f69d1f98e`](https://www.github.com/tauri-apps/tauri/commit/f69d1f98ebae6cce509ef79688bdbb963914612b) ([#16562](https://www.github.com/tauri-apps/tauri/pull/16562) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Windows, use an existing NSIS installation found through `NSIS_PATH` or `PATH`, falling back to downloading NSIS if none is found.
+
+### Bug Fixes
+
+- [`f4194be6c`](https://www.github.com/tauri-apps/tauri/commit/f4194be6cad0effcad92185a82e8c594450d20d3) ([#15929](https://www.github.com/tauri-apps/tauri/pull/15929) by [@hz-xiaxz](https://www.github.com/tauri-apps/tauri/../../hz-xiaxz)) Fixed deep links being dropped on Linux when the app is launched through the bundled desktop entry, and files being opened one process at a time. The desktop entry's `Exec` now ends with `%U` when deep-link schemes are configured and with `%F` when only file associations are. Custom `desktopTemplate`s must append `{{exec_arg}}` to their `Exec` line, as in `Exec={{exec}}{{exec_arg}}`, to get the fix.
+- [`e63aa5fb0`](https://www.github.com/tauri-apps/tauri/commit/e63aa5fb0a99e5c1a6b2bc34dd5fde9c6b253ff8) ([#16167](https://www.github.com/tauri-apps/tauri/pull/16167) by [@RubenPari](https://www.github.com/tauri-apps/tauri/../../RubenPari)) Fix NSIS installer ignoring the install directory passed with `/D=` when `installMode` is set to `both`.
+- [`e1d7dca25`](https://www.github.com/tauri-apps/tauri/commit/e1d7dca25598b8a9843cec2de120337de5c19c34) ([#16267](https://www.github.com/tauri-apps/tauri/pull/16267) by [@savvasioakeim](https://www.github.com/tauri-apps/tauri/../../savvasioakeim)) `MUI_ICON` and `MUI_UNICON` defined by an NSIS installer hook now take precedence over `bundle.windows.nsis.installerIcon` and `uninstallerIcon` instead of failing the build with an "already defined" error.
+
+### What's Changed
+
+- [`31b2efc9d`](https://www.github.com/tauri-apps/tauri/commit/31b2efc9d1537122ab0888b64520f36f85c86a0a) ([#16328](https://www.github.com/tauri-apps/tauri/pull/16328) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) The built-in NSIS language strings now interpolate `$ExistingVersionKind`, `$Webview2DownloadResult` and `$Webview2InstallExitCode` instead of `$R4`, `$0` and `$1`. Custom language files using the registers keep working, but should be updated to the named variables.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.11.0`
+
 ## [2.10.6]
 
 ### Bug Fixes

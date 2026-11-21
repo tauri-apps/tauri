@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.13.0]
+
+### New Features
+
+- [`9eda95fa0`](https://www.github.com/tauri-apps/tauri/commit/9eda95fa0af7863c04644cae1fea0f233e94b1ca) ([#8656](https://www.github.com/tauri-apps/tauri/pull/8656) by [@naman-crabnebula](https://www.github.com/tauri-apps/tauri/../../naman-crabnebula)) Add the `pacman` bundle target for Arch Linux. It produces a `.tar.gz` archive with a `PKGBUILD` and `.SRCINFO` ready to be published to the AUR; see `bundle > linux > pacman` for the package name (`<name>-bin` by default), release, dependencies, install script, changelog and source options. `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+    
+    The `pacman` target is part of `"all"`, so Linux builds that bundle all targets now also produce the pacman package; list the targets explicitly in `bundle > targets` to opt out.
+- [`988cd2ea0`](https://www.github.com/tauri-apps/tauri/commit/988cd2ea02495a39ecfd6208d3413a4ddc39ca80) ([#16296](https://www.github.com/tauri-apps/tauri/pull/16296) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Add `bundle > linux > deb > compression` config option to control Debian bundle compression type and level.
+- [`f69d1f98e`](https://www.github.com/tauri-apps/tauri/commit/f69d1f98ebae6cce509ef79688bdbb963914612b) ([#16562](https://www.github.com/tauri-apps/tauri/pull/16562) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `bundle.windows.nsis.installerTarget` to select `x86-unicode` (default), `x86-ansi`, or `amd64-unicode` independently of the application architecture.
+- [`e1d7dca25`](https://www.github.com/tauri-apps/tauri/commit/e1d7dca25598b8a9843cec2de120337de5c19c34) ([#16267](https://www.github.com/tauri-apps/tauri/pull/16267) by [@savvasioakeim](https://www.github.com/tauri-apps/tauri/../../savvasioakeim)) Added the `TAURIDIR` NSIS define, holding the path of the directory that contains `tauri.conf.json`. It is defined before the installer hooks are included, so a hook can refer to files kept next to the config, for example `!define MUI_UNICON "${TAURIDIR}\nsis\uninstall.ico"`.
+- [`90747a598`](https://www.github.com/tauri-apps/tauri/commit/90747a5986ff55f7956867f606bae152099cf86f) ([#16157](https://www.github.com/tauri-apps/tauri/pull/16157) by [@ThomasBraun1979](https://www.github.com/tauri-apps/tauri/../../ThomasBraun1979)) Add `/DELETEAPPDATA` flag to the NSIS uninstaller to delete the application data without user interaction (e.g. in silent or passive mode). In interactive mode, the flag pre-checks the `Delete the application data` check box.
+
+### Enhancements
+
+- [`f69d1f98e`](https://www.github.com/tauri-apps/tauri/commit/f69d1f98ebae6cce509ef79688bdbb963914612b) ([#16562](https://www.github.com/tauri-apps/tauri/pull/16562) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Windows, use an existing NSIS installation found through `NSIS_PATH` or `PATH`, falling back to downloading NSIS if none is found.
+
+### Bug Fixes
+
+- [`5e891a8a6`](https://www.github.com/tauri-apps/tauri/commit/5e891a8a6e16e7bbce12c92db73dd8cb83d7a6a7) ([#15992](https://www.github.com/tauri-apps/tauri/pull/15992) by [@cuishuang](https://www.github.com/tauri-apps/tauri/../../cuishuang)) Fix iOS builds failing when the app version contains both a prerelease tag and build metadata.
+- [`e36b0b96f`](https://www.github.com/tauri-apps/tauri/commit/e36b0b96fb27f1e2c621101ad86e93386562851e) ([#16312](https://www.github.com/tauri-apps/tauri/pull/16312) by [@su-huldra](https://www.github.com/tauri-apps/tauri/../../su-huldra)) Preserve the entitlements of embedded app extensions (and other nested bundles such as watch apps and app clips) when building an iOS app with App Store Connect API key authentication. Previously only the main app binary was signed before export, so extensions silently lost entitlements such as App Groups.
+
+### What's Changed
+
+- [`31b2efc9d`](https://www.github.com/tauri-apps/tauri/commit/31b2efc9d1537122ab0888b64520f36f85c86a0a) ([#16328](https://www.github.com/tauri-apps/tauri/pull/16328) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) The built-in NSIS language strings now interpolate `$ExistingVersionKind`, `$Webview2DownloadResult` and `$Webview2InstallExitCode` instead of `$R4`, `$0` and `$1`. Custom language files using the registers keep working, but should be updated to the named variables.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.11.0`
+- Upgraded to `tauri-utils@2.11.0`
+
 ## [2.12.6]
 
 ### Bug Fixes

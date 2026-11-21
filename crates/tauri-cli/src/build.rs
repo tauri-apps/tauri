@@ -110,7 +110,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri, true)?;
 
   setup(&interface, &mut options, &config, &dirs, false)?;
 

@@ -63,7 +63,7 @@ fn exec(
   let app = get_app(
     target,
     &tauri_config,
-    &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+    &AppInterface::new(&tauri_config, None, dirs.tauri, false)?,
     dirs.tauri,
   );
 

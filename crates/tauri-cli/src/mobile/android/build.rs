@@ -154,7 +154,7 @@ pub fn run(
     .unwrap();
   build_options.target = Some(first_target.triple.into());
 
-  let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri, true)?;
   interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
   let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);

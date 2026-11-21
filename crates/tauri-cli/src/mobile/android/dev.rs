@@ -186,7 +186,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   dev_options.target = Some(target_triple);
   dev_options.args.push("--lib".into());
 
-  let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri, false)?;
 
   let app = get_app(MobileTarget::Android, &tauri_config, &interface, dirs.tauri);
   let (config, metadata) = get_config(

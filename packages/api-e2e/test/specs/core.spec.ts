@@ -142,6 +142,62 @@ describeApi('core', () => {
     expect(result.reported).toBe(2)
   })
 
+  it('Channel deserializes messages before onmessage without replacing the channel', async () => {
+    // `spam` sends 1..=1000 over the channel.
+    const result = await tauri(
+      (api, count) =>
+        new Promise<{
+          sameChannel: boolean
+          sameId: boolean
+          length: number
+          first: number
+          last: number
+        }>((resolve, reject) => {
+          const channel = new api.core.Channel<number>()
+          // A replacement channel would carry a different callback id, so the
+          // Rust side would address a channel nobody listens to.
+          const deserialized = channel.deserialize(
+            (payload: number) => payload * 2
+          )
+
+          const timeout = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `only received ${received.length} of ${count} messages`
+                )
+              ),
+            15000
+          )
+          const received: number[] = []
+          deserialized.onmessage = (value: number) => {
+            received.push(value)
+            if (received.length === count) {
+              clearTimeout(timeout)
+              resolve({
+                sameChannel: deserialized === channel,
+                sameId: deserialized.id === channel.id,
+                length: received.length,
+                first: received[0],
+                last: received[received.length - 1]
+              })
+            }
+          }
+
+          api.core.invoke('spam', { channel: deserialized }).catch((error) => {
+            clearTimeout(timeout)
+            reject(error)
+          })
+        }),
+      1000
+    )
+    expect(result.sameChannel).toBe(true)
+    expect(result.sameId).toBe(true)
+    expect(result.length).toBe(1000)
+    expect(result.first).toBe(2)
+    expect(result.last).toBe(2000)
+  })
+
   itOn(
     ['android', 'ios'],
     'a mobile plugin resolves JSArray and JSObject values as JSON arrays and objects',

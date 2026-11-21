@@ -314,6 +314,7 @@ impl<R: Runtime> AppManager<R> {
         menu: Default::default(),
         global_event_listeners: Mutex::new(menu_event_listener),
         event_listeners: Mutex::new(window_menu_event_listeners),
+        item_event_listeners: Default::default(),
       },
       plugins: Mutex::new(plugins),
       listeners: Listeners::default(),

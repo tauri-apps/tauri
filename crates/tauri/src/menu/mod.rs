@@ -98,6 +98,7 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
+          self.app_handle.manager.menu.remove_menu_item_event(self.inner.id());
           remove_menu_channel(&self.app_handle, self.inner.id());
           // SAFETY: we will not access `self.inner` after this
           let inner = unsafe { ManuallyDrop::take(&mut self.inner) };

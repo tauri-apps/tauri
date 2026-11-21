@@ -4,13 +4,18 @@
 
 use std::{
   collections::HashMap,
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, Weak},
 };
 
 use crate::{
   AppHandle, Runtime, Window,
   menu::{Menu, MenuEvent, MenuId},
 };
+
+pub struct MenuItemEventListener {
+  item: Weak<dyn Send + Sync>,
+  handler: Arc<dyn Fn(MenuEvent) + Send + Sync>,
+}
 
 pub struct MenuManager<R: Runtime> {
   /// A set containing a reference to the active menus, including
@@ -25,6 +30,8 @@ pub struct MenuManager<R: Runtime> {
   pub global_event_listeners: Mutex<Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>>,
   /// Menu event listeners to specific windows.
   pub event_listeners: Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>,
+  /// Menu event listeners to specific items, without keeping the items alive.
+  pub item_event_listeners: Mutex<HashMap<MenuId, MenuItemEventListener>>,
 }
 
 impl<R: Runtime> MenuManager<R> {
@@ -96,5 +103,57 @@ impl<R: Runtime> MenuManager<R> {
       .lock()
       .unwrap()
       .push(Box::new(handler));
+  }
+
+  pub fn on_menu_item_event<T, F>(&self, id: MenuId, item: &Arc<T>, handler: F)
+  where
+    T: Send + Sync + 'static,
+    F: Fn(Arc<T>, MenuEvent) + Send + Sync + 'static,
+  {
+    let weak_item = Arc::downgrade(item);
+    let listener = MenuItemEventListener {
+      item: weak_item.clone(),
+      handler: Arc::new(move |event| {
+        if let Some(item) = weak_item.upgrade() {
+          handler(item, event);
+        }
+      }),
+    };
+
+    let mut listeners = self.item_event_listeners.lock().unwrap();
+    let previous = listeners.insert(id, listener);
+
+    // Drop any replaced handler after releasing the lock: its captures may own menu items.
+    drop(listeners);
+    drop(previous);
+  }
+
+  pub fn dispatch_menu_item_event(&self, event: MenuEvent) {
+    let listeners = self.item_event_listeners.lock().unwrap();
+    let handler = listeners
+      .get(&event.id)
+      .map(|listener| listener.handler.clone());
+
+    // The handler may create or drop items, so never call it while holding the lock.
+    drop(listeners);
+
+    if let Some(handler) = handler {
+      handler(event);
+    }
+  }
+
+  pub fn remove_menu_item_event(&self, id: &MenuId) {
+    let mut listeners = self.item_event_listeners.lock().unwrap();
+
+    // A different, still-live item may have registered a handler with the same ID.
+    let listener = listeners
+      .get(id)
+      .is_some_and(|listener| listener.item.strong_count() == 0)
+      .then(|| listeners.remove(id))
+      .flatten();
+
+    // Order matters: release the lock before dropping captures that may re-enter menu cleanup.
+    drop(listeners);
+    drop(listener);
   }
 }

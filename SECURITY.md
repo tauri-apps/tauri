@@ -15,7 +15,7 @@ file an issue on GitHub, DON'T mention it on Discord and DON'T create a forum th
 
 **Please submit your report via the [GitHub Private Vulnerability Disclosure functionality](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing/privately-reporting-a-security-vulnerability#privately-reporting-a-security-vulnerability).**
 
-Reports for Tauri and its direct tooling belongs in this repository. Reports for our official plugins should be submitted in [plugins-workspace](https://github.com/tauri-apps/plugins-workspace/) instead.
+Reports for Tauri and its direct tooling belong in this repository. Reports for our official plugins should be submitted in [plugins-workspace](https://github.com/tauri-apps/plugins-workspace/) instead.
 
 Our team will triage your report and keep you informed about the progress.
 We may ask questions or request further guidance on reproduction of the vulnerability in the comments of the advisory, which will be publicized.

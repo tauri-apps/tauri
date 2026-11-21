@@ -26,6 +26,7 @@ strsim = "0.11"
 walkdir = "2"
 bytesize = "2"
 handlebars = "6"
+include_dir = "0.7"
 tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }
 dirs = "7"
@@ -43,6 +44,7 @@ uuid = { version = "1", features = ["v4", "v5"] }
 regex = "1"
 plist = "1"
 glob = "0.3"
+which = "8"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 windows-registry = "0.6"
@@ -52,16 +54,18 @@ version = "0.61"
 features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 
 [target."cfg(target_os = \"macos\")".dependencies]
-icns = { package = "tauri-icns", version = "0.1" }
+icns = { package = "tauri-icns", version = "0.2" }
 time = { version = "0.3", features = ["formatting"] }
 tauri-macos-sign = { workspace = true }
-which = "8"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"
 ar = "0.9"
 md5 = "0.8"
 rpm = { version = "0.30", features = ["bzip2-compression"] }
+liblzma = "0.4"
+zstd = "0.14"
+bzip2 = "0.6"
 
 [target."cfg(unix)".dependencies]
 tar = "0.4"

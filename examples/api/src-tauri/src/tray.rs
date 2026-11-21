@@ -5,7 +5,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   Manager, Runtime, WebviewUrl, include_image,
-  menu::{Menu, MenuItemBuilder},
+  menu::{IconMenuItemBuilder, Menu, MenuItemBuilder, NativeIcon, Submenu},
   tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
@@ -26,7 +26,8 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     })
     .build(app)?;
 
-  let new_window_i = MenuItemBuilder::with_id("new-window", "New window")
+  let new_window_i = IconMenuItemBuilder::with_id("new-window", "New window")
+    .native_icon(NativeIcon::Computer)
     .handler(|item, _event| {
       let _webview = tauri::WebviewWindowBuilder::new(
         item.app_handle(),
@@ -56,6 +57,31 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
       }
     })
     .build(app)?;
+
+  let native_icon_i_1 = IconMenuItemBuilder::with_id("native-icon-1", "Native icon: Info")
+    .native_icon(NativeIcon::Info)
+    .handler(|item, _event| {
+      if let Some(tray) = item.app_handle().tray_by_id("tray-1") {
+        let _ = tray.set_native_icon(Some(NativeIcon::Info));
+      }
+    })
+    .build(app)?;
+  let native_icon_i_2 = IconMenuItemBuilder::with_id("native-icon-2", "Native icon: Network")
+    .native_icon(NativeIcon::Network)
+    .handler(|item, _event| {
+      if let Some(tray) = item.app_handle().tray_by_id("tray-1") {
+        let _ = tray.set_native_icon(Some(NativeIcon::Network));
+      }
+    })
+    .build(app)?;
+  let icons_submenu = Submenu::with_id_and_native_icon(
+    app,
+    "tray-icon",
+    "Tray icon",
+    true,
+    Some(NativeIcon::PreferencesGeneral),
+  )?;
+  icons_submenu.append_items(&[&icon_i_1, &icon_i_2, &native_icon_i_1, &native_icon_i_2])?;
 
   #[cfg(target_os = "macos")]
   let set_title_i = MenuItemBuilder::with_id("set-title", "Set Title")
@@ -95,7 +121,8 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     .handler(|item, _event| item.app_handle().exit(0))
     .build(app)?;
 
-  let remove_tray_i = MenuItemBuilder::with_id("remove-tray", "Remove Tray icon")
+  let remove_tray_i = IconMenuItemBuilder::with_id("remove-tray", "Remove Tray icon")
+    .native_icon(NativeIcon::Remove)
     .handler(|item, _event| {
       item.app_handle().remove_tray_by_id("tray-1");
     })
@@ -104,8 +131,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
   menu1.append_items(&[
     &toggle_i,
     &new_window_i,
-    &icon_i_1,
-    &icon_i_2,
+    &icons_submenu,
     #[cfg(target_os = "macos")]
     &set_title_i,
     &switch_i,

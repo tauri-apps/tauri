@@ -5,11 +5,11 @@
 
 use super::category::AppCategory;
 use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
-pub use tauri_utils::config::WebviewInstallMode;
+pub use tauri_utils::config::{DebCompression, RpmCompression, WebviewInstallMode};
 use tauri_utils::{
   config::{
     BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression,
-    RpmCompression,
+    NsisInstallerTarget,
   },
   platform::Target as TargetPlatform,
   resources::{ResourcePaths, external_binaries},
@@ -38,6 +38,8 @@ pub enum PackageType {
   Rpm,
   /// The Linux AppImage bundle (.AppImage).
   AppImage,
+  /// The Linux Pacman bundle (PKGBUILD)
+  Pacman,
   /// The macOS DMG bundle (.dmg).
   Dmg,
   /// The Updater bundle.
@@ -50,6 +52,7 @@ impl From<BundleType> for PackageType {
       BundleType::Deb => Self::Deb,
       BundleType::Rpm => Self::Rpm,
       BundleType::AppImage => Self::AppImage,
+      BundleType::Pacman => Self::Pacman,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
@@ -60,7 +63,7 @@ impl From<BundleType> for PackageType {
 
 impl PackageType {
   /// Maps a short name to a PackageType.
-  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg", "updater".
+  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "pacman", "dmg", "updater".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
     // Other types we may eventually want to support: apk.
     match name {
@@ -71,6 +74,7 @@ impl PackageType {
       "app" => Some(PackageType::MacOsBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
+      "pacman" => Some(PackageType::Pacman),
       "dmg" => Some(PackageType::Dmg),
       "updater" => Some(PackageType::Updater),
       _ => None,
@@ -88,6 +92,7 @@ impl PackageType {
       PackageType::MacOsBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
+      PackageType::Pacman => "pacman",
       PackageType::Dmg => "dmg",
       PackageType::Updater => "updater",
     }
@@ -113,6 +118,7 @@ impl PackageType {
       PackageType::Deb => 0,
       PackageType::Rpm => 0,
       PackageType::AppImage => 0,
+      PackageType::Pacman => 0,
       PackageType::Dmg => 1,
       PackageType::Updater => 2,
     }
@@ -132,6 +138,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::MacOsBundle,
   #[cfg(target_os = "linux")]
   PackageType::Rpm,
+  #[cfg(target_os = "linux")]
+  PackageType::Pacman,
   #[cfg(target_os = "macos")]
   PackageType::Dmg,
   #[cfg(target_os = "linux")]
@@ -213,6 +221,8 @@ pub struct DebianSettings {
   /// Path to script that will be executed after the package is removed. See
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// The Linux AppImage bundle settings.
@@ -315,6 +325,102 @@ pub struct DmgSettings {
 pub struct IosSettings {
   /// The version of the build that identifies an iteration of the bundle.
   pub bundle_version: Option<String>,
+}
+
+/// The Linux Pacman bundle settings.
+///
+/// The package license is `bundle > license` (`unknown` when it is not set),
+/// and `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+/// Must Read https://wiki.archlinux.org/title/PKGBUILD
+#[derive(Clone, Debug, Default)]
+pub struct PacmanSettings {
+  /// The package name.
+  ///
+  /// Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for
+  /// packages that ship prebuilt binaries, for instance `my-app-bin`.
+  /// When the name ends with `-bin`, the package also provides and conflicts with the name
+  /// without the suffix.
+  ///
+  /// See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>
+  pub pkgname: Option<String>,
+  /// The package release number, to be incremented when the package changes but the app
+  /// version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.
+  /// Defaults to `1`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>
+  pub pkgrel: Option<String>,
+  /// Forces the package to be seen as newer than any previous version with a lower epoch,
+  /// used when the versioning scheme changes. Must not be decreased.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>
+  pub epoch: Option<u32>,
+  /// The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top
+  /// of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.
+  /// Defaults to the app authors.
+  pub maintainer: Option<String>,
+  /// List of softwares that must be installed for the app to build and run.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>
+  pub depends: Option<Vec<String>>,
+  /// Optional packages that enable additional features of the app, but are not required to run it.
+  /// Each entry is the package name, optionally followed by `: ` and the reason,
+  /// for instance `libappindicator-gtk3: tray icon support`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#optdepends>
+  pub optdepends: Option<Vec<String>>,
+  /// Additional packages that are provided by this app.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+  pub provides: Option<Vec<String>>,
+  /// Packages that conflict or cause problems with the app.
+  /// All these packages and packages providing this item will need to be removed
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>
+  pub conflicts: Option<Vec<String>>,
+  /// Only use if this app replaces some obsolete packages.
+  /// For example, if you rename any package.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
+  pub replaces: Option<Vec<String>>,
+  /// List of custom files to add to the package.
+  /// Maps the path on the package to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
+  /// ```
+  pub desktop_template: Option<PathBuf>,
+  /// Path to the install script, a bash script that defines any of the `pre_install`,
+  /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
+  /// pacman runs when the package is installed, upgraded or removed.
+  /// It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#install>
+  pub install: Option<PathBuf>,
+  /// Path to the changelog file, shown by `pacman -Qc`.
+  /// It is written next to the PKGBUILD as `<pkgname>.changelog` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#changelog>
+  pub changelog: Option<PathBuf>,
+  /// Source of the package to be stored at PKGBUILD.
+  /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  ///
+  /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
+  /// first entry to its download URL, for instance
+  /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
+  /// `${pkgver}` has `-` (and any `:`, `/` or whitespace) replaced with `_`, `${_pkgver}` is the app version as is.
+  /// The first entry is saved under the archive name and its checksum is written to
+  /// `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).
+  /// Defaults to the local archive file name.
+  ///
+  /// The sources are architecture specific (`source_<arch>`), so the PKGBUILDs generated
+  /// for each target architecture can be merged into one that supports all of them by
+  /// combining their `arch`, `source_<arch>` and `sha512sums_<arch>` entries.
+  pub source: Option<Vec<String>>,
 }
 
 /// The macOS bundle settings.
@@ -464,6 +570,14 @@ pub struct WixSettings {
 pub struct NsisSettings {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
+  /// The CPU architecture and character encoding of the installer executable and its NSIS plugins.
+  /// Defaults to `x86-unicode`, a 32-bit Unicode installer.
+  /// `x86-ansi` produces a 32-bit installer whose text is limited to the system's ANSI code page.
+  ///
+  /// The bundled application keeps the architecture selected when building it. For example,
+  /// a 32-bit `x86-unicode` installer can install a 64-bit application; selecting
+  /// `amd64-unicode` makes the installer itself a native 64-bit executable.
+  pub installer_target: NsisInstallerTarget,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.
@@ -519,6 +633,9 @@ pub struct NsisSettings {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   ///
   /// ### Example
@@ -716,6 +833,8 @@ pub struct BundleSettings {
   pub deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// Pacman-specific settings.
+  pub pacman: PacmanSettings,
   /// AppImage-specific settings.
   pub appimage: AppImageSettings,
   /// Rpm-specific settings.
@@ -823,6 +942,9 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
+  /// the directory holding the project's `tauri.conf.json`, if the caller knows
+  /// it. `None` when the bundler is driven by something other than the CLI.
+  tauri_dir: Option<PathBuf>,
   /// the directory to place tools used by the bundler,
   /// if `None`, tools are placed in the current user's platform-specific cache directory.
   local_tools_directory: Option<PathBuf>,
@@ -846,6 +968,7 @@ pub struct Settings {
 pub struct SettingsBuilder {
   log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
+  tauri_dir: Option<PathBuf>,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
   bundle_settings: BundleSettings,
@@ -861,6 +984,7 @@ impl Default for SettingsBuilder {
     Self {
       log_level: None,
       project_out_directory: None,
+      tauri_dir: None,
       package_types: None,
       package_settings: None,
       bundle_settings: BundleSettings::default(),
@@ -886,6 +1010,16 @@ impl SettingsBuilder {
     self
       .project_out_directory
       .replace(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// Sets the tauri directory, i.e. the one holding `tauri.conf.json`.
+  ///
+  /// Optional: the bundler works without it, and the formats that can use it
+  /// leave the corresponding value out when it is not set.
+  #[must_use]
+  pub fn tauri_dir<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self.tauri_dir.replace(path.as_ref().to_path_buf());
     self
   }
 
@@ -985,6 +1119,7 @@ impl SettingsBuilder {
       project_out_directory: self
         .project_out_directory
         .ok_or_else(|| crate::Error::GenericError("out directory is required".into()))?,
+      tauri_dir: self.tauri_dir,
       local_tools_directory: self.local_tools_directory,
       binaries: self.binaries,
       bundle_settings: BundleSettings {
@@ -1018,6 +1153,12 @@ impl Settings {
   /// Returns the directory where the bundle should be placed.
   pub fn project_out_directory(&self) -> &Path {
     &self.project_out_directory
+  }
+
+  /// Returns the tauri directory (the one holding `tauri.conf.json`), if the
+  /// caller provided it.
+  pub fn tauri_dir(&self) -> Option<&Path> {
+    self.tauri_dir.as_deref()
   }
 
   /// Returns the target triple.
@@ -1125,7 +1266,12 @@ impl Settings {
     let platform_types = match target_os {
       TargetPlatform::MacOS => vec![PackageType::MacOsBundle, PackageType::Dmg],
       TargetPlatform::Ios => vec![PackageType::IosBundle],
-      TargetPlatform::Linux => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
+      TargetPlatform::Linux => vec![
+        PackageType::Deb,
+        PackageType::Rpm,
+        PackageType::AppImage,
+        PackageType::Pacman,
+      ],
       TargetPlatform::Windows => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
@@ -1314,6 +1460,10 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+  /// Returns the pacman settings.
+  pub fn pacman(&self) -> &PacmanSettings {
+    &self.bundle_settings.pacman
   }
 
   /// Returns the appimage settings.

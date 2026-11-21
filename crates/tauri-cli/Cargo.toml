@@ -58,7 +58,7 @@ notify-debouncer-full = "0.7"
 shared_child = "1"
 duct = "1.0"
 toml_edit = { version = "0.25", features = ["serde"] }
-json-patch = "4"
+json-patch = "5"
 tauri-utils = { workspace = true, features = [
   "isolation",
   "schema",
@@ -67,7 +67,7 @@ tauri-utils = { workspace = true, features = [
   "html-manipulation-2",
 ] }
 toml = "1"
-jsonschema = { version = "0.60", default-features = false }
+jsonschema = { version = "0.61", default-features = false }
 handlebars = "6"
 include_dir = "0.7"
 dirs = "7"
@@ -88,7 +88,7 @@ ignore = "0.4"
 ctrlc = "3"
 log = { version = "0.4.21", features = ["kv", "kv_std"] }
 env_logger = "0.11"
-icns = { package = "tauri-icns", version = "0.1" }
+icns = { package = "tauri-icns", version = "0.2" }
 image = { version = "0.25", default-features = false, features = ["ico"] }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["macros", "sync"] }
@@ -97,7 +97,7 @@ serde-value = "0.7"
 itertools = "0.15"
 local-ip-address = "0.6"
 css-color = "0.2"
-resvg = "0.47"
+resvg = "0.50"
 dunce = "1"
 glob = "0.3"
 # 0.111 raised msrv to 1.91
@@ -137,7 +137,7 @@ libc = "0.2"
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
 tauri-macos-sign = { workspace = true }
-object = { version = "0.39", default-features = false, features = [
+object = { version = "0.41", default-features = false, features = [
   "macho",
   "read_core",
   "std",

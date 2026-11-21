@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.13.0]
+
+### New Features
+
+- [`61a3537e0`](https://www.github.com/tauri-apps/tauri/commit/61a3537e040f1f5feb59a3892f061cef545da2c8) ([#16397](https://www.github.com/tauri-apps/tauri/pull/16397) by [@rudy-07](https://www.github.com/tauri-apps/tauri/../../rudy-07)) Expose `browser_accelerator_keys` on `WebviewBuilder`, `WebviewWindowBuilder`, and `browserAcceleratorKeys` in the window configuration to control default browser shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) on Windows.
+- [`d03f76daf`](https://www.github.com/tauri-apps/tauri/commit/d03f76daf4fd557dbbffa3205e78dd30faa87b12) ([#16054](https://www.github.com/tauri-apps/tauri/pull/16054) by [@jhasheng](https://www.github.com/tauri-apps/tauri/../../jhasheng)) Add `AppHandle::fetch_profile_identifiers` and `AppHandle::remove_profile`, and the `fetchProfileIdentifiers` and `removeProfile` JS functions, to list and delete the browsing data profiles created with `profile_identifier` on macOS, iOS and Windows.
+- [`d03f76daf`](https://www.github.com/tauri-apps/tauri/commit/d03f76daf4fd557dbbffa3205e78dd30faa87b12) ([#16054](https://www.github.com/tauri-apps/tauri/pull/16054) by [@jhasheng](https://www.github.com/tauri-apps/tauri/../../jhasheng)) Add `WebviewBuilder::profile_identifier`, `WebviewWindowBuilder::profile_identifier`, the `profileIdentifier` window config option and the `profileIdentifier` JS webview option to isolate a webview's browsing data. On macOS and iOS it maps to a `WKWebsiteDataStore` identifier, and on Windows to a WebView2 named profile, so webviews sharing a data directory get isolated cookies and storage while still sharing a single browser process.
+
+### Bug Fixes
+
+- [`d03f76daf`](https://www.github.com/tauri-apps/tauri/commit/d03f76daf4fd557dbbffa3205e78dd30faa87b12) ([#16054](https://www.github.com/tauri-apps/tauri/pull/16054) by [@jhasheng](https://www.github.com/tauri-apps/tauri/../../jhasheng)) Fix the `dataDirectory` and `dataStoreIdentifier` window config and JS webview options being ignored.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.11.0`
+
 ## [2.12.4]
 
 ### Dependencies

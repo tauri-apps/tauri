@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.11.0]
+
+### New Features
+
+- [`9eda95fa0`](https://www.github.com/tauri-apps/tauri/commit/9eda95fa0af7863c04644cae1fea0f233e94b1ca) ([#8656](https://www.github.com/tauri-apps/tauri/pull/8656) by [@naman-crabnebula](https://www.github.com/tauri-apps/tauri/../../naman-crabnebula)) Add the `pacman` bundle target for Arch Linux. It produces a `.tar.gz` archive with a `PKGBUILD` and `.SRCINFO` ready to be published to the AUR; see `bundle > linux > pacman` for the package name (`<name>-bin` by default), release, dependencies, install script, changelog and source options. `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+    
+    The `pacman` target is part of `"all"`, so Linux builds that bundle all targets now also produce the pacman package; list the targets explicitly in `bundle > targets` to opt out.
+- [`988cd2ea0`](https://www.github.com/tauri-apps/tauri/commit/988cd2ea02495a39ecfd6208d3413a4ddc39ca80) ([#16296](https://www.github.com/tauri-apps/tauri/pull/16296) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Add `bundle > linux > deb > compression` config option to control Debian bundle compression type and level.
+- [`61a3537e0`](https://www.github.com/tauri-apps/tauri/commit/61a3537e040f1f5feb59a3892f061cef545da2c8) ([#16397](https://www.github.com/tauri-apps/tauri/pull/16397) by [@rudy-07](https://www.github.com/tauri-apps/tauri/../../rudy-07)) Expose `browser_accelerator_keys` on `WebviewBuilder`, `WebviewWindowBuilder`, and `browserAcceleratorKeys` in the window configuration to control default browser shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) on Windows.
+- [`f69d1f98e`](https://www.github.com/tauri-apps/tauri/commit/f69d1f98ebae6cce509ef79688bdbb963914612b) ([#16562](https://www.github.com/tauri-apps/tauri/pull/16562) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `bundle.windows.nsis.installerTarget` to select `x86-unicode` (default), `x86-ansi`, or `amd64-unicode` independently of the application architecture.
+- [`d03f76daf`](https://www.github.com/tauri-apps/tauri/commit/d03f76daf4fd557dbbffa3205e78dd30faa87b12) ([#16054](https://www.github.com/tauri-apps/tauri/pull/16054) by [@jhasheng](https://www.github.com/tauri-apps/tauri/../../jhasheng)) Add `WebviewBuilder::profile_identifier`, `WebviewWindowBuilder::profile_identifier`, the `profileIdentifier` window config option and the `profileIdentifier` JS webview option to isolate a webview's browsing data. On macOS and iOS it maps to a `WKWebsiteDataStore` identifier, and on Windows to a WebView2 named profile, so webviews sharing a data directory get isolated cookies and storage while still sharing a single browser process.
+- [`89bb3c82f`](https://www.github.com/tauri-apps/tauri/commit/89bb3c82f5ae93322c6ef05252a6ebf5b348be04) ([#16179](https://www.github.com/tauri-apps/tauri/pull/16179) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add the `app > trayIcon > autosaveName` configuration option, which sets `NSStatusItem.autosaveName` for the configured tray icon on macOS, so that an app which creates more tray icons at runtime can keep the configured one's saved menu bar position tied to a stable key instead of to its creation order.
+- [`2d6b0e572`](https://www.github.com/tauri-apps/tauri/commit/2d6b0e572f101a5427035c7103eb316a2c7866f9) ([#16176](https://www.github.com/tauri-apps/tauri/pull/16176) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add the `app > trayIcon > iconIsTemplate` configuration option and the matching `iconIsTemplate` option of the JavaScript `TrayIcon.new`, which draw the configured tray icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+    
+    Deprecate the previous `iconAsTemplate` names (`TrayIconConfig::icon_as_template` in Rust) in favour of them. Both names keep working, and either one set to `true` draws the icon as a template.
+- [`9d4d3caac`](https://www.github.com/tauri-apps/tauri/commit/9d4d3caac3ff8f98347cefb227404792ac6ad7da) ([#16178](https://www.github.com/tauri-apps/tauri/pull/16178) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add the `app > trayIcon > showMenuOnRightClick` configuration option, which defaults to `true` and stops the configured tray icon from showing its menu on right click when set to `false`, matching the existing `showMenuOnLeftClick` option.
+
+### What's Changed
+
+- [`d03f76daf`](https://www.github.com/tauri-apps/tauri/commit/d03f76daf4fd557dbbffa3205e78dd30faa87b12) ([#16054](https://www.github.com/tauri-apps/tauri/pull/16054) by [@jhasheng](https://www.github.com/tauri-apps/tauri/../../jhasheng)) Deprecate the macOS / iOS only `WebviewBuilder::data_store_identifier`, `WebviewWindowBuilder::data_store_identifier`, the `dataStoreIdentifier` window config option and the `dataStoreIdentifier` JS webview option in favor of `profile_identifier` / `profileIdentifier`. They are not applied on Windows, so apps that already set them keep using the default WebView2 profile.
+
+### Dependencies
+
+- [`c3507cb9e`](https://www.github.com/tauri-apps/tauri/commit/c3507cb9ea8f14ac1fa83e3f7148273ea1c2e3af) ([#16601](https://www.github.com/tauri-apps/tauri/pull/16601) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated `dom_query` to 0.30.
+- [`9bc364d8b`](https://www.github.com/tauri-apps/tauri/commit/9bc364d8bfec2abd377268fb408e94d3c711cc19) ([#16603](https://www.github.com/tauri-apps/tauri/pull/16603) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated `phf` to 0.14
+
 ## [2.10.4]
 
 ### Bug Fixes

@@ -413,6 +413,30 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   }
 }
 
+/// Checks that Xcode has what the targets need.
+/// A device build needs only the iPhoneOS SDK.
+/// An empty target list gets the simulator check, because the target is not known.
+fn ensure_ios_requirements_installed<'a>(sdks: impl IntoIterator<Item = &'a str>) -> Result<()> {
+  let mut sdks = sdks.into_iter().peekable();
+  if sdks.peek().is_some() && sdks.all(|sdk| sdk == "iphoneos") {
+    ensure_iphoneos_sdk_installed()
+  } else {
+    ensure_ios_runtime_installed()
+  }
+}
+
+fn ensure_iphoneos_sdk_installed() -> Result<()> {
+  duct::cmd("xcrun", ["--sdk", "iphoneos", "--show-sdk-path"])
+    .stdout_capture()
+    .stderr_capture()
+    .run()
+    .map_err(|e| Error::CommandFailed {
+      command: "xcrun --sdk iphoneos --show-sdk-path".to_string(),
+      error: e,
+    })?;
+  Ok(())
+}
+
 fn ensure_ios_runtime_installed() -> Result<()> {
   let installed_platforms_json = duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"])
     .read()

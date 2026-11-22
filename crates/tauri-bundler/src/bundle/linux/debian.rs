@@ -97,23 +97,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     let share_dir = data_dir.join("usr/share").join(settings.product_name());
     fs::create_dir_all(&share_dir)?;
 
-    // TODO: we may have to copy all binaries.
-    let main_bin = settings
-      .binaries()
-      .iter()
-      .find(|b| b.main())
-      .expect("one main binary should always exist")
-      .name();
-
-    fs::rename(
-      data_dir.join("usr/bin").join(main_bin),
-      share_dir.join(main_bin),
-    )?;
-
-    symlink(
-      format!("../share/{}/{main_bin}", settings.product_name()),
-      data_dir.join("usr/bin").join(main_bin),
-    )?;
+    // Move the main binary and every sidecar beside it. `sidecar()` looks
+    // for sidecars next to the resolved executable, so a sidecar left in
+    // /usr/bin is never found once the main binary lives in /usr/share.
+    move_binaries_to_share_dir(&data_dir, settings.product_name())?;
 
     let cef_files = [
       // required
@@ -187,6 +174,36 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   )
   .with_context(|| "Failed to create package archive")?;
   Ok(vec![package_path])
+}
+
+/// Moves every binary in `usr/bin` (the main binary, any extra binaries and
+/// external binaries) beside the main binary under `usr/share/<product>/`,
+/// leaving a symlink in `usr/bin` for each one.
+///
+/// CEF apps run from `/usr/share/<product>/` (the main binary is symlinked
+/// from `/usr/bin`), and `tauri-plugin-shell`'s `sidecar()` looks for sidecars
+/// beside the resolved executable, so a sidecar left in `/usr/bin` is never
+/// found. See https://github.com/tauri-apps/tauri/issues/16577
+fn move_binaries_to_share_dir(data_dir: &Path, product_name: &str) -> crate::Result<()> {
+  let bin_dir = data_dir.join("usr/bin");
+  let share_dir = data_dir.join("usr/share").join(product_name);
+  fs::create_dir_all(&share_dir)?;
+
+  for entry in fs::read_dir(&bin_dir)? {
+    let path = entry?.path();
+    if !path.is_file() {
+      continue;
+    }
+    let name = path
+      .file_name()
+      .expect("binary path should have a file name");
+    fs::rename(&path, share_dir.join(name))?;
+    symlink(
+      format!("../share/{product_name}/{}", name.to_string_lossy()),
+      path,
+    )?;
+  }
+  Ok(())
 }
 
 /// Generate the debian data folders and files.
@@ -537,4 +554,35 @@ fn create_archive(srcs: Vec<PathBuf>, dest: &Path) -> crate::Result<()> {
   }
   builder.into_inner()?.flush()?;
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::move_binaries_to_share_dir;
+  use std::fs;
+
+  #[test]
+  fn cef_sidecars_move_beside_main_binary() {
+    let temp = tempfile::tempdir().unwrap();
+    let data_dir = temp.path();
+    let bin_dir = data_dir.join("usr/bin");
+    fs::create_dir_all(&bin_dir).unwrap();
+    fs::write(bin_dir.join("my-app"), b"fake main binary").unwrap();
+    fs::write(bin_dir.join("my-sidecar"), b"fake sidecar").unwrap();
+
+    move_binaries_to_share_dir(data_dir, "my-app").unwrap();
+
+    let share_dir = data_dir.join("usr/share/my-app");
+    assert!(share_dir.join("my-app").is_file());
+    assert!(share_dir.join("my-sidecar").is_file());
+    for name in ["my-app", "my-sidecar"] {
+      let link = bin_dir.join(name);
+      assert!(link.is_symlink(), "{name} should be a symlink in /usr/bin");
+      assert_eq!(
+        fs::read_link(&link).unwrap().to_string_lossy(),
+        "../share/my-app/".to_string() + name
+      );
+      assert!(link.exists(), "symlink {name} should resolve");
+    }
+  }
 }

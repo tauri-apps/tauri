@@ -2278,8 +2278,6 @@ pub enum OnNewWindow {
   /// allowed by `urls` (any URL at all if `urls` is not set).
   /// Scope capabilities to exact window labels (e.g. `"windows": ["main"]`)
   /// and set `urls` to restrict which URLs these windows can load.
-  ///
-  /// This is only supported on desktop; the new window request is denied on mobile.
   AllowTauriWindow {
     /// Only allow URLs matching the given pattern list when set.
     ///
@@ -2784,6 +2782,10 @@ pub struct WindowConfig {
   #[serde(default = "default_true", alias = "general-autofill-enabled")]
   pub general_autofill_enabled: bool,
   /// Action to perform when a new window is requested to be created.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS**: Unsupported, new window requests are always denied.
   #[serde(default, alias = "on-new-window")]
   pub on_new_window: OnNewWindow,
 }

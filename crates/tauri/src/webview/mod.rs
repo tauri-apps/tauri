@@ -289,7 +289,7 @@ unstable_struct!(
 
 pub(crate) enum OnNewWindowHandler<R: Runtime> {
   Fn(Box<NewWindowHandler<R>>),
-  Config(OnNewWindow),
+  Config(#[cfg_attr(mobile, allow(dead_code))] OnNewWindow),
 }
 
 type RuntimeNewWindowHandler =
@@ -298,6 +298,7 @@ type RuntimeNewWindowHandler =
 /// Builds the runtime new window handler for a [`OnNewWindow`] configuration.
 ///
 /// Returns `None` when new windows are denied, which is also the runtime default.
+#[cfg(desktop)]
 fn config_new_window_handler<R: Runtime>(
   app_handle: AppHandle<R>,
   webview_label: &str,
@@ -311,17 +312,7 @@ fn config_new_window_handler<R: Runtime>(
     _ => return None,
   };
 
-  // Tauri windows can only be used to fulfill a new window request on desktop
-  #[cfg(mobile)]
-  if create_tauri_window {
-    return None;
-  }
-  #[cfg(mobile)]
-  let _ = (&app_handle, webview_label);
-
-  #[cfg(desktop)]
   let webview_label = webview_label.to_string();
-  #[cfg(desktop)]
   let created_window_count = AtomicUsize::new(0);
 
   let urls = urls.map(Arc::new);
@@ -337,51 +328,42 @@ fn config_new_window_handler<R: Runtime>(
       return Response::Allow;
     }
 
-    #[cfg(mobile)]
-    {
-      let _ = features;
-      Response::Deny
+    let label = loop {
+      let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+      let label = format!("{webview_label}-created-{number}");
+      if app_handle.manager.get_webview(&label).is_none()
+        && app_handle.manager.get_window(&label).is_none()
+      {
+        break label;
+      }
+    };
+
+    let mut builder = WebviewWindowBuilder::new(
+      &app_handle,
+      label,
+      WebviewUrl::External("about:blank".parse().expect("about:blank is a valid URL")),
+    )
+    .window_features(features)
+    .on_document_title_changed(|window, title| {
+      if let Err(e) = window.set_title(&title) {
+        log::error!("failed to set window title: {e}");
+      }
+    })
+    .title(url.as_str());
+
+    // the scope must also apply to navigations inside the created window,
+    // otherwise the opener could redirect it to any URL after it is created
+    if let Some(urls) = &urls {
+      builder = builder.on_navigation(created_window_navigation_handler(urls.clone()));
     }
 
-    #[cfg(desktop)]
-    {
-      let label = loop {
-        let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let label = format!("{webview_label}-created-{number}");
-        if app_handle.manager.get_webview(&label).is_none()
-          && app_handle.manager.get_window(&label).is_none()
-        {
-          break label;
-        }
-      };
-
-      let mut builder = WebviewWindowBuilder::new(
-        &app_handle,
-        label,
-        WebviewUrl::External("about:blank".parse().expect("about:blank is a valid URL")),
-      )
-      .window_features(features)
-      .on_document_title_changed(|window, title| {
-        if let Err(e) = window.set_title(&title) {
-          log::error!("failed to set window title: {e}");
-        }
-      })
-      .title(url.as_str());
-
-      // the scope must also apply to navigations inside the created window,
-      // otherwise the opener could redirect it to any URL after it is created
-      if let Some(urls) = &urls {
-        builder = builder.on_navigation(created_window_navigation_handler(urls.clone()));
-      }
-
-      match builder.build() {
-        Ok(window) => Response::Create {
-          window_id: window.window.window.id,
-        },
-        Err(e) => {
-          log::error!("failed to create window for new window request: {e}");
-          Response::Deny
-        }
+    match builder.build() {
+      Ok(window) => Response::Create {
+        window_id: window.window.window.id,
+      },
+      Err(e) => {
+        log::error!("failed to create window for new window request: {e}");
+        Response::Deny
       }
     }
   }))
@@ -897,9 +879,13 @@ tauri::Builder::default()
           NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
         },
       ) as Box<RuntimeNewWindowHandler>),
+      #[cfg(desktop)]
       Some(OnNewWindowHandler::Config(on_new_window)) => {
         config_new_window_handler(manager.app_handle().clone(), &self.label, on_new_window)
       }
+      // new window requests are not supported on mobile
+      #[cfg(mobile)]
+      Some(OnNewWindowHandler::Config(_)) => None,
       None => None,
     };
 

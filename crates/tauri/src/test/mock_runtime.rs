@@ -575,6 +575,11 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(target_os = "android")]
+  fn activity_id(self, _activity_id: i32) -> Self {
+    self
+  }
+
   #[cfg(target_os = "ios")]
   fn requested_by_scene_identifier<S: Into<String>>(self, _identifier: S) -> Self {
     self

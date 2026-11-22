@@ -295,6 +295,29 @@ pub enum RunEvent {
     /// This lets you determine why the scene was requested.
     options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
   },
+  /// Emitted when the system created an activity that is not attached to any window.
+  ///
+  /// This happens when the app is launched again while its process is still alive
+  /// but all of its activities were destroyed - for instance when a foreground service keeps
+  /// the process running after the user removed the app from the recents screen
+  /// (which requires preventing the exit with [`ExitRequestApi::prevent_exit`]).
+  ///
+  /// Create a window while handling this event to attach it to the activity, otherwise the activity stays blank.
+  /// This is the Android counterpart of the iOS `SceneRequested` event.
+  ///
+  /// Not emitted for the activity that launched the app, for activities created for a new window
+  /// or for activities that are recreated due to a configuration change.
+  #[cfg(target_os = "android")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "android")))]
+  ActivityRequested {
+    /// Identifier of the activity.
+    ///
+    /// Pass it to [`WebviewWindowBuilder::activity_id`](crate::webview::WebviewWindowBuilder::activity_id)
+    /// to attach the new window to this activity.
+    activity_id: i32,
+    /// Name of the activity class, relative to the app package.
+    activity_name: String,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -2883,6 +2906,14 @@ fn on_event_loop_event<R: Runtime>(
     RuntimeRunEvent::SceneRequested { scene, options } => {
       RunEvent::SceneRequested { scene, options }
     }
+    #[cfg(target_os = "android")]
+    RuntimeRunEvent::ActivityRequested {
+      activity_id,
+      activity_name,
+    } => RunEvent::ActivityRequested {
+      activity_id,
+      activity_name,
+    },
     _ => unimplemented!(),
   };
 

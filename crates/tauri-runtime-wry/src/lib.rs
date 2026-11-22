@@ -1249,6 +1249,12 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(target_os = "android")]
+  fn activity_id(mut self, activity_id: i32) -> Self {
+    self.inner = self.inner.with_activity_id(activity_id);
+    self
+  }
+
   #[cfg(target_os = "ios")]
   fn requested_by_scene_identifier<S: Into<String>>(mut self, identifier: S) -> Self {
     self.inner = self
@@ -4458,6 +4464,16 @@ fn handle_event_loop<T: UserEvent>(
     #[cfg(target_os = "ios")]
     Event::SceneRequested { scene, options } => {
       callback(RunEvent::SceneRequested { scene, options });
+    }
+    #[cfg(target_os = "android")]
+    Event::ActivityRequested {
+      activity_id,
+      activity_name,
+    } => {
+      callback(RunEvent::ActivityRequested {
+        activity_id,
+        activity_name,
+      });
     }
     _ => (),
   }

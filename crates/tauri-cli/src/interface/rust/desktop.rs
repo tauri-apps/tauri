@@ -47,7 +47,12 @@ impl DevProcess for DevChild {
       // so it cannot respawn them in the meantime
       const KILL_TREE: &str = r#"
 descendants() {
+  # nothing to walk when the process has already exited
+  kill -0 "$1" 2>/dev/null || return 0
   for child in $(pgrep -P "$1" 2>/dev/null); do
+    # on macOS `pgrep -P` of a pid that no longer exists lists every process,
+    # pid 0 included (as its own child), so keep only real children
+    [ "$(ps -o ppid= -p "$child" 2>/dev/null | tr -d ' ')" = "$1" ] || continue
     echo "$child"
     descendants "$child"
   done

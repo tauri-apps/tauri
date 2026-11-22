@@ -305,8 +305,8 @@ importers:
         specifier: ^9.2.2
         version: 9.2.2(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       appium-xcuitest-driver:
-        specifier: ^13.1.3
-        version: 13.1.3(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
+        specifier: ^13.2.0
+        version: 13.6.1(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -2420,11 +2420,11 @@ packages:
       - io.appium.settings
       - teen_process
 
-  appium-xcuitest-driver@13.1.3:
-    resolution: {integrity: sha512-iOjpXlnkZx3sPaTga6Pe7Lf8Mbr21Wqwp6LP+pb4MWKI4sWS4lGxjuVN8joyn3Db7U5GWbKlQKdpiw1LZDvrJg==}
+  appium-xcuitest-driver@13.6.1:
+    resolution: {integrity: sha512-IqpzhLiFT3QOmCRDS3hjjUmiptSk3aOhUUbpH7QWAn31a8PuUKapa3ZyTqirrn4R2uywnNVUpm2rKDSjQUlD/Q==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
     peerDependencies:
-      appium: ^4.0.0-beta.8
+      appium: ^4.0.0
     bundledDependencies:
       - '@appium/css-locator-to-native'
       - '@appium/strongbox'
@@ -2444,6 +2444,7 @@ packages:
       - teen_process
       - winston
       - ws
+      - '@appium/media-proxy'
 
   appium@4.0.0:
     resolution: {integrity: sha512-8Ev8mJAMWFQhht2fL7UtjHocsdfTfec+xd2aydSZbcJJIs3JKudP8UPH867Rv1feeXD1hd2K4SJh5JF5u1hOaA==}
@@ -6597,7 +6598,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  appium-xcuitest-driver@13.1.3(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
+  appium-xcuitest-driver@13.6.1(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
     dependencies:
       appium: 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
     optionalDependencies:

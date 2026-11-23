@@ -35,6 +35,42 @@ describeApi('dpi', () => {
     expect(result.logical).toEqual({ x: 5, y: 10 })
   })
 
+  it('PhysicalSize.round and PhysicalPosition.round round half away from zero like Rust', async () => {
+    const result = await tauri((api) => {
+      const size = new api.dpi.LogicalSize(301, 201).toPhysical(1.5)
+      const roundedSize = size.round()
+      const position = new api.dpi.LogicalPosition(-101, 84.17)
+        .toPhysical(1.5)
+        .round()
+      return {
+        size: { width: size.width, height: size.height },
+        roundedSize: { width: roundedSize.width, height: roundedSize.height },
+        position: { x: position.x, y: position.y }
+      }
+    })
+    expect(result.size).toEqual({ width: 451.5, height: 301.5 })
+    expect(result.roundedSize).toEqual({ width: 452, height: 302 })
+    expect(result.position).toEqual({ x: -152, y: 126 })
+  })
+
+  it('LogicalSize.round and LogicalPosition.round round half away from zero like Rust', async () => {
+    const result = await tauri((api) => {
+      const size = new api.dpi.PhysicalSize(903, 603).toLogical(2)
+      const roundedSize = size.round()
+      const position = new api.dpi.PhysicalPosition(-303, 252.51)
+        .toLogical(2)
+        .round()
+      return {
+        size: { width: size.width, height: size.height },
+        roundedSize: { width: roundedSize.width, height: roundedSize.height },
+        position: { x: position.x, y: position.y }
+      }
+    })
+    expect(result.size).toEqual({ width: 451.5, height: 301.5 })
+    expect(result.roundedSize).toEqual({ width: 452, height: 302 })
+    expect(result.position).toEqual({ x: -152, y: 126 })
+  })
+
   it('Size and Position wrappers delegate conversions', async () => {
     const result = await tauri((api) => {
       const size = new api.dpi.Size(

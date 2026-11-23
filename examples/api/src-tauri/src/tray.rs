@@ -5,28 +5,64 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   Manager, Runtime, WebviewUrl, include_image,
-  menu::{Menu, MenuItem},
+  menu::{IconMenuItem, Menu, MenuItem, NativeIcon, Submenu},
   tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
   let toggle_i = MenuItem::with_id(app, "toggle", "Toggle", true, None::<&str>)?;
-  let new_window_i = MenuItem::with_id(app, "new-window", "New window", true, None::<&str>)?;
+  let new_window_i = IconMenuItem::with_id_and_native_icon(
+    app,
+    "new-window",
+    "New window",
+    true,
+    Some(NativeIcon::Computer),
+    None::<&str>,
+  )?;
   let icon_i_1 = MenuItem::with_id(app, "icon-1", "Icon 1", true, None::<&str>)?;
   let icon_i_2 = MenuItem::with_id(app, "icon-2", "Icon 2", true, None::<&str>)?;
+  let native_icon_i_1 = IconMenuItem::with_id_and_native_icon(
+    app,
+    "native-icon-1",
+    "Native icon: Info",
+    true,
+    Some(NativeIcon::Info),
+    None::<&str>,
+  )?;
+  let native_icon_i_2 = IconMenuItem::with_id_and_native_icon(
+    app,
+    "native-icon-2",
+    "Native icon: Network",
+    true,
+    Some(NativeIcon::Network),
+    None::<&str>,
+  )?;
+  let icons_submenu = Submenu::with_id_and_native_icon(
+    app,
+    "tray-icon",
+    "Tray icon",
+    true,
+    Some(NativeIcon::PreferencesGeneral),
+  )?;
+  icons_submenu.append_items(&[&icon_i_1, &icon_i_2, &native_icon_i_1, &native_icon_i_2])?;
   #[cfg(target_os = "macos")]
   let set_title_i = MenuItem::with_id(app, "set-title", "Set Title", true, None::<&str>)?;
   let switch_i = MenuItem::with_id(app, "switch-menu", "Switch Menu", true, None::<&str>)?;
   let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-  let remove_tray_i =
-    MenuItem::with_id(app, "remove-tray", "Remove Tray icon", true, None::<&str>)?;
+  let remove_tray_i = IconMenuItem::with_id_and_native_icon(
+    app,
+    "remove-tray",
+    "Remove Tray icon",
+    true,
+    Some(NativeIcon::Remove),
+    None::<&str>,
+  )?;
   let menu1 = Menu::with_items(
     app,
     &[
       &toggle_i,
       &new_window_i,
-      &icon_i_1,
-      &icon_i_2,
+      &icons_submenu,
       #[cfg(target_os = "macos")]
       &set_title_i,
       &switch_i,
@@ -87,6 +123,16 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
             include_image!("../../.icons/tray_icon_with_transparency.png")
           };
           let _ = tray.set_icon(Some(icon));
+        }
+      }
+      i @ "native-icon-1" | i @ "native-icon-2" => {
+        if let Some(tray) = app.tray_by_id("tray-1") {
+          let icon = if i == "native-icon-1" {
+            NativeIcon::Info
+          } else {
+            NativeIcon::Network
+          };
+          let _ = tray.set_native_icon(Some(icon));
         }
       }
       "switch-menu" => {

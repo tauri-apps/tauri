@@ -1249,13 +1249,19 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| w.window_label() == self.label())
+      .filter(|w| w.window_ref().label() == self.label())
       .cloned()
       .collect()
   }
 
   pub(crate) fn is_webview_window(&self) -> bool {
-    self.webviews().iter().all(|w| w.label() == self.label())
+    self
+      .manager
+      .webview
+      .webviews_lock()
+      .values()
+      .filter(|w| w.window_ref().label() == self.label())
+      .all(|w| w.label() == self.label())
   }
 
   /// Runs the given closure on the main thread.

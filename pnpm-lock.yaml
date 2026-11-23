@@ -305,7 +305,7 @@ importers:
         specifier: ^9.2.2
         version: 9.2.2(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       appium-xcuitest-driver:
-        specifier: ^13.2.0
+        specifier: ^13.3.0
         version: 13.6.1(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       cross-env:
         specifier: ^10.1.0

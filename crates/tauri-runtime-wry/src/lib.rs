@@ -261,12 +261,14 @@ impl<T: UserEvent> Context<T> {
   }
 
   fn send_user_message(&self, message: Message<T>) -> Result<()> {
-    let event_loop = self
-      .main_thread
-      .window_target
-      .upgrade()
-      .ok_or(Error::EventLoopClosed)?;
     if current_thread().id() == self.main_thread_id {
+      // only upgrade on the main thread: a strong reference held by another thread
+      // could become the last one and drop the event loop target there
+      let event_loop = self
+        .main_thread
+        .window_target
+        .upgrade()
+        .ok_or(Error::EventLoopClosed)?;
       handle_user_message(
         &event_loop,
         message,

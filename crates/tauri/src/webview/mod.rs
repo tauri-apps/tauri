@@ -1936,10 +1936,6 @@ impl<R: Runtime> Webview<R> {
     self.window.lock().unwrap()
   }
 
-  pub(crate) fn window_label(&self) -> String {
-    self.window_ref().label().to_string()
-  }
-
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
   /// The closure is executed on the main thread.

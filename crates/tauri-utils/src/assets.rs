@@ -152,6 +152,10 @@ impl std::fmt::Debug for EmbeddedAssets {
 
 impl EmbeddedAssets {
   /// Creates a new instance from the given asset map and script hash list.
+  ///
+  /// ## Stability
+  ///
+  /// The `phf` crate may be updated in minor releases.
   pub const fn new(
     map: phf::Map<&'static str, &'static [u8]>,
     global_hashes: &'static [CspHash<'static>],

@@ -518,7 +518,7 @@ fn display_perm_key(prefix: &str) -> &str {
   }
 }
 
-#[cfg(any(feature = "build", feature = "build-2"))]
+#[cfg(feature = "build")]
 mod build {
   use proc_macro2::TokenStream;
   use quote::{ToTokens, TokenStreamExt, quote};

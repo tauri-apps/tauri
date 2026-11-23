@@ -26,7 +26,7 @@ targets = [
 anyhow = "1"
 quote = { version = "1", optional = true }
 tauri-codegen = { workspace = true, optional = true }
-tauri-utils = { workspace = true, features = ["build-2", "resources"] }
+tauri-utils = { workspace = true, features = ["build", "resources"] }
 cargo_toml = "1.0"
 serde = "1"
 serde_json = "1"

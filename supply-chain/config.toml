@@ -454,10 +454,6 @@ criteria = "safe-to-deploy"
 version = "0.7.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.kuchikiki]]
-version = "0.8.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.libloading]]
 version = "0.7.4"
 criteria = "safe-to-deploy"

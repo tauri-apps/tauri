@@ -534,7 +534,7 @@ impl<R: Runtime> WebviewManager<R> {
         url.set_path(&format!(
           "{},{}",
           mime::TEXT_HTML,
-          String::from_utf8_lossy(&tauri_utils::html2::serialize_doc(&document))
+          String::from_utf8_lossy(&tauri_utils::html::serialize_doc(&document))
         ));
       }
     }

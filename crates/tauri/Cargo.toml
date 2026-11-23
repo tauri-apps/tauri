@@ -166,7 +166,7 @@ objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
 glob = "0.3"
 heck = "0.5"
 tauri-build = { workspace = true }
-tauri-utils = { workspace = true, features = ["build-2"] }
+tauri-utils = { workspace = true, features = ["build"] }
 
 [dev-dependencies]
 proptest = "1.6.0"
@@ -207,7 +207,7 @@ devtools = ["tauri-runtime/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
-webview-data-url = ["data-url", "tauri-utils/html-manipulation-2"]
+webview-data-url = ["data-url", "tauri-utils/html-manipulation"]
 protocol-asset = ["http-range"]
 config-json5 = ["tauri-macros/config-json5"]
 config-toml = ["tauri-macros/config-toml"]

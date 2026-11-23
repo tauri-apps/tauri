@@ -2650,7 +2650,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   /// **SAFETY:** the lifetime is wrong here, use with caution!
-  /// `WryHandle` does not own the display handle so the window can become stale before `WryWindowDispatcher` is dropped.
+  /// `WryHandle` does not own the event loop so the display handle can become stale before `WryHandle` is dropped.
   fn display_handle(
     &self,
   ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {

@@ -1467,6 +1467,26 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(handle.0) })
   }
 
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    Ok(crate::platform::android::with_env(|env, activity| {
+      let class = env
+        .call_method(activity, "getClass", "()Ljava/lang/Class;", &[])
+        .unwrap()
+        .l()
+        .unwrap();
+      let name = env
+        .call_method(class, "getName", "()Ljava/lang/String;", &[])
+        .unwrap()
+        .l()
+        .unwrap();
+      env
+        .get_string(&jni::objects::JString::from(name))
+        .unwrap()
+        .into()
+    }))
+  }
+
   fn theme(&self) -> Result<Theme> {
     window_getter!(self, Theme)
   }

@@ -33,6 +33,7 @@ members = [
 
   # examples
   "examples/cef/src-tauri",
+  "examples/helloworld",
   "examples/file-associations/src-tauri",
   "examples/resources/src-tauri",
   "examples/api/src-tauri",

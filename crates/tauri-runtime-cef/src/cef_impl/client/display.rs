@@ -11,9 +11,9 @@ use crate::macros::wrap_with_args;
 use crate::runtime::{Message, RuntimeContext};
 use crate::webview::INITIAL_LOAD_URL;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "android"))]
 type CefCursorHandle = *mut u8;
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "android")))]
 type CefCursorHandle = cef::sys::cef_cursor_handle_t;
 
 wrap_with_args! {

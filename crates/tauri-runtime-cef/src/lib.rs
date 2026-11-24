@@ -13,6 +13,7 @@ mod dialog;
 mod downgrade;
 /// The diagnostic environment variables Chromium and CEF read, and the policy over them.
 mod environment;
+#[cfg(not(target_os = "android"))]
 mod external_message_pump;
 mod frame;
 pub use dialog::{

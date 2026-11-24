@@ -6,7 +6,7 @@ use cef::*;
 
 #[cfg(target_os = "linux")]
 type CefOsEvent<'a> = Option<&'a mut cef::sys::XEvent>;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "android"))]
 type CefOsEvent<'a> = *mut u8;
 #[cfg(windows)]
 type CefOsEvent<'a> = Option<&'a mut cef::sys::MSG>;

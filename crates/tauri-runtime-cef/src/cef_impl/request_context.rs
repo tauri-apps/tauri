@@ -378,6 +378,14 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
   });
 
   let mut handler = WebviewRequestContextHandler::new(Arc::new(Mutex::new(Some(wrapped_callback))));
+  #[cfg(target_os = "android")]
+  // `handler` and `settings` are exclusively borrowed until Java finishes.
+  let request_context = unsafe {
+    crate::platform::android::on_ui_scoped(|| {
+      request_context_create_context(Some(&settings), Some(&mut handler))
+    })
+  };
+  #[cfg(not(target_os = "android"))]
   let request_context = request_context_create_context(Some(&settings), Some(&mut handler));
   *rc_holder.lock().unwrap() = request_context.clone();
 

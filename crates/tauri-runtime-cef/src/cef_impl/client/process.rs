@@ -27,6 +27,7 @@ wrap_browser_process_handler! {
       self.context.wake_event_loop();
     }
 
+    #[cfg(not(target_os = "android"))]
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
       self.context.cef_pump.on_schedule_message_pump_work(delay_ms);
       self.context.wake_event_loop();

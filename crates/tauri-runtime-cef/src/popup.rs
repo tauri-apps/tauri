@@ -15,6 +15,7 @@ use std::sync::{
   Arc, Mutex,
   atomic::{AtomicBool, Ordering},
 };
+#[cfg(not(target_os = "android"))]
 use tauri_runtime::dpi::{LogicalPosition, LogicalSize, Rect};
 
 const MAX_POPUPS: usize = 128;
@@ -241,6 +242,12 @@ impl PopupFamily {
     self.closing.load(Ordering::Acquire)
   }
 
+  #[cfg(target_os = "android")]
+  pub(crate) fn observe(&self) -> Vec<Webview> {
+    Vec::new()
+  }
+
+  #[cfg(not(target_os = "android"))]
   pub(crate) fn observe(&self) -> Vec<Webview> {
     if self.closing.load(Ordering::Acquire) {
       return Vec::new();

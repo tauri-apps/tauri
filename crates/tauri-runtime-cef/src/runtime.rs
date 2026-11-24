@@ -42,6 +42,7 @@ use winit::{
 };
 
 use crate::DebugEnvironment;
+#[cfg(not(target_os = "android"))]
 use crate::external_message_pump::CefExternalPump;
 use crate::platform::EventLoopExt;
 use crate::{
@@ -470,6 +471,8 @@ pub enum DowngradePolicy {
 /// ```
 #[derive(Default)]
 pub struct Cef {
+  #[cfg(target_os = "android")]
+  android_app: Option<winit::platform::android::activity::AndroidApp>,
   command_line_args: Vec<(String, Option<String>)>,
   disabled_features: Vec<String>,
   enabled_features: Vec<String>,
@@ -543,6 +546,13 @@ impl fmt::Debug for Cef {
 }
 
 impl Cef {
+  /// Binds this runtime to the GameActivity passed to `android_main`.
+  #[cfg(target_os = "android")]
+  pub fn android_app(mut self, app: winit::platform::android::activity::AndroidApp) -> Self {
+    self.android_app = Some(app);
+    self
+  }
+
   /// Observes native input, resize and redraw events without replacing Tauri's handling.
   ///
   /// Runs before Tauri handles the event. Offscreen embedders forward input, focus and IME
@@ -1234,6 +1244,7 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   next_webview_id: Arc<AtomicU32>,
   current_dispatch: Arc<MainThreadDispatchSlot<T>>,
   pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
+  #[cfg(not(target_os = "android"))]
   pub(crate) cef_pump: CefExternalPump,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
   /// [`cef::initialize`]. Per-webview `data_directory` profiles must resolve
@@ -1745,6 +1756,8 @@ pub(crate) struct AppState<T: UserEvent> {
 }
 
 pub(crate) struct WinitCefApp<T: UserEvent> {
+  #[cfg(target_os = "android")]
+  ready: bool,
   pub(crate) context: RuntimeContext<T>,
   receiver: Receiver<Message<T>>,
   pub(crate) state: AppState<T>,
@@ -1759,6 +1772,8 @@ impl<T: UserEvent> WinitCefApp<T> {
     scheme_registry: request_handler::SchemeRegistry,
   ) -> Self {
     Self {
+      #[cfg(target_os = "android")]
+      ready: false,
       context,
       receiver,
       state: AppState {
@@ -2302,12 +2317,27 @@ impl<T: UserEvent> WinitCefApp<T> {
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
+
+    #[cfg(target_os = "android")]
+    if !self.ready {
+      self.ready = true;
+      self.run_callback(RunEvent::Ready);
+    }
+
     self.drain_messages(event_loop);
   }
 
   fn new_events(&mut self, event_loop: &dyn ActiveEventLoop, cause: StartCause) {
     let _guard = self.install_current_dispatch(event_loop);
+
+    #[cfg(target_os = "android")]
+    if !self.ready && crate::platform::android::has_window() {
+      self.ready = true;
+      self.run_callback(RunEvent::Ready);
+    }
+
     match cause {
+      #[cfg(not(target_os = "android"))]
       StartCause::Init => {
         self.run_callback(RunEvent::Ready);
         self.context.cef_pump.do_work();
@@ -2899,6 +2929,28 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     self.context.send_message(message)
   }
 
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &self,
+    env: &mut jni::JNIEnv<'a>,
+    activity: &jni::objects::JObject<'_>,
+    name: impl Into<String>,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
+    crate::platform::android::find_class(env, activity, name.into())
+  }
+
+  #[cfg(target_os = "android")]
+  fn run_on_android_context<F>(&self, f: F)
+  where
+    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
+  {
+    crate::platform::android::post(move || {
+      crate::platform::android::with_env(|env, activity| {
+        f(env, activity, &jni::objects::JObject::null())
+      })
+    });
+  }
+
   fn set_device_event_filter(&self, filter: DeviceEventFilter) {
     let message = Message::EventLoop(EventLoopMessage::SetDeviceEventFilter(filter));
     let _ = self.context.send_message(message);
@@ -3008,6 +3060,9 @@ impl<T: UserEvent> CefRuntime<T> {
     mut event_loop_builder: EventLoopBuilder,
     runtime_args: RuntimeInitArgs<Cef>,
   ) -> Result<Self> {
+    #[cfg(target_os = "android")]
+    let mut runtime_args = runtime_args;
+
     // Snapshot before CEF can touch anything, so we can tell an embedder's own
     // signal policy apart from the handlers CEF installs in `cef::initialize`.
     #[cfg(any(
@@ -3018,6 +3073,25 @@ impl<T: UserEvent> CefRuntime<T> {
       target_os = "netbsd"
     ))]
     let pre_cef_signals = TerminationSignals::capture();
+
+    #[cfg(target_os = "android")]
+    {
+      use winit::platform::android::EventLoopBuilderExtAndroid;
+      let app = runtime_args
+        .runtime_init_attrs
+        .android_app
+        .take()
+        .expect("pass the GameActivity's AndroidApp with Cef::android_app");
+
+      crate::platform::android::initialize(&app)?;
+
+      if runtime_args.runtime_init_attrs.cache_path.is_none() {
+        runtime_args.runtime_init_attrs.cache_path =
+          Some(crate::platform::android::cache_dir().join("cef"));
+      }
+
+      event_loop_builder.with_android_app(app);
+    }
 
     let args = cef::args::Args::new();
 
@@ -3089,6 +3163,8 @@ impl<T: UserEvent> CefRuntime<T> {
     }
 
     let Cef {
+      #[cfg(target_os = "android")]
+        android_app: _,
       command_line_args,
       disabled_features,
       enabled_features,
@@ -3351,19 +3427,24 @@ impl<T: UserEvent> CefRuntime<T> {
     #[cfg(target_os = "macos")]
     event_loop_builder.with_default_menu(false);
 
-    let event_loop = event_loop_builder
+    #[allow(unused_mut)]
+    let mut event_loop = event_loop_builder
       .build()
       .map_err(|e| Error::CreateWindow(Box::new(e)))?;
+
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
+    #[cfg(not(target_os = "android"))]
     let cef_pump = CefExternalPump::new();
+
     let current_dispatch: Arc<MainThreadDispatchSlot<T>> = Default::default();
     #[cfg(target_os = "macos")]
     let wake = {
       let slot = current_dispatch.clone();
       crate::platform::macos::MainThreadWake::new(move || slot.deliver_wake(&proxy))
     };
+
     let context = RuntimeContext {
       window_event_handler,
       sender: sender.clone(),
@@ -3376,6 +3457,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_webview_id: Default::default(),
       current_dispatch,
       app_wide_theme: Default::default(),
+      #[cfg(not(target_os = "android"))]
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),
       profile_preferences: Arc::new(profile_preferences),
@@ -3447,7 +3529,8 @@ impl<T: UserEvent> CefRuntime<T> {
       log_file: log_file.to_string_lossy().to_string().as_str().into(),
       log_severity,
       persist_session_cookies: persist_session_cookies as std::os::raw::c_int,
-      external_message_pump: 1,
+      // Android does not use the external message pump.
+      external_message_pump: i32::from(!cfg!(target_os = "android")),
       ..Default::default()
     };
 
@@ -3496,13 +3579,22 @@ impl<T: UserEvent> CefRuntime<T> {
     if let Some(callback) = settings_callback {
       callback(&mut settings);
     }
-    if cef::initialize(
-      Some(args.as_main_args()),
-      Some(&settings),
-      Some(&mut app),
-      std::ptr::null_mut(),
-    ) != 1
-    {
+
+    let mut initialize_cef = || {
+      cef::initialize(
+        Some(args.as_main_args()),
+        Some(&settings),
+        Some(&mut app),
+        std::ptr::null_mut(),
+      )
+    };
+    #[cfg(target_os = "android")]
+    // All CEF strings are owned here, and the native thread waits for the call.
+    let initialized =
+      unsafe { crate::platform::android::on_ui_with_event_loop(&mut event_loop, initialize_cef) };
+    #[cfg(not(target_os = "android"))]
+    let initialized = initialize_cef();
+    if initialized != 1 {
       return Err(Error::WebviewRuntimeNotInstalled);
     }
 
@@ -3546,6 +3638,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     // Wait for the CEF context to initialize before returning, so that the runtime is ready to create browsers.
     while !context_initialized.load(Ordering::SeqCst) {
+      #[cfg(not(target_os = "android"))]
       context.cef_pump.do_work();
       std::thread::sleep(Duration::from_millis(1));
     }
@@ -3554,6 +3647,13 @@ impl<T: UserEvent> CefRuntime<T> {
     // `preference_manager_get_global` has to be called on the browser UI thread — which
     // is this one, since the runtime drives CEF from the main thread through an external
     // message pump.
+    #[cfg(target_os = "android")]
+    unsafe {
+      crate::platform::android::on_ui_with_event_loop(&mut event_loop, move || {
+        crate::cef_impl::preferences::apply_global_preferences(&global_preferences)
+      });
+    }
+    #[cfg(not(target_os = "android"))]
     crate::cef_impl::preferences::apply_global_preferences(&global_preferences);
 
     Ok(Self {
@@ -3701,6 +3801,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       .listen_device_events(device_event_filter_to_winit(filter));
   }
 
+  #[cfg(not(target_os = "android"))]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
     while let Ok(message) = self.receiver.try_recv() {
       if let Message::UserEvent(event) = message {
@@ -3724,7 +3825,17 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       Box::new(callback),
       self.scheme_registry,
     );
+
+    #[cfg(target_os = "android")]
+    // Startup already pumped lifecycle events; wake the loop for Tauri's Ready.
+    app.context.wake_event_loop();
+
     let _ = self.event_loop.run_app(app);
+
+    // GameActivity.onDestroy joins this thread while running on the Java UI
+    // thread; posting shutdown back there would deadlock. Android keeps the CEF
+    // context for the lifetime of this process.
+    #[cfg(not(target_os = "android"))]
     cef::shutdown();
   }
 }

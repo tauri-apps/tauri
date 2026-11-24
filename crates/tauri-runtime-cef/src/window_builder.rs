@@ -533,6 +533,15 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   // TODO
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(self, _: S) -> Self {
+    self
+  }
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(self, _: S) -> Self {
+    self
+  }
+
   fn no_redirection_bitmap(#[allow(unused_mut)] mut self, _enable: bool) -> Self {
     self
   }

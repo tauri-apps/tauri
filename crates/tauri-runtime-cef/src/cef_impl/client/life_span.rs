@@ -167,6 +167,7 @@ wrap_with_args! {
           *client = Some((self.create_popup)(request, crate::FrameNavigationState::new()));
           0
         },
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
           // CEF cannot transplant a popup's contents into an existing
           // browser, so cancel the popup and navigate the designated

@@ -54,7 +54,7 @@ serde_json = { version = "1", features = ["preserve_order"] }
 # version should match tauri-utils for deduplication
 json5 = "0.4"
 notify = "9"
-notify-debouncer-full = "0.7"
+notify-debouncer-full = "0.8"
 shared_child = "1"
 duct = "1.0"
 toml_edit = { version = "0.25", features = ["serde"] }

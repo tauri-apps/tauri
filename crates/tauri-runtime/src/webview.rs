@@ -365,8 +365,15 @@ pub struct WebviewAttributes {
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
   pub browser_extensions_enabled: bool,
+  pub browser_accelerator_keys: bool,
   pub extensions_path: Option<PathBuf>,
+  /// macOS / iOS only `WKWebsiteDataStore` identifier, kept for the deprecated
+  /// `data_store_identifier` APIs. Prefer [`Self::profile_identifier`].
   pub data_store_identifier: Option<[u8; 16]>,
+  /// Identifier of the browsing data profile to use, see `WebviewBuilder::profile_identifier`.
+  ///
+  /// Takes precedence over [`Self::data_store_identifier`] on macOS / iOS.
+  pub profile_identifier: Option<[u8; 16]>,
   pub use_https_scheme: bool,
   pub devtools: Option<bool>,
   pub background_color: Option<Color>,
@@ -460,6 +467,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       .zoom_hotkeys_enabled(config.zoom_hotkeys_enabled)
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
+      .browser_accelerator_keys(config.browser_accelerator_keys)
       .background_throttling(config.background_throttling.clone())
       .devtools(config.devtools)
       .transparent(config.transparent)
@@ -498,7 +506,14 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
     }
-    builder.data_store_identifier = config.data_store_identifier;
+    if let Some(data_directory) = &config.data_directory {
+      builder = builder.data_directory(data_directory.clone());
+    }
+    #[allow(deprecated)]
+    {
+      builder.data_store_identifier = config.data_store_identifier;
+    }
+    builder.profile_identifier = config.profile_identifier;
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
     #[cfg(target_os = "ios")]
@@ -532,7 +547,9 @@ impl WebviewAttributes {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      browser_accelerator_keys: true,
       data_store_identifier: None,
+      profile_identifier: None,
       extensions_path: None,
       use_https_scheme: false,
       devtools: None,
@@ -727,6 +744,20 @@ impl WebviewAttributes {
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.browser_extensions_enabled = enabled;
+    self
+  }
+
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn browser_accelerator_keys(mut self, enabled: bool) -> Self {
+    self.browser_accelerator_keys = enabled;
     self
   }
 

@@ -157,6 +157,8 @@ mod monitor;
 mod undecorated_resizing;
 mod util;
 mod webview;
+#[cfg(windows)]
+mod webview2_profile;
 mod webview_permissions;
 mod window;
 
@@ -258,8 +260,15 @@ impl<T: UserEvent> Context<T> {
 
   fn send_user_message(&self, message: Message<T>) -> Result<()> {
     if current_thread().id() == self.main_thread_id {
+      // only upgrade on the main thread: a strong reference held by another thread
+      // could become the last one and drop the event loop target there
+      let event_loop = self
+        .main_thread
+        .window_target
+        .upgrade()
+        .ok_or(Error::EventLoopClosed)?;
       handle_user_message(
-        &self.main_thread.window_target,
+        &event_loop,
         message,
         UserMessageContext {
           window_id_map: &self.window_id_map,
@@ -448,7 +457,7 @@ impl fmt::Debug for WindowsStore {
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
-  pub window_target: EventLoopWindowTarget<Message<T>>,
+  pub window_target: Weak<EventLoopWindowTarget<Message<T>>>,
   pub web_context: WebContextStore,
   // changing this to an Rc will cause frequent app crashes.
   pub windows: Arc<WindowsStore>,
@@ -1285,6 +1294,9 @@ pub struct GtkBox(pub gtk::Box);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkBox {}
 
+pub struct SendRawDisplayHandle(pub raw_window_handle::RawDisplayHandle);
+unsafe impl Send for SendRawDisplayHandle {}
+
 pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
@@ -1297,6 +1309,12 @@ pub enum ApplicationMessage {
   FetchDataStoreIdentifiers(Box<dyn FnOnce(Vec<[u8; 16]>) + Send + 'static>),
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   RemoveDataStore([u8; 16], Box<dyn FnOnce(Result<()>) + Send + 'static>),
+  #[cfg(windows)]
+  RemoveProfile(
+    Vec<PathBuf>,
+    [u8; 16],
+    Box<dyn FnOnce(Result<()>) + Send + 'static>,
+  ),
 }
 
 pub enum WindowMessage {
@@ -1477,6 +1495,9 @@ pub enum EventLoopWindowTargetMessage {
   AvailableMonitors(Sender<Vec<Monitor>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
+  RawDisplayHandle(
+    Sender<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>>,
+  ),
 }
 
 pub type CreateWindowClosure<T> =
@@ -1843,6 +1864,12 @@ fn get_raw_window_handle<T: UserEvent>(
   window_getter!(dispatcher, WindowMessage::RawWindowHandle)
 }
 
+fn get_raw_display_handle<T: UserEvent>(
+  dispatcher: &WryHandle<T>,
+) -> Result<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>> {
+  event_loop_window_getter!(dispatcher, EventLoopWindowTargetMessage::RawDisplayHandle)
+}
+
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
@@ -2000,12 +2027,14 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::SceneIdentifier)
   }
 
+  /// **SAFETY:** the lifetime is wrong here, use with caution!
+  /// `WryWindowDispatcher` does not own the window handle so the window can become stale before `WryWindowDispatcher` is dropped.
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
     get_raw_window_handle(self)
-      .map_err(|_| raw_window_handle::HandleError::Unavailable)
-      .and_then(|r| r.map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }))
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) })
   }
 
   // Setters
@@ -2510,6 +2539,7 @@ pub trait Plugin<T: UserEvent> {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry<T: UserEvent> {
   context: Context<T>,
+  _window_target: Arc<EventLoopWindowTarget<Message<T>>>,
   event_loop: EventLoop<Message<T>>,
 }
 
@@ -2630,10 +2660,17 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     self.context.send_user_message(Message::Task(Box::new(f)))
   }
 
+  /// **SAFETY:** the lifetime is wrong here, use with caution!
+  /// `WryHandle` does not own the event loop so the display handle can become stale before `WryHandle` is dropped.
   fn display_handle(
     &self,
   ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
-    self.context.main_thread.window_target.display_handle()
+    get_raw_display_handle(self)
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .map(|handle| {
+        // SAFETY: the lifetime is wrong here, but the alternatives are worse, see https://github.com/tauri-apps/tauri/pull/15411
+        unsafe { raw_window_handle::DisplayHandle::borrow_raw(handle.0) }
+      })
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
@@ -2732,6 +2769,53 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
         Box::new(cb),
       )))
   }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    self.fetch_data_store_identifiers(cb)
+  }
+
+  #[cfg(windows)]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    cb(webview2_profile::fetch_profile_identifiers(
+      &data_directories,
+    ));
+    Ok(())
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self.remove_data_store(profile_identifier, cb)
+  }
+
+  #[cfg(windows)]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self
+      .context
+      .send_user_message(Message::Application(ApplicationMessage::RemoveProfile(
+        data_directories,
+        profile_identifier,
+        Box::new(cb),
+      )))
+  }
 }
 
 impl<T: UserEvent> Wry<T> {
@@ -2767,12 +2851,14 @@ impl<T: UserEvent> Wry<T> {
     let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
     let window_id_map = WindowIdStore::default();
 
+    let window_target = Arc::new(event_loop.deref().clone());
+
     let context = Context {
       window_id_map,
       main_thread_id,
       proxy: event_loop.create_proxy(),
       main_thread: DispatcherMainThreadContext {
-        window_target: event_loop.deref().clone(),
+        window_target: Arc::downgrade(&window_target),
         web_context,
         windows,
         #[cfg(feature = "tracing")]
@@ -2788,6 +2874,7 @@ impl<T: UserEvent> Wry<T> {
 
     Ok(Self {
       context,
+      _window_target: window_target,
       event_loop,
     })
   }
@@ -2963,27 +3050,21 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn primary_monitor(&self) -> Option<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .primary_monitor()
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .monitor_from_point(x, y)
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .available_monitors()
       .map(|m| MonitorHandleWrapper(m).into())
       .collect()
@@ -2991,9 +3072,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .cursor_position()
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
@@ -3213,6 +3292,10 @@ fn handle_user_message<T: UserEvent>(
           cb(res.map_err(|_| Error::FailedToRemoveDataStore))
         })
       }
+      #[cfg(windows)]
+      ApplicationMessage::RemoveProfile(data_directories, profile_identifier, cb) => {
+        webview2_profile::remove_profile(windows, data_directories, profile_identifier, cb)
+      }
     },
     Message::Window(id, window_message) => {
       let w = windows.0.borrow().get(&id).map(|w| {
@@ -3242,30 +3325,42 @@ fn handle_user_message<T: UserEvent>(
           }
 
           // Getters
-          WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
-          WindowMessage::InnerPosition(tx) => tx
-            .send(
+          WindowMessage::ScaleFactor(tx) => {
+            let _ = tx.send(window.scale_factor());
+          }
+          WindowMessage::InnerPosition(tx) => {
+            let _ = tx.send(
               window
                 .inner_position()
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap(),
-          WindowMessage::OuterPosition(tx) => tx
-            .send(
+            );
+          }
+          WindowMessage::OuterPosition(tx) => {
+            let _ = tx.send(
               window
                 .outer_position()
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap(),
-          WindowMessage::InnerSize(tx) => tx
-            .send(inner_size(&window, &webviews, has_children))
-            .unwrap(),
-          WindowMessage::OuterSize(tx) => tx.send(window.outer_size()).unwrap(),
-          WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
-          WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
-          WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            );
+          }
+          WindowMessage::InnerSize(tx) => {
+            let _ = tx.send(inner_size(&window, &webviews, has_children));
+          }
+          WindowMessage::OuterSize(tx) => {
+            let _ = tx.send(window.outer_size());
+          }
+          WindowMessage::IsFullscreen(tx) => {
+            let _ = tx.send(window.fullscreen().is_some());
+          }
+          WindowMessage::IsMinimized(tx) => {
+            let _ = tx.send(window.is_minimized());
+          }
+          WindowMessage::IsMaximized(tx) => {
+            let _ = tx.send(window.is_maximized());
+          }
           #[cfg(not(windows))]
-          WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
+          WindowMessage::IsFocused(tx) => {
+            let _ = tx.send(window.is_focused());
+          }
           #[cfg(windows)]
           WindowMessage::IsFocused(tx) => {
             let focused = if has_children {
@@ -3278,44 +3373,58 @@ fn handle_user_message<T: UserEvent>(
             } else {
               window.is_focused()
             };
-            tx.send(focused).unwrap()
+            let _ = tx.send(focused);
           }
-          WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
-          WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
-          WindowMessage::IsMaximizable(tx) => tx.send(window.is_maximizable()).unwrap(),
-          WindowMessage::IsMinimizable(tx) => tx.send(window.is_minimizable()).unwrap(),
-          WindowMessage::IsClosable(tx) => tx.send(window.is_closable()).unwrap(),
-          WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
-          WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
-          WindowMessage::CurrentMonitor(tx) => tx
-            .send(
+          WindowMessage::IsDecorated(tx) => {
+            let _ = tx.send(window.is_decorated());
+          }
+          WindowMessage::IsResizable(tx) => {
+            let _ = tx.send(window.is_resizable());
+          }
+          WindowMessage::IsMaximizable(tx) => {
+            let _ = tx.send(window.is_maximizable());
+          }
+          WindowMessage::IsMinimizable(tx) => {
+            let _ = tx.send(window.is_minimizable());
+          }
+          WindowMessage::IsClosable(tx) => {
+            let _ = tx.send(window.is_closable());
+          }
+          WindowMessage::IsVisible(tx) => {
+            let _ = tx.send(window.is_visible());
+          }
+          WindowMessage::Title(tx) => {
+            let _ = tx.send(window.title());
+          }
+          WindowMessage::CurrentMonitor(tx) => {
+            let _ = tx.send(
               window
                 .current_monitor()
                 .map(|m| MonitorHandleWrapper(m).into()),
-            )
-            .unwrap(),
-          WindowMessage::PrimaryMonitor(tx) => tx
-            .send(
+            );
+          }
+          WindowMessage::PrimaryMonitor(tx) => {
+            let _ = tx.send(
               window
                 .primary_monitor()
                 .map(|m| MonitorHandleWrapper(m).into()),
-            )
-            .unwrap(),
-          WindowMessage::MonitorFromPoint(tx, (x, y)) => tx
-            .send(
+            );
+          }
+          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
+            let _ = tx.send(
               window
                 .monitor_from_point(x, y)
                 .map(|m| MonitorHandleWrapper(m).into()),
-            )
-            .unwrap(),
-          WindowMessage::AvailableMonitors(tx) => tx
-            .send(
+            );
+          }
+          WindowMessage::AvailableMonitors(tx) => {
+            let _ = tx.send(
               window
                 .available_monitors()
                 .map(|m| MonitorHandleWrapper(m).into())
                 .collect(),
-            )
-            .unwrap(),
+            );
+          }
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -3323,7 +3432,9 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::GtkWindow(tx) => {
+            let _ = tx.send(GtkWindow(window.gtk_window().clone()));
+          }
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -3331,29 +3442,33 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkBox(tx) => tx
-            .send(GtkBox(window.default_vbox().unwrap().clone()))
-            .unwrap(),
+          WindowMessage::GtkBox(tx) => {
+            let _ = tx.send(GtkBox(window.default_vbox().unwrap().clone()));
+          }
           #[cfg(target_os = "android")]
           WindowMessage::ActivityName(tx) => {
-            tx.send(window.activity_name()).unwrap();
+            let _ = tx.send(window.activity_name());
           }
           #[cfg(target_os = "ios")]
           WindowMessage::SceneIdentifier(tx) => {
-            tx.send(window.scene_identifier()).unwrap();
+            let _ = tx.send(window.scene_identifier());
           }
-          WindowMessage::RawWindowHandle(tx) => tx
-            .send(
+          WindowMessage::RawWindowHandle(tx) => {
+            let _ = tx.send(
               window
                 .window_handle()
                 .map(|h| SendRawWindowHandle(h.as_raw())),
-            )
-            .unwrap(),
-          WindowMessage::Theme(tx) => {
-            tx.send(map_theme(&window.theme())).unwrap();
+            );
           }
-          WindowMessage::IsEnabled(tx) => tx.send(window.is_enabled()).unwrap(),
-          WindowMessage::IsAlwaysOnTop(tx) => tx.send(window.is_always_on_top()).unwrap(),
+          WindowMessage::Theme(tx) => {
+            let _ = tx.send(map_theme(&window.theme()));
+          }
+          WindowMessage::IsEnabled(tx) => {
+            let _ = tx.send(window.is_enabled());
+          }
+          WindowMessage::IsAlwaysOnTop(tx) => {
+            let _ = tx.send(window.is_always_on_top());
+          }
           // Setters
           WindowMessage::Center => window.center(),
           WindowMessage::RequestUserAttention(request_type) => {
@@ -3628,16 +3743,16 @@ fn handle_user_message<T: UserEvent>(
             match reparent_result {
               Ok(_) => {
                 new_parent_window_webviews.push(webview);
-                tx.send(Ok(())).unwrap();
+                let _ = tx.send(Ok(()));
               }
               Err(e) => {
                 log::error!("failed to reparent webview: {e}");
-                tx.send(Err(Error::FailedToSendMessage)).unwrap();
+                let _ = tx.send(Err(Error::FailedToSendMessage));
               }
             }
           }
         } else {
-          tx.send(Err(Error::FailedToSendMessage)).unwrap();
+          let _ = tx.send(Err(Error::FailedToSendMessage));
         }
 
         return;
@@ -3668,7 +3783,7 @@ fn handle_user_message<T: UserEvent>(
             if let Err(e) = webview.evaluate_script(&script) {
               log::error!("{e}");
             }
-            tx.send(()).unwrap();
+            let _ = tx.send(());
           }
           #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
           WebviewMessage::EvaluateScript(script) => {
@@ -3682,7 +3797,7 @@ fn handle_user_message<T: UserEvent>(
             if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
               log::error!("{e}");
             }
-            tx.send(()).unwrap();
+            let _ = tx.send(());
           }
           #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
           WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
@@ -3802,18 +3917,16 @@ fn handle_user_message<T: UserEvent>(
           }
           // Getters
           WebviewMessage::Url(tx) => {
-            tx.send(
+            let _ = tx.send(
               webview
                 .url()
                 .map(|u| u.parse().expect("invalid webview URL"))
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap();
+            );
           }
 
           WebviewMessage::Cookies(tx) => {
-            tx.send(webview.cookies().map_err(|_| Error::FailedToSendMessage))
-              .unwrap();
+            let _ = tx.send(webview.cookies().map_err(|_| Error::FailedToSendMessage));
           }
 
           WebviewMessage::SetCookie(cookie) => {
@@ -3832,11 +3945,11 @@ fn handle_user_message<T: UserEvent>(
             let webview_cookies = webview
               .cookies_for_url(url.as_str())
               .map_err(|_| Error::FailedToSendMessage);
-            tx.send(webview_cookies).unwrap();
+            let _ = tx.send(webview_cookies);
           }
 
           WebviewMessage::Bounds(tx) => {
-            tx.send(
+            let _ = tx.send(
               webview
                 .bounds()
                 .map(|bounds| tauri_runtime::dpi::Rect {
@@ -3844,26 +3957,23 @@ fn handle_user_message<T: UserEvent>(
                   position: bounds.position,
                 })
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap();
+            );
           }
           WebviewMessage::Position(tx) => {
-            tx.send(
+            let _ = tx.send(
               webview
                 .bounds()
                 .map(|bounds| bounds.position.to_physical(window.scale_factor()))
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap();
+            );
           }
           WebviewMessage::Size(tx) => {
-            tx.send(
+            let _ = tx.send(
               webview
                 .bounds()
                 .map(|bounds| bounds.size.to_physical(window.scale_factor()))
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap();
+            );
           }
           WebviewMessage::SetFocus => {
             if let Err(e) = webview.focus() {
@@ -3948,7 +4058,7 @@ fn handle_user_message<T: UserEvent>(
           }
           #[cfg(any(debug_assertions, feature = "devtools"))]
           WebviewMessage::IsDevToolsOpen(tx) => {
-            tx.send(webview.is_devtools_open()).unwrap();
+            let _ = tx.send(webview.is_devtools_open());
           }
         }
       }
@@ -3971,11 +4081,11 @@ fn handle_user_message<T: UserEvent>(
               w.has_children.store(true, Ordering::Relaxed);
             }
             // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-            sender.send(Ok(())).unwrap();
+            let _ = sender.send(Ok(()));
           }
           Err(e) => {
             // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-            sender.send(Err(e)).unwrap();
+            let _ = sender.send(Err(e));
           }
         }
       }
@@ -3984,11 +4094,11 @@ fn handle_user_message<T: UserEvent>(
       Ok(webview) => {
         windows.0.borrow_mut().insert(window_id, webview);
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Ok(())).unwrap();
+        let _ = sender.send(Ok(()));
       }
       Err(e) => {
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Err(e)).unwrap();
+        let _ = sender.send(Err(e));
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {
@@ -4038,9 +4148,9 @@ fn handle_user_message<T: UserEvent>(
             focused_webview: Default::default(),
           },
         );
-        sender.send(Ok(Arc::downgrade(&window))).unwrap();
+        let _ = sender.send(Ok(Arc::downgrade(&window)));
       } else {
-        sender.send(Err(Error::CreateWindow)).unwrap();
+        let _ = sender.send(Err(Error::CreateWindow));
       }
     }
 
@@ -4050,35 +4160,29 @@ fn handle_user_message<T: UserEvent>(
         let pos = event_loop
           .cursor_position()
           .map_err(|_| Error::FailedToSendMessage);
-        sender.send(pos).unwrap();
+        let _ = sender.send(pos);
       }
       EventLoopWindowTargetMessage::PrimaryMonitor(sender) => {
-        sender
-          .send(
-            event_loop
-              .primary_monitor()
-              .map(|m| MonitorHandleWrapper(m).into()),
-          )
-          .unwrap();
+        let _ = sender.send(
+          event_loop
+            .primary_monitor()
+            .map(|m| MonitorHandleWrapper(m).into()),
+        );
       }
       EventLoopWindowTargetMessage::MonitorFromPoint(sender, (x, y)) => {
-        sender
-          .send(
-            event_loop
-              .monitor_from_point(x, y)
-              .map(|m| MonitorHandleWrapper(m).into()),
-          )
-          .unwrap();
+        let _ = sender.send(
+          event_loop
+            .monitor_from_point(x, y)
+            .map(|m| MonitorHandleWrapper(m).into()),
+        );
       }
       EventLoopWindowTargetMessage::AvailableMonitors(sender) => {
-        sender
-          .send(
-            event_loop
-              .available_monitors()
-              .map(|m| MonitorHandleWrapper(m).into())
-              .collect(),
-          )
-          .unwrap();
+        let _ = sender.send(
+          event_loop
+            .available_monitors()
+            .map(|m| MonitorHandleWrapper(m).into())
+            .collect(),
+        );
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
         event_loop.set_theme(to_tao_theme(theme));
@@ -4096,6 +4200,14 @@ fn handle_user_message<T: UserEvent>(
       }
       EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
         event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
+      }
+      EventLoopWindowTargetMessage::RawDisplayHandle(tx) => {
+        // the receiver is gone if the caller stopped waiting, nothing to do then
+        let _ = tx.send(
+          event_loop
+            .display_handle()
+            .map(|h| SendRawDisplayHandle(h.as_raw())),
+        );
       }
     },
   }
@@ -5014,7 +5126,8 @@ You may have it installed on another user account, but it is not available for t
   #[cfg(windows)]
   {
     webview_builder = webview_builder
-      .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled);
+      .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled)
+      .with_browser_accelerator_keys(webview_attributes.browser_accelerator_keys);
   }
 
   #[cfg(any(
@@ -5046,8 +5159,11 @@ You may have it installed on another user account, but it is not available for t
 
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   {
-    if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
-      webview_builder = webview_builder.with_data_store_identifier(*data_store_identifier);
+    if let Some(profile_identifier) = webview_attributes
+      .profile_identifier
+      .or(webview_attributes.data_store_identifier)
+    {
+      webview_builder = webview_builder.with_data_store_identifier(profile_identifier);
     }
 
     webview_builder =
@@ -5080,6 +5196,20 @@ You may have it installed on another user account, but it is not available for t
           log::error!("failed to borrow windows")
         }
       });
+    }
+  }
+
+  // Windows: use `profile_identifier` as a WebView2 named profile. Webviews that
+  // share the same data directory but use different identifiers get fully isolated
+  // cookies/storage while sharing one browser process.
+  // The deprecated `data_store_identifier` is intentionally not used here, so apps that
+  // already set it don't silently move to a new, empty profile.
+  // See https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+  #[cfg(windows)]
+  {
+    if let Some(profile_identifier) = &webview_attributes.profile_identifier {
+      webview_builder =
+        webview_builder.with_profile_name(webview2_profile::profile_name(profile_identifier));
     }
   }
 

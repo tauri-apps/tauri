@@ -17,7 +17,7 @@ use {
     encode::{PrimitiveContent, Values},
   },
   bytes::Bytes,
-  pkcs8::EncodePrivateKey,
+  rsa::pkcs8::EncodePrivateKey,
   std::{
     fmt::{Display, Formatter},
     str::FromStr,
@@ -849,7 +849,7 @@ pub fn create_self_signed_code_signing_certificate(
   // x509-certificate crate doesn't support RSA key generation. So do
   // that ourselves.
   if matches!(algorithm, KeyAlgorithm::Rsa) {
-    let private_key = rsa::RsaPrivateKey::new(&mut rand08::thread_rng(), 2048).map_err(|e| {
+    let private_key = rsa::PrivateKey::new(&mut rand::rng(), 2048).map_err(|e| {
       AppleCodesignError::CertificateBuildError(format!("error generating RSA key: {}", e))
     })?;
     let key_pair = InMemorySigningKeyPair::from_pkcs8_der(

@@ -271,7 +271,7 @@ fn is_cargo_output_directory(path: &std::path::Path) -> bool {
 ///   like this: `app.fs().read_to_string(app.path().resource_dir().unwrap().join("resource"));`
 ///
 /// For applications packaged with `tauri-bundler`, `package_info.name` must match
-/// [`tauri_bundler::PackageSettings::product_name`](https://docs.rs/tauri-bundler/latest/tauri_bundler/struct.PackageSettings.html#structfield.product_name).
+/// [`tauri_bundler::bundle::PackageSettings::product_name`](https://docs.rs/tauri-bundler/latest/tauri_bundler/bundle/struct.PackageSettings.html#structfield.product_name).
 ///
 /// ## Example
 ///
@@ -384,6 +384,7 @@ pub fn bundle_type() -> Option<BundleType> {
       "__TAURI_BUNDLE_TYPE_VAR_DEB" => Some(BundleType::Deb),
       "__TAURI_BUNDLE_TYPE_VAR_RPM" => Some(BundleType::Rpm),
       "__TAURI_BUNDLE_TYPE_VAR_APP" => Some(BundleType::AppImage),
+      "__TAURI_BUNDLE_TYPE_VAR_PAC" => Some(BundleType::Pacman),
       "__TAURI_BUNDLE_TYPE_VAR_MSI" => Some(BundleType::Msi),
       "__TAURI_BUNDLE_TYPE_VAR_NSS" => Some(BundleType::Nsis),
       _ => {

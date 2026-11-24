@@ -65,7 +65,7 @@ tauri-utils = { workspace = true, features = [
   "schema",
   "config-json5",
   "config-toml",
-  "html-manipulation-2",
+  "html-manipulation",
 ] }
 toml = "1"
 jsonschema = { version = "0.60", default-features = false }

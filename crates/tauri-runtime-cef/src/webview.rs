@@ -24,7 +24,7 @@ use tauri_runtime::{
 use tauri_utils::{
   Theme,
   config::{BackgroundThrottlingPolicy, Color},
-  html::normalize_script_for_csp,
+  html2::normalize_script_for_csp,
 };
 use url::Url;
 

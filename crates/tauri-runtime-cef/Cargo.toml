@@ -36,8 +36,6 @@ cef-dll-sys = { version = "=154.5.0", default-features = false }
 dirs = "6"
 dioxus-debug-cell = "0.1"
 http = "1"
-kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader" }
-html5ever = "0.29"
 log = "0.4.21"
 raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }

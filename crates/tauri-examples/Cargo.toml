@@ -24,7 +24,7 @@ getrandom = "0.3"
 percent-encoding = "2"
 
 [build-dependencies]
-tauri-utils = { workspace = true, features = ["build-2"] }
+tauri-utils = { workspace = true, features = ["build"] }
 
 [features]
 default = ["wry"]

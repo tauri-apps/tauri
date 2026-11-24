@@ -10,12 +10,10 @@ use std::{
 
 use cef::{rc::*, *};
 use dioxus_debug_cell::RefCell;
-use html5ever::{LocalName, interface::QualName, namespace_url, ns};
 use http::{
   HeaderMap, HeaderName, HeaderValue,
   header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE, ORIGIN},
 };
-use kuchiki::{Attribute, ExpandedName, NodeRef};
 use tauri_runtime::{
   UserEvent,
   webview::{NavigationHandler, UriSchemeProtocolHandler},
@@ -23,7 +21,7 @@ use tauri_runtime::{
 };
 use tauri_utils::{
   config::{Csp, CspDirectiveSources},
-  html::{parse as parse_html, serialize_node},
+  html2::{parse_doc as parse_html, serialize_doc},
 };
 use url::Url;
 
@@ -96,73 +94,54 @@ fn inject_scripts_into_html_body(
 
   let document = parse_html(body_str.to_string());
 
-  let head = if let Ok(ref head_node) = document.select_first("head") {
-    head_node.as_node().clone()
-  } else {
-    let head_node = NodeRef::new_element(
-      QualName::new(None, ns!(html), LocalName::from("head")),
-      None,
-    );
-    document.prepend(head_node.clone());
-    head_node
-  };
+  let head = document.head().unwrap_or_else(|| {
+    let html = document.html_root();
+    let head = document.tree.new_element("head");
+    html.prepend_child(&head);
+    head
+  });
 
   for init_script in initialization_scripts
     .iter()
     .rev()
     .filter(|script| script.runs_in_frame(is_main_frame))
   {
-    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-    script_el.append(NodeRef::new_text(init_script.script.as_str()));
-    head.prepend(script_el);
+    let script = document.tree.new_element("script");
+    script.set_text(init_script.script.as_str());
+    head.prepend_child(&script);
   }
 
-  keep_encoding_declaration_first(&document, &head);
-
-  Some(serialize_node(&document))
-}
-
-/// Keeps the document's character encoding declaration ahead of the injected scripts.
-///
-/// Chromium only pre-scans the first 1024 bytes of a document for a `<meta charset>`
-/// declaration. The initialization scripts we prepend to `<head>` are much larger than
-/// that, so an encoding declaration that used to be in the pre-scan window ends up out
-/// of reach and the document is decoded with the fallback encoding (windows-1252)
-/// instead. That mojibakes every non-ASCII byte in the page and in the injected scripts,
-/// which additionally breaks the CSP hashes we compute over the UTF-8 source, so the
-/// browser refuses to execute the affected script.
-fn keep_encoding_declaration_first(document: &NodeRef, head: &NodeRef) {
-  let existing_declaration = document.select("meta").ok().and_then(|metas| {
-    metas.into_iter().find(|meta| {
-      let attributes = meta.attributes.borrow();
-      attributes.get("charset").is_some()
-        || attributes
-          .get("http-equiv")
-          .map(|value| value.trim().eq_ignore_ascii_case("content-type"))
-          .unwrap_or(false)
-    })
-  });
+  // Chromium only pre-scans the first 1024 bytes for an encoding declaration. Keep it
+  // ahead of the injected scripts so the document and scripts are decoded as UTF-8,
+  // matching the source used for CSP hashes.
+  let existing_declaration = document
+    .select("meta")
+    .nodes()
+    .iter()
+    .copied()
+    .find(|meta| {
+      meta.attr("charset").is_some()
+        || meta
+          .attr("http-equiv")
+          .is_some_and(|value| value.trim().eq_ignore_ascii_case("content-type"))
+    });
 
   match existing_declaration {
     // the document declares its encoding, move that declaration back into the pre-scan window
     Some(declaration) => {
-      let node = declaration.as_node().clone();
-      node.detach();
-      head.prepend(node);
+      declaration.remove_from_parent();
+      head.prepend_child(&declaration);
     }
     // no declaration at all: the assets are served as UTF-8 (this handler parses them as
     // such), so make that explicit instead of leaving it to the fallback encoding
-    None => head.prepend(NodeRef::new_element(
-      QualName::new(None, ns!(html), LocalName::from("meta")),
-      [(
-        ExpandedName::new(ns!(), LocalName::from("charset")),
-        Attribute {
-          prefix: None,
-          value: "utf-8".into(),
-        },
-      )],
-    )),
+    None => {
+      let declaration = document.tree.new_element("meta");
+      declaration.set_attr("charset", "utf-8");
+      head.prepend_child(&declaration);
+    }
   }
+
+  Some(serialize_doc(&document))
 }
 
 wrap_with_args! {

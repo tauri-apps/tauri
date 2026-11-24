@@ -529,12 +529,12 @@ impl<R: Runtime> WebviewManager<R> {
       let html = String::from_utf8_lossy(&body).into_owned();
       // naive way to check if it's an html
       if html.contains('<') && html.contains('>') {
-        let document = tauri_utils::html2::parse_doc(html);
-        tauri_utils::html2::inject_csp(&document, &csp.to_string());
+        let document = tauri_utils::html::parse_doc(html);
+        tauri_utils::html::inject_csp(&document, &csp.to_string());
         url.set_path(&format!(
           "{},{}",
           mime::TEXT_HTML,
-          String::from_utf8_lossy(&tauri_utils::html2::serialize_doc(&document))
+          String::from_utf8_lossy(&tauri_utils::html::serialize_doc(&document))
         ));
       }
     }

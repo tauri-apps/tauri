@@ -21,7 +21,7 @@ use tauri_runtime::{
 };
 use tauri_utils::{
   config::{Csp, CspDirectiveSources},
-  html2::{parse_doc as parse_html, serialize_doc},
+  html::{parse_doc as parse_html, serialize_doc},
 };
 use url::Url;
 

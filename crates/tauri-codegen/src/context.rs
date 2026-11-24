@@ -25,7 +25,7 @@ use tauri_utils::{
   },
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
-  html2::{Document, inject_nonce_token, parse_doc, serialize_doc},
+  html::{Document, inject_nonce_token, parse_doc, serialize_doc},
   platform::Target,
   tokens::{map_lit, str_lit},
 };
@@ -50,7 +50,7 @@ fn inject_script_hashes(document: &Document, key: &AssetKey, csp_hashes: &mut Cs
   let scripts = script_elements
     .iter()
     .map(|element| {
-      let script = tauri_utils::html2::normalize_script_for_csp(element.text().as_bytes());
+      let script = tauri_utils::html::normalize_script_for_csp(element.text().as_bytes());
       let script_hash = Sha256::digest(script);
       let hash_base64 = base64::engine::general_purpose::STANDARD.encode(script_hash);
 
@@ -109,10 +109,10 @@ fn map_isolation(
       let isolation_html = parse_doc(String::from_utf8_lossy(input).into_owned());
 
       // this is appended, so no need to reverse order it
-      tauri_utils::html2::inject_codegen_isolation_script(&isolation_html);
+      tauri_utils::html::inject_codegen_isolation_script(&isolation_html);
 
       // temporary workaround for windows not loading assets
-      tauri_utils::html2::inline_isolation(&isolation_html, &dir);
+      tauri_utils::html::inline_isolation(&isolation_html, &dir);
 
       inject_nonce_token(
         &isolation_html,

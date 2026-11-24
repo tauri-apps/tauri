@@ -25,7 +25,7 @@ pub mod assets;
 pub mod config;
 pub mod config_v1;
 #[cfg(feature = "html-manipulation")]
-pub mod html2;
+pub mod html;
 pub mod io;
 pub mod mime_type;
 pub mod platform;

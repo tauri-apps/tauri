@@ -1,0 +1,39 @@
+[package]
+name = "qtshim"
+version = "0.1.0"
+description = "A safe Rust API over Qt Widgets and QtWebEngine for Tauri runtimes and menu libraries"
+exclude = ["CHANGELOG.md", "/target"]
+categories = ["api-bindings", "gui"]
+keywords = ["qt", "qtwebengine", "menu", "webview"]
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+# Windows hosting QWebEngineViews, profiles, custom schemes and IPC (needs QtWebEngine).
+webengine = ["qtshim-sys/webengine", "dep:http"]
+# `test_harness`: runs each Qt test case in its own process (for `harness = false` tests).
+test-harness = ["dep:libtest-mimic"]
+
+[dependencies]
+qtshim-sys = { workspace = true }
+http = { version = "1", optional = true }
+libtest-mimic = { version = "0.8", optional = true }
+
+[package.metadata.docs.rs]
+all-features = true
+
+# Real Qt tests, one process per case (see `test_harness`):
+# `cargo test -p qtshim --features webengine,test-harness --test qt`
+[[test]]
+name = "qt"
+path = "tests/qt/main.rs"
+harness = false
+required-features = ["webengine", "test-harness"]
+
+[lints]
+workspace = true

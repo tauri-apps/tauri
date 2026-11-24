@@ -12,6 +12,7 @@ use crate::{
 };
 
 #[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")] // read as `windowLabel` by `getAllWebviews()` in @tauri-apps/api
 struct WebviewRef {
   window_label: String,
   label: String,

@@ -1,0 +1,40 @@
+[package]
+name = "qtshim-sys-systest"
+version = "0.0.0"
+description = "Checks that qtshim-sys's hand-written FFI declarations match cpp/qtshim.h"
+publish = false
+build = "build.rs"
+autotests = false
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+# Also check the `[webengine]` part of the API (and the flag constants qtshim hard-codes).
+webengine = ["qtshim-sys/webengine", "dep:qtshim"]
+
+[dependencies]
+qtshim-sys = { path = ".." }
+qtshim = { path = "../../qtshim", features = ["webengine"], optional = true }
+
+[build-dependencies]
+ctest = "0.5"
+cc = "1"
+syn = { version = "2", features = ["full"] }
+quote = "1"
+
+# ctest's generated suite: constants, struct size/align/field offsets, by-value round trips and
+# function addresses (it brings its own `main`).
+[[test]]
+name = "ctest"
+path = "tests/ctest.rs"
+harness = false
+
+# Function/callback signatures, header <-> Rust coverage, constant distinctness.
+[[test]]
+name = "header"
+path = "tests/header.rs"

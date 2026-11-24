@@ -953,6 +953,25 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   ))]
   fn default_vbox(&self) -> Result<*mut std::ffi::c_void>;
 
+  /// Returns the `QWidget*` of this window, for runtimes whose windows are Qt widgets.
+  ///
+  /// `tauri` uses it (with its `qt` feature) to install menus through muda's Qt backend and to
+  /// make windows transient for a parent. Runtimes that don't use Qt keep the default, which
+  /// returns an error. The pointer is borrowed: it stays valid while the window exists and must
+  /// only be used on the main thread.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn qt_window(&self) -> Result<*mut std::ffi::c_void> {
+    Err(Error::RuntimeTypeMismatch(
+      "the runtime does not use Qt windows".into(),
+    ))
+  }
+
   /// Returns the name of the Android activity associated with this window.
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String>;

@@ -272,9 +272,19 @@ fn main() {
   let gtk4 = has_feature(&mut checked_features, "gtk4");
   let gtk = gtk_target && (gtk3 || gtk4);
   alias("gtk", gtk);
+  // Qt menus through muda's Qt backend, for runtimes whose windows are Qt widgets. Like muda,
+  // GTK menus take precedence when a GTK feature is also enabled (e.g. `--all-features`).
+  let qt_feature = gtk_target && has_feature(&mut checked_features, "qt");
+  if qt_feature && gtk {
+    println!(
+      "cargo:warning=features `qt` and `gtk3`/`gtk4` are enabled together; menus use GTK, so Qt windows get none"
+    );
+  }
+  let qt = qt_feature && !gtk;
+  alias("qt", qt);
   // whether the menu APIs have a platform backend to talk to: muda falls back to a no-op
-  // implementation on Linux/BSD when no GTK version is selected.
-  alias("menu_backend", !mobile && (!gtk_target || gtk));
+  // implementation on Linux/BSD when no GTK version (or Qt) is selected.
+  alias("menu_backend", !mobile && (!gtk_target || gtk || qt));
 
   let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 

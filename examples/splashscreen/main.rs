@@ -22,8 +22,10 @@ fn close_splashscreen<R: Runtime>(app: AppHandle<R>) {
 fn main() {
   #[cfg(feature = "cef")]
   let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
-  #[cfg(not(feature = "cef"))]
+  #[cfg(not(any(feature = "cef", all(feature = "qt", target_os = "linux"))))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
+  #[cfg(all(feature = "qt", not(feature = "cef"), target_os = "linux"))]
+  let builder = tauri::Builder::default().runtime(tauri_runtime_qt::Qt::default());
 
   builder
     .menu(tauri::menu::Menu::default)

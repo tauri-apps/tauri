@@ -50,6 +50,12 @@ workspace = true
 default-features = true
 optional = true
 
+# The Qt/QtWebEngine runtime (Linux only).
+[target."cfg(target_os = \"linux\")".dependencies.tauri-runtime-qt]
+workspace = true
+features = ["devtools"]
+optional = true
+
 [dev-dependencies.tauri]
 workspace = true
 default-features = false
@@ -60,5 +66,8 @@ default = ["wry"]
 wry = ["dep:tauri-runtime-wry"]
 prod = ["tauri/custom-protocol"]
 cef = ["dep:tauri-runtime-cef"]
+# Linux only. Use with `--no-default-features`: with `wry` (GTK menus) also enabled, Qt windows
+# get no menus. `cef` takes precedence over both.
+qt = ["dep:tauri-runtime-qt"]
 # Enables the WebDriver automation bridge; set by the e2e suite's build (packages/api-e2e).
 automation = ["dep:tauri-plugin-automation"]

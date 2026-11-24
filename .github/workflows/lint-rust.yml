@@ -40,7 +40,8 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             cargo: 'cargo'
-            include: ''
+            # also lint the Qt runtime crates, which are not default members of the workspace
+            include: '--workspace '
             features: '--all-features'
           - target: aarch64-apple-darwin
             os: macos-latest
@@ -83,6 +84,24 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libgtk-4-dev webkit2gtk-4.1 libayatana-appindicator3-dev
+
+      # The Qt runtime (`tauri-runtime-qt`, `qtshim`, and `tauri`'s `qt` feature) needs Qt 6.8+
+      # with QtWebEngine, newer than Ubuntu's packages. Only headers, `moc` and the pkg-config
+      # files are used: clippy doesn't link.
+      - name: install Qt
+        if: matrix.platform.target == 'x86_64-unknown-linux-gnu'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.11.3'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          modules: 'qtwebengine qtwebchannel qtpositioning'
+          cache: true
+
+      - name: point pkg-config at Qt
+        if: matrix.platform.target == 'x86_64-unknown-linux-gnu'
+        run: echo "PKG_CONFIG_PATH=$QT_ROOT_DIR/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
 
       - name: Install cross
         if: ${{ matrix.platform.cargo == 'cross' }}

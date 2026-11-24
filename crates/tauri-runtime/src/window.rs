@@ -460,6 +460,21 @@ pub trait WindowBuilder: WindowBuilderBase {
   ))]
   fn transient_for(self, parent: *mut std::ffi::c_void) -> Self;
 
+  /// Sets the window to be created transient for a Qt window (`QWidget*`, borrowed), as returned
+  /// by [`crate::WindowDispatch::qt_window`]. Ignored by runtimes that don't use Qt.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  #[must_use]
+  fn transient_for_qt(self, parent: *mut std::ffi::c_void) -> Self {
+    let _ = parent;
+    self
+  }
+
   /// Enables or disables drag and drop support.
   #[cfg(windows)]
   #[must_use]

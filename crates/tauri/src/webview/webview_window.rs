@@ -1925,6 +1925,19 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.hwnd()
   }
 
+  /// Returns the `QWidget*` of this window when the runtime builds its windows with Qt, or an
+  /// error otherwise. See [`crate::Window::qt_window`].
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn qt_window(&self) -> crate::Result<*mut std::ffi::c_void> {
+    self.window.qt_window()
+  }
+
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   ///
   /// Note that this type can only be used on the main thread.

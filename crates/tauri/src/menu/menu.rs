@@ -60,6 +60,11 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
         inner.show_context_menu_for_gtk_window(w.as_ref(), position);
       }
 
+      #[cfg(qt)]
+      if let Ok(w) = window.qt_window() {
+        inner.show_context_menu_for_qt_window(w, position);
+      }
+
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
         unsafe {

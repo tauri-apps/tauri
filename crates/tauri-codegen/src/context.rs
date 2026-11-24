@@ -397,6 +397,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     additional_capabilities.as_deref(),
   )
   .unwrap();
+  let capability_dependencies =
+    capability_dependencies(additional_capabilities.as_deref().unwrap_or_default());
 
   let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
 
@@ -431,6 +433,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
 
   let context = quote!({
     #maybe_embed_plist_block
+    #capability_dependencies
 
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
@@ -490,4 +493,45 @@ fn find_icon(
     .map(AsRef::as_ref)
     .unwrap_or(default);
   config_parent.join(icon_path)
+}
+
+/// Adds the additional capability files as compiler dependencies, so editing one rebuilds the app.
+///
+/// The files are read relative to the current working directory of the compiler,
+/// but `include_bytes!` resolves relative paths from the calling source file, so make them absolute.
+fn capability_dependencies(paths: &[PathBuf]) -> TokenStream {
+  let paths = paths.iter().map(|path| {
+    std::path::absolute(path)
+      .unwrap_or_else(|e| panic!("failed to resolve capability path {}: {e}", path.display()))
+      .display()
+      .to_string()
+  });
+  quote!(#(const _: &[u8] = include_bytes!(#paths);)*)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::capability_dependencies;
+  use quote::quote;
+  use std::path::PathBuf;
+
+  #[test]
+  fn capability_files_are_compiler_dependencies() {
+    let cwd = std::env::current_dir().unwrap();
+    let relative = PathBuf::from("capabilities").join("extra.json");
+    let absolute = cwd.join("other.toml");
+
+    let expected_relative = cwd.join(&relative).display().to_string();
+    let expected_absolute = absolute.display().to_string();
+    let expected = quote! {
+      const _: &[u8] = include_bytes!(#expected_relative);
+      const _: &[u8] = include_bytes!(#expected_absolute);
+    };
+
+    assert_eq!(
+      capability_dependencies(&[relative, absolute]).to_string(),
+      expected.to_string()
+    );
+    assert!(capability_dependencies(&[]).is_empty());
+  }
 }

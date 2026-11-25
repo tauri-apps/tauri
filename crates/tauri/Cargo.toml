@@ -207,6 +207,7 @@ wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
 objc-exception = []
 # TODO: Remove in v3 - muda does not have this feature anymore
 linux-libxdo = []
+linux-ksni = ["tray-icon?/ksni"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 # TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384

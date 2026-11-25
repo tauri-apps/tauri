@@ -88,9 +88,22 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
     .filter(|p| p.parent().unwrap().file_name().unwrap() != PERMISSION_SCHEMAS_FOLDER_NAME)
     .collect::<Vec<PathBuf>>();
 
+  // Files inside `out_dir` are listed relative to it so the list survives the target dir being
+  // moved: Cargo rewrites the `OUT_DIR` path it hands to dependents, not the paths in this file.
+  let canonical_out_dir = out_dir.canonicalize().ok();
+  let listed_files = permission_files
+    .iter()
+    .map(|path| {
+      canonical_out_dir
+        .as_deref()
+        .and_then(|dir| path.strip_prefix(dir).ok())
+        .unwrap_or(path)
+    })
+    .collect::<Vec<_>>();
+
   let pkg_name_valid_path = pkg_name.replace(':', "-");
   let permission_files_path = out_dir.join(format!("{pkg_name_valid_path}-permission-files"));
-  let permission_files_json = serde_json::to_string(&permission_files)?;
+  let permission_files_json = serde_json::to_string(&listed_files)?;
 
   write_if_changed(&permission_files_path, permission_files_json)
     .map_err(|e| Error::WriteFile(e, permission_files_path.clone()))?;
@@ -110,6 +123,15 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
   parse_permissions(permission_files)
 }
 
+/// Read the permission files listed in a file written by [`define_permissions`].
+fn read_permission_files(list_path: &Path) -> Result<Vec<PermissionFile>, Error> {
+  let list = fs::read_to_string(list_path).map_err(|e| Error::ReadFile(e, list_path.into()))?;
+  let paths: Vec<PathBuf> = serde_json::from_str(&list)?;
+  // relative entries point into the out dir the list was written to
+  let out_dir = list_path.parent().unwrap();
+  parse_permissions(paths.into_iter().map(|path| out_dir.join(path)).collect())
+}
+
 /// Read all permissions listed from the defined cargo cfg key value.
 pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error> {
   let mut permissions_map = HashMap::new();
@@ -126,11 +148,7 @@ pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error>
           .unwrap_or(v)
       })
     {
-      let permissions_path = PathBuf::from(value);
-      let permissions_str =
-        fs::read_to_string(&permissions_path).map_err(|e| Error::ReadFile(e, permissions_path))?;
-      let permissions: Vec<PathBuf> = serde_json::from_str(&permissions_str)?;
-      let permissions = parse_permissions(permissions)?;
+      let permissions = read_permission_files(Path::new(&value))?;
 
       let plugin_crate_name = plugin_crate_name_var.to_lowercase().replace('_', "-");
       let plugin_crate_name = plugin_crate_name
@@ -497,4 +515,44 @@ pub fn generate_allowed_commands(
   )?;
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn permission_files_resolve_after_out_dir_is_moved() {
+    let root = tempfile::tempdir().unwrap();
+    let out_dir = root.path().join("out");
+    autogenerate_command_permissions(&out_dir.join("permissions"), &["generated"], "", false);
+    autogenerate_command_permissions(&root.path().join("plugin"), &["custom"], "", false);
+
+    let pattern = format!(
+      "{}/**/*.toml",
+      glob::Pattern::escape(&root.path().to_string_lossy())
+    );
+    define_permissions(&pattern, "tauri:test", &out_dir, |_| true).unwrap();
+
+    // e.g. a target dir restored from a CI cache at a different path
+    let moved_out_dir = root.path().join("moved");
+    fs::rename(&out_dir, &moved_out_dir).unwrap();
+
+    let permission_files =
+      read_permission_files(&moved_out_dir.join("tauri-test-permission-files")).unwrap();
+    let identifiers = permission_files
+      .iter()
+      .flat_map(|file| &file.permission)
+      .map(|permission| permission.identifier.as_str())
+      .collect::<Vec<_>>();
+    assert_eq!(
+      identifiers,
+      [
+        "allow-generated",
+        "deny-generated",
+        "allow-custom",
+        "deny-custom"
+      ]
+    );
+  }
 }

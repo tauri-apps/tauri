@@ -33,7 +33,7 @@ use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
 };
 pub use tauri_utils::config::Color;
-use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
+use tauri_utils::config::{BackgroundThrottlingPolicy, OnNewWindow, WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
@@ -50,6 +50,8 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
 };
 
+#[cfg(desktop)]
+use std::sync::atomic::AtomicUsize;
 use std::{
   borrow::Cow,
   hash::{Hash, Hasher},
@@ -277,13 +279,105 @@ unstable_struct!(
     pub(crate) webview_attributes: WebviewAttributes,
     pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
-    pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
+    pub(crate) on_new_window_handler: Option<OnNewWindowHandler<R>>,
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
     pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
     pub(crate) permission_request_handler: Option<Box<PermissionRequestHandler<R>>>,
   }
 );
+
+pub(crate) enum OnNewWindowHandler<R: Runtime> {
+  Fn(Box<NewWindowHandler<R>>),
+  Config(#[cfg_attr(mobile, allow(dead_code))] OnNewWindow),
+}
+
+type RuntimeNewWindowHandler =
+  dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse + Send + 'static;
+
+/// Builds the runtime new window handler for a [`OnNewWindow`] configuration.
+///
+/// Returns `None` when new windows are denied, which is also the runtime default.
+#[cfg(desktop)]
+fn config_new_window_handler<R: Runtime>(
+  app_handle: AppHandle<R>,
+  webview_label: &str,
+  on_new_window: OnNewWindow,
+) -> Option<Box<RuntimeNewWindowHandler>> {
+  use tauri_runtime::webview::NewWindowResponse as Response;
+
+  let (create_tauri_window, urls) = match on_new_window {
+    OnNewWindow::AllowDefault { urls } => (false, urls),
+    OnNewWindow::AllowTauriWindow { urls } => (true, urls),
+    _ => return None,
+  };
+
+  let webview_label = webview_label.to_string();
+  let created_window_count = AtomicUsize::new(0);
+
+  let urls = urls.map(Arc::new);
+
+  Some(Box::new(move |url: Url, features| {
+    let allowed = urls
+      .as_ref()
+      .is_none_or(|urls| urls.iter().any(|pattern| pattern.test(&url)));
+    if !allowed {
+      return Response::Deny;
+    }
+    if !create_tauri_window {
+      return Response::Allow;
+    }
+
+    let label = loop {
+      let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+      let label = format!("{webview_label}-created-{number}");
+      if app_handle.manager.get_webview(&label).is_none()
+        && app_handle.manager.get_window(&label).is_none()
+      {
+        break label;
+      }
+    };
+
+    let mut builder = WebviewWindowBuilder::new(
+      &app_handle,
+      label,
+      WebviewUrl::External("about:blank".parse().expect("about:blank is a valid URL")),
+    )
+    .window_features(features)
+    .on_document_title_changed(|window, title| {
+      if let Err(e) = window.set_title(&title) {
+        log::error!("failed to set window title: {e}");
+      }
+    })
+    .title(url.as_str());
+
+    // the scope must also apply to navigations inside the created window,
+    // otherwise the opener could redirect it to any URL after it is created
+    if let Some(urls) = &urls {
+      builder = builder.on_navigation(created_window_navigation_handler(urls.clone()));
+    }
+
+    match builder.build() {
+      Ok(window) => Response::Create {
+        window_id: window.window.window.id,
+      },
+      Err(e) => {
+        log::error!("failed to create window for new window request: {e}");
+        Response::Deny
+      }
+    }
+  }))
+}
+
+/// Navigation handler for windows created by [`OnNewWindow::AllowTauriWindow`] when `urls` is set.
+///
+/// `about:blank` is always allowed since it is the initial URL of the created window.
+#[cfg(desktop)]
+fn created_window_navigation_handler(
+  urls: Arc<Vec<tauri_utils::url::UrlScope>>,
+) -> impl Fn(&Url) -> bool + Send + 'static {
+  move |url| url.as_str() == "about:blank" || urls.iter().any(|pattern| pattern.test(url))
+}
 
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
@@ -356,7 +450,7 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
-      new_window_handler: None,
+      on_new_window_handler: None,
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
@@ -367,6 +461,11 @@ async fn create_window(app: tauri::AppHandle) {
   /// Initializes a webview builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 webviews with the same `label` so make sure
   /// that the initial webview was closed or change the label of the new [`WebviewBuilder`].
+  ///
+  /// New window requests are handled according to [`WindowConfig::on_new_window`].
+  /// Note that windows created by [`OnNewWindow::AllowTauriWindow`] are labeled `{label}-created-{n}`,
+  /// so capabilities matching them with a glob (such as `*` or `{label}*`) also apply to them.
+  /// See [`OnNewWindow::AllowTauriWindow`] for more information.
   ///
   /// # Known issues
   ///
@@ -426,9 +525,7 @@ async fn create_window(app: tauri::AppHandle) {
               None
             }
         });
-      if let Some(resolved_data_directory) = resolve_data_dir_res {
-        config.data_directory = Some(resolved_data_directory);
-      }
+      config.data_directory = resolve_data_dir_res;
     }
 
     Self {
@@ -436,7 +533,7 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::from(&config),
       web_resource_request_handler: None,
       navigation_handler: None,
-      new_window_handler: None,
+      on_new_window_handler: Some(OnNewWindowHandler::Config(config.on_new_window)),
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
@@ -593,7 +690,9 @@ tauri::Builder::default()
     mut self,
     f: F,
   ) -> Self {
-    self.new_window_handler.replace(Box::new(f));
+    self
+      .on_new_window_handler
+      .replace(OnNewWindowHandler::Fn(Box::new(f)));
     self
   }
 
@@ -763,8 +862,8 @@ tauri::Builder::default()
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
-    pending.new_window_handler = self.new_window_handler.take().map(|handler| {
-      Box::new(
+    pending.new_window_handler = match self.on_new_window_handler.take() {
+      Some(OnNewWindowHandler::Fn(handler)) => Some(Box::new(
         move |url, features: NewWindowFeatures| match handler(url, features) {
           NewWindowResponse::Allow => tauri_runtime::webview::NewWindowResponse::Allow,
           #[cfg(mobile)]
@@ -779,13 +878,16 @@ tauri::Builder::default()
           }
           NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
         },
-      )
-        as Box<
-          dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
-            + Send
-            + 'static,
-        >
-    });
+      ) as Box<RuntimeNewWindowHandler>),
+      #[cfg(desktop)]
+      Some(OnNewWindowHandler::Config(on_new_window)) => {
+        config_new_window_handler(manager.app_handle().clone(), &self.label, on_new_window)
+      }
+      // new window requests are not supported on mobile
+      #[cfg(mobile)]
+      Some(OnNewWindowHandler::Config(_)) => None,
+      None => None,
+    };
 
     if let Some(document_title_changed_handler) = self.document_title_changed_handler.take() {
       let label = pending.label.clone();
@@ -1139,6 +1241,20 @@ fn main() {
     self
   }
 
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn browser_accelerator_keys(mut self, enabled: bool) -> Self {
+    self.webview_attributes.browser_accelerator_keys = enabled;
+    self
+  }
+
   /// Set the path from which to load extensions from. Extensions stored in this path should be unpacked Chrome extensions on Windows, and compiled `.so` extensions on Linux.
   ///
   /// ## Platform-specific:
@@ -1159,8 +1275,38 @@ fn main() {
   ///
   /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `profile_identifier` instead, which is also supported on Windows."
+  )]
   pub fn data_store_identifier(mut self, data_store_identifier: [u8; 16]) -> Self {
     self.webview_attributes.data_store_identifier = Some(data_store_identifier);
+    self
+  }
+
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes, usually a UUID.
+  ///
+  /// Webviews using the same identifier share their browsing data,
+  /// while webviews using different identifiers are fully isolated from each other.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Uses a [`WKWebsiteDataStore`] created with this identifier.
+  ///   Available on macOS >= 14 and iOS >= 17. Enable [incognito](Self::incognito) to use a
+  ///   non-persistent data store instead.
+  /// - **Windows**: Uses a [WebView2 profile] named after the lowercase hex representation of the identifier,
+  ///   stored inside the [data directory](Self::data_directory), so webviews sharing a data directory
+  ///   still share a single browser process. Requires WebView2 Runtime 101+, older runtimes ignore this setting.
+  /// - **Linux / Android**: Unsupported.
+  ///
+  /// Use `AppHandle::fetch_profile_identifiers` and `AppHandle::remove_profile` to manage the profiles.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)
+  /// [WebView2 profile]: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+  #[must_use]
+  pub fn profile_identifier(mut self, profile_identifier: [u8; 16]) -> Self {
+    self.webview_attributes.profile_identifier = Some(profile_identifier);
     self
   }
 
@@ -1795,10 +1941,6 @@ impl<R: Runtime> Webview<R> {
     self.window.lock().unwrap()
   }
 
-  pub(crate) fn window_label(&self) -> String {
-    self.window_ref().label().to_string()
-  }
-
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
   /// The closure is executed on the main thread.
@@ -2159,6 +2301,7 @@ tauri::Builder::default()
         if let Err(e) = crate::plugin::mobile::run_command(
           plugin,
           &app_handle,
+          None,
           heck::AsLowerCamelCase(message.command).to_string(),
           payload,
           move |response| match response {
@@ -2401,8 +2544,10 @@ tauri::Builder::default()
   /// - **Linux**: the data is cleared for the whole WebKit web context, which is shared by every webview
   ///   using the same data directory, not only this one.
   /// - **macOS / iOS**: clears the [`WKWebsiteDataStore`] of this webview. Webviews created with a custom
-  ///   `WebviewBuilder::data_store_identifier` have their own store, so only that store is affected.
-  /// - **Windows**: implemented with `ICoreWebView2Profile2::ClearBrowsingDataAll`, so an error is returned
+  ///   [`WebviewBuilder::profile_identifier`] have their own store, so only that store is affected.
+  /// - **Windows**: clears the WebView2 profile of this webview, which is shared by every webview using the
+  ///   same data directory and [`WebviewBuilder::profile_identifier`]. Implemented with
+  ///   `ICoreWebView2Profile2::ClearBrowsingDataAll`, so an error is returned
   ///   if the installed WebView2 runtime is too old to provide it.
   ///
   /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore
@@ -2664,6 +2809,18 @@ mod tests {
     crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
       .build()
       .unwrap()
+  }
+
+  #[cfg(desktop)]
+  #[test]
+  fn created_window_navigation_is_scoped() {
+    let urls: Vec<tauri_utils::url::UrlScope> =
+      serde_json::from_value(serde_json::json!(["https://allowed.com/**"])).unwrap();
+    let handler = super::created_window_navigation_handler(std::sync::Arc::new(urls));
+
+    assert!(handler(&"about:blank".parse().unwrap()));
+    assert!(handler(&"https://allowed.com/page".parse().unwrap()));
+    assert!(!handler(&"https://evil.com/".parse().unwrap()));
   }
 
   #[test]

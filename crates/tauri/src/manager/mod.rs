@@ -312,6 +312,8 @@ impl<R: Runtime> AppManager<R> {
         event_listeners: Arc::new(webview_event_listeners),
         invoke_initialization_script,
         invoke_key: invoke_key.clone(),
+        #[cfg(windows)]
+        data_directories: Mutex::default(),
       },
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray: tray::TrayManager {
@@ -326,6 +328,7 @@ impl<R: Runtime> AppManager<R> {
         menu: Default::default(),
         global_event_listeners: Mutex::new(menu_event_listener),
         event_listeners: Mutex::new(window_menu_event_listeners),
+        item_event_listeners: Default::default(),
       },
       plugins: Mutex::new(plugins),
       listeners: Listeners::default(),
@@ -347,12 +350,14 @@ impl<R: Runtime> AppManager<R> {
   }
 
   /// The `tauri` custom protocol URL we use to serve the embedded assets.
-  /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`,
-  /// or `https://<androidTauriProtocolHostname>` on Android when `app > androidTauriProtocolHostname` is set.
+  /// Returns `tauri://localhost/` or its `wry` workaround URL `http://tauri.localhost/`/`https://tauri.localhost/`,
+  /// or `https://<androidTauriProtocolHostname>/` on Android when `app > androidTauriProtocolHostname` is set.
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
     match &self.custom_app_origin {
       Some(origin) => Cow::Borrowed(origin),
-      None => Cow::Owned(Url::parse(&crate::protocol::origin("tauri", https)).unwrap()),
+      None => {
+        Cow::Owned(Url::parse(&format!("{}/", crate::protocol::origin("tauri", https))).unwrap())
+      }
     }
   }
 
@@ -360,7 +365,7 @@ impl<R: Runtime> AppManager<R> {
   ///
   /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exists.
   /// * In production mode, this is the [`frontendDist`](tauri_utils::config::BuildConfig::frontend_dist) configuration value if it's a [`FrontendDist::Url`](tauri_utils::config::FrontendDist::Url).
-  /// * Returns [`Self::tauri_protocol_url`] (e.g. `tauri://localhost`) otherwise.
+  /// * Returns [`Self::tauri_protocol_url`] (e.g. `tauri://localhost/`) otherwise.
   pub(crate) fn get_app_url(&self, https: bool) -> Cow<'_, Url> {
     #[cfg(dev)]
     let url = self.config.build.dev_url.as_ref();
@@ -553,8 +558,16 @@ impl<R: Runtime> AppManager<R> {
     };
 
     let listeners = self.listeners();
+    // `eval` can block until the main thread runs the script, so holding the webviews lock
+    // while waiting deadlocks any main thread code that takes it (e.g. `get_webview`)
+    let webviews = self
+      .webview
+      .webviews_lock()
+      .values()
+      .cloned()
+      .collect::<Vec<_>>();
 
-    listeners.emit_js(self.webview.webviews_lock().values(), &emit_args)?;
+    listeners.emit_js(webviews, &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())
@@ -582,12 +595,16 @@ impl<R: Runtime> AppManager<R> {
     };
 
     let listeners = self.listeners();
+    // `eval` can block until the main thread runs the script, so holding the webviews lock
+    // while waiting deadlocks any main thread code that takes it (e.g. `get_webview`)
+    let webviews = self
+      .webview
+      .webviews_lock()
+      .values()
+      .cloned()
+      .collect::<Vec<_>>();
 
-    listeners.emit_js_filter(
-      self.webview.webviews_lock().values(),
-      &emit_args,
-      Some(&filter),
-    )?;
+    listeners.emit_js_filter(webviews, &emit_args, Some(&filter))?;
 
     listeners.emit_filter(emit_args, Some(filter))?;
 
@@ -660,6 +677,9 @@ impl<R: Runtime> AppManager<R> {
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {
+    #[cfg(desktop)]
+    self.menu.event_listeners.lock().unwrap().remove(label);
+
     let window = self.window.windows_lock().remove(label);
     if let Some(window) = window {
       for webview in window.webviews() {
@@ -808,7 +828,7 @@ mod test {
         if cfg!(windows) || cfg!(target_os = "android") {
           "http://tauri.localhost/"
         } else {
-          "tauri://localhost"
+          "tauri://localhost/"
         }
       );
       assert_eq!(
@@ -816,7 +836,7 @@ mod test {
         if cfg!(windows) || cfg!(target_os = "android") {
           "https://tauri.localhost/"
         } else {
-          "tauri://localhost"
+          "tauri://localhost/"
         }
       );
     }

@@ -33,6 +33,9 @@ use std::{
 #[cfg(mobile)]
 pub mod mobile;
 
+#[cfg(any(mobile, test))]
+mod mobile_response;
+
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {
   /// The plugin name. Used as key on the plugin config object.
@@ -597,7 +600,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  /// and [webkit_web_context_register_uri_scheme](https://webkitgtk.org/reference/webkit2gtk/stable/method.WebContext.register_uri_scheme.html) on Linux.
   ///
   /// # Known limitations
   ///

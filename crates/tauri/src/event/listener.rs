@@ -169,12 +169,12 @@ impl Listeners {
     let handler = Cell::new(Some(handler));
 
     self.listen(event, target, move |event| {
-      let id = event.id;
-      self_.unlisten(id);
-      let handler = handler
-        .take()
-        .expect("attempted to call handler more than once");
-      handler(event);
+      // This can potentially be called multiple times if the `unlisten` was queued,
+      // see https://github.com/tauri-apps/tauri/issues/16214
+      if let Some(handler) = handler.take() {
+        self_.unlisten(event.id);
+        handler(event);
+      }
     })
   }
 
@@ -217,9 +217,13 @@ impl Listeners {
         if let Some(handlers) = lock.get(&emit_args.event) {
           let handlers = handlers.iter();
           let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, &filter));
+          let mut shared_payload: Option<Arc<str>> = None;
           for (&id, Handler { callback, .. }) in handlers {
             maybe_pending = true;
-            (callback)(Event::new(id, emit_args.payload.clone()))
+            let data = shared_payload
+              .get_or_insert_with(|| Arc::from(emit_args.payload.as_str()))
+              .clone();
+            (callback)(Event::new(id, data))
           }
         }
       }
@@ -306,37 +310,47 @@ impl Listeners {
     })
   }
 
-  pub(crate) fn emit_js_filter<'a, R, I, F>(
+  pub(crate) fn emit_js_filter<R, F>(
     &self,
-    mut webviews: I,
+    webviews: Vec<Webview<R>>,
     emit_args: &EmitArgs,
     filter: Option<F>,
   ) -> crate::Result<()>
   where
     R: Runtime,
-    I: Iterator<Item = &'a Webview<R>>,
     F: Fn(&EventTarget) -> bool,
   {
     let event = &emit_args.event;
-    let js_listeners = self.inner.js_event_listeners.lock().unwrap();
-    webviews.try_for_each(|webview| {
-      if let Some(handlers) = js_listeners.get(webview.label()).and_then(|s| s.get(event)) {
-        let ids = handlers
-          .iter()
-          .filter(|handler| match_any_or_filter(&handler.target, &filter))
-          .map(|handler| handler.id)
-          .collect::<Vec<_>>();
-        webview.emit_js(emit_args, &ids)?;
-      }
+    // `eval` can block until the main thread runs the script, so holding the listeners lock
+    // while waiting deadlocks any main thread code that takes it (e.g. `emit`)
+    let targets = {
+      let js_listeners = self.inner.js_event_listeners.lock().unwrap();
+      webviews
+        .into_iter()
+        .filter_map(|webview| {
+          let handlers = js_listeners.get(webview.label())?.get(event)?;
+          let ids = handlers
+            .iter()
+            .filter(|handler| match_any_or_filter(&handler.target, &filter))
+            .map(|handler| handler.id)
+            .collect::<Vec<_>>();
+          Some((webview, ids))
+        })
+        .collect::<Vec<_>>()
+    };
 
-      Ok(())
-    })
+    targets
+      .into_iter()
+      .try_for_each(|(webview, ids)| webview.emit_js(emit_args, &ids))
   }
 
-  pub(crate) fn emit_js<'a, R, I>(&self, webviews: I, emit_args: &EmitArgs) -> crate::Result<()>
+  pub(crate) fn emit_js<R>(
+    &self,
+    webviews: Vec<Webview<R>>,
+    emit_args: &EmitArgs,
+  ) -> crate::Result<()>
   where
     R: Runtime,
-    I: Iterator<Item = &'a Webview<R>>,
   {
     self.emit_js_filter(webviews, emit_args, None::<&dyn Fn(&EventTarget) -> bool>)
   }
@@ -437,6 +451,43 @@ mod test {
     listeners
       .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
       .unwrap();
+  }
+
+  #[test]
+  fn once_survives_a_replayed_queued_emit() {
+    use std::sync::atomic::AtomicBool;
+
+    let listeners = Listeners::default();
+    let event = crate::EventName::new("event".to_owned()).unwrap();
+
+    // Since the listeners are stored in a HashMap,
+    // use more listens to make it more likely to have one of these to happen before the `once` handler later
+    for _ in 0..100 {
+      let listeners_clone = listeners.clone();
+      let event_clone = event.clone();
+      let emitted = AtomicBool::new(false);
+      listeners.listen(event.clone(), EventTarget::Any, move |_| {
+        // The listener lock is held while handlers run, so this emit is queued.
+        if !emitted.swap(true, Ordering::SeqCst) {
+          listeners_clone
+            .emit(EmitArgs::new(event_clone.as_str_event(), &()).unwrap())
+            .unwrap();
+        }
+      });
+    }
+
+    let calls = Arc::new(AtomicU32::new(0));
+    let calls_clone = calls.clone();
+
+    listeners.once(event.clone(), EventTarget::Any, move |_| {
+      calls_clone.fetch_add(1, Ordering::SeqCst);
+    });
+
+    listeners
+      .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
+      .unwrap();
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
   }
 
   #[test]

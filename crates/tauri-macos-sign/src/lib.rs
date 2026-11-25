@@ -10,6 +10,7 @@ use std::{
 
 use serde::Deserialize;
 
+mod apple_codesign;
 pub mod certificate;
 mod keychain;
 mod provisioning_profile;

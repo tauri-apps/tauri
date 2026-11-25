@@ -36,7 +36,7 @@ normally just dropping in one more spec.
     its bundle identifier, so the config has the driver match that name too
     (`appium:additionalWebviewBundleIds`). The driver also starts with a script timeout of
     0, which the config raises to the 30s the other drivers default to, or every
-    `executeAsync` would time out at once.
+    promise-returning `execute` calls would time out at once.
 - Specs never `eval` in the page. They pass a function to the [`tauri()`](test/helpers/index.ts)
   helper, which serializes it and runs it via the driver's own (CSP-exempt) script injection,
   handing it `window.__TAURI__` as the first argument and returning its JSON result.
@@ -58,7 +58,7 @@ Platform driver dependencies:
 | Platform | Requirement                                                                                                                                                                                                        |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | macOS    | `CN_API_KEY` env var (CrabNebula Cloud). The automation plugin and test-runner-backend are wired up already.                                                                                                       |
-| Linux    | `webkit2gtk-driver` package (provides `WebKitWebDriver`).                                                                                                                                                          |
+| Linux    | `webkit2gtk-driver` / `webkitgtk-webdriver` (>= Ubuntu 26.04) package (provides `WebKitWebDriver`).                                                                                                                |
 | Windows  | `msedgedriver.exe` matching your Edge version, on `PATH`. Run the suite unelevated.                                                                                                                                |
 | Android  | The usual Tauri Android setup (`ANDROID_HOME`, `NDK_HOME`, a JDK), plus a running emulator or a connected device with USB debugging. Network access the first time, for the chromedriver download.                 |
 | iOS      | macOS with Xcode and an iOS simulator runtime. `tauri ios init` installs [xcodegen](https://github.com/yonaskolb/XcodeGen) through Homebrew if missing. The first session compiles WebDriverAgent (a few minutes). |

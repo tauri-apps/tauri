@@ -113,6 +113,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       target_device: device.as_ref().map(|d| TargetDevice {
         id: d.serial_no().to_string(),
         name: d.name().to_string(),
+        target: d.target().triple.to_string(),
       }),
     },
     noise_level,

@@ -273,14 +273,24 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
 
   if !options.open {
     let all_targets = Target::all();
-    ensure_ios_requirements_installed(
-      options
-        .targets
+    let mut sdks: Vec<&str> = match options.targets.as_deref() {
+      Some(names) if !names.is_empty() => names
         .iter()
-        .flatten()
         .filter_map(|name| all_targets.get(name.as_str()))
+        .map(|target| target.sdk)
+        .collect(),
+      // with no targets the archive falls back to the default target
+      _ => vec![all_targets.get(Target::DEFAULT_KEY).unwrap().sdk],
+    };
+    // `ios run` also builds and runs on the selected device
+    sdks.extend(
+      options
+        .target_device
+        .as_ref()
+        .and_then(|device| all_targets.values().find(|t| t.triple == device.target))
         .map(|target| target.sdk),
-    )?;
+    );
+    ensure_ios_requirements_installed(sdks)?;
   }
 
   // start from the user's export options so values only inferred from the Xcode project

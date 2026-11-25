@@ -478,7 +478,7 @@ impl<R: Runtime> WebviewManager<R> {
       WebviewUrl::App(path) => {
         let app_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let url = if PROXY_DEV_SERVER && is_local_network_url(&app_url) {
-          Cow::Owned(Url::parse("tauri://localhost").unwrap())
+          Cow::Owned(Url::parse("tauri://localhost/").unwrap())
         } else {
           app_url
         };
@@ -498,7 +498,7 @@ impl<R: Runtime> WebviewManager<R> {
         let is_app_url = config_url.make_relative(url).is_some();
         let mut url = url.clone();
         if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
-          Url::parse("tauri://localhost").unwrap()
+          Url::parse("tauri://localhost/").unwrap()
         } else {
           url
         }

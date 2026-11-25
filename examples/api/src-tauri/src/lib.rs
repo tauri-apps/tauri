@@ -68,6 +68,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         tauri::menu::MenuBuilder::new(app)
           .check("check", "Tauri is awesome!")
           .text("text", "Do something")
+          .native_icon("info", "About Tauri", tauri::menu::NativeIcon::Info)
           .copy()
           .build()?,
       ));

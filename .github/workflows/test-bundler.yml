@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: 'Setup Rust'
-        uses: dtolnay/rust-toolchain@1.90
+        uses: dtolnay/rust-toolchain@1.92
 
       - uses: Swatinem/rust-cache@v2
         with:

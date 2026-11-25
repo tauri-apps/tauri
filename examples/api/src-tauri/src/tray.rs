@@ -5,106 +5,146 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   Manager, Runtime, WebviewUrl, include_image,
-  menu::{Menu, MenuItem},
+  menu::{IconMenuItemBuilder, Menu, MenuItemBuilder, NativeIcon, Submenu},
   tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
-  let toggle_i = MenuItem::with_id(app, "toggle", "Toggle", true, None::<&str>)?;
-  let new_window_i = MenuItem::with_id(app, "new-window", "New window", true, None::<&str>)?;
-  let icon_i_1 = MenuItem::with_id(app, "icon-1", "Icon 1", true, None::<&str>)?;
-  let icon_i_2 = MenuItem::with_id(app, "icon-2", "Icon 2", true, None::<&str>)?;
+  let toggle_i = MenuItemBuilder::with_id("toggle", "Toggle")
+    .handler(|item, _event| {
+      if let Some(window) = item.app_handle().get_webview_window("main") {
+        let new_title = if window.is_visible().unwrap_or_default() {
+          let _ = window.hide();
+          "Show"
+        } else {
+          let _ = window.show();
+          let _ = window.set_focus();
+          "Hide"
+        };
+        item.set_text(new_title).unwrap();
+      }
+    })
+    .build(app)?;
+
+  let new_window_i = IconMenuItemBuilder::with_id("new-window", "New window")
+    .native_icon(NativeIcon::Computer)
+    .handler(|item, _event| {
+      let _webview = tauri::WebviewWindowBuilder::new(
+        item.app_handle(),
+        "new",
+        WebviewUrl::App("index.html".into()),
+      )
+      .title("Tauri")
+      .build()
+      .unwrap();
+    })
+    .build(app)?;
+
+  let icon_i_1 = MenuItemBuilder::with_id("icon-1", "Icon 1")
+    .handler(|item, _event| {
+      if let Some(tray) = item.app_handle().tray_by_id("tray-1") {
+        let _ = tray.set_icon(Some(include_image!("../../.icons/icon.ico")));
+      }
+    })
+    .build(app)?;
+
+  let icon_i_2 = MenuItemBuilder::with_id("icon-2", "Icon 2")
+    .handler(|item, _event| {
+      if let Some(tray) = item.app_handle().tray_by_id("tray-1") {
+        let _ = tray.set_icon(Some(include_image!(
+          "../../.icons/tray_icon_with_transparency.png"
+        )));
+      }
+    })
+    .build(app)?;
+
+  let native_icon_i_1 = IconMenuItemBuilder::with_id("native-icon-1", "Native icon: Info")
+    .native_icon(NativeIcon::Info)
+    .handler(|item, _event| {
+      if let Some(tray) = item.app_handle().tray_by_id("tray-1") {
+        let _ = tray.set_native_icon(Some(NativeIcon::Info));
+      }
+    })
+    .build(app)?;
+  let native_icon_i_2 = IconMenuItemBuilder::with_id("native-icon-2", "Native icon: Network")
+    .native_icon(NativeIcon::Network)
+    .handler(|item, _event| {
+      if let Some(tray) = item.app_handle().tray_by_id("tray-1") {
+        let _ = tray.set_native_icon(Some(NativeIcon::Network));
+      }
+    })
+    .build(app)?;
+  let icons_submenu = Submenu::with_id_and_native_icon(
+    app,
+    "tray-icon",
+    "Tray icon",
+    true,
+    Some(NativeIcon::PreferencesGeneral),
+  )?;
+  icons_submenu.append_items(&[&icon_i_1, &icon_i_2, &native_icon_i_1, &native_icon_i_2])?;
+
   #[cfg(target_os = "macos")]
-  let set_title_i = MenuItem::with_id(app, "set-title", "Set Title", true, None::<&str>)?;
-  let switch_i = MenuItem::with_id(app, "switch-menu", "Switch Menu", true, None::<&str>)?;
-  let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-  let remove_tray_i =
-    MenuItem::with_id(app, "remove-tray", "Remove Tray icon", true, None::<&str>)?;
-  let menu1 = Menu::with_items(
-    app,
-    &[
-      &toggle_i,
-      &new_window_i,
-      &icon_i_1,
-      &icon_i_2,
-      #[cfg(target_os = "macos")]
-      &set_title_i,
-      &switch_i,
-      &quit_i,
-      &remove_tray_i,
-    ],
-  )?;
-  let menu2 = Menu::with_items(
-    app,
-    &[&toggle_i, &new_window_i, &switch_i, &quit_i, &remove_tray_i],
-  )?;
+  let set_title_i = MenuItemBuilder::with_id("set-title", "Set Title")
+    .handler(|item, _event| {
+      if let Some(tray) = item.app_handle().tray_by_id("tray-1") {
+        let _ = tray.set_title(Some("Tauri"));
+      }
+    })
+    .build(app)?;
 
-  let is_menu1 = AtomicBool::new(true);
+  let menu1 = Menu::new(app)?;
+  let menu2 = Menu::new(app)?;
 
-  let _tray = TrayIconBuilder::with_id("tray-1")
-    .tooltip("Tauri")
-    .icon(app.default_window_icon().unwrap().clone())
-    .menu(&menu1)
-    .show_menu_on_left_click(false)
-    .on_menu_event(move |app, event| match event.id.as_ref() {
-      "quit" => {
-        app.exit(0);
-      }
-      "remove-tray" => {
-        app.remove_tray_by_id("tray-1");
-      }
-      "toggle" => {
-        if let Some(window) = app.get_webview_window("main") {
-          let new_title = if window.is_visible().unwrap_or_default() {
-            let _ = window.hide();
-            "Show"
-          } else {
-            let _ = window.show();
-            let _ = window.set_focus();
-            "Hide"
-          };
-          toggle_i.set_text(new_title).unwrap();
-        }
-      }
-      "new-window" => {
-        let _webview =
-          tauri::WebviewWindowBuilder::new(app, "new", WebviewUrl::App("index.html".into()))
-            .title("Tauri")
-            .build()
-            .unwrap();
-      }
-      #[cfg(target_os = "macos")]
-      "set-title" => {
-        if let Some(tray) = app.tray_by_id("tray-1") {
-          let _ = tray.set_title(Some("Tauri"));
-        }
-      }
-      i @ "icon-1" | i @ "icon-2" => {
-        if let Some(tray) = app.tray_by_id("tray-1") {
-          let icon = if i == "icon-1" {
-            include_image!("../../.icons/icon.ico")
-          } else {
-            include_image!("../../.icons/tray_icon_with_transparency.png")
-          };
-          let _ = tray.set_icon(Some(icon));
-        }
-      }
-      "switch-menu" => {
+  let switch_i = MenuItemBuilder::with_id("switch-menu", "Switch Menu")
+    .handler({
+      let menu1 = menu1.clone();
+      let menu2 = menu2.clone();
+      let is_menu1 = AtomicBool::new(true);
+
+      move |item, _event| {
         let flag = is_menu1.load(Ordering::Relaxed);
         let (menu, tooltip) = if flag {
           (menu2.clone(), "Menu 2")
         } else {
           (menu1.clone(), "Tauri")
         };
-        if let Some(tray) = app.tray_by_id("tray-1") {
+        if let Some(tray) = item.app_handle().tray_by_id("tray-1") {
           let _ = tray.set_menu(Some(menu));
           let _ = tray.set_tooltip(Some(tooltip));
         }
         is_menu1.store(!flag, Ordering::Relaxed);
       }
-
-      _ => {}
     })
+    .build(app)?;
+
+  let quit_i = MenuItemBuilder::with_id("quit", "Quit")
+    .handler(|item, _event| item.app_handle().exit(0))
+    .build(app)?;
+
+  let remove_tray_i = IconMenuItemBuilder::with_id("remove-tray", "Remove Tray icon")
+    .native_icon(NativeIcon::Remove)
+    .handler(|item, _event| {
+      item.app_handle().remove_tray_by_id("tray-1");
+    })
+    .build(app)?;
+
+  menu1.append_items(&[
+    &toggle_i,
+    &new_window_i,
+    &icons_submenu,
+    #[cfg(target_os = "macos")]
+    &set_title_i,
+    &switch_i,
+    &quit_i,
+    &remove_tray_i,
+  ])?;
+  menu2.append_items(&[&toggle_i, &new_window_i, &switch_i, &quit_i, &remove_tray_i])?;
+
+  let _tray = TrayIconBuilder::with_id("tray-1")
+    .tooltip("Tauri")
+    .icon(app.default_window_icon().unwrap().clone())
+    .menu(&menu1)
+    .show_menu_on_left_click(false)
     .on_tray_icon_event(|tray, event| {
       if let TrayIconEvent::Click {
         button: MouseButton::Left,

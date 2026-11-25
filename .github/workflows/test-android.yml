@@ -42,8 +42,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: install Rust 1.90
-        uses: dtolnay/rust-toolchain@1.90
+      - name: install Rust 1.92
+        uses: dtolnay/rust-toolchain@1.92
 
       - run: npm i -g --force corepack
       - name: setup node

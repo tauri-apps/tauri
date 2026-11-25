@@ -1037,8 +1037,8 @@ class Window {
    * - **Linux:** Urgency levels have the same effect.
    * @example
    * ```typescript
-   * import { getCurrentWindow } from '@tauri-apps/api/window';
-   * await getCurrentWindow().requestUserAttention();
+   * import { getCurrentWindow, UserAttentionType } from '@tauri-apps/api/window';
+   * await getCurrentWindow().requestUserAttention(UserAttentionType.Critical);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -2058,7 +2058,7 @@ class Window {
    * @example
    * ```typescript
    * import { getCurrentWindow } from '@tauri-apps/api/window';
-   * await getCurrentWindow().startResizeDragging();
+   * await getCurrentWindow().startResizeDragging('SouthEast');
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
@@ -2536,7 +2536,10 @@ class Window {
   ): Promise<UnlistenFn> {
     return this.listen<ScaleFactorChanged>(
       TauriEvent.WINDOW_SCALE_FACTOR_CHANGED,
-      handler
+      (e) => {
+        e.payload.size = new PhysicalSize(e.payload.size)
+        handler(e)
+      }
     )
   }
 

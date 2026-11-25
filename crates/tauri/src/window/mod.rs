@@ -759,7 +759,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   #[must_use]
-  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  pub fn transient_for_raw(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for(parent);
     self
   }
@@ -1249,13 +1249,19 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| w.window_label() == self.label())
+      .filter(|w| w.window_ref().label() == self.label())
       .cloned()
       .collect()
   }
 
   pub(crate) fn is_webview_window(&self) -> bool {
-    self.webviews().iter().all(|w| w.label() == self.label())
+    self
+      .manager
+      .webview
+      .webviews_lock()
+      .values()
+      .filter(|w| w.window_ref().label() == self.label())
+      .all(|w| w.label() == self.label())
   }
 
   /// Runs the given closure on the main thread.

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-macros"
-version = "2.7.2"
+version = "2.7.6"
 description = "Macros for the tauri crate."
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
@@ -29,6 +29,7 @@ isolation = ["tauri-codegen/isolation"]
 config-json5 = ["tauri-codegen/config-json5", "tauri-utils/config-json5"]
 config-toml = ["tauri-codegen/config-toml", "tauri-utils/config-toml"]
 tracing = []
+url-pattern = ["tauri-codegen/url-pattern", "tauri-utils/url-pattern"]
 
 [lints]
 workspace = true

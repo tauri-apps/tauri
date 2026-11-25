@@ -22,19 +22,21 @@ allowBuilds:
 
 overrides:
   axios@<1.20.0: ^1.20.0
-  basic-ftp@<=6.2.0: ^6.2.1
+  body-parser@>=2.0.0 <2.4.0: ^2.4.0
+  glob@>=9.0.0 <=14.0.1: ^14.0.2
+  minimatch@>=7.0.0 <11.0.1: ^11.0.1
   morgan@<1.12.0: ^1.12.0
-  serialize-javascript@<7.0.5: ^7.0.5
   sharp@<0.35.5: ^0.35.5
   shell-quote@>=1.8.4 <1.11.0: ^1.11.0
-  undici@>=7.0.0 <7.29.1: ^7.29.1
+  undici@>=7.0.0 <7.30.1: ^7.30.1
 
-auditConfig:
-  ignoreGhsas:
-    # extract-zip symlink path traversal; no patched release exists (latest is
-    # still 2.0.1). Reached via @wdio/utils > @puppeteer/browsers, which only
-    # unpacks the browser drivers we never download (see allowBuilds above)
-    - GHSA-jmr9-qjv8-65gv
-    - GHSA-7pqw-9j4j-h8q3
-    # braces, no fix available yet
-    - GHSA-vfj7-8cjw-p6xm
+audit:
+  ignore:
+    # deepmerge, pulled in by @sveltejs/vite-plugin-svelte, no fix available yet
+    - GHSA-gcqx-w48m-w2h4
+    # picomatch ReDoS, pulled in by vite, doesn't affect us since only used in dev server, no fix available yet
+    - GHSA-fc5q-39xc-vjpf
+
+minimumReleaseAgeExclude:
+  - appium-uiautomator2-driver@9.2.2
+  - appium-xcuitest-driver@13.1.3

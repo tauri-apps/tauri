@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.12.5]
+
+### Bug Fixes
+
+- [`a99dc0e85`](https://www.github.com/tauri-apps/tauri/commit/a99dc0e8512a63c432188ab8cf1e831e90f8adea) ([#16522](https://www.github.com/tauri-apps/tauri/pull/16522) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix `mockIPC` with `shouldMockEvents` so `once` listeners only run once and `unlisten` removes the mocked listener. The mocked event now carries the listener `id`, and `plugin:event|unlisten` reads `eventId`.
+- [`d40c19cfb`](https://www.github.com/tauri-apps/tauri/commit/d40c19cfba459428fcf30e3dc4044d34ac3c2647) ([#16381](https://www.github.com/tauri-apps/tauri/pull/16381) by [@spokodev](https://www.github.com/tauri-apps/tauri/../../spokodev)) Fix `Window.onScaleChanged` passing `size` as a plain object instead of a `PhysicalSize`, so methods such as `toLogical` were missing on it. It is now wrapped the same way as the `onResized` payload.
+
+## [2.12.4]
+
+### What's Changed
+
+- [`dc637db65`](https://www.github.com/tauri-apps/tauri/commit/dc637db6573443cc668b06deed1f014c4ac01033) ([#16260](https://www.github.com/tauri-apps/tauri/pull/16260)) Improve menu documentation.
+
 ## [2.12.3]
 
 ### Bug Fixes

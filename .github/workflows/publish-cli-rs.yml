@@ -46,6 +46,16 @@ jobs:
             ext: ''
             args: ''
             cross: true
+          - os: ubuntu-22.04
+            rust_target: aarch64-unknown-linux-gnu
+            ext: ''
+            args: ''
+            cross: true
+          - os: ubuntu-22.04
+            rust_target: aarch64-unknown-linux-musl
+            ext: ''
+            args: ''
+            cross: true
 
     steps:
       - uses: actions/checkout@v7

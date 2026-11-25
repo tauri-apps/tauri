@@ -264,7 +264,11 @@ class Webview {
         windowLabel: window.label,
         options: {
           ...options,
-          label
+          label,
+          onNewWindow:
+            typeof options?.onNewWindow === 'string'
+              ? { action: options.onNewWindow }
+              : options?.onNewWindow
         }
       })
         .then(async () => this.emit('tauri://created'))
@@ -986,13 +990,13 @@ interface WebviewOptions {
    */
   disableInputAccessoryView?: boolean
   /**
-   * Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
+   * Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to `localDataDir()`/${label}**.
    * For security reasons, paths outside of that location can only be configured on the Rust side.
    *
    * #### Platform-specific:
    *
    * - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
-   * - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+   * - **macOS / iOS**: Unsupported, use `profileIdentifier` instead.
    * - **Android**: Unsupported.
    *
    * @since 2.9.0
@@ -1010,8 +1014,30 @@ interface WebviewOptions {
    * - **Windows / Linux / Android**: Unsupported.
    *
    * @since 2.9.0
+   * @deprecated since 2.13.0. Use {@linkcode WebviewOptions.profileIdentifier} instead, which is also supported on Windows.
    */
   dataStoreIdentifier?: number[]
+  /**
+   * Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+   * in a profile identified by the given 16 bytes, usually a UUID.
+   *
+   * Webviews using the same identifier share their browsing data,
+   * while webviews using different identifiers are fully isolated from each other.
+   *
+   * The array must contain 16 u8 numbers.
+   *
+   * #### Platform-specific:
+   *
+   * - **macOS / iOS**: Uses a [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)) created with this identifier.
+   *   Available on macOS >= 14 and iOS >= 17.
+   * - **Windows**: Uses a [WebView2 profile](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support)
+   *   named after the lowercase hex representation of the identifier, stored inside the data directory.
+   *   Requires WebView2 Runtime 101+, older runtimes ignore this option.
+   * - **Linux / Android**: Unsupported.
+   *
+   * @since 2.13.0
+   */
+  profileIdentifier?: number[]
   /**
    * Specifies the native scrollbar style to use with the webview.
    * CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
@@ -1046,8 +1072,37 @@ interface WebviewOptions {
    * @since 2.11.0
    */
   generalAutofillEnabled?: boolean
+  /**
+   * Action to perform when a new window is requested to be created.
+   *
+   * 'allowDefault' lets the webview open the URL using the native implementation.
+   * 'allowTauriWindow' creates a Tauri window to load the URL.
+   * Additionally you can provide a list of filters to only allow URLs matching certain patterns.
+   * Each entry is a glob pattern such as `https://*.tauri.app/**`, where `*` does not match `/`
+   * and `**` matches any number of path segments.
+   * A pattern without a path such as `https://tauri.app` matches any path on that origin.
+   * The full {@link https://developer.mozilla.org/en-US/docs/Web/API/URLPattern|URL pattern spec} is used instead
+   * when the `url-pattern` Cargo feature is enabled.
+   *
+   * A new window is requested to be opened by the {@link https://developer.mozilla.org/en-US/docs/Web/API/Window/open|window.open API}.
+   *
+   * ## Platform-specific
+   *
+   * - **Android / iOS**: Not supported.
+   *
+   * @since 2.13.0
+   */
+  onNewWindow?: OnNewWindow
 }
+
+type OnNewWindow =
+  | 'allowDefault'
+  | 'allowTauriWindow'
+  | 'deny'
+  | { action: 'allowDefault'; urls?: string[] }
+  | { action: 'allowTauriWindow'; urls?: string[] }
+  | { action: 'deny' }
 
 export { Webview, getCurrentWebview, getAllWebviews }
 
-export type { DragDropEvent, WebviewOptions, Color }
+export type { DragDropEvent, WebviewOptions, Color, OnNewWindow }

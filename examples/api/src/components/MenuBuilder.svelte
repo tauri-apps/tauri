@@ -4,6 +4,7 @@
     IconMenuItem,
     Menu,
     MenuItem,
+    NativeIcon,
     PredefinedMenuItem,
     Submenu,
     type PredefinedMenuItemOptions
@@ -14,6 +15,7 @@
     kind: MenuItemComponentKind
     text: string | undefined
     iconPath: string | undefined
+    nativeIcon: NativeIcon | undefined
     checked: boolean | undefined
   }
 
@@ -90,7 +92,7 @@
   ]
 
   async function create(options: MenuOptions) {
-    let { kind, text, iconPath, checked } = options
+    let { kind, text, iconPath, nativeIcon, checked } = options
     text ??= ''
 
     switch (kind) {
@@ -107,6 +109,16 @@
         return await IconMenuItem.new({
           text,
           icon: iconPath,
+          action: (id) => {
+            const item = items.find((item) => item.id === options.id)
+            itemClick({ id, text: item?.text ?? text })
+          }
+        })
+      }
+      case 'NativeIcon': {
+        return await IconMenuItem.new({
+          text,
+          icon: nativeIcon,
           action: (id) => {
             const item = items.find((item) => item.id === options.id)
             itemClick({ id, text: item?.text ?? text })
@@ -168,6 +180,7 @@
         const kind = item.dataset.kind as MenuItemComponentKind
         const text = item.dataset.text
         const iconPath = item.dataset.iconPath
+        const nativeIcon = item.dataset.nativeIcon as NativeIcon | undefined
         const checked = item.dataset.checked
 
         const newItem = {
@@ -175,6 +188,7 @@
           kind,
           text,
           iconPath,
+          nativeIcon,
           checked: checked !== undefined ? checked === 'true' : checked
         } as Item
         currentId += 1
@@ -232,6 +246,11 @@
           text="Menu item with icon"
           iconPath="../../.icons/icon.png"
         />
+        <MenuItemComponent
+          kind="NativeIcon"
+          text="Menu item with native icon"
+          nativeIcon={NativeIcon.Info}
+        />
         <MenuItemComponent kind="Check" text="A check menu" checked={false} />
       </div>
     </div>
@@ -256,6 +275,7 @@
           id={item.id}
           bind:text={item.text}
           bind:iconPath={item.iconPath}
+          bind:nativeIcon={item.nativeIcon}
           bind:checked={item.checked}
           onTextChange={item.text !== undefined
             ? () => {
@@ -266,6 +286,13 @@
             ? () => {
                 ;(item.menu as IconMenuItem | undefined)?.setIcon(
                   item.iconPath!
+                )
+              }
+            : undefined}
+          onNativeIconChange={item.nativeIcon !== undefined
+            ? () => {
+                ;(item.menu as IconMenuItem | undefined)?.setIcon(
+                  item.nativeIcon!
                 )
               }
             : undefined}

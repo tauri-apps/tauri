@@ -6,13 +6,15 @@
     type MenuItemClickDetail,
     type MenuItems
   } from '../components/MenuBuilder.svelte'
-  import { Menu } from '@tauri-apps/api/menu'
+  import { Menu, NativeIcon } from '@tauri-apps/api/menu'
+  import { nativeIcons } from '../components/MenuItemComponent.svelte'
   import type { ViewProps } from '../App.svelte'
   import { onDestroy } from 'svelte'
 
   let { onMessage }: ViewProps = $props()
 
   let icon = $state<string>('../../.icons/tray_icon.png')
+  let nativeIcon = $state<NativeIcon | ''>('')
   let tooltip = $state<string>()
   let title = $state<string>()
   let iconAsTemplate = $state(false)
@@ -32,7 +34,9 @@
         items: menuItems.map((i) => i.menu).filter(Boolean) as MenuItems[]
       })
       tray = await TrayIcon.new({
-        icon,
+        // `nativeIcon` is ignored when `icon` is set
+        icon: nativeIcon ? undefined : icon,
+        nativeIcon: nativeIcon || undefined,
         tooltip,
         title,
         iconAsTemplate,
@@ -45,6 +49,18 @@
       menu = undefined
       tray?.close()
       tray = undefined
+      onMessage(error)
+    }
+  }
+
+  async function onNativeIconChange() {
+    try {
+      if (nativeIcon) {
+        await tray?.setNativeIcon(nativeIcon)
+      } else {
+        await tray?.setIcon(icon)
+      }
+    } catch (error) {
       onMessage(error)
     }
   }
@@ -112,6 +128,18 @@
         <input type="checkbox" class="checkbox" bind:checked={iconAsTemplate} />
         Icon as template
       </label>
+
+      <select
+        class="input col-span-2"
+        title="Native icon, overrides the icon path"
+        bind:value={nativeIcon}
+        onchange={onNativeIconChange}
+      >
+        <option value="">No native icon (use icon path)</option>
+        {#each nativeIcons as nativeIconOption}
+          <option value={nativeIconOption}>{nativeIconOption}</option>
+        {/each}
+      </select>
     </div>
 
     <div class="flex">

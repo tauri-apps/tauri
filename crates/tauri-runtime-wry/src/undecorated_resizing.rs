@@ -292,13 +292,6 @@ mod windows {
             return DefWindowProcW(child, msg, wparam, lparam);
           }
 
-          // if the window has undecorated shadows,
-          // it should always be the top border,
-          // ensured by the cutout drag window
-          if data.has_undecorated_shadows {
-            return LRESULT(HTTOP as _);
-          }
-
           let mut rect = RECT::default();
           if GetWindowRect(child, &mut rect).is_err() {
             return DefWindowProcW(child, msg, wparam, lparam);
@@ -307,8 +300,21 @@ mod windows {
           let (cx, cy) = (GET_X_LPARAM(lparam) as i32, GET_Y_LPARAM(lparam) as i32);
 
           let dpi = util::hwnd_dpi(child);
-          let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
           let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
+
+          if data.has_undecorated_shadows {
+            // Accessibility hit tests can query points outside the window region.
+            // Only the top strip participates in resizing when shadows are enabled.
+            let in_top_border =
+              cx >= rect.left && cx < rect.right && cy >= rect.top && cy < rect.top + border_y;
+            return LRESULT(if in_top_border {
+              HTTOP as _
+            } else {
+              HTTRANSPARENT as _
+            });
+          }
+
+          let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
 
           let res = hit_test(
             rect.left,
@@ -503,6 +509,116 @@ mod windows {
   fn GET_Y_LPARAM(lparam: LPARAM) -> i16 {
     (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16
   }
+
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+
+    struct ResizeWindow(HWND);
+
+    impl ResizeWindow {
+      fn new(x: i32, y: i32, shadows: bool) -> (Self, HWND) {
+        let parent = unsafe {
+          CreateWindowExW(
+            WINDOW_EX_STYLE::default(),
+            w!("STATIC"),
+            w!("Tauri resize hit-test regression"),
+            WS_OVERLAPPEDWINDOW,
+            x,
+            y,
+            320,
+            240,
+            None,
+            None,
+            None,
+            None,
+          )
+          .unwrap()
+        };
+        let window = Self(parent);
+        attach_resize_handler(parent.0 as isize, shadows);
+        let child = unsafe { FindWindowExW(Some(parent), None, CLASS_NAME, WINDOW_NAME) }.unwrap();
+        (window, child)
+      }
+    }
+
+    impl Drop for ResizeWindow {
+      fn drop(&mut self) {
+        unsafe { DestroyWindow(self.0).unwrap() };
+      }
+    }
+
+    fn hit_test_at(child: HWND, x: i32, y: i32) -> isize {
+      let point = (x as u16 as usize) | ((y as u16 as usize) << 16);
+      unsafe { SendMessageW(child, WM_NCHITTEST, None, Some(LPARAM(point as isize))) }.0
+    }
+
+    #[test]
+    fn shadow_resize_hit_test_respects_the_window_region() {
+      for (x, y) in [(100, 100), (-400, -300)] {
+        let (_window, child) = ResizeWindow::new(x, y, true);
+        let mut rect = RECT::default();
+        unsafe { GetWindowRect(child, &mut rect).unwrap() };
+        let region = unsafe { Owned::new(CreateRectRgn(0, 0, 0, 0)) };
+        assert_ne!(unsafe { GetWindowRgn(child, *region) }, GDI_REGION_TYPE(0));
+        let width = rect.right - rect.left;
+        let height = rect.bottom - rect.top;
+        let border = unsafe { util::get_system_metrics_for_dpi(SM_CYFRAME, util::hwnd_dpi(child)) };
+        for (dx, dy) in [
+          (width / 2, height / 2),
+          (0, 0),
+          (width - 1, 0),
+          (width / 2, border - 1),
+          (width / 2, border),
+          (0, height - 1),
+          (-1, 0),
+          (width, 0),
+          (width / 2, -1),
+        ] {
+          let in_region = unsafe { PtInRegion(*region, dx, dy) }.as_bool();
+          assert_eq!(
+            hit_test_at(child, rect.left + dx, rect.top + dy),
+            if in_region {
+              HTTOP as isize
+            } else {
+              HTTRANSPARENT as isize
+            },
+            "point ({dx}, {dy}) at window origin ({}, {})",
+            rect.left,
+            rect.top,
+          );
+        }
+      }
+    }
+
+    #[test]
+    fn shadowless_resize_hit_test_keeps_edges_and_client_area() {
+      let (_window, child) = ResizeWindow::new(-400, -300, false);
+      let mut rect = RECT::default();
+      unsafe { GetWindowRect(child, &mut rect).unwrap() };
+      assert_eq!(hit_test_at(child, rect.left, rect.top), HTTOPLEFT as isize);
+      assert_eq!(
+        hit_test_at(child, rect.right - 1, rect.top),
+        HTTOPRIGHT as isize
+      );
+      assert_eq!(
+        hit_test_at(child, rect.left, rect.bottom - 1),
+        HTBOTTOMLEFT as isize
+      );
+      assert_eq!(
+        hit_test_at(child, rect.right - 1, rect.bottom - 1),
+        HTBOTTOMRIGHT as isize
+      );
+      assert_eq!(
+        hit_test_at(
+          child,
+          (rect.left + rect.right) / 2,
+          (rect.top + rect.bottom) / 2
+        ),
+        HTTRANSPARENT as isize
+      );
+    }
+  }
 }
 
 #[cfg(not(windows))]
@@ -547,7 +663,8 @@ mod gtk {
   }
 
   fn resizable_window(webview: &webkit2gtk::WebView) -> Option<gtk::Window> {
-    let window = webview.parent()?.parent()?.downcast::<gtk::Window>().ok()?;
+    // The webview may be nested at any depth (e.g. reparented into a GtkPaned), so resolve its toplevel
+    let window = webview.toplevel()?.downcast::<gtk::Window>().ok()?;
     (!window.is_decorated() && window.is_resizable() && !window.is_maximized()).then_some(window)
   }
 
@@ -585,18 +702,22 @@ mod gtk {
 
     webview.connect_motion_notify_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventMotion| {
-        let Some(window) = resizable_window(webview).and_then(|_| webview.window()) else {
+        let Some(window) = resizable_window(webview).and_then(|w| w.window()) else {
+          return Propagation::Proceed;
+        };
+        let Some(webview_window) = webview.window() else {
           return Propagation::Proceed;
         };
 
-        let (x, y) = event.position();
-        let result = hit_test_window(&window, x, y);
+        // hit test against the toplevel like the button press handler, the webview may not fill it
+        let (root_x, root_y) = event.root();
+        let result = hit_test_window_root(&window, root_x, root_y);
         if matches!(result, HitTestResult::Client | HitTestResult::NoWhere) {
           return Propagation::Proceed;
         }
 
-        let cursor = result.to_cursor(&window.display());
-        window.set_cursor(cursor.as_ref());
+        let cursor = result.to_cursor(&webview_window.display());
+        webview_window.set_cursor(cursor.as_ref());
         Propagation::Stop
       },
     );
@@ -624,6 +745,12 @@ mod gtk {
 
     webview.connect_touch_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::Event| {
+        // Start the resize drag once per touch sequence. Issuing it for every
+        // touch event re-sends `xdg_toplevel.resize` with a serial the compositor
+        // already consumed, which can crash the session (e.g. gnome-shell).
+        if event.event_type() != gtk::gdk::EventType::TouchBegin {
+          return Propagation::Proceed;
+        }
         let Some(window) = resizable_window(webview).and_then(|w| w.window()) else {
           return Propagation::Proceed;
         };

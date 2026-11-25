@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.4.3]
+
+### Bug Fixes
+
+- [`0007a43ae`](https://www.github.com/tauri-apps/tauri/commit/0007a43ae74551655357aced98a000965b759ff3) ([#14838](https://www.github.com/tauri-apps/tauri/pull/14838) by [@DeTeam](https://www.github.com/tauri-apps/tauri/../../DeTeam)) Also list legacy `iPhone Distribution:` and `iPhone Developer:` signing certificates when looking up the available development teams.
+- [`152d293dd`](https://www.github.com/tauri-apps/tauri/commit/152d293ddf5680b968dc4853e52d87c12a2deaeb) ([#16298](https://www.github.com/tauri-apps/tauri/pull/16298) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Delete the temporary signing keychain when importing the certificate or resolving the signing identity fails, instead of leaving it behind in `~/Library/Keychains`.
+
+### Dependencies
+
+- [`1d7b93fc5`](https://www.github.com/tauri-apps/tauri/commit/1d7b93fc5927c013e20613e45e7b84602efb0ee9) ([#16321](https://www.github.com/tauri-apps/tauri/pull/16321) by [@FalkWoldmann](https://www.github.com/tauri-apps/tauri/../../FalkWoldmann)) Replace `once_cell` with the `std::sync` equivalents, removing it from the direct dependencies.
+
 ## [2.4.2]
 
 ### Bug Fixes

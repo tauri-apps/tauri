@@ -8,11 +8,17 @@ import { invoke } from '../core'
 import { transformImage, MenuIcon } from '../image'
 
 /**
- * A native Icon to be used for the menu item
+ * A native icon to be used for a menu item or a tray icon.
  *
- * #### Platform-specific:
+ * Known variants map to a platform-native icon where an equivalent exists:
  *
- * - **Windows / Linux**: Unsupported.
+ * - **Linux**: a freedesktop icon name, resolved by the desktop icon theme, so the icon follows
+ *   the theme's light and dark variants.
+ * - **macOS**: an AppKit image name.
+ * - **Windows**: a stock shell icon, for the variants that have one.
+ *
+ * Not every variant has an equivalent on every platform, in which case the item is drawn
+ * without an icon.
  */
 export enum NativeIcon {
   /** An add item template image. */

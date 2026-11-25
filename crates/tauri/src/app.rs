@@ -2584,9 +2584,9 @@ tauri::Builder::default()
     {
       // setup menu event handler
       let proxy = runtime.create_proxy();
-      muda::MenuEvent::set_event_handler(Some(move |e: muda::MenuEvent| {
+      muda::MenuEvent::set_event_handler(Some(std::sync::Arc::new(move |e: muda::MenuEvent| {
         let _ = proxy.send_event(EventLoopMessage::MenuEvent(e.into()));
-      }));
+      })));
 
       // setup tray event handler
       #[cfg(feature = "tray-icon")]

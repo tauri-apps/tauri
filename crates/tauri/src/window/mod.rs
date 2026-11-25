@@ -2027,14 +2027,6 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   /// - **Windows:** Unsupported, use [`Window::set_overlay_icon`] instead.
   /// - **iOS:** Sets the app icon badge. The value is clamped to the `i32` range.
-  ///   Uses `UNUserNotificationCenter.setBadgeCount` on iOS 16+ and the deprecated
-  ///   `UIApplication.applicationIconBadgeNumber` on older versions.
-  ///
-  ///   The badge is only displayed once the user has granted the app notification
-  ///   authorization that includes the badge option. Tauri does not request it: ask for it first,
-  ///   for example with the notification plugin's `requestPermission` (which requests alert, sound
-  ///   and badge). Without it, this call still returns `Ok(())` but no badge is shown; on iOS 16+
-  ///   the system error is only logged.
   /// - **Android:** Unsupported.
   pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
     self

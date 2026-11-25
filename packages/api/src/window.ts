@@ -2079,6 +2079,11 @@ class Window {
    * #### Platform-specific
    *
    * - **Windows**: Unsupported. Use {@linkcode Window.setOverlayIcon} instead.
+   * - **iOS**: Sets the app icon badge; `0` or `undefined` clears it. The badge is only displayed once the user has granted
+   *   the app notification authorization that includes the badge option. Tauri does not request
+   *   it: ask for it first, for example with `requestPermission` from `@tauri-apps/plugin-notification`.
+   *   Without it, the promise still resolves but no badge is shown.
+   * - **Android**: Unsupported.
    *
    * @example
    * ```typescript

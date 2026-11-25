@@ -2314,16 +2314,6 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_overlay_icon(icon)
   }
 
-  /// Sets the taskbar badge count. Using `0` or `None` will remove the badge
-  ///
-  /// ## Platform-specific
-  /// - **Windows:** Unsupported, use [`WebviewWindow::set_overlay_icon`] instead.
-  /// - **iOS:** iOS expects i32, the value will be clamped to i32::MIN, i32::MAX.
-  /// - **Android:** Unsupported.
-  pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
-    self.window.set_badge_count(count)
-  }
-
   /// Sets the taskbar badge label **macOS only**. Using `None` will remove the badge
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -2460,6 +2450,24 @@ impl<R: Runtime> WebviewWindow<R> {
   /// - **iOS / Android:** Unsupported.
   pub fn set_theme(&self, theme: Option<tauri_utils::Theme>) -> crate::Result<()> {
     self.window.set_theme(theme)
+  }
+
+  /// Sets the taskbar badge count. Using `0` or `None` will remove the badge
+  ///
+  /// ## Platform-specific
+  /// - **Windows:** Unsupported, use [`WebviewWindow::set_overlay_icon`] instead.
+  /// - **iOS:** Sets the app icon badge. The value is clamped to the `i32` range.
+  ///   Uses `UNUserNotificationCenter.setBadgeCount` on iOS 16+ and the deprecated
+  ///   `UIApplication.applicationIconBadgeNumber` on older versions.
+  ///
+  ///   The badge is only displayed once the user has granted the app notification
+  ///   authorization that includes the badge option. Tauri does not request it: ask for it first,
+  ///   for example with the notification plugin's `requestPermission` (which requests alert, sound
+  ///   and badge). Without it, this call still returns `Ok(())` but no badge is shown; on iOS 16+
+  ///   the system error is only logged.
+  /// - **Android:** Unsupported.
+  pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
+    self.window.set_badge_count(count)
   }
 }
 

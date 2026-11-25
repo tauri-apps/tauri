@@ -132,6 +132,7 @@ export interface MockIPCOptions {
  *  emit('test-event', { foo: 'bar' });
  *  expect(eventHandler).toHaveBeenCalledWith({
  *    event: 'test-event',
+ *    id: expect.any(Number),
  *    payload: { foo: 'bar' }
  *  });
  * })
@@ -157,7 +158,9 @@ export function mockIPC(
       case 'plugin:event|emit':
         return handleEmit(args as { event: EventName; payload?: unknown })
       case 'plugin:event|unlisten':
-        return handleRemoveListener(args as { event: EventName; id: number })
+        return handleRemoveListener(
+          args as { event: EventName; eventId: number }
+        )
     }
   }
 
@@ -172,15 +175,15 @@ export function mockIPC(
 
   function handleEmit(args: { event: EventName; payload?: unknown }) {
     const eventListeners = listeners.get(args.event) || []
-    for (const handler of eventListeners) {
-      runCallback(handler, args)
+    for (const handler of [...eventListeners]) {
+      runCallback(handler, { ...args, id: handler })
     }
     return null
   }
-  function handleRemoveListener(args: { event: EventName; id: number }) {
+  function handleRemoveListener(args: { event: EventName; eventId: number }) {
     const eventListeners = listeners.get(args.event)
     if (eventListeners) {
-      const index = eventListeners.indexOf(args.id)
+      const index = eventListeners.indexOf(args.eventId)
       if (index !== -1) {
         eventListeners.splice(index, 1)
       }

@@ -426,9 +426,7 @@ async fn create_window(app: tauri::AppHandle) {
               None
             }
         });
-      if let Some(resolved_data_directory) = resolve_data_dir_res {
-        config.data_directory = Some(resolved_data_directory);
-      }
+      config.data_directory = resolve_data_dir_res;
     }
 
     Self {
@@ -1092,11 +1090,6 @@ fn main() {
   }
 
   /// Enable or disable transparency for the WebView.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.webview_attributes.transparent = transparent;
@@ -1144,6 +1137,20 @@ fn main() {
     self
   }
 
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn browser_accelerator_keys(mut self, enabled: bool) -> Self {
+    self.webview_attributes.browser_accelerator_keys = enabled;
+    self
+  }
+
   /// Set the path from which to load extensions from. Extensions stored in this path should be unpacked Chrome extensions on Windows, and compiled `.so` extensions on Linux.
   ///
   /// ## Platform-specific:
@@ -1164,8 +1171,38 @@ fn main() {
   ///
   /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `profile_identifier` instead, which is also supported on Windows."
+  )]
   pub fn data_store_identifier(mut self, data_store_identifier: [u8; 16]) -> Self {
     self.webview_attributes.data_store_identifier = Some(data_store_identifier);
+    self
+  }
+
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes, usually a UUID.
+  ///
+  /// Webviews using the same identifier share their browsing data,
+  /// while webviews using different identifiers are fully isolated from each other.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Uses a [`WKWebsiteDataStore`] created with this identifier.
+  ///   Available on macOS >= 14 and iOS >= 17. Enable [incognito](Self::incognito) to use a
+  ///   non-persistent data store instead.
+  /// - **Windows**: Uses a [WebView2 profile] named after the lowercase hex representation of the identifier,
+  ///   stored inside the [data directory](Self::data_directory), so webviews sharing a data directory
+  ///   still share a single browser process. Requires WebView2 Runtime 101+, older runtimes ignore this setting.
+  /// - **Linux / Android**: Unsupported.
+  ///
+  /// Use `AppHandle::fetch_profile_identifiers` and `AppHandle::remove_profile` to manage the profiles.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)
+  /// [WebView2 profile]: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+  #[must_use]
+  pub fn profile_identifier(mut self, profile_identifier: [u8; 16]) -> Self {
+    self.webview_attributes.profile_identifier = Some(profile_identifier);
     self
   }
 
@@ -1795,10 +1832,6 @@ impl<R: Runtime> Webview<R> {
     self.window.lock().unwrap()
   }
 
-  pub(crate) fn window_label(&self) -> String {
-    self.window_ref().label().to_string()
-  }
-
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
   /// The closure is executed on the main thread.
@@ -2152,6 +2185,7 @@ tauri::Builder::default()
         if let Err(e) = crate::plugin::mobile::run_command(
           plugin,
           &app_handle,
+          None,
           heck::AsLowerCamelCase(message.command).to_string(),
           payload,
           move |response| match response {
@@ -2394,8 +2428,10 @@ tauri::Builder::default()
   /// - **Linux**: the data is cleared for the whole WebKit web context, which is shared by every webview
   ///   using the same data directory, not only this one.
   /// - **macOS / iOS**: clears the [`WKWebsiteDataStore`] of this webview. Webviews created with a custom
-  ///   `WebviewBuilder::data_store_identifier` have their own store, so only that store is affected.
-  /// - **Windows**: implemented with `ICoreWebView2Profile2::ClearBrowsingDataAll`, so an error is returned
+  ///   [`WebviewBuilder::profile_identifier`] have their own store, so only that store is affected.
+  /// - **Windows**: clears the WebView2 profile of this webview, which is shared by every webview using the
+  ///   same data directory and [`WebviewBuilder::profile_identifier`]. Implemented with
+  ///   `ICoreWebView2Profile2::ClearBrowsingDataAll`, so an error is returned
   ///   if the installed WebView2 runtime is too old to provide it.
   ///
   /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore

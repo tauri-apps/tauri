@@ -5,15 +5,43 @@
 
 use crate::{Settings, bundle::settings::Arch, error::ErrorExt};
 
-use rpm::{self, Dependency, FileMode, FileOptions, signature::pgp};
+use rpm::{self, Dependency, FileOptions, signature::pgp};
 use std::{
-  env,
-  fs::{self, File},
+  env, fs,
   path::{Path, PathBuf},
 };
 use tauri_utils::config::RpmCompression;
 
 use super::freedesktop;
+
+/// The compression used when none is configured.
+///
+/// This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
+// TODO: Default to Zstd in v3 to match rpm-rs new default in 0.16
+const DEFAULT_COMPRESSION: RpmCompression = RpmCompression::Gzip { level: 6 };
+
+/// Converts a SemVer version string to the RPM `Version` tag format.
+///
+/// RPM reserves `-` as the separator between `Version` and `Release`, and the
+/// `rpm` crate (since v0.20) refuses a `Version` that contains it, so it is
+/// replaced with `~`.
+fn to_rpm_version(version: &str) -> String {
+  match semver::Version::parse(version) {
+    Ok(v) if !v.pre.is_empty() || !v.build.is_empty() => {
+      let mut rpm = format!("{}.{}.{}", v.major, v.minor, v.patch);
+      if !v.pre.is_empty() {
+        rpm.push('~');
+        rpm.push_str(&v.pre.as_str().replace('-', "."));
+      }
+      if !v.build.is_empty() {
+        rpm.push('+');
+        rpm.push_str(&v.build.as_str().replace('-', "."));
+      }
+      rpm
+    }
+    _ => version.to_string(),
+  }
+}
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.
@@ -61,36 +89,50 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let license = settings.license().unwrap_or_default();
   let name = heck::AsKebabCase(settings.product_name()).to_string();
 
-  let compression = settings
-    .rpm()
-    .compression
-    .map(|c| match c {
-      RpmCompression::Gzip { level } => rpm::CompressionWithLevel::Gzip(level),
-      RpmCompression::Zstd { level } => rpm::CompressionWithLevel::Zstd(level),
-      RpmCompression::Xz { level } => rpm::CompressionWithLevel::Xz(level),
-      RpmCompression::Bzip2 { level } => rpm::CompressionWithLevel::Bzip2(level),
-      _ => rpm::CompressionWithLevel::None,
-    })
-    // This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
-    // TODO: Default to Zstd in v3 to match rpm-rs new default in 0.16
-    .unwrap_or(rpm::CompressionWithLevel::Gzip(6));
+  let compression = settings.rpm().compression.unwrap_or(DEFAULT_COMPRESSION);
+  let mut level = compression.level().unwrap_or_default();
 
-  let mut builder = rpm::PackageBuilder::new(&name, version, &license, arch, summary)
+  if let Some(min_level) = compression.min_level()
+    && let Some(max_level) = compression.max_level()
+  {
+    let clamped = level.clamp(min_level, max_level);
+    if clamped != level {
+      log::warn!(
+        "rpm compression level {level} is outside the range {min_level} - {max_level} supported by this algorithm, clamping to {clamped}"
+      );
+      level = clamped;
+    }
+  }
+
+  let compression = match compression {
+    RpmCompression::Zstd { .. } => rpm::CompressionWithLevel::Zstd(level),
+    RpmCompression::Xz { .. } => rpm::CompressionWithLevel::Xz(level as u32),
+    RpmCompression::Bzip2 { .. } => rpm::CompressionWithLevel::Bzip2(level as u32),
+    RpmCompression::None => rpm::CompressionWithLevel::None,
+    // gzip, which unknown algorithms also fall back to
+    _ => rpm::CompressionWithLevel::Gzip(level as u32),
+  };
+
+  let build_config = rpm::BuildConfig::default().compression(compression);
+
+  let mut builder =
+    rpm::PackageBuilder::new(&name, &to_rpm_version(version), &license, arch, summary);
+  builder
+    .using_config(build_config)
     .epoch(epoch)
-    .release(release)
-    .compression(compression);
+    .release(release);
 
   if let Some(description) = settings.long_description() {
-    builder = builder.description(description);
+    builder.description(description);
   }
 
   if let Some(homepage) = settings.homepage_url() {
-    builder = builder.url(homepage);
+    builder.url(homepage);
   }
 
   // Add requirements
   for dep in settings.rpm().depends.as_ref().cloned().unwrap_or_default() {
-    builder = builder.requires(Dependency::any(dep));
+    builder.requires(Dependency::any(dep));
   }
 
   // Add provides
@@ -101,7 +143,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .cloned()
     .unwrap_or_default()
   {
-    builder = builder.provides(Dependency::any(dep));
+    builder.provides(Dependency::any(dep));
   }
 
   // Add recommends
@@ -112,7 +154,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .cloned()
     .unwrap_or_default()
   {
-    builder = builder.recommends(Dependency::any(dep));
+    builder.recommends(Dependency::any(dep));
   }
 
   // Add conflicts
@@ -123,7 +165,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .cloned()
     .unwrap_or_default()
   {
-    builder = builder.conflicts(Dependency::any(dep));
+    builder.conflicts(Dependency::any(dep));
   }
 
   // Add obsoletes
@@ -134,14 +176,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .cloned()
     .unwrap_or_default()
   {
-    builder = builder.obsoletes(Dependency::any(dep));
+    builder.obsoletes(Dependency::any(dep));
   }
 
   // Add binaries
   for bin in settings.binaries() {
     let src = settings.binary_path(bin);
     let dest = Path::new("/usr/bin").join(bin.name());
-    builder = builder.with_file(src, FileOptions::new(dest.to_string_lossy()))?;
+    builder.with_file(src, FileOptions::new(dest.to_string_lossy()))?;
   }
 
   // Add external binaries
@@ -154,81 +196,72 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         .to_string_lossy()
         .replace(&format!("-{}", settings.target()), ""),
     );
-    builder = builder.with_file(&src, FileOptions::new(dest.to_string_lossy()))?;
+    builder.with_file(&src, FileOptions::new(dest.to_string_lossy()))?;
   }
 
   // Add scripts
   if let Some(script_path) = &settings.rpm().pre_install_script {
     let script = fs::read_to_string(script_path)?;
-    builder = builder.pre_install_script(script);
+    builder.pre_install_script(script);
   }
 
   if let Some(script_path) = &settings.rpm().post_install_script {
     let script = fs::read_to_string(script_path)?;
-    builder = builder.post_install_script(script);
+    builder.post_install_script(script);
   }
 
   if let Some(script_path) = &settings.rpm().pre_remove_script {
     let script = fs::read_to_string(script_path)?;
-    builder = builder.pre_uninstall_script(script);
+    builder.pre_uninstall_script(script);
   }
 
   if let Some(script_path) = &settings.rpm().post_remove_script {
     let script = fs::read_to_string(script_path)?;
-    builder = builder.post_uninstall_script(script);
+    builder.post_uninstall_script(script);
   }
 
   // Add resources
   if settings.resource_files().count() > 0 {
     let resource_dir = Path::new("/usr/lib").join(settings.product_name());
-    // Create an empty file, needed to add a directory to the RPM package
-    // (cf https://github.com/rpm-rs/rpm/issues/177)
-    let empty_file_path = &package_dir.join("empty");
-    File::create(empty_file_path)?;
-    // Then add the resource directory `/usr/lib/<product_name>` to the package.
-    builder = builder.with_file(
-      empty_file_path,
-      FileOptions::new(resource_dir.to_string_lossy()).mode(FileMode::Dir { permissions: 0o755 }),
-    )?;
+    builder.with_dir_entry(FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755))?;
     // Then add the resources files in that directory
     for resource in settings.resource_files().iter() {
       let resource = resource?;
       let dest = resource_dir.join(resource.target());
-      builder = builder.with_file(resource.path(), FileOptions::new(dest.to_string_lossy()))?;
+      builder.with_file(resource.path(), FileOptions::new(dest.to_string_lossy()))?;
     }
   }
 
   // Add Desktop entry file
   let (desktop_src_path, desktop_dest_path) =
     freedesktop::generate_desktop_file(settings, &settings.rpm().desktop_template, &package_dir)?;
-  builder = builder.with_file(
+  builder.with_file(
     desktop_src_path,
     FileOptions::new(desktop_dest_path.to_string_lossy()),
   )?;
 
   // Add icons
   for (icon, src) in &freedesktop::list_icon_files(settings, &PathBuf::from("/"))? {
-    builder = builder.with_file(src, FileOptions::new(icon.path.to_string_lossy()))?;
+    builder.with_file(src, FileOptions::new(icon.path.to_string_lossy()))?;
   }
 
   // Add custom files
   for (rpm_path, src_path) in settings.rpm().files.iter() {
     if src_path.is_file() {
-      builder = builder.with_file(src_path, FileOptions::new(rpm_path.to_string_lossy()))?;
+      builder.with_file(src_path, FileOptions::new(rpm_path.to_string_lossy()))?;
     } else {
       for entry in walkdir::WalkDir::new(src_path) {
         let entry_path = entry?.into_path();
         if entry_path.is_file() {
           let dest_path = rpm_path.join(entry_path.strip_prefix(src_path).unwrap());
-          builder =
-            builder.with_file(&entry_path, FileOptions::new(dest_path.to_string_lossy()))?;
+          builder.with_file(&entry_path, FileOptions::new(dest_path.to_string_lossy()))?;
         }
       }
     }
   }
 
   let pkg = if let Ok(raw_secret_key) = env::var("TAURI_SIGNING_RPM_KEY") {
-    let mut signer = pgp::Signer::load_from_asc(&raw_secret_key)?;
+    let mut signer = pgp::Signer::from_asc(&raw_secret_key)?;
     if let Ok(passphrase) = env::var("TAURI_SIGNING_RPM_KEY_PASSPHRASE") {
       signer = signer.with_key_passphrase(passphrase);
     }
@@ -240,4 +273,49 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut f = fs::File::create(&package_path)?;
   pkg.write(&mut f)?;
   Ok(vec![package_path])
+}
+
+#[cfg(test)]
+mod tests {
+  use super::to_rpm_version;
+
+  #[test]
+  fn plain_release_unchanged() {
+    assert_eq!(to_rpm_version("1.0.0"), "1.0.0");
+    assert_eq!(to_rpm_version("2.4.1"), "2.4.1");
+  }
+
+  #[test]
+  fn semver_prerelease_uses_tilde() {
+    assert_eq!(to_rpm_version("1.0.0-alpha"), "1.0.0~alpha");
+    assert_eq!(to_rpm_version("1.0.0-beta.11"), "1.0.0~beta.11");
+    assert_eq!(to_rpm_version("1.0.0-rc.1"), "1.0.0~rc.1");
+    assert_eq!(
+      to_rpm_version("0.1.11-nightly.20261019.2"),
+      "0.1.11~nightly.20261019.2"
+    );
+  }
+
+  #[test]
+  fn hyphens_in_prerelease_are_normalized_to_dots() {
+    assert_eq!(to_rpm_version("1.0.0-rc-1"), "1.0.0~rc.1");
+    assert_eq!(
+      to_rpm_version("1.0.0-alpha-beta-1"),
+      to_rpm_version("1.0.0-alpha.beta.1")
+    );
+  }
+
+  #[test]
+  fn build_metadata_preserved() {
+    assert_eq!(to_rpm_version("1.0.0+build.1"), "1.0.0+build.1");
+    assert_eq!(to_rpm_version("1.0.0+build-1"), "1.0.0+build.1");
+    assert_eq!(to_rpm_version("1.0.0-alpha+build.1"), "1.0.0~alpha+build.1");
+  }
+
+  #[test]
+  fn non_semver_input_passes_through() {
+    assert_eq!(to_rpm_version("1.0.0.0"), "1.0.0.0");
+    assert_eq!(to_rpm_version("1.0"), "1.0");
+    assert_eq!(to_rpm_version("1.0.0~beta"), "1.0.0~beta");
+  }
 }

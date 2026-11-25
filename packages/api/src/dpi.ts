@@ -29,6 +29,11 @@
 
 import { SERIALIZE_TO_IPC_FN } from './core'
 
+// Match Rust's `f64::round()` behavior: halfway values round away from zero.
+function roundToPixel(value: number): number {
+  return value < 0 ? -Math.round(-value) : Math.round(value)
+}
+
 /**
  * A size represented in logical pixels.
  * Logical pixels are scaled according to the window's DPI scale.
@@ -68,6 +73,8 @@ class LogicalSize {
 
   /**
    * Converts the logical size to a physical one.
+   *
+   * The result can have fractional pixels, see {@linkcode PhysicalSize.round}.
    * @example
    * ```typescript
    * import { LogicalSize } from '@tauri-apps/api/dpi';
@@ -83,6 +90,27 @@ class LogicalSize {
    */
   toPhysical(scaleFactor: number): PhysicalSize {
     return new PhysicalSize(this.width * scaleFactor, this.height * scaleFactor)
+  }
+
+  /**
+   * Rounds the width and height to whole pixels, rounding halves away from zero
+   * like Rust's `LogicalSize::cast::<u32>()`.
+   *
+   * Returns a new {@linkcode LogicalSize} and leaves this one unchanged.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const size = await appWindow.innerSize(); // PhysicalSize
+   * const logical = size.toLogical(factor).round();
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): LogicalSize {
+    return new LogicalSize(roundToPixel(this.width), roundToPixel(this.height))
   }
 
   [SERIALIZE_TO_IPC_FN]() {
@@ -152,6 +180,30 @@ class PhysicalSize {
    */
   toLogical(scaleFactor: number): LogicalSize {
     return new LogicalSize(this.width / scaleFactor, this.height / scaleFactor)
+  }
+
+  /**
+   * Rounds the width and height to whole pixels, rounding halves away from zero
+   * like Rust's `PhysicalSize::cast::<u32>()`.
+   *
+   * Returns a new {@linkcode PhysicalSize} and leaves this one unchanged.
+   *
+   * APIs that take a physical size, such as `Window.setSize`, only accept whole pixels.
+   * @example
+   * ```typescript
+   * import { LogicalSize } from '@tauri-apps/api/dpi';
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const physical = new LogicalSize(301, 201).toPhysical(factor).round();
+   * await appWindow.setSize(physical);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): PhysicalSize {
+    return new PhysicalSize(roundToPixel(this.width), roundToPixel(this.height))
   }
 
   [SERIALIZE_TO_IPC_FN]() {
@@ -286,6 +338,8 @@ class LogicalPosition {
 
   /**
    * Converts the logical position to a physical one.
+   *
+   * The result can have fractional pixels, see {@linkcode PhysicalPosition.round}.
    * @example
    * ```typescript
    * import { LogicalPosition } from '@tauri-apps/api/dpi';
@@ -301,6 +355,27 @@ class LogicalPosition {
    */
   toPhysical(scaleFactor: number): PhysicalPosition {
     return new PhysicalPosition(this.x * scaleFactor, this.y * scaleFactor)
+  }
+
+  /**
+   * Rounds the coordinates to whole pixels, rounding halves away from zero
+   * like Rust's `LogicalPosition::cast::<i32>()`.
+   *
+   * Returns a new {@linkcode LogicalPosition} and leaves this one unchanged.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const position = await appWindow.innerPosition(); // PhysicalPosition
+   * const logical = position.toLogical(factor).round();
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): LogicalPosition {
+    return new LogicalPosition(roundToPixel(this.x), roundToPixel(this.y))
   }
 
   [SERIALIZE_TO_IPC_FN]() {
@@ -368,6 +443,30 @@ class PhysicalPosition {
    */
   toLogical(scaleFactor: number): LogicalPosition {
     return new LogicalPosition(this.x / scaleFactor, this.y / scaleFactor)
+  }
+
+  /**
+   * Rounds the coordinates to whole pixels, rounding halves away from zero
+   * like Rust's `PhysicalPosition::cast::<i32>()`.
+   *
+   * Returns a new {@linkcode PhysicalPosition} and leaves this one unchanged.
+   *
+   * APIs that take a physical position, such as `Window.setPosition`, only accept whole pixels.
+   * @example
+   * ```typescript
+   * import { LogicalPosition } from '@tauri-apps/api/dpi';
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const physical = new LogicalPosition(-101, 84.17).toPhysical(factor).round();
+   * await appWindow.setPosition(physical);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): PhysicalPosition {
+    return new PhysicalPosition(roundToPixel(this.x), roundToPixel(this.y))
   }
 
   [SERIALIZE_TO_IPC_FN]() {

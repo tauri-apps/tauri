@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.10.4]
+
+### Bug Fixes
+
+- [`2fd85731c`](https://www.github.com/tauri-apps/tauri/commit/2fd85731ceb871bfd20598b781dc711c33b5062a) ([#16526](https://www.github.com/tauri-apps/tauri/pull/16526) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) `MimeType::parse` now uses the file extension for text types like `.js`, `.css` and `.svg` instead of sniffing the content, so a script that contains `%PDF` near its start is no longer served as `application/pdf`.
+
+## [2.10.3]
+
+### Bug Fixes
+
+- [`219a60724`](https://www.github.com/tauri-apps/tauri/commit/219a607245c79df4c859bf50997bcdcbdbe25ea8) ([#16444](https://www.github.com/tauri-apps/tauri/pull/16444) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Fix parsing a hex `Color` string panicking when it contains non-ASCII characters, for example `#€€`; it now returns an error. Surrounding whitespace is also trimmed when the string has no leading `#`.
+- [`c51f047e9`](https://www.github.com/tauri-apps/tauri/commit/c51f047e919e2659c822ccd0320919907b0e0c6c) ([#16447](https://www.github.com/tauri-apps/tauri/pull/16447) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Match file extensions case-insensitively when guessing a MIME type, so files such as `app.JS` or `Logo.SVG` no longer get the fallback type (`text/html` for the `tauri://` and `asset://` protocols).
+- [`a1ea1b5e5`](https://www.github.com/tauri-apps/tauri/commit/a1ea1b5e5ad4b75759fa773b7b78db288128b4af) ([#16453](https://www.github.com/tauri-apps/tauri/pull/16453) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Keep the drive letter or UNC share of absolute `bundle > resources` and `bundle > externalBin` paths on Windows. Before, a resource on another drive than the current directory, for example `D:/assets/*` in a project on `C:`, failed with a "resource path doesn't exist" error.
+
+### Performance Improvements
+
+- [`0e5809589`](https://www.github.com/tauri-apps/tauri/commit/0e5809589026982976e49718c9a34c68680df0c3) ([#16402](https://www.github.com/tauri-apps/tauri/pull/16402) by [@johncarmack1984](https://www.github.com/tauri-apps/tauri/../../johncarmack1984)) Mark `config::parse::parse_json` and `parse_json5` `#[inline]` so crates that don't call them no longer generate code for the `Config` deserializer.
+
+## [2.10.2]
+
+### Bug Fixes
+
+- [`141d1c0d6`](https://www.github.com/tauri-apps/tauri/commit/141d1c0d6f3a746f7f34618d00c2676c902dca67) ([#16199](https://www.github.com/tauri-apps/tauri/pull/16199)) Fix the `failed to read plugin permissions` build error when the Cargo target directory is moved after the first build, for example when it is restored from a CI cache at a different path. Permission files generated inside `OUT_DIR` are now listed relative to it.
+
+## [2.10.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
 ## [2.10.0]
 
 ### New Features

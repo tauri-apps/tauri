@@ -49,6 +49,35 @@ function injectChannel(i: MenuItemOptionsAlias): MenuItemOptionsAlias & {
 }
 
 /**
+ * Transforms menu items from various types into a type acceptable by Rust.
+ *
+ * @ignore
+ */
+export function prepareItem(
+  i: { rid: number; kind: string } | MenuItemOptionsAlias
+): [number, string] | MenuItemOptionsAlias {
+  if ('rid' in i) {
+    return [i.rid, i.kind]
+  }
+
+  if ('item' in i && typeof i.item === 'object' && i.item.About?.icon) {
+    i.item.About.icon = transformImage(i.item.About.icon)
+  }
+
+  if ('icon' in i && i.icon) {
+    i.icon = transformImage(i.icon)
+  }
+
+  if ('items' in i && i.items) {
+    // @ts-expect-error the `prepareItem` return doesn't exactly match
+    // this is fine, because the difference is in `[number, string]` variant
+    i.items = i.items.map(prepareItem)
+  }
+
+  return injectChannel(i)
+}
+
+/**
  * Creates a menu or menu item on the Rust side. Implementation detail of the
  * `new` static methods of the menu classes.
  *
@@ -93,30 +122,6 @@ export async function newMenu(
 
     // submenu items
     if ('items' in opts && opts.items) {
-      function prepareItem(
-        i: { rid: number; kind: string } | MenuItemOptionsAlias
-      ): [number, string] | MenuItemOptionsAlias {
-        if ('rid' in i) {
-          return [i.rid, i.kind]
-        }
-
-        if ('item' in i && typeof i.item === 'object' && i.item.About?.icon) {
-          i.item.About.icon = transformImage(i.item.About.icon)
-        }
-
-        if ('icon' in i && i.icon) {
-          i.icon = transformImage(i.icon)
-        }
-
-        if ('items' in i && i.items) {
-          // @ts-expect-error the `prepareItem` return doesn't exactly match
-          // this is fine, because the difference is in `[number, string]` variant
-          i.items = i.items.map(prepareItem)
-        }
-
-        return injectChannel(i)
-      }
-
       // @ts-expect-error the `prepareItem` return doesn't exactly match
       // this is fine, because the difference is in `[number, string]` variant
       opts.items = opts.items.map(prepareItem)

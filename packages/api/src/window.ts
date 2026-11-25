@@ -1037,8 +1037,8 @@ class Window {
    * - **Linux:** Urgency levels have the same effect.
    * @example
    * ```typescript
-   * import { getCurrentWindow } from '@tauri-apps/api/window';
-   * await getCurrentWindow().requestUserAttention();
+   * import { getCurrentWindow, UserAttentionType } from '@tauri-apps/api/window';
+   * await getCurrentWindow().requestUserAttention(UserAttentionType.Critical);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -2058,7 +2058,7 @@ class Window {
    * @example
    * ```typescript
    * import { getCurrentWindow } from '@tauri-apps/api/window';
-   * await getCurrentWindow().startResizeDragging();
+   * await getCurrentWindow().startResizeDragging('SouthEast');
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
@@ -2457,11 +2457,13 @@ class Window {
       }
     )
 
-    return () => {
-      unlistenDrag()
-      unlistenDrop()
-      unlistenDragOver()
-      unlistenCancel()
+    return async () => {
+      await Promise.all([
+        unlistenDrag(),
+        unlistenDrop(),
+        unlistenDragOver(),
+        unlistenCancel()
+      ])
     }
   }
 
@@ -2499,9 +2501,8 @@ class Window {
         handler({ ...event, payload: false })
       }
     )
-    return () => {
-      unlistenFocus()
-      unlistenBlur()
+    return async () => {
+      await Promise.all([unlistenFocus(), unlistenBlur()])
     }
   }
 
@@ -2535,7 +2536,10 @@ class Window {
   ): Promise<UnlistenFn> {
     return this.listen<ScaleFactorChanged>(
       TauriEvent.WINDOW_SCALE_FACTOR_CHANGED,
-      handler
+      (e) => {
+        e.payload.size = new PhysicalSize(e.payload.size)
+        handler(e)
+      }
     )
   }
 
@@ -2879,8 +2883,6 @@ interface WindowOptions {
   focusable?: boolean
   /**
    * Whether the window is transparent or not.
-   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.
-   * WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
    *
    * On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
    */

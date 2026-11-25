@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.12.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+
+## [2.12.3]
+
+### Bug Fixes
+
+- [`ac1a94d5b`](https://www.github.com/tauri-apps/tauri/commit/ac1a94d5b4a35c28175e139e3f399a20853eb1bd) ([#16464](https://www.github.com/tauri-apps/tauri/pull/16464) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Apply the `dataStoreIdentifier` window config option to the webview. It was ignored when a window was created from the config.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.3`
+
+## [2.12.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.2`
+
+## [2.12.1]
+
+### Bug Fixes
+
+- [`c9a3cb892`](https://www.github.com/tauri-apps/tauri/commit/c9a3cb892e901e39ca46aad2ff6b14aac21fea0d) ([#16166](https://www.github.com/tauri-apps/tauri/pull/16166) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The `macos-private-api` feature flag / `macOSPrivateAPI` tauri.conf.json value is no longer required to use transparency or fullscreen on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.1`
+
 ## [2.12.0]
 
 ### New Features

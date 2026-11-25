@@ -1142,11 +1142,6 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
   /// creating a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     #[cfg(desktop)]
@@ -1184,6 +1179,20 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn browser_accelerator_keys(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.browser_accelerator_keys(enabled);
+    self
+  }
+
   /// Set the path from which to load extensions from. Extensions stored in this path should be unpacked Chrome extensions on Windows, and compiled `.so` extensions on Linux.
   ///
   /// ## Platform-specific:
@@ -1201,11 +1210,36 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17
   /// - **Windows / Linux / Android**: Unsupported.
+  ///
+  /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `profile_identifier` instead, which is also supported on Windows."
+  )]
   pub fn data_store_identifier(mut self, data_store_identifier: [u8; 16]) -> Self {
-    self.webview_builder = self
-      .webview_builder
-      .data_store_identifier(data_store_identifier);
+    #[allow(deprecated)]
+    {
+      self.webview_builder = self
+        .webview_builder
+        .data_store_identifier(data_store_identifier);
+    }
+    self
+  }
+
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes, usually a UUID.
+  ///
+  /// See [`WebviewBuilder::profile_identifier`] for details.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17.
+  /// - **Windows**: Requires WebView2 Runtime 101+.
+  /// - **Linux / Android**: Unsupported.
+  #[must_use]
+  pub fn profile_identifier(mut self, profile_identifier: [u8; 16]) -> Self {
+    self.webview_builder = self.webview_builder.profile_identifier(profile_identifier);
     self
   }
 
@@ -2695,6 +2729,8 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Clear all browsing data for this webview window.
+  ///
+  /// See [`Webview::clear_all_browsing_data`] for details.
   pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
     self.webview.clear_all_browsing_data()
   }

@@ -109,6 +109,12 @@ pub(crate) fn setup(
   cfg_alias("mobile", mobile);
   cfg_alias("desktop", !mobile);
 
+  // docs.rs mounts the crate sources read-only, so the native projects can't get their `.tauri` directory,
+  // and the documentation doesn't need them anyway
+  if std::env::var_os("DOCS_RS").is_some() {
+    return Ok(());
+  }
+
   match target_os.as_str() {
     "android" => {
       if let Some(path) = android_path {

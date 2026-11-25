@@ -2,20 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::{ItemEventHandler, NoHandler};
 use crate::{
   Manager, Runtime,
   image::Image,
-  menu::{IconMenuItem, MenuId, NativeIcon},
+  menu::{IconMenuItem, MenuEvent, MenuId, NativeIcon},
 };
 
 /// A builder type for [`IconMenuItem`]
-pub struct IconMenuItemBuilder<'a> {
+///
+/// The handler type is inferred when using [`Self::handler`].
+pub struct IconMenuItemBuilder<'a, H = NoHandler> {
   id: Option<MenuId>,
   text: String,
   enabled: bool,
   icon: Option<Image<'a>>,
   native_icon: Option<NativeIcon>,
   accelerator: Option<String>,
+  handler: H,
 }
 
 impl<'a> IconMenuItemBuilder<'a> {
@@ -31,6 +35,7 @@ impl<'a> IconMenuItemBuilder<'a> {
       icon: None,
       native_icon: None,
       accelerator: None,
+      handler: NoHandler,
     }
   }
 
@@ -46,9 +51,12 @@ impl<'a> IconMenuItemBuilder<'a> {
       icon: None,
       native_icon: None,
       accelerator: None,
+      handler: NoHandler,
     }
   }
+}
 
+impl<'a, H> IconMenuItemBuilder<'a, H> {
   /// Set the id for this menu item.
   pub fn id<I: Into<MenuId>>(mut self, id: I) -> Self {
     self.id.replace(id.into());
@@ -81,15 +89,42 @@ impl<'a> IconMenuItemBuilder<'a> {
   ///
   /// **Note:** This method conflicts with [`Self::icon`]
   /// so calling one of them, will reset the other.
+  ///
+  /// See [`IconMenuItem::set_native_icon`] for the platform-specific behavior.
   pub fn native_icon(mut self, icon: NativeIcon) -> Self {
     self.native_icon.replace(icon);
     self.icon = None;
     self
   }
 
+  /// Set a handler to be called when this item is activated.
+  ///
+  /// Items with the same ID share a handler registration;
+  /// the last handler registered for that ID is used.
+  /// Always use a unique ID for each item to ensure its handler is called.
+  pub fn handler<R, F>(self, handler: F) -> IconMenuItemBuilder<'a, F>
+  where
+    R: Runtime,
+    F: Fn(&IconMenuItem<R>, MenuEvent) + Send + Sync + 'static,
+    H: ItemEventHandler<IconMenuItem<R>>,
+  {
+    IconMenuItemBuilder {
+      id: self.id,
+      text: self.text,
+      enabled: self.enabled,
+      icon: self.icon,
+      native_icon: self.native_icon,
+      accelerator: self.accelerator,
+      handler,
+    }
+  }
+
   /// Build the menu item
-  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<IconMenuItem<R>> {
-    if self.icon.is_some() {
+  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<IconMenuItem<R>>
+  where
+    H: ItemEventHandler<IconMenuItem<R>>,
+  {
+    let i = if self.icon.is_some() {
       if let Some(id) = self.id {
         IconMenuItem::with_id(
           manager,
@@ -98,7 +133,7 @@ impl<'a> IconMenuItemBuilder<'a> {
           self.enabled,
           self.icon,
           self.accelerator,
-        )
+        )?
       } else {
         IconMenuItem::new(
           manager,
@@ -106,7 +141,7 @@ impl<'a> IconMenuItemBuilder<'a> {
           self.enabled,
           self.icon,
           self.accelerator,
-        )
+        )?
       }
     } else if let Some(id) = self.id {
       IconMenuItem::with_id_and_native_icon(
@@ -116,7 +151,7 @@ impl<'a> IconMenuItemBuilder<'a> {
         self.enabled,
         self.native_icon,
         self.accelerator,
-      )
+      )?
     } else {
       IconMenuItem::with_native_icon(
         manager,
@@ -124,7 +159,16 @@ impl<'a> IconMenuItemBuilder<'a> {
         self.enabled,
         self.native_icon,
         self.accelerator,
-      )
-    }
+      )?
+    };
+
+    if let Some(handler) = self.handler.into_handler() {
+      let menu_manager = &manager.manager().menu;
+      menu_manager.on_menu_item_event(i.id().clone(), &i.0, move |item, event| {
+        handler(&IconMenuItem(item), event);
+      });
+    };
+
+    Ok(i)
   }
 }

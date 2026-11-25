@@ -2,14 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Manager, Runtime, menu::MenuId, menu::MenuItem};
+use super::{ItemEventHandler, NoHandler};
+use crate::{
+  Manager, Runtime,
+  menu::{MenuEvent, MenuId, MenuItem},
+};
 
 /// A builder type for [`MenuItem`]
-pub struct MenuItemBuilder {
+///
+/// The handler type is inferred when using [`Self::handler`].
+pub struct MenuItemBuilder<H = NoHandler> {
   id: Option<MenuId>,
   text: String,
   enabled: bool,
   accelerator: Option<String>,
+  handler: H,
 }
 
 impl MenuItemBuilder {
@@ -23,6 +30,7 @@ impl MenuItemBuilder {
       text: text.as_ref().to_string(),
       enabled: true,
       accelerator: None,
+      handler: NoHandler,
     }
   }
 
@@ -36,9 +44,12 @@ impl MenuItemBuilder {
       text: text.as_ref().to_string(),
       enabled: true,
       accelerator: None,
+      handler: NoHandler,
     }
   }
+}
 
+impl<H> MenuItemBuilder<H> {
   /// Set the id for this menu item.
   pub fn id<I: Into<MenuId>>(mut self, id: I) -> Self {
     self.id.replace(id.into());
@@ -57,12 +68,44 @@ impl MenuItemBuilder {
     self
   }
 
-  /// Build the menu item
-  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<MenuItem<R>> {
-    if let Some(id) = self.id {
-      MenuItem::with_id(manager, id, self.text, self.enabled, self.accelerator)
-    } else {
-      MenuItem::new(manager, self.text, self.enabled, self.accelerator)
+  /// Set a handler to be called when this item is activated.
+  ///
+  /// Items with the same ID share a handler registration;
+  /// the last handler registered for that ID is used.
+  /// Always use a unique ID for each item to ensure its handler is called.
+  pub fn handler<R, F>(self, handler: F) -> MenuItemBuilder<F>
+  where
+    R: Runtime,
+    F: Fn(&MenuItem<R>, MenuEvent) + Send + Sync + 'static,
+    H: ItemEventHandler<MenuItem<R>>,
+  {
+    MenuItemBuilder {
+      id: self.id,
+      text: self.text,
+      enabled: self.enabled,
+      accelerator: self.accelerator,
+      handler,
     }
+  }
+
+  /// Build the menu item
+  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<MenuItem<R>>
+  where
+    H: ItemEventHandler<MenuItem<R>>,
+  {
+    let i = if let Some(id) = self.id {
+      MenuItem::with_id(manager, id, self.text, self.enabled, self.accelerator)?
+    } else {
+      MenuItem::new(manager, self.text, self.enabled, self.accelerator)?
+    };
+
+    if let Some(handler) = self.handler.into_handler() {
+      let menu_manager = &manager.manager().menu;
+      menu_manager.on_menu_item_event(i.id().clone(), &i.0, move |item, event| {
+        handler(&MenuItem(item), event);
+      });
+    };
+
+    Ok(i)
   }
 }

@@ -273,7 +273,7 @@ fn is_cargo_target_directory(dir: &std::path::Path) -> bool {
 /// # Security
 ///
 /// See [`current_exe`] for possible security implications.
-pub fn external_bin_dir() -> std::io::Result<PathBuf> {
+pub fn external_bin_dir() -> crate::Result<PathBuf> {
   let exe = current_exe()?;
   let exe_dir = exe.parent().ok_or_else(|| {
     std::io::Error::new(
@@ -284,6 +284,7 @@ pub fn external_bin_dir() -> std::io::Result<PathBuf> {
   Ok(external_bin_dir_from(exe_dir).to_path_buf())
 }
 
+// split from `external_bin_dir` so the unit tests can pass an arbitrary executable directory
 fn external_bin_dir_from(exe_dir: &std::path::Path) -> &std::path::Path {
   #[cfg(not(target_os = "android"))]
   if exe_dir.ends_with("deps") {
@@ -353,7 +354,7 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
 ) -> crate::Result<PathBuf> {
   let exe_dir = exe.as_ref().parent().expect("failed to get exe directory");
 
-  // Windows also includes the resources in the executable folder
+  // Windows always includes the resources in the executable folder
   if cfg!(target_os = "windows") || is_cargo_target_directory(exe_dir) {
     return Ok(exe_dir.to_path_buf());
   }

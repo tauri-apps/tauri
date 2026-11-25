@@ -331,13 +331,15 @@ impl<R: Runtime> PathResolver<R> {
   /// use tauri::Manager;
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     let path = app.path().sidecar_path("my-sidecar")?;
+  ///     let path = app.path().resolve_external_bin("my-sidecar")?;
   ///     std::process::Command::new(path).spawn()?;
   ///     Ok(())
   ///   });
   /// ```
-  pub fn sidecar_path<P: AsRef<Path>>(&self, name: P) -> Result<PathBuf> {
-    let mut path = tauri_utils::platform::external_bin_dir()?.join(name);
+  pub fn resolve_external_bin<P: AsRef<Path>>(&self, name: P) -> Result<PathBuf> {
+    let mut path = tauri_utils::platform::external_bin_dir()
+      .map_err(|_| Error::UnknownPath)?
+      .join(name);
 
     #[cfg(windows)]
     if path.extension().is_none_or(|ext| ext != "exe") {

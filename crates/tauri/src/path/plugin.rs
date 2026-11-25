@@ -101,7 +101,7 @@ pub fn resolve_external_bin<R: Runtime>(
   name: PathBuf,
 ) -> Result<PathBuf> {
   resolver
-    .sidecar_path(name)
+    .resolve_external_bin(name)
     .map(|p| dunce::simplified(&p).to_path_buf())
 }
 

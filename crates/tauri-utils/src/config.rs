@@ -61,7 +61,9 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability};
+use crate::{
+  TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability, url::UrlScope,
+};
 
 pub use self::parse::parse;
 
@@ -136,6 +138,8 @@ pub enum BundleType {
   Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The Pacman bundle (PKGBUILD and .tar.gz).
+  Pacman,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -153,6 +157,7 @@ impl BundleType {
       BundleType::Deb,
       BundleType::Rpm,
       BundleType::AppImage,
+      BundleType::Pacman,
       BundleType::Msi,
       BundleType::Nsis,
       BundleType::App,
@@ -170,6 +175,7 @@ impl Display for BundleType {
         Self::Deb => "deb",
         Self::Rpm => "rpm",
         Self::AppImage => "appimage",
+        Self::Pacman => "pacman",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",
@@ -198,6 +204,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "deb" => Ok(Self::Deb),
       "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
+      "pacman" => Ok(Self::Pacman),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
@@ -331,6 +338,94 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+const ZSTD_MIN_CLEVEL: i32 = -1 << 17;
+
+/// Compression algorithms used when bundling DEB packages.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "type")]
+#[non_exhaustive]
+pub enum DebCompression {
+  /// Gzip compression
+  Gzip {
+    /// Gzip compression level (0-9).
+    level: u32,
+  },
+  /// Zstd compression
+  Zstd {
+    /// Zstd compression level (-131072 - 22).
+    level: i32,
+  },
+  /// Xz compression
+  Xz {
+    /// Xz compression level (0-9).
+    level: u32,
+  },
+  /// Bzip2 compression
+  Bzip2 {
+    /// Bzip2 compression level (1-9).
+    level: u32,
+  },
+  /// Disable compression
+  None,
+}
+
+impl DebCompression {
+  /// The file extension of a tar archive compressed with this algorithm.
+  pub fn ext(&self) -> &'static str {
+    match self {
+      Self::None => "tar",
+      Self::Gzip { .. } => "tar.gz",
+      Self::Xz { .. } => "tar.xz",
+      Self::Zstd { .. } => "tar.zst",
+      Self::Bzip2 { .. } => "tar.bz2",
+    }
+  }
+
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
+}
+
 /// Configuration for Debian (.deb) bundles.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#debconfig>
@@ -362,7 +457,12 @@ pub struct DebConfig {
   pub changelog: Option<PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg`, `icon`,
+  /// `name`, `mime_type` (optional) and `long_description`.
+  ///
+  /// `exec_arg` is the `Exec` field code with a leading space: ` %U` when deep link schemes are
+  /// configured, ` %F` when only file associations are, and empty otherwise, so launchers pass the
+  /// opened URLs or files to the app. Use it as `Exec={{exec}}{{exec_arg}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -381,6 +481,8 @@ pub struct DebConfig {
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// Configuration for Linux bundles.
@@ -400,6 +502,105 @@ pub struct LinuxConfig {
   /// Configuration for the RPM bundle.
   #[serde(default)]
   pub rpm: RpmConfig,
+  /// Configuration for the Pacman bundle.
+  #[serde(default)]
+  pub pacman: PacmanConfig,
+}
+
+/// Configuration for Pacman bundles.
+///
+/// See <https://wiki.archlinux.org/title/PKGBUILD>
+///
+/// The package license is `bundle > license` (`unknown` when it is not set),
+/// and `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PacmanConfig {
+  /// The package name.
+  ///
+  /// Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for
+  /// packages that ship prebuilt binaries, for instance `my-app-bin`.
+  /// When the name ends with `-bin`, the package also provides and conflicts with the name
+  /// without the suffix.
+  ///
+  /// See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>
+  pub pkgname: Option<String>,
+  /// The package release number, to be incremented when the package changes but the app
+  /// version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.
+  /// Defaults to `1`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>
+  pub pkgrel: Option<String>,
+  /// Forces the package to be seen as newer than any previous version with a lower epoch,
+  /// used when the versioning scheme changes. Must not be decreased.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>
+  pub epoch: Option<u32>,
+  /// The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top
+  /// of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.
+  /// Defaults to the app authors.
+  pub maintainer: Option<String>,
+  /// List of softwares that must be installed for the app to build and run.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>
+  pub depends: Option<Vec<String>>,
+  /// Optional packages that enable additional features of the app, but are not required to run it.
+  /// Each entry is the package name, optionally followed by `: ` and the reason,
+  /// for instance `libappindicator-gtk3: tray icon support`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#optdepends>
+  pub optdepends: Option<Vec<String>>,
+  /// Additional packages that are provided by this app.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+  pub provides: Option<Vec<String>>,
+  /// Packages that conflict or cause problems with the app.
+  /// All these packages and packages providing this item will need to be removed
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>
+  pub conflicts: Option<Vec<String>>,
+  /// Only use if this app replaces some obsolete packages.
+  /// For example, if you rename any package.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
+  pub replaces: Option<Vec<String>>,
+  /// The files to include on the package.
+  /// Maps the path on the package to the path of the file to include (relative to the current working directory).
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+  /// Path to the install script, a bash script that defines any of the `pre_install`,
+  /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
+  /// pacman runs when the package is installed, upgraded or removed.
+  /// It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#install>
+  pub install: Option<PathBuf>,
+  /// Path to the changelog file, shown by `pacman -Qc`.
+  /// It is written next to the PKGBUILD as `<pkgname>.changelog` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#changelog>
+  pub changelog: Option<PathBuf>,
+  /// Source of the package to be stored at PKGBUILD.
+  /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  ///
+  /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
+  /// first entry to its download URL, for instance
+  /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
+  /// `${pkgver}` has `-` (and any `:`, `/` or whitespace) replaced with `_`, `${_pkgver}` is the app version as is.
+  /// The first entry is saved under the archive name and its checksum is written to
+  /// `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).
+  /// Defaults to the local archive file name.
+  ///
+  /// The sources are architecture specific (`source_<arch>`), so the PKGBUILDs generated
+  /// for each target architecture can be merged into one that supports all of them by
+  /// combining their `arch`, `source_<arch>` and `sha512sums_<arch>` entries.
+  pub source: Option<Vec<String>>,
 }
 
 /// Compression algorithms used when bundling RPM packages.
@@ -410,26 +611,71 @@ pub struct LinuxConfig {
 pub enum RpmCompression {
   /// Gzip compression
   Gzip {
-    /// Gzip compression level
+    /// Gzip compression level (0-9).
     level: u32,
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level
+    /// Zstd compression level (-131072 - 22).
     level: i32,
   },
   /// Xz compression
   Xz {
-    /// Xz compression level
+    /// Xz compression level (0-9).
     level: u32,
   },
   /// Bzip2 compression
   Bzip2 {
-    /// Bzip2 compression level
+    /// Bzip2 compression level (1-9).
     level: u32,
   },
   /// Disable compression
   None,
+}
+
+impl RpmCompression {
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
 }
 
 /// Configuration for RPM bundles.
@@ -461,7 +707,12 @@ pub struct RpmConfig {
   pub files: HashMap<PathBuf, PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg`, `icon`,
+  /// `name`, `mime_type` (optional) and `long_description`.
+  ///
+  /// `exec_arg` is the `Exec` field code with a leading space: ` %U` when deep link schemes are
+  /// configured, ` %F` when only file associations are, and empty otherwise, so launchers pass the
+  /// opened URLs or files to the app. Use it as `Exec={{exec}}{{exec_arg}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -843,6 +1094,41 @@ pub enum NSISInstallerMode {
   Both,
 }
 
+/// The executable target of the NSIS installer, independent of the application target.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum NsisInstallerTarget {
+  /// A 32-bit Unicode installer (default).
+  #[default]
+  #[serde(rename = "x86-unicode")]
+  X86Unicode,
+  /// A 32-bit ANSI installer. Text is limited to the system's ANSI code page.
+  #[serde(rename = "x86-ansi")]
+  X86Ansi,
+  /// A native 64-bit Unicode installer.
+  ///
+  /// Requires a compatible NSIS distribution with amd64 stubs and plugins,
+  /// such as [negrutiu's NSIS distribution](https://github.com/negrutiu/nsis/releases).
+  /// Set `NSIS_PATH` to the directory containing that distribution's `makensis` executable.
+  /// On Windows, use the installation directory containing the top-level `makensis.exe`.
+  /// If unset, Tauri searches `PATH` and downloads NSIS on Windows if it is not found.
+  /// When signing, Tauri locates built-in plugins beside the compiler on Windows,
+  /// under `/usr/share/nsis` on Linux, or under the resolved compiler's `<prefix>/share/nsis` on macOS.
+  #[serde(rename = "amd64-unicode")]
+  Amd64Unicode,
+}
+
+impl NsisInstallerTarget {
+  /// The target name used by NSIS for its stubs and plugin directories.
+  pub fn as_str(self) -> &'static str {
+    match self {
+      Self::X86Unicode => "x86-unicode",
+      Self::X86Ansi => "x86-ansi",
+      Self::Amd64Unicode => "amd64-unicode",
+    }
+  }
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -850,6 +1136,10 @@ pub enum NSISInstallerMode {
 pub struct NsisConfig {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
+  /// The executable target of the installer, independent of the application target.
+  /// Defaults to `x86-unicode`.
+  #[serde(default, alias = "installer-target")]
+  pub installer_target: NsisInstallerTarget,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.
@@ -868,7 +1158,7 @@ pub struct NsisConfig {
   #[serde(alias = "uninstaller-icon")]
   pub uninstaller_icon: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of uninstallers pages.
-  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `headerImage`
   ///
   /// The recommended dimensions are 150px x 57px.
   #[serde(alias = "uninstaller-header-image")]
@@ -879,7 +1169,7 @@ pub struct NsisConfig {
   /// A list of installer languages. Default to `["English"]` if not set.
   ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
-  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  /// To allow the user to select the language, set `displayLanguageSelector` to `true`.
   ///
   /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
@@ -918,6 +1208,9 @@ pub struct NsisConfig {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   /// ### Example
   ///
@@ -1584,7 +1877,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "pacman", "nsis", "msi", "app", "dmg"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   #[serde(default)]
@@ -1765,8 +2058,12 @@ impl From<[u8; 3]> for Color {
 
 impl FromStr for Color {
   type Err = String;
-  fn from_str(mut color: &str) -> Result<Self, Self::Err> {
-    color = color.trim().strip_prefix('#').unwrap_or(color);
+  fn from_str(color: &str) -> Result<Self, Self::Err> {
+    let color = color.trim();
+    let color = color.strip_prefix('#').unwrap_or(color);
+    if !color.bytes().all(|b| b.is_ascii_hexdigit()) {
+      return Err("Invalid hex color, must only contain hexadecimal digits, for example: #fff, #ffffff, or #ffffffff".into());
+    }
     let color = match color.len() {
       3 => color.chars()
             .flat_map(|c| std::iter::repeat_n(c, 2))
@@ -1942,6 +2239,61 @@ pub enum ScrollBarStyle {
   /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
   /// see <https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541>
   FluentOverlay,
+}
+
+/// Action to perform when a new window is requested to be created.
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "action")]
+#[non_exhaustive]
+pub enum OnNewWindow {
+  /// Allow the window to be created using the default webview implementation.
+  ///
+  /// The `urls` scope is only checked against the URL initially requested by `window.open`.
+  /// The window is then managed by the webview and Tauri cannot restrict its navigation,
+  /// so it can still be navigated to any URL afterwards (e.g. by the opener or a redirect).
+  /// Use [`Self::AllowTauriWindow`] if navigations must be restricted to the scope too.
+  AllowDefault {
+    /// Only allow URLs matching the given pattern list when set.
+    ///
+    /// Each entry is a glob pattern such as `"https://*.tauri.app/**"`, where `*` does not match `/`
+    /// and `**` matches any number of path segments.
+    /// A pattern without a path such as `"https://tauri.app"` matches any path on that origin.
+    ///
+    /// The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.
+    /// See [`UrlScope`] for details.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
+  },
+  /// Allow the window to be created using a Tauri window.
+  ///
+  /// The created windows are labeled `{label}-created-{n}`, where `{label}` is the label
+  /// of the webview that requested the new window and `{n}` is a counter starting at 0
+  /// (e.g. `main-created-0`).
+  ///
+  /// **Security**: capabilities are matched against window labels with glob patterns,
+  /// so a capability targeting `"windows": ["*"]` or `"windows": ["main*"]` also grants
+  /// its permissions to the windows created for `main`, which may load any URL
+  /// allowed by `urls` (any URL at all if `urls` is not set).
+  /// Scope capabilities to exact window labels (e.g. `"windows": ["main"]`)
+  /// and set `urls` to restrict which URLs these windows can load.
+  AllowTauriWindow {
+    /// Only allow URLs matching the given pattern list when set.
+    ///
+    /// Each entry is a glob pattern such as `"https://*.tauri.app/**"`, where `*` does not match `/`
+    /// and `**` matches any number of path segments.
+    /// A pattern without a path such as `"https://tauri.app"` matches any path on that origin.
+    ///
+    /// The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.
+    /// See [`UrlScope`] for details.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
+  },
+  /// Deny the window from being created.
+  #[default]
+  Deny,
 }
 
 /// The window configuration object.
@@ -2205,6 +2557,16 @@ pub struct WindowConfig {
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
   #[serde(default, alias = "browser-extensions-enabled")]
   pub browser_extensions_enabled: bool,
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[serde(default = "default_true", alias = "browser-accelerator-keys")]
+  pub browser_accelerator_keys: bool,
 
   /// Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
   ///
@@ -2283,10 +2645,12 @@ pub struct WindowConfig {
   /// #### Platform-specific:
   ///
   /// - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
-  /// - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+  /// - **macOS / iOS**: Unsupported, use `profileIdentifier` instead.
   /// - **Android**: Unsupported.
   #[serde(default, alias = "data-directory")]
   pub data_directory: Option<PathBuf>,
+  /// Deprecated: use [`Self::profile_identifier`] (`profileIdentifier`) instead.
+  ///
   /// Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
   ///
   /// See <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>
@@ -2298,8 +2662,27 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   /// - **Windows / Linux / Android**: Unsupported.
+  #[deprecated(since = "2.11.0", note = "Use `profile_identifier` instead.")]
   #[serde(default, alias = "data-store-identifier")]
   pub data_store_identifier: Option<[u8; 16]>,
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes (usually a UUID).
+  ///
+  /// Webviews using the same identifier share their browsing data,
+  /// while webviews using different identifiers are fully isolated from each other.
+  ///
+  /// The array must contain 16 u8 numbers.
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **macOS / iOS**: Uses a [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc)
+  ///   created with this identifier. Supported on macOS 14.0+ and iOS 17.0+.
+  /// - **Windows**: Uses a [WebView2 profile](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support)
+  ///   named after the lowercase hex representation of the identifier, stored inside the data directory.
+  ///   Requires WebView2 Runtime 101+, older runtimes ignore this setting.
+  /// - **Linux / Android**: Unsupported.
+  #[serde(default, alias = "profile-identifier")]
+  pub profile_identifier: Option<[u8; 16]>,
 
   /// Specifies the native scrollbar style to use with the webview.
   /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
@@ -2398,8 +2781,17 @@ pub struct WindowConfig {
   ///   operation.
   #[serde(default = "default_true", alias = "general-autofill-enabled")]
   pub general_autofill_enabled: bool,
+  /// Action to perform when a new window is requested to be created.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS**: Unsupported, new window requests are always denied.
+  #[serde(default, alias = "on-new-window")]
+  pub on_new_window: OnNewWindow,
 }
 
+// For [`Self::data_store_identifier`]
+#[allow(deprecated)]
 impl Default for WindowConfig {
   fn default() -> Self {
     Self {
@@ -2451,6 +2843,7 @@ impl Default for WindowConfig {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      browser_accelerator_keys: true,
       use_https_scheme: false,
       devtools: None,
       background_color: None,
@@ -2460,12 +2853,14 @@ impl Default for WindowConfig {
       disable_input_accessory_view: false,
       data_directory: None,
       data_store_identifier: None,
+      profile_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
       limit_navigations_to_app_bound_domains: false,
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
       general_autofill_enabled: true,
+      on_new_window: OnNewWindow::default(),
     }
   }
 }
@@ -2619,7 +3014,7 @@ impl Display for Csp {
   }
 }
 
-/// The possible values for the `dangerous_disable_asset_csp_modification` config option.
+/// The possible values for the `dangerousDisableAssetCspModification` config option.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -3566,9 +3961,19 @@ pub struct TrayIconConfig {
   /// or else it's going to bloat your final executable
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
+  /// **Deprecated since v2.13, use [`Self::icon_is_template`] instead**
+  ///
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  // TODO: Remove in v3
   #[serde(default, alias = "icon-as-template")]
+  #[deprecated(since = "2.13.0", note = "Use `icon_is_template` instead.")]
   pub icon_as_template: bool,
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolors it to match
+  /// the menu bar in light and dark mode.
+  #[serde(default, alias = "icon-is-template")]
+  pub icon_is_template: bool,
   /// **No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**
   ///
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
@@ -3589,10 +3994,30 @@ pub struct TrayIconConfig {
   /// - **Linux**: Unsupported.
   #[serde(default = "default_true", alias = "show-menu-on-left-click")]
   pub show_menu_on_left_click: bool,
+  /// A Boolean value that determines whether the menu should appear when the tray icon receives a right click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  #[serde(default = "default_true", alias = "show-menu-on-right-click")]
+  pub show_menu_on_right_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
   /// Tray icon tooltip on Windows and macOS
   pub tooltip: Option<String>,
+  /// A stable key for the tray icon's saved position in the menu bar. **macOS only**.
+  ///
+  /// macOS restores where the user Cmd+dragged the tray icon on the next launch either way,
+  /// keyed by the order in which the app created its tray icons (`Item-0`, `Item-1`, and so on)
+  /// when no name is given. Set one when that numbering isn't stable from launch to launch,
+  /// as in an app that creates more tray icons at runtime, so that two icons don't come back
+  /// holding each other's positions.
+  ///
+  /// Use one fixed string, typically a reverse-DNS identifier such as `com.example.app.tray`.
+  /// The position is saved under that name, so changing it abandons the position saved under
+  /// the old one.
+  #[serde(alias = "autosave-name")]
+  pub autosave_name: Option<String>,
 }
 
 /// General configuration for the iOS target.
@@ -3670,7 +4095,7 @@ pub struct AndroidConfig {
   ///
   /// - If `true`, the generator will try to read the last `versionCode` from
   ///   `tauri.properties` and increment it by 1 for every build.
-  /// - If `false` or not set, it falls back to `version_code` or semver-derived logic.
+  /// - If `false` or not set, it falls back to `versionCode` or semver-derived logic.
   ///
   /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]
@@ -4354,8 +4779,29 @@ mod build {
     }
   }
 
+  impl ToTokens for OnNewWindow {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::OnNewWindow };
+
+      tokens.append_all(match self {
+        Self::AllowDefault { urls } => {
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          quote! { #prefix::AllowDefault { urls: #urls } }
+        }
+        Self::AllowTauriWindow { urls } => {
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          quote! { #prefix::AllowTauriWindow { urls: #urls } }
+        }
+        Self::Deny => quote! { #prefix::Deny },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // For [`Self::data_store_identifier`]
+      tokens.append_all(quote!(#[allow(deprecated)]));
+
       let label = str_lit(&self.label);
       let create = &self.create;
       let url = &self.url;
@@ -4404,6 +4850,7 @@ mod build {
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let browser_extensions_enabled = self.browser_extensions_enabled;
+      let browser_accelerator_keys = self.browser_accelerator_keys;
       let use_https_scheme = self.use_https_scheme;
       let devtools = opt_lit(self.devtools.as_ref());
       let background_color = opt_lit(self.background_color.as_ref());
@@ -4412,13 +4859,16 @@ mod build {
       let allow_link_preview = self.allow_link_preview;
       let disable_input_accessory_view = self.disable_input_accessory_view;
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
+      #[allow(deprecated)]
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
+      let profile_identifier = opt_vec_lit(self.profile_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
       let limit_navigations_to_app_bound_domains = self.limit_navigations_to_app_bound_domains;
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
       let general_autofill_enabled = self.general_autofill_enabled;
+      let on_new_window = &self.on_new_window;
 
       literal_struct!(
         tokens,
@@ -4471,6 +4921,7 @@ mod build {
         parent,
         zoom_hotkeys_enabled,
         browser_extensions_enabled,
+        browser_accelerator_keys,
         use_https_scheme,
         devtools,
         background_color,
@@ -4480,12 +4931,14 @@ mod build {
         disable_input_accessory_view,
         data_directory,
         data_store_identifier,
+        profile_identifier,
         scroll_bar_style,
         limit_navigations_to_app_bound_domains,
         activity_name,
         created_by_activity_name,
         requested_by_scene_identifier,
-        general_autofill_enabled
+        general_autofill_enabled,
+        on_new_window
       );
     }
   }
@@ -4850,27 +5303,34 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      // For [`Self::menu_on_left_click`]
+      // For [`Self::menu_on_left_click`] and [`Self::icon_as_template`]
       tokens.append_all(quote!(#[allow(deprecated)]));
 
       let id = opt_str_lit(self.id.as_ref());
+      #[allow(deprecated)]
       let icon_as_template = self.icon_as_template;
+      let icon_is_template = self.icon_is_template;
       #[allow(deprecated)]
       let menu_on_left_click = self.menu_on_left_click;
       let show_menu_on_left_click = self.show_menu_on_left_click;
+      let show_menu_on_right_click = self.show_menu_on_right_click;
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
       let tooltip = opt_str_lit(self.tooltip.as_ref());
+      let autosave_name = opt_str_lit(self.autosave_name.as_ref());
       literal_struct!(
         tokens,
         ::tauri::utils::config::TrayIconConfig,
         id,
         icon_path,
         icon_as_template,
+        icon_is_template,
         menu_on_left_click,
         show_menu_on_left_click,
+        show_menu_on_right_click,
         title,
-        tooltip
+        tooltip,
+        autosave_name
       );
     }
   }
@@ -5242,6 +5702,11 @@ mod test {
     assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
     assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
     assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
+
+    assert!("#€€".parse::<Color>().is_err());
+    assert!("#€".parse::<Color>().is_err());
+    assert!("#+f+f+f".parse::<Color>().is_err());
+    assert_eq!(Color(255, 255, 255, 255), " fff ".parse().unwrap());
   }
 
   #[test]
@@ -5505,5 +5970,15 @@ mod test {
     let config_from_default: WindowConfig = WindowConfig::default();
 
     assert_eq!(config_from_deserialization, config_from_default);
+  }
+
+  #[test]
+  fn on_new_window_kebab_case_alias() {
+    let config: WindowConfig =
+      serde_json::from_str(r#"{ "on-new-window": { "action": "allowTauriWindow" } }"#).unwrap();
+    assert_eq!(
+      config.on_new_window,
+      OnNewWindow::AllowTauriWindow { urls: None }
+    );
   }
 }

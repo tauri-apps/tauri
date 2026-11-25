@@ -41,15 +41,6 @@
       "matchSourceUrls": ["https://github.com/paritytech/jsonrpsee"]
     },
     {
-      "description": "Bump CLI packages",
-      "matchFileNames": [
-        "crates/tauri-cli/Cargo.toml",
-        "packages/cli/Cargo.toml",
-        "packages/cli/package.json"
-      ],
-      "rangeStrategy": "auto"
-    },
-    {
       "description": "Group napi-rs packages",
       "groupName": "napi-rs packages",
       "matchPackageNames": [
@@ -57,6 +48,22 @@
         "napi-build",
         "napi-derive",
         "@napi-rs/cli"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Group webdriverio packages",
+      "groupName": "WebdriverIO packages",
+      "matchSourceUrls": ["https://github.com/webdriverio/webdriverio"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Group appium packages",
+      "groupName": "appium packages",
+      "matchPackageNames": [
+        "appium",
+        "appium-uiautomator2-driver",
+        "appium-xcuitest-driver"
       ],
       "rangeStrategy": "bump"
     }

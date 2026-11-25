@@ -14,6 +14,35 @@ use tauri_utils::config::RpmCompression;
 
 use super::freedesktop;
 
+/// The compression used when none is configured.
+///
+/// This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
+// TODO: Default to Zstd in v3 to match rpm-rs new default in 0.16
+const DEFAULT_COMPRESSION: RpmCompression = RpmCompression::Gzip { level: 6 };
+
+/// Converts a SemVer version string to the RPM `Version` tag format.
+///
+/// RPM reserves `-` as the separator between `Version` and `Release`, and the
+/// `rpm` crate (since v0.20) refuses a `Version` that contains it, so it is
+/// replaced with `~`.
+fn to_rpm_version(version: &str) -> String {
+  match semver::Version::parse(version) {
+    Ok(v) if !v.pre.is_empty() || !v.build.is_empty() => {
+      let mut rpm = format!("{}.{}.{}", v.major, v.minor, v.patch);
+      if !v.pre.is_empty() {
+        rpm.push('~');
+        rpm.push_str(&v.pre.as_str().replace('-', "."));
+      }
+      if !v.build.is_empty() {
+        rpm.push('+');
+        rpm.push_str(&v.build.as_str().replace('-', "."));
+      }
+      rpm
+    }
+    _ => version.to_string(),
+  }
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -60,21 +89,34 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let license = settings.license().unwrap_or_default();
   let name = heck::AsKebabCase(settings.product_name()).to_string();
 
-  let compression = settings
-    .rpm()
-    .compression
-    .map(|c| match c {
-      RpmCompression::Gzip { level } => rpm::CompressionWithLevel::Gzip(level),
-      RpmCompression::Zstd { level } => rpm::CompressionWithLevel::Zstd(level),
-      RpmCompression::Xz { level } => rpm::CompressionWithLevel::Xz(level),
-      RpmCompression::Bzip2 { level } => rpm::CompressionWithLevel::Bzip2(level),
-      _ => rpm::CompressionWithLevel::None,
-    })
-    .unwrap_or(rpm::CompressionWithLevel::Gzip(6));
+  let compression = settings.rpm().compression.unwrap_or(DEFAULT_COMPRESSION);
+  let mut level = compression.level().unwrap_or_default();
+
+  if let Some(min_level) = compression.min_level()
+    && let Some(max_level) = compression.max_level()
+  {
+    let clamped = level.clamp(min_level, max_level);
+    if clamped != level {
+      log::warn!(
+        "rpm compression level {level} is outside the range {min_level} - {max_level} supported by this algorithm, clamping to {clamped}"
+      );
+      level = clamped;
+    }
+  }
+
+  let compression = match compression {
+    RpmCompression::Zstd { .. } => rpm::CompressionWithLevel::Zstd(level),
+    RpmCompression::Xz { .. } => rpm::CompressionWithLevel::Xz(level as u32),
+    RpmCompression::Bzip2 { .. } => rpm::CompressionWithLevel::Bzip2(level as u32),
+    RpmCompression::None => rpm::CompressionWithLevel::None,
+    // gzip, which unknown algorithms also fall back to
+    _ => rpm::CompressionWithLevel::Gzip(level as u32),
+  };
 
   let build_config = rpm::BuildConfig::default().compression(compression);
 
-  let mut builder = rpm::PackageBuilder::new(&name, version, &license, arch, summary);
+  let mut builder =
+    rpm::PackageBuilder::new(&name, &to_rpm_version(version), &license, arch, summary);
   builder
     .using_config(build_config)
     .epoch(epoch)
@@ -231,4 +273,49 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut f = fs::File::create(&package_path)?;
   pkg.write(&mut f)?;
   Ok(vec![package_path])
+}
+
+#[cfg(test)]
+mod tests {
+  use super::to_rpm_version;
+
+  #[test]
+  fn plain_release_unchanged() {
+    assert_eq!(to_rpm_version("1.0.0"), "1.0.0");
+    assert_eq!(to_rpm_version("2.4.1"), "2.4.1");
+  }
+
+  #[test]
+  fn semver_prerelease_uses_tilde() {
+    assert_eq!(to_rpm_version("1.0.0-alpha"), "1.0.0~alpha");
+    assert_eq!(to_rpm_version("1.0.0-beta.11"), "1.0.0~beta.11");
+    assert_eq!(to_rpm_version("1.0.0-rc.1"), "1.0.0~rc.1");
+    assert_eq!(
+      to_rpm_version("0.1.11-nightly.20261019.2"),
+      "0.1.11~nightly.20261019.2"
+    );
+  }
+
+  #[test]
+  fn hyphens_in_prerelease_are_normalized_to_dots() {
+    assert_eq!(to_rpm_version("1.0.0-rc-1"), "1.0.0~rc.1");
+    assert_eq!(
+      to_rpm_version("1.0.0-alpha-beta-1"),
+      to_rpm_version("1.0.0-alpha.beta.1")
+    );
+  }
+
+  #[test]
+  fn build_metadata_preserved() {
+    assert_eq!(to_rpm_version("1.0.0+build.1"), "1.0.0+build.1");
+    assert_eq!(to_rpm_version("1.0.0+build-1"), "1.0.0+build.1");
+    assert_eq!(to_rpm_version("1.0.0-alpha+build.1"), "1.0.0~alpha+build.1");
+  }
+
+  #[test]
+  fn non_semver_input_passes_through() {
+    assert_eq!(to_rpm_version("1.0.0.0"), "1.0.0.0");
+    assert_eq!(to_rpm_version("1.0"), "1.0");
+    assert_eq!(to_rpm_version("1.0.0~beta"), "1.0.0~beta");
+  }
 }

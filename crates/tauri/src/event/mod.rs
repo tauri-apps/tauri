@@ -4,7 +4,7 @@
 
 mod listener;
 pub(crate) mod plugin;
-use std::{convert::Infallible, str::FromStr};
+use std::{convert::Infallible, str::FromStr, sync::Arc};
 
 pub(crate) use listener::Listeners;
 use serde::{Deserialize, Serialize};
@@ -145,11 +145,11 @@ impl EmitArgs {
 #[derive(Debug, Clone)]
 pub struct Event {
   id: EventId,
-  data: String,
+  data: Arc<str>,
 }
 
 impl Event {
-  fn new(id: EventId, data: String) -> Self {
+  fn new(id: EventId, data: Arc<str>) -> Self {
     Self { id, data }
   }
 
@@ -250,6 +250,9 @@ mod tests {
     let s = EventName::new("some\r illegal event name")
       .unwrap_err()
       .to_string();
-    assert_eq!("only alphanumeric, '-', '/', ':', '_' permitted for event names: \"some\\r illegal event name\"", s);
+    assert_eq!(
+      "only alphanumeric, '-', '/', ':', '_' permitted for event names: \"some\\r illegal event name\"",
+      s
+    );
   }
 }

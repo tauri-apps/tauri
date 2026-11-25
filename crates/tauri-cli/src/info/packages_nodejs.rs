@@ -120,11 +120,15 @@ pub fn package_manager(frontend_dir: &PathBuf) -> PackageManager {
 
   if found.len() > 1 {
     println!(
-          "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
-          "WARNING".yellow(),
-          found.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
-          pkg_manager
-        );
+      "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
+      "WARNING".yellow(),
+      found
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(" and "),
+      pkg_manager
+    );
   }
 
   pkg_manager

@@ -4,9 +4,9 @@
 
 use serde::Serialize;
 
-use crate::plugin::{Builder, TauriPlugin};
 use crate::Manager;
-use crate::{command, image::Image, ResourceId, Runtime, Webview};
+use crate::plugin::{Builder, TauriPlugin};
+use crate::{ResourceId, Runtime, Webview, command, image::Image};
 
 #[command(root = "crate")]
 fn new<R: Runtime>(

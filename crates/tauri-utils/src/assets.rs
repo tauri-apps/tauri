@@ -43,14 +43,13 @@ impl AsRef<str> for AssetKey {
 
 impl<P: AsRef<Path>> From<P> for AssetKey {
   fn from(path: P) -> Self {
-    // TODO: change this to utilize `Cow` to prevent allocating an intermediate `PathBuf` when not necessary
-    let path = path.as_ref().to_owned();
+    let path = path.as_ref();
 
     // add in root to mimic how it is used from a server url
     let path = if path.has_root() {
-      path
+      Cow::Borrowed(path)
     } else {
-      Path::new(&Component::RootDir).join(path)
+      Cow::Owned(Path::new(&Component::RootDir).join(path))
     };
 
     let buf = if cfg!(windows) {
@@ -153,6 +152,10 @@ impl std::fmt::Debug for EmbeddedAssets {
 
 impl EmbeddedAssets {
   /// Creates a new instance from the given asset map and script hash list.
+  ///
+  /// ## Stability
+  ///
+  /// The `phf` crate may be updated in minor releases.
   pub const fn new(
     map: phf::Map<&'static str, &'static [u8]>,
     global_hashes: &'static [CspHash<'static>],

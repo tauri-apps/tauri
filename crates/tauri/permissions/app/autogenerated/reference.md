@@ -129,6 +129,32 @@ Denies the default_window_icon command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-exit`
+
+</td>
+<td>
+
+Enables the exit command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-exit`
+
+</td>
+<td>
+
+Denies the exit command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-fetch-data-store-identifiers`
 
 </td>
@@ -148,6 +174,32 @@ Enables the fetch_data_store_identifiers command without any pre-configured scop
 <td>
 
 Denies the fetch_data_store_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-fetch-profile-identifiers`
+
+</td>
+<td>
+
+Enables the fetch_profile_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-fetch-profile-identifiers`
+
+</td>
+<td>
+
+Denies the fetch_profile_identifiers command without any pre-configured scope.
 
 </td>
 </tr>
@@ -278,6 +330,32 @@ Enables the remove_listener command without any pre-configured scope.
 <td>
 
 Denies the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-remove-profile`
+
+</td>
+<td>
+
+Enables the remove_profile command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-remove-profile`
+
+</td>
+<td>
+
+Denies the remove_profile command without any pre-configured scope.
 
 </td>
 </tr>

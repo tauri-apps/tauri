@@ -4,7 +4,7 @@
 
 import { MenuItemBase, newMenu } from './base'
 import { invoke } from '../core'
-import { Image } from '../image'
+import type { JsImage } from '../image'
 
 /** A metadata for the about predefined menu item. */
 export interface AboutMetadata {
@@ -77,24 +77,103 @@ export interface AboutMetadata {
    *
    * - **Windows:** Unsupported.
    */
-  icon?: string | Uint8Array | ArrayBuffer | number[] | Image
+  icon?: JsImage
 }
 
 /** Options for creating a new predefined menu item. */
 export interface PredefinedMenuItemOptions {
-  /** The text of the new predefined menu item. */
+  /**
+   * The text of the new predefined menu item.
+   *
+   * Defaults to the platform's own label for the chosen item, so only set it to
+   * override or localize that label.
+   */
   text?: string
-  /** The predefined item type */
+  /**
+   * The predefined item type.
+   *
+   * Each variant maps to a native menu item whose behavior is implemented by the
+   * operating system, so there is no `action` to handle. Variants that are
+   * unsupported on a platform still create an item, but it does nothing there.
+   *
+   * - `Separator`: a horizontal separator line. All platforms.
+   * - `SectionHeader`: a non-interactive header for a group of items. Uses the native
+   *   section header appearance on macOS 14 and later, and is rendered as a disabled
+   *   item on older macOS versions, Windows and Linux.
+   * - `Copy`, `Cut`, `Paste`, `SelectAll`: the standard clipboard and selection
+   *   commands, applied to the focused text input. All platforms.
+   * - `PasteAndMatchStyle`: pastes the clipboard contents as plain text. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `Delete`: deletes the selection in the focused text input. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `Undo`, `Redo`: undo/redo in the focused text input. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `Minimize`: minimizes the focused window. *Linux:* unsupported.
+   * - `Maximize`: maximizes the focused window. *Linux:* unsupported.
+   * - `Zoom`: an alias for `Maximize`, named after the macOS window action.
+   *   *Linux:* unsupported.
+   * - `ActualSize`, `ZoomIn`, `ZoomOut`: the standard *View* menu zoom commands, sent to
+   *   the focused responder, which has to implement them. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `Fullscreen`: toggles fullscreen for the focused window. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `Hide`: hides the application. *Linux:* unsupported.
+   * - `HideOthers`: hides every other application. *Linux:* unsupported.
+   * - `ShowAll`: shows all hidden applications. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `CloseWindow`: closes the focused window. *Linux:* unsupported.
+   * - `Quit`: quits the application. *Linux:* unsupported.
+   * - `Services`: the macOS *Services* submenu. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `BringAllToFront`: brings all of the app's windows to the front. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `StartSpeaking`, `StopSpeaking`: the speech commands, applied to the focused text
+   *   input. **macOS only** (*Windows / Linux:* unsupported).
+   * - `StartDictation`: starts dictation. **macOS only** (*Windows / Linux:* unsupported).
+   * - `EmojiAndSymbols`: opens the character palette. **macOS only**
+   *   (*Windows / Linux:* unsupported).
+   * - `{ About: AboutMetadata | null }`: opens an about dialog. All platforms; pass
+   *   `null` to use the values from your `tauri.conf.json`, or see
+   *   {@linkcode AboutMetadata} for the per-field platform support.
+   *
+   * @example
+   * ```typescript
+   * import { Menu, PredefinedMenuItem, Submenu } from '@tauri-apps/api/menu';
+   *
+   * await using edit = await Submenu.new({
+   *   text: 'Edit',
+   *   items: [
+   *     { item: 'Undo' },
+   *     { item: 'Redo' },
+   *     { item: 'Separator' },
+   *     { item: 'Cut' },
+   *     { item: 'Copy' },
+   *     { item: 'Paste' },
+   *     { item: 'SelectAll' }
+   *   ]
+   * });
+   *
+   * await using quit = await PredefinedMenuItem.new({ item: 'Quit', text: 'Quit my app' });
+   * const menu = await Menu.new({ items: [edit, quit] });
+   * ```
+   */
   item:
     | 'Separator'
+    | 'SectionHeader'
     | 'Copy'
     | 'Cut'
     | 'Paste'
+    | 'PasteAndMatchStyle'
+    | 'Delete'
     | 'SelectAll'
     | 'Undo'
     | 'Redo'
     | 'Minimize'
     | 'Maximize'
+    | 'Zoom'
+    | 'ActualSize'
+    | 'ZoomIn'
+    | 'ZoomOut'
     | 'Fullscreen'
     | 'Hide'
     | 'HideOthers'
@@ -103,6 +182,10 @@ export interface PredefinedMenuItemOptions {
     | 'Quit'
     | 'Services'
     | 'BringAllToFront'
+    | 'StartSpeaking'
+    | 'StopSpeaking'
+    | 'StartDictation'
+    | 'EmojiAndSymbols'
     | {
         About: AboutMetadata | null
       }
@@ -115,7 +198,15 @@ export class PredefinedMenuItem extends MenuItemBase {
     super(rid, id, 'Predefined')
   }
 
-  /** Create a new predefined menu item. */
+  /**
+   * Create a new predefined menu item.
+   *
+   * @example
+   * ```typescript
+   * import { PredefinedMenuItem } from '@tauri-apps/api/menu';
+   * const separator = await PredefinedMenuItem.new({ item: 'Separator' });
+   * ```
+   */
   static async new(
     opts?: PredefinedMenuItemOptions
   ): Promise<PredefinedMenuItem> {

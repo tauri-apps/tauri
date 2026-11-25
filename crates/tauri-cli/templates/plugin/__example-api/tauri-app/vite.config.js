@@ -20,5 +20,8 @@ export default defineConfig({
       host,
       port: 1421
     } : undefined,
+    watch: {
+      ignored: ['**/src-tauri/**']
+    },
   },
 })

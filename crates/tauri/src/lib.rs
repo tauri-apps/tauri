@@ -15,10 +15,19 @@
 //! - **x11** *(enabled by default)*: Enables X11 support. Disable this if you only target Wayland.
 //! - **dbus** *(enabled by default)*: Enables dbus dependency for theme support on Linux. Disable this if you do not need theme support or don't want to build the dbus rust crate. The WebView dependencies use dbus either way.
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
+//!   It unlocks the multiwebview APIs, where a [`Window`] (the native window) and a [`Webview`] (the web content it hosts)
+//!   are separate objects instead of the single [`WebviewWindow`] you get by default:
+//!   - `window::WindowBuilder` and `Window::builder` to create a window that has no webview attached to it;
+//!   - `webview::WebviewBuilder` and `Window::add_child` to attach one or more webviews to an existing window;
+//!   - [`Webview::reparent`] to move a webview to another window (it always fails on a [`WebviewWindow`] webview
+//!     when this feature is disabled) and [`Webview::set_auto_resize`] to make a child webview follow the window size;
+//!   - the [`Manager`] getters for these objects: `get_window`, `get_focused_window`, `windows`, `get_webview` and `webviews`.
+//!
+//!   See the [multiwebview example](https://github.com/tauri-apps/tauri/tree/dev/examples/multiwebview).
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
 //! - **objc-exception**: This feature flag is no-op since 2.3.0.
-//! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
+//! - **linux-libxdo**: This feature flag is no-op since 2.13.0.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `app > security > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`window::Window#method.open_devtools`]. Enabled by default on debug builds.
@@ -28,15 +37,15 @@
 //! - **rustls-tls**: Provides TLS support to connect over HTTPS using rustls.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **tray-icon**: Enables application tray icon APIs. Enabled by default if the `trayIcon` config is defined on the `tauri.conf.json` file.
-//! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
+//! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file. **No-op since Tauri 2.12.1** because the APIs are always enabled now.
 //! - **webview-data-url**: Enables usage of data URLs on the webview.
-//! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
+//! - **compression** *(enabled by default)*: Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
 //! - **image-ico**: Adds support to parse `.ico` image, see [`image::Image`].
 //! - **image-png**: Adds support to parse `.png` image, see [`image::Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
-//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`], [`Window`] and [`AppHandle`]
+//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`], [`Window`] and [`AppHandle`]. Also implements [`specta::Type`] for [`ipc::Channel`], [`ipc::Request`] and [`ipc::Response`].
 //! - **dynamic-acl** *(enabled by default)*: Enables you to add ACLs at runtime, notably it enables the [`Manager::add_capability`] function.
 //!
 //! ## Cargo allowlist features
@@ -77,7 +86,7 @@ pub use swift_rs;
 pub use tauri_macros::include_image;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
-pub use tauri_macros::{command, generate_handler};
+pub use tauri_macros::{command, command_metadata, generate_handler};
 
 use tauri_utils::assets::AssetsIter;
 pub use url::Url;
@@ -210,22 +219,22 @@ pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RunEvent,
-    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent, RESTART_EXIT_CODE,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
+    RunEvent, UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
   },
   self::manager::Asset,
   self::runtime::{
+    DeviceEventFilter, UserAttentionType,
     dpi::{
       LogicalPosition, LogicalRect, LogicalSize, LogicalUnit, PhysicalPosition, PhysicalRect,
       PhysicalSize, PhysicalUnit, Pixel, PixelUnit, Position, Rect, Size,
     },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
-    DeviceEventFilter, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
-    config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
+    config::{Config, WebviewUrl},
   },
   self::webview::{Webview, WebviewWindow, WebviewWindowBuilder},
   self::window::{Monitor, Window},
@@ -407,6 +416,24 @@ impl<R: Runtime> Context<R> {
   }
 
   /// A mutable reference to the config the application was prepared with.
+  ///
+  /// This allows changing the configuration at runtime before the app is built,
+  /// for instance to set the `app > appDirectoriesOverride` config from an environment variable:
+  ///
+  /// ```rust,no_run
+  /// use tauri::utils::config::AppDirectoriesOverride;
+  ///
+  /// let mut context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
+  ///
+  /// if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
+  ///   context.config_mut().app.app_directories_override =
+  ///     Some(AppDirectoriesOverride::Root(data_dir.into()));
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .run(context)
+  ///   .expect("error while running tauri application");
+  /// ```
   #[inline(always)]
   pub fn config_mut(&mut self) -> &mut Config {
     &mut self.config
@@ -689,7 +716,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().set(state)
+    self.manager().state.set(state)
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
@@ -717,7 +744,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     T: Send + Sync + 'static,
   {
     // The caller decides to break the safety here, then OK, just let it go.
-    unsafe { self.manager().state().unmanage() }
+    unsafe { self.manager().state.unmanage() }
   }
 
   /// Retrieves the managed state for the type `T`.
@@ -1105,7 +1132,7 @@ pub mod test;
 
 #[cfg(feature = "specta")]
 const _: () = {
-  use specta::{datatype::DataType, function::FunctionArg, TypeMap};
+  use specta::{TypeMap, datatype::DataType, function::FunctionArg};
 
   impl<T: Send + Sync + 'static> FunctionArg for crate::State<'_, T> {
     fn to_datatype(_: &mut TypeMap) -> Option<DataType> {

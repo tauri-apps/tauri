@@ -4,7 +4,7 @@
 
 use windows::Win32::{
   Foundation::{HWND, RECT},
-  Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS},
+  Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute},
   UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
 };
 

@@ -1,0 +1,88 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test `tauri ios xcode-script` project resolution
+
+on:
+  workflow_dispatch:
+  # Package manager releases change the directory and environment Xcode's build script runs
+  # with (pnpm 12.3 broke it without any change on our side), so the latest releases are
+  # checked every week too.
+  schedule:
+    - cron: '0 6 * * 1'
+  push:
+    branches:
+      - dev
+    paths:
+      - '.github/workflows/test-cli-xcode-script.yml'
+      - '.scripts/ci/xcode-script-resolution.mjs'
+      - 'crates/tauri-cli/src/mobile/ios/**'
+      - 'crates/tauri-cli/src/mobile/init.rs'
+      - 'crates/tauri-cli/src/helpers/app_paths.rs'
+      - 'crates/tauri-utils/src/config/parse.rs'
+      - 'packages/cli/*.js'
+      - 'packages/cli/src/**'
+  pull_request:
+    paths:
+      - '.github/workflows/test-cli-xcode-script.yml'
+      - '.scripts/ci/xcode-script-resolution.mjs'
+      - 'crates/tauri-cli/src/mobile/ios/**'
+      - 'crates/tauri-cli/src/mobile/init.rs'
+      - 'crates/tauri-cli/src/helpers/app_paths.rs'
+      - 'crates/tauri-utils/src/config/parse.rs'
+      - 'packages/cli/*.js'
+      - 'packages/cli/src/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # the `ios` commands only exist in the macOS CLI; Xcode itself is not used
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install Rust 1.90
+        # the MSRV, so this job restores the `tauri-cli` cache entry saved by test-cli-rs
+        uses: dtolnay/rust-toolchain@1.90
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      # the other package managers are installed from npm by the script
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Restore-only: test-cli-rs saves this entry on `dev`; see test-cli-rs.yml.
+          shared-key: tauri-cli
+          save-if: false
+
+      - name: build the CLI
+        # Debug profile: only the project lookup is exercised, and a debug build reuses the
+        # cached dependencies instead of a from-scratch LTO build.
+        run: |
+          pnpm i --frozen-lockfile --filter @tauri-apps/cli
+          pnpm build:cli:debug
+          cargo build -p tauri-cli --bin cargo-tauri
+
+      - name: test
+        timeout-minutes: 20
+        run: node .scripts/ci/xcode-script-resolution.mjs ${{ github.event_name == 'schedule' && '--latest' || '' }}

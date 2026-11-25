@@ -9,13 +9,12 @@ use tauri_runtime::dpi::Position;
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{
-  command,
+  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window, command,
   image::JsImage,
-  ipc::{channel::JavaScriptChannelId, Channel},
+  ipc::{Channel, channel::JavaScriptChannelId},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   sealed::ManagerBase,
-  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window,
 };
 use tauri_macros::do_menu_item;
 
@@ -75,14 +74,21 @@ impl AboutMetadata {
 #[derive(Deserialize)]
 enum Predefined {
   Separator,
+  SectionHeader,
   Copy,
   Cut,
   Paste,
+  PasteAndMatchStyle,
+  Delete,
   SelectAll,
   Undo,
   Redo,
   Minimize,
   Maximize,
+  Zoom,
+  ActualSize,
+  ZoomIn,
+  ZoomOut,
   Fullscreen,
   Hide,
   HideOthers,
@@ -92,6 +98,10 @@ enum Predefined {
   About(Option<AboutMetadata>),
   Services,
   BringAllToFront,
+  StartSpeaking,
+  StopSpeaking,
+  StartDictation,
+  EmojiAndSymbols,
 }
 
 #[derive(Deserialize)]
@@ -282,14 +292,25 @@ impl PredefinedMenuItemPayload {
   ) -> crate::Result<PredefinedMenuItem<R>> {
     match self.item {
       Predefined::Separator => PredefinedMenuItem::separator(webview),
+      Predefined::SectionHeader => {
+        PredefinedMenuItem::section_header(webview, self.text.as_deref().unwrap_or_default())
+      }
       Predefined::Copy => PredefinedMenuItem::copy(webview, self.text.as_deref()),
       Predefined::Cut => PredefinedMenuItem::cut(webview, self.text.as_deref()),
       Predefined::Paste => PredefinedMenuItem::paste(webview, self.text.as_deref()),
+      Predefined::PasteAndMatchStyle => {
+        PredefinedMenuItem::paste_and_match_style(webview, self.text.as_deref())
+      }
+      Predefined::Delete => PredefinedMenuItem::delete(webview, self.text.as_deref()),
       Predefined::SelectAll => PredefinedMenuItem::select_all(webview, self.text.as_deref()),
       Predefined::Undo => PredefinedMenuItem::undo(webview, self.text.as_deref()),
       Predefined::Redo => PredefinedMenuItem::redo(webview, self.text.as_deref()),
       Predefined::Minimize => PredefinedMenuItem::minimize(webview, self.text.as_deref()),
       Predefined::Maximize => PredefinedMenuItem::maximize(webview, self.text.as_deref()),
+      Predefined::Zoom => PredefinedMenuItem::zoom(webview, self.text.as_deref()),
+      Predefined::ActualSize => PredefinedMenuItem::actual_size(webview, self.text.as_deref()),
+      Predefined::ZoomIn => PredefinedMenuItem::zoom_in(webview, self.text.as_deref()),
+      Predefined::ZoomOut => PredefinedMenuItem::zoom_out(webview, self.text.as_deref()),
       Predefined::Fullscreen => PredefinedMenuItem::fullscreen(webview, self.text.as_deref()),
       Predefined::Hide => PredefinedMenuItem::hide(webview, self.text.as_deref()),
       Predefined::HideOthers => PredefinedMenuItem::hide_others(webview, self.text.as_deref()),
@@ -306,6 +327,16 @@ impl PredefinedMenuItemPayload {
       Predefined::Services => PredefinedMenuItem::services(webview, self.text.as_deref()),
       Predefined::BringAllToFront => {
         PredefinedMenuItem::bring_all_to_front(webview, self.text.as_deref())
+      }
+      Predefined::StartSpeaking => {
+        PredefinedMenuItem::start_speaking(webview, self.text.as_deref())
+      }
+      Predefined::StopSpeaking => PredefinedMenuItem::stop_speaking(webview, self.text.as_deref()),
+      Predefined::StartDictation => {
+        PredefinedMenuItem::start_dictation(webview, self.text.as_deref())
+      }
+      Predefined::EmojiAndSymbols => {
+        PredefinedMenuItem::emoji_and_symbols(webview, self.text.as_deref())
       }
     }
   }
@@ -418,7 +449,9 @@ fn new<R: Runtime>(
 
     ItemKind::Predefined => {
       let item = PredefinedMenuItemPayload {
-        item: options.predefined_item.unwrap(),
+        item: options.predefined_item.ok_or_else(|| {
+          anyhow::anyhow!("the `item` option is required for a `Predefined` menu item")
+        })?,
         text: options.text,
       }
       .create_item(&webview, &resources_table)?;
@@ -939,4 +972,59 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_icon,
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{ItemKind, NewOptions};
+  use crate::{Manager, ipc::Channel, test::mock_app};
+
+  fn new_item(
+    webview: &crate::WebviewWindow<crate::test::MockRuntime>,
+    kind: ItemKind,
+    options: serde_json::Value,
+  ) -> crate::Result<()> {
+    let options: NewOptions = serde_json::from_value(options).unwrap();
+    super::new(
+      webview.as_ref().clone(),
+      kind,
+      Some(options),
+      webview.state(),
+      Channel::new(|_| Ok(())),
+    )
+    .map(|_| ())
+  }
+
+  #[test]
+  fn new_rejects_invalid_input_without_panicking() {
+    let app = mock_app();
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    // predefined item without the `item` option
+    let err = new_item(&webview, ItemKind::Predefined, serde_json::json!({}))
+      .unwrap_err()
+      .to_string();
+    assert!(err.contains("`item` option"), "unexpected error: {err}");
+
+    // submenu icon whose buffer does not match its dimensions
+    let res = new_item(
+      &webview,
+      ItemKind::Submenu,
+      serde_json::json!({ "icon": { "rgba": [1, 2, 3], "width": 100, "height": 100 } }),
+    );
+    assert!(res.is_err(), "invalid submenu icon should return an error");
+
+    // icon menu item with the same invalid icon
+    let res = new_item(
+      &webview,
+      ItemKind::Icon,
+      serde_json::json!({ "icon": { "rgba": [1, 2, 3], "width": 100, "height": 100 } }),
+    );
+    assert!(
+      res.is_err(),
+      "invalid menu item icon should return an error"
+    );
+  }
 }

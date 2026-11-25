@@ -37,11 +37,6 @@
 
   const desktopViews = [
     {
-      label: 'App',
-      component: App,
-      icon: 'i-codicon-hubot'
-    },
-    {
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
@@ -68,6 +63,11 @@
       label: 'Communication',
       component: Communication,
       icon: 'i-codicon-radio-tower'
+    },
+    {
+      label: 'App',
+      component: App,
+      icon: 'i-codicon-hubot'
     },
     ...(isMobile ? [] : desktopViews),
     {

@@ -28,6 +28,8 @@
     "core:app:allow-set-dock-visibility",
     "core:app:allow-default-window-icon",
     "core:app:allow-exit",
+    "core:app:allow-set-keep-screen-on",
+    "core:app:allow-set-privacy-screen",
     "core:window:allow-set-theme",
     "core:window:allow-center",
     "core:window:allow-request-user-attention",

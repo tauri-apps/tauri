@@ -11,6 +11,8 @@ use quote::{ToTokens, quote};
 use serde_json::Value as JsonValue;
 use url::Url;
 
+use crate::url::{UrlPattern, UrlScope};
+
 /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
 ///
 /// All fields must represent a binding of the same name that implements `ToTokens`.
@@ -90,6 +92,21 @@ pub fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
 pub fn url_lit(url: &Url) -> TokenStream {
   let url = url.as_str();
   quote! { #url.parse().unwrap() }
+}
+
+/// Creates a [`UrlPattern`] constructor `TokenStream`.
+pub fn url_pattern_lit(url: &UrlPattern) -> TokenStream {
+  let url = url.as_str();
+  quote! { #url.parse().unwrap() }
+}
+
+/// Creates a [`UrlScope`] constructor `TokenStream`.
+///
+/// The scope is parsed at runtime so the generated code does not depend on
+/// whether the `url-pattern` feature is enabled.
+pub fn url_scope_lit(scope: &UrlScope) -> TokenStream {
+  let scope = scope.as_str();
+  quote! { #scope.parse().unwrap() }
 }
 
 /// Create a map constructor, mapping keys and values with other `TokenStream`s.

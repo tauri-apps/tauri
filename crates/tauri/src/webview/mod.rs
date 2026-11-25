@@ -33,7 +33,7 @@ use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
 };
 pub use tauri_utils::config::Color;
-use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
+use tauri_utils::config::{BackgroundThrottlingPolicy, OnNewWindow, WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
@@ -50,6 +50,8 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
 };
 
+#[cfg(desktop)]
+use std::sync::atomic::AtomicUsize;
 use std::{
   borrow::Cow,
   hash::{Hash, Hasher},
@@ -277,13 +279,105 @@ unstable_struct!(
     pub(crate) webview_attributes: WebviewAttributes,
     pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
-    pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
+    pub(crate) on_new_window_handler: Option<OnNewWindowHandler<R>>,
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
     pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
     pub(crate) permission_request_handler: Option<Box<PermissionRequestHandler<R>>>,
   }
 );
+
+pub(crate) enum OnNewWindowHandler<R: Runtime> {
+  Fn(Box<NewWindowHandler<R>>),
+  Config(#[cfg_attr(mobile, allow(dead_code))] OnNewWindow),
+}
+
+type RuntimeNewWindowHandler =
+  dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse + Send + 'static;
+
+/// Builds the runtime new window handler for a [`OnNewWindow`] configuration.
+///
+/// Returns `None` when new windows are denied, which is also the runtime default.
+#[cfg(desktop)]
+fn config_new_window_handler<R: Runtime>(
+  app_handle: AppHandle<R>,
+  webview_label: &str,
+  on_new_window: OnNewWindow,
+) -> Option<Box<RuntimeNewWindowHandler>> {
+  use tauri_runtime::webview::NewWindowResponse as Response;
+
+  let (create_tauri_window, urls) = match on_new_window {
+    OnNewWindow::AllowDefault { urls } => (false, urls),
+    OnNewWindow::AllowTauriWindow { urls } => (true, urls),
+    _ => return None,
+  };
+
+  let webview_label = webview_label.to_string();
+  let created_window_count = AtomicUsize::new(0);
+
+  let urls = urls.map(Arc::new);
+
+  Some(Box::new(move |url: Url, features| {
+    let allowed = urls
+      .as_ref()
+      .is_none_or(|urls| urls.iter().any(|pattern| pattern.test(&url)));
+    if !allowed {
+      return Response::Deny;
+    }
+    if !create_tauri_window {
+      return Response::Allow;
+    }
+
+    let label = loop {
+      let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+      let label = format!("{webview_label}-created-{number}");
+      if app_handle.manager.get_webview(&label).is_none()
+        && app_handle.manager.get_window(&label).is_none()
+      {
+        break label;
+      }
+    };
+
+    let mut builder = WebviewWindowBuilder::new(
+      &app_handle,
+      label,
+      WebviewUrl::External("about:blank".parse().expect("about:blank is a valid URL")),
+    )
+    .window_features(features)
+    .on_document_title_changed(|window, title| {
+      if let Err(e) = window.set_title(&title) {
+        log::error!("failed to set window title: {e}");
+      }
+    })
+    .title(url.as_str());
+
+    // the scope must also apply to navigations inside the created window,
+    // otherwise the opener could redirect it to any URL after it is created
+    if let Some(urls) = &urls {
+      builder = builder.on_navigation(created_window_navigation_handler(urls.clone()));
+    }
+
+    match builder.build() {
+      Ok(window) => Response::Create {
+        window_id: window.window.window.id,
+      },
+      Err(e) => {
+        log::error!("failed to create window for new window request: {e}");
+        Response::Deny
+      }
+    }
+  }))
+}
+
+/// Navigation handler for windows created by [`OnNewWindow::AllowTauriWindow`] when `urls` is set.
+///
+/// `about:blank` is always allowed since it is the initial URL of the created window.
+#[cfg(desktop)]
+fn created_window_navigation_handler(
+  urls: Arc<Vec<tauri_utils::url::UrlScope>>,
+) -> impl Fn(&Url) -> bool + Send + 'static {
+  move |url| url.as_str() == "about:blank" || urls.iter().any(|pattern| pattern.test(url))
+}
 
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
@@ -356,7 +450,7 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
-      new_window_handler: None,
+      on_new_window_handler: None,
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
@@ -367,6 +461,11 @@ async fn create_window(app: tauri::AppHandle) {
   /// Initializes a webview builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 webviews with the same `label` so make sure
   /// that the initial webview was closed or change the label of the new [`WebviewBuilder`].
+  ///
+  /// New window requests are handled according to [`WindowConfig::on_new_window`].
+  /// Note that windows created by [`OnNewWindow::AllowTauriWindow`] are labeled `{label}-created-{n}`,
+  /// so capabilities matching them with a glob (such as `*` or `{label}*`) also apply to them.
+  /// See [`OnNewWindow::AllowTauriWindow`] for more information.
   ///
   /// # Known issues
   ///
@@ -434,7 +533,7 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::from(&config),
       web_resource_request_handler: None,
       navigation_handler: None,
-      new_window_handler: None,
+      on_new_window_handler: Some(OnNewWindowHandler::Config(config.on_new_window)),
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
@@ -591,7 +690,9 @@ tauri::Builder::default()
     mut self,
     f: F,
   ) -> Self {
-    self.new_window_handler.replace(Box::new(f));
+    self
+      .on_new_window_handler
+      .replace(OnNewWindowHandler::Fn(Box::new(f)));
     self
   }
 
@@ -761,8 +862,8 @@ tauri::Builder::default()
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
-    pending.new_window_handler = self.new_window_handler.take().map(|handler| {
-      Box::new(
+    pending.new_window_handler = match self.on_new_window_handler.take() {
+      Some(OnNewWindowHandler::Fn(handler)) => Some(Box::new(
         move |url, features: NewWindowFeatures| match handler(url, features) {
           NewWindowResponse::Allow => tauri_runtime::webview::NewWindowResponse::Allow,
           #[cfg(mobile)]
@@ -777,13 +878,16 @@ tauri::Builder::default()
           }
           NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
         },
-      )
-        as Box<
-          dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
-            + Send
-            + 'static,
-        >
-    });
+      ) as Box<RuntimeNewWindowHandler>),
+      #[cfg(desktop)]
+      Some(OnNewWindowHandler::Config(on_new_window)) => {
+        config_new_window_handler(manager.app_handle().clone(), &self.label, on_new_window)
+      }
+      // new window requests are not supported on mobile
+      #[cfg(mobile)]
+      Some(OnNewWindowHandler::Config(_)) => None,
+      None => None,
+    };
 
     if let Some(document_title_changed_handler) = self.document_title_changed_handler.take() {
       let label = pending.label.clone();
@@ -2693,6 +2797,18 @@ mod tests {
     crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
       .build()
       .unwrap()
+  }
+
+  #[cfg(desktop)]
+  #[test]
+  fn created_window_navigation_is_scoped() {
+    let urls: Vec<tauri_utils::url::UrlScope> =
+      serde_json::from_value(serde_json::json!(["https://allowed.com/**"])).unwrap();
+    let handler = super::created_window_navigation_handler(std::sync::Arc::new(urls));
+
+    assert!(handler(&"about:blank".parse().unwrap()));
+    assert!(handler(&"https://allowed.com/page".parse().unwrap()));
+    assert!(!handler(&"https://evil.com/".parse().unwrap()));
   }
 
   #[test]

@@ -145,7 +145,7 @@ impl CertificateInfo {
 /// Generates a new 2048-bit RSA private key, the key type Apple requires for code signing
 /// certificates. Returns the PKCS#8 DER encoded key.
 pub fn generate_rsa_private_key() -> Result<Vec<u8>> {
-  let key = rsa::RsaPrivateKey::new(&mut rand08::thread_rng(), 2048)
+  let key = rsa::PrivateKey::new(&mut rand::rng(), 2048)
     .map_err(|e| Error::PrivateKey(format!("failed to generate RSA key: {e}")))?;
   key
     .to_pkcs8_der()
@@ -186,7 +186,7 @@ pub fn parse_private_key(data: &[u8]) -> Result<Vec<u8>> {
     None => {
       if x509_certificate::InMemorySigningKeyPair::from_pkcs8_der(&der).is_ok() {
         Ok(der)
-      } else if rsa::RsaPrivateKey::from_pkcs1_der(&der).is_ok() {
+      } else if rsa::PrivateKey::from_pkcs1_der(&der).is_ok() {
         rsa_pkcs1_to_pkcs8(&der)
       } else {
         Err(Error::PrivateKey(
@@ -199,7 +199,7 @@ pub fn parse_private_key(data: &[u8]) -> Result<Vec<u8>> {
 
 fn rsa_pkcs1_to_pkcs8(der: &[u8]) -> Result<Vec<u8>> {
   use rsa::pkcs1::DecodeRsaPrivateKey;
-  let key = rsa::RsaPrivateKey::from_pkcs1_der(der)
+  let key = rsa::PrivateKey::from_pkcs1_der(der)
     .map_err(|e| Error::PrivateKey(format!("invalid RSA private key: {e}")))?;
   key
     .to_pkcs8_der()
@@ -420,11 +420,11 @@ mod tests {
     use rsa::pkcs1::EncodeRsaPrivateKey;
     use rsa::pkcs8::DecodePrivateKey;
     let key = generate_rsa_private_key().unwrap();
-    let rsa_key = rsa::RsaPrivateKey::from_pkcs8_der(&key).unwrap();
+    let rsa_key = rsa::PrivateKey::from_pkcs8_der(&key).unwrap();
     let pkcs1_pem = rsa_key.to_pkcs1_pem(Default::default()).unwrap();
     let parsed = parse_private_key(pkcs1_pem.as_bytes()).unwrap();
     assert_eq!(
-      rsa::RsaPrivateKey::from_pkcs8_der(&parsed).unwrap(),
+      rsa::PrivateKey::from_pkcs8_der(&parsed).unwrap(),
       rsa_key
     );
   }

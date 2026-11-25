@@ -198,6 +198,45 @@ pub fn get_config(
   (config, metadata)
 }
 
+/// Grants the `ACCESS_LOCAL_NETWORK` permission (declared by the tauri library on debug builds)
+/// so the app can reach the dev server on the network address; Android 17 (API 37) blocks local
+/// network connections without it.
+///
+/// Runtime permission grants survive `adb install -r`, so granting before the install covers
+/// reinstalls, and granting after the first install covers fresh installs.
+/// Failures (older Android versions do not know the permission, the app is not installed yet)
+/// are only logged.
+fn grant_local_network_permission(env: &Env, device_serial_no: &str, application_id: &str) {
+  const PERMISSION: &str = "android.permission.ACCESS_LOCAL_NETWORK";
+  match adb::adb(
+    env,
+    [
+      "-s",
+      device_serial_no,
+      "shell",
+      "pm",
+      "grant",
+      application_id,
+      PERMISSION,
+    ],
+  )
+  .stdin_null()
+  .stdout_capture()
+  .stderr_capture()
+  .unchecked()
+  .run()
+  {
+    Ok(output) if output.status.success() => {
+      log::debug!("granted {PERMISSION} to {application_id}");
+    }
+    Ok(output) => log::debug!(
+      "could not grant {PERMISSION} to {application_id}: {}",
+      String::from_utf8_lossy(&output.stderr).trim()
+    ),
+    Err(error) => log::debug!("could not grant {PERMISSION} to {application_id}: {error}"),
+  }
+}
+
 fn sync_debug_application_id_suffix(
   config: &AndroidConfig,
   tauri_config: &TauriConfig,

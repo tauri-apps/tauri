@@ -48,6 +48,9 @@ pub enum Error {
   /// I/O error.
   #[error("`{0}`")]
   IoError(#[from] io::Error),
+  /// Failed to locate an executable.
+  #[error("{0}")]
+  Which(#[from] which::Error),
   /// Image error.
   #[error("`{0}`")]
   ImageError(#[from] image::ImageError),

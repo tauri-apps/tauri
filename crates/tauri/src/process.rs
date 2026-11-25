@@ -114,6 +114,7 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
       if let Some(bundle_root) = contents_directory.parent() {
         match Command::new("/usr/bin/open")
           .arg("-n")
+          .arg("-g")
           .arg(bundle_root)
           .arg("--args")
           .args(env.args_os.iter().skip(1))

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    Android 17 (API 37) blocks connections to the local network unless the app holds this
+    permission. `tauri android dev` loads the frontend from the dev server on the machine's network
+    address when running on a physical device, so debug builds declare it and the CLI grants it.
+  -->
+  <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+</manifest>

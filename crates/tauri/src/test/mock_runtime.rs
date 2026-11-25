@@ -321,6 +321,25 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     todo!()
   }
 
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     Ok(PhysicalPosition::new(0.0, 0.0))
   }
@@ -501,7 +520,7 @@ impl WindowBuilder for MockWindowBuilder {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  fn transient_for(self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self
   }
 
@@ -553,6 +572,11 @@ impl WindowBuilder for MockWindowBuilder {
 
   #[cfg(target_os = "android")]
   fn created_by_activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_id(self, _activity_id: i32) -> Self {
     self
   }
 

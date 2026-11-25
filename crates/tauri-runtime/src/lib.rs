@@ -181,6 +181,12 @@ pub enum Error {
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   #[error("failed to remove data store")]
   FailedToRemoveDataStore,
+  /// The profile cannot be removed because a webview is still using it.
+  #[error("profile is in use by webview `{0}`")]
+  ProfileInUse(String),
+  /// Failed to remove the profile directory.
+  #[error("failed to remove profile: {0}")]
+  FailedToRemoveProfile(std::io::Error),
   #[error("Could not find the webview runtime, make sure it is installed")]
   WebviewRuntimeNotInstalled,
 }
@@ -262,6 +268,21 @@ pub enum RunEvent<T: UserEvent> {
     ///
     /// This lets you determine why the scene was requested.
     options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
+  },
+  /// Emitted when the system created an activity that is not attached to any window.
+  ///
+  /// This happens when the app is launched again while its process is still alive
+  /// but all of its activities were destroyed - for instance when a foreground service keeps
+  /// the process running after the user removed the app from the recents screen.
+  ///
+  /// Not emitted for the activity that launched the app, for activities created for a new window
+  /// or for activities that are recreated due to a configuration change.
+  #[cfg(target_os = "android")]
+  ActivityRequested {
+    /// Identifier of the activity, used to attach a window to it with [`window::WindowBuilder::activity_id`].
+    activity_id: i32,
+    /// Name of the activity class, relative to the app package.
+    activity_name: String,
   },
 }
 
@@ -392,6 +413,31 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
     &self,
     uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()>;
+
+  /// Fetches the identifiers of the browsing data profiles created with [`WebviewAttributes::profile_identifier`](crate::webview::WebviewAttributes::profile_identifier).
+  ///
+  /// `data_directories` lists the webview data directories to look for profiles in. It is only used on Windows,
+  /// where profiles are stored inside the data directory.
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios", windows))))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    cb: F,
+  ) -> Result<()>;
+
+  /// Removes the browsing data profile with the given identifier.
+  ///
+  /// `data_directories` lists the webview data directories to remove the profile from. It is only used on Windows,
+  /// where profiles are stored inside the data directory.
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios", windows))))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    profile_identifier: [u8; 16],
     cb: F,
   ) -> Result<()>;
 }

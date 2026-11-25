@@ -759,7 +759,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   #[must_use]
-  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  pub fn transient_for_raw(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for(parent);
     self
   }
@@ -958,6 +958,17 @@ impl<R: Runtime, M: Manager<R>> WindowBuilder<'_, R, M> {
   pub fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
     self.created_by_activity_name_set = true;
     self.window_builder = self.window_builder.created_by_activity_name(class_name);
+    self
+  }
+
+  /// Attaches the window to an existing activity that is not attached to a window yet,
+  /// such as the one from [`RunEvent::ActivityRequested`](crate::RunEvent::ActivityRequested).
+  ///
+  /// By default the window is attached to the first activity that is not attached to a window,
+  /// or a new activity is created if [`Self::activity_name`] is set.
+  /// This takes precedence over [`Self::activity_name`].
+  pub fn activity_id(mut self, activity_id: i32) -> Self {
+    self.window_builder = self.window_builder.activity_id(activity_id);
     self
   }
 }
@@ -1249,13 +1260,19 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| w.window_label() == self.label())
+      .filter(|w| w.window_ref().label() == self.label())
       .cloned()
       .collect()
   }
 
   pub(crate) fn is_webview_window(&self) -> bool {
-    self.webviews().iter().all(|w| w.label() == self.label())
+    self
+      .manager
+      .webview
+      .webviews_lock()
+      .values()
+      .filter(|w| w.window_ref().label() == self.label())
+      .all(|w| w.label() == self.label())
   }
 
   /// Runs the given closure on the main thread.
@@ -2015,6 +2032,20 @@ impl<R: Runtime> Window<R> {
     };
     Ok(())
   }
+
+  /// Sets the taskbar badge count. Using `0` or `None` will remove the badge
+  ///
+  /// ## Platform-specific
+  /// - **Windows:** Unsupported, use [`Window::set_overlay_icon`] instead.
+  /// - **iOS:** Sets the app icon badge. The value is clamped to the `i32` range.
+  /// - **Android:** Unsupported.
+  pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_badge_count(count, Some(format!("{}.desktop", self.package_info().name)))
+      .map_err(Into::into)
+  }
 }
 
 /// Desktop window setters and actions.
@@ -2389,20 +2420,6 @@ tauri::Builder::default()
       .window
       .dispatcher
       .set_overlay_icon(icon.map(|x| x.into()))
-      .map_err(Into::into)
-  }
-
-  /// Sets the taskbar badge count. Using `0` or `None` will remove the badge
-  ///
-  /// ## Platform-specific
-  /// - **Windows:** Unsupported, use [`Window::set_overlay_icon`] instead.
-  /// - **iOS:** iOS expects i32, the value will be clamped to i32::MIN, i32::MAX.
-  /// - **Android:** Unsupported.
-  pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .set_badge_count(count, Some(format!("{}.desktop", self.package_info().name)))
       .map_err(Into::into)
   }
 

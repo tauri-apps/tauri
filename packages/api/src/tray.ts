@@ -21,6 +21,7 @@
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
 import { type JsImage, transformImage } from './image'
+import type { NativeIcon } from './menu/iconMenuItem'
 import { PhysicalPosition, PhysicalSize } from './dpi'
 
 /** Whether the mouse button was pressed (`Down`) or released (`Up`). */
@@ -111,6 +112,15 @@ export interface TrayIconOptions {
    * ```
    */
   icon?: JsImage
+  /**
+   * The tray icon from a platform-native icon, ignored when
+   * {@linkcode TrayIconOptions.icon} is set.
+   *
+   * See {@linkcode TrayIcon.setNativeIcon} for the platform-specific behavior.
+   *
+   * @since 2.13.0
+   */
+  nativeIcon?: NativeIcon
   /** The tray icon tooltip */
   tooltip?: string
   /**
@@ -134,9 +144,37 @@ export interface TrayIconOptions {
    */
   tempDirPath?: string
   /**
+   * A stable key for this tray icon's saved position in the menu bar. **macOS only**.
+   *
+   * macOS restores where the user <kbd>Cmd</kbd>+dragged a tray icon on the next launch
+   * either way, keyed by the order in which the app created its tray icons (`Item-0`,
+   * `Item-1`, and so on) when no name is given. Set one when that numbering isn't stable
+   * from launch to launch, as in an app that creates several tray icons or creates one
+   * conditionally, so that two icons don't come back holding each other's positions.
+   *
+   * Use one fixed string per tray icon, typically a reverse-DNS identifier such as
+   * `"com.example.app.tray"`. The position is saved under that name, so changing it
+   * abandons the position saved under the old one.
+   *
+   * @since 2.13.0
+   */
+  autosaveName?: string
+  // TODO: Remove in v3
+  /**
    * Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+   *
+   * @deprecated use {@linkcode TrayIconOptions.iconIsTemplate} instead.
    */
   iconAsTemplate?: boolean
+  /**
+   * Draw the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+   *
+   * A template image is drawn using only its alpha channel, so the system recolors it to match
+   * the menu bar in light and dark mode.
+   *
+   * @since 2.13.0
+   */
+  iconIsTemplate?: boolean
   /**
    * Whether to show the tray menu on left click or not, default is `true`.
    *
@@ -157,6 +195,16 @@ export interface TrayIconOptions {
    * @since 2.2.0
    */
   showMenuOnLeftClick?: boolean
+  /**
+   * Whether to show the tray menu on right click or not, default is `true`.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @since 2.13.0
+   */
+  showMenuOnRightClick?: boolean
   /** A handler for an event on the tray icon. */
   action?: (event: TrayIconEvent) => void
 }
@@ -305,6 +353,34 @@ export class TrayIcon extends Resource {
   }
 
   /**
+   * Sets a new tray icon from a platform-native icon, or removes it if `null` is
+   * provided.
+   *
+   * Note that this overrides any icon set with {@linkcode TrayIcon.setIcon}.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux:** Known variants map to freedesktop icon names, so the icon is
+   * resolved by the desktop icon theme and follows its light and dark variants.
+   * - **macOS:** Known variants map to AppKit image names.
+   * - **Windows:** Known variants map to stock shell icons where an equivalent
+   * exists, and an error is thrown otherwise.
+   *
+   * @example
+   * ```typescript
+   * import { NativeIcon } from '@tauri-apps/api/menu';
+   * await tray.setNativeIcon(NativeIcon.StatusAvailable);
+   * // remove the icon
+   * await tray.setNativeIcon(null);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  async setNativeIcon(icon: NativeIcon | null): Promise<void> {
+    return invoke('plugin:tray|set_native_icon', { rid: this.rid, icon })
+  }
+
+  /**
    * Sets a new tray menu.
    *
    * #### Platform-specific:
@@ -392,10 +468,52 @@ export class TrayIcon extends Resource {
   }
 
   /**
+   * Sets a new tray icon, or removes it, and draws it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+   *
+   * A template image is drawn using only its alpha channel, so the system recolors it to match
+   * the menu bar in light and dark mode. {@linkcode TrayIcon.setIcon} draws the icon as-is instead.
+   *
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux / Windows**: Same as {@linkcode TrayIcon.setIcon}, as only macOS has template images.
+   *
+   * @example
+   * ```typescript
+   * import { Image } from '@tauri-apps/api/image';
+   * await tray.setIconTemplated(await Image.fromPath('icons/active.png'));
+   * // remove the icon
+   * await tray.setIconTemplated(null);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  async setIconTemplated(icon: JsImage | null): Promise<void> {
+    let trayIcon = null
+    if (icon) {
+      trayIcon = transformImage(icon)
+    }
+    return invoke('plugin:tray|set_icon_templated', {
+      rid: this.rid,
+      icon: trayIcon
+    })
+  }
+
+  // TODO: Remove in v3
+  /**
    * Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**
    *
    * A template image is recolored by the system so it matches the menu bar
    * appearance in light and dark mode.
+   *
+   * @deprecated use {@linkcode TrayIcon.setIconTemplated} instead, which sets the icon and
+   * draws it as a template in one call.
    *
    * @example
    * ```typescript
@@ -409,6 +527,7 @@ export class TrayIcon extends Resource {
     })
   }
 
+  // TODO: Remove in v3
   /**
    * Sets a new tray icon and template status atomically. **macOS only**.
    *
@@ -422,6 +541,9 @@ export class TrayIcon extends Resource {
    * Prefer this over calling {@linkcode TrayIcon.setIcon} and
    * {@linkcode TrayIcon.setIconAsTemplate} in sequence, which can briefly show the
    * new icon with the previous template setting.
+   *
+   * @deprecated use {@linkcode TrayIcon.setIconTemplated} for a template icon, or
+   * {@linkcode TrayIcon.setIcon} for a plain one.
    *
    * @example
    * ```typescript
@@ -487,6 +609,51 @@ export class TrayIcon extends Resource {
     return invoke('plugin:tray|set_show_menu_on_left_click', {
       rid: this.rid,
       onLeft
+    })
+  }
+
+  /**
+   *  Disable or enable showing the tray menu on right click.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @example
+   * ```typescript
+   * await tray.setShowMenuOnRightClick(false);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  async setShowMenuOnRightClick(onRight: boolean): Promise<void> {
+    return invoke('plugin:tray|set_show_menu_on_right_click', {
+      rid: this.rid,
+      onRight
+    })
+  }
+
+  /**
+   * Show the tray menu at the current cursor position.
+   *
+   * Useful with {@linkcode TrayIconOptions.showMenuOnLeftClick} and
+   * {@linkcode TrayIconOptions.showMenuOnRightClick} disabled, to control when
+   * the menu shows up, for instance after updating its items.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @example
+   * ```typescript
+   * await tray.showMenu();
+   * ```
+   *
+   * @since 2.13.0
+   */
+  async showMenu(): Promise<void> {
+    return invoke('plugin:tray|show_menu', {
+      rid: this.rid
     })
   }
 }

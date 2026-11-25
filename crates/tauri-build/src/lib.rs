@@ -424,11 +424,24 @@ impl WindowsAttributes {
   ///
   /// The following manifest will brand the exe as requesting administrator privileges.
   /// Thus, every time it is executed, a Windows UAC dialog will appear.
+  /// It also keeps the Common Control v6 dependency from the default manifest (see the warning above).
   ///
   /// ```rust,no_run
   /// let mut windows = tauri_build::WindowsAttributes::new();
   /// windows = windows.app_manifest(r#"
   /// <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  ///   <dependency>
+  ///       <dependentAssembly>
+  ///           <assemblyIdentity
+  ///               type="win32"
+  ///               name="Microsoft.Windows.Common-Controls"
+  ///               version="6.0.0.0"
+  ///               processorArchitecture="*"
+  ///               publicKeyToken="6595b64144ccf1df"
+  ///               language="*"
+  ///           />
+  ///       </dependentAssembly>
+  ///   </dependency>
   ///   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
   ///       <security>
   ///           <requestedPrivileges>
@@ -868,7 +881,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       )));
     }
 
-    res.compile().with_context(|| {
+    // link the resource into all targets (not only binaries) so test binaries that link Tauri
+    // also get the app manifest, otherwise they fail with `STATUS_ENTRYPOINT_NOT_FOUND`
+    res.compile_for_everything().with_context(|| {
       format!(
         "failed to compile `{}` into a Windows Resource file during tauri-build",
         window_icon_path.display()

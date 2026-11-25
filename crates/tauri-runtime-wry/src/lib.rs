@@ -157,6 +157,8 @@ mod monitor;
 mod undecorated_resizing;
 mod util;
 mod webview;
+#[cfg(windows)]
+mod webview2_profile;
 mod webview_permissions;
 mod window;
 
@@ -222,11 +224,7 @@ macro_rules! webview_getter {
     getter!(
       $self,
       rx,
-      Message::Webview(
-        *$self.window_id.lock().unwrap(),
-        $self.webview_id,
-        $message(tx)
-      )
+      Message::Webview($self.window_id(), $self.webview_id, $message(tx))
     )
   }};
 }
@@ -262,8 +260,15 @@ impl<T: UserEvent> Context<T> {
 
   fn send_user_message(&self, message: Message<T>) -> Result<()> {
     if current_thread().id() == self.main_thread_id {
+      // only upgrade on the main thread: a strong reference held by another thread
+      // could become the last one and drop the event loop target there
+      let event_loop = self
+        .main_thread
+        .window_target
+        .upgrade()
+        .ok_or(Error::EventLoopClosed)?;
       handle_user_message(
-        &self.main_thread.window_target,
+        &event_loop,
         message,
         UserMessageContext {
           window_id_map: &self.window_id_map,
@@ -388,6 +393,14 @@ impl<T: UserEvent> Context<T> {
           pending,
           #[cfg(windows)]
           _options.focused_webview,
+          #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ))]
+          _options.gtk_fixed.as_ref(),
         )
       }),
       tx,
@@ -452,7 +465,7 @@ impl fmt::Debug for WindowsStore {
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
-  pub window_target: EventLoopWindowTarget<Message<T>>,
+  pub window_target: Weak<EventLoopWindowTarget<Message<T>>>,
   pub web_context: WebContextStore,
   // changing this to an Rc will cause frequent app crashes.
   pub windows: Arc<WindowsStore>,
@@ -1103,7 +1116,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  fn transient_for(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.inner = self.inner.with_transient_for(parent);
     self
   }
@@ -1244,6 +1257,12 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(target_os = "android")]
+  fn activity_id(mut self, activity_id: i32) -> Self {
+    self.inner = self.inner.with_activity_id(activity_id);
+    self
+  }
+
   #[cfg(target_os = "ios")]
   fn requested_by_scene_identifier<S: Into<String>>(mut self, identifier: S) -> Self {
     self.inner = self
@@ -1289,6 +1308,9 @@ pub struct GtkBox(pub gtk::Box);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkBox {}
 
+pub struct SendRawDisplayHandle(pub raw_window_handle::RawDisplayHandle);
+unsafe impl Send for SendRawDisplayHandle {}
+
 pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
@@ -1301,6 +1323,12 @@ pub enum ApplicationMessage {
   FetchDataStoreIdentifiers(Box<dyn FnOnce(Vec<[u8; 16]>) + Send + 'static>),
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   RemoveDataStore([u8; 16], Box<dyn FnOnce(Result<()>) + Send + 'static>),
+  #[cfg(windows)]
+  RemoveProfile(
+    Vec<PathBuf>,
+    [u8; 16],
+    Box<dyn FnOnce(Result<()>) + Send + 'static>,
+  ),
 }
 
 pub enum WindowMessage {
@@ -1481,6 +1509,9 @@ pub enum EventLoopWindowTargetMessage {
   AvailableMonitors(Sender<Vec<Monitor>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
+  RawDisplayHandle(
+    Sender<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>>,
+  ),
 }
 
 pub type CreateWindowClosure<T> =
@@ -1492,6 +1523,14 @@ pub type CreateWebviewClosure =
 pub struct CreateWebviewOptions {
   #[cfg(windows)]
   pub focused_webview: Arc<Mutex<FocusState>>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub gtk_fixed: Option<gtk::Fixed>,
 }
 
 pub enum Message<T: 'static> {
@@ -1527,9 +1566,16 @@ impl<T: UserEvent> Clone for Message<T> {
 /// The Tauri [`WebviewDispatch`] for [`Wry`].
 #[derive(Debug, Clone)]
 pub struct WryWebviewDispatcher<T: UserEvent> {
+  // This was in a [`Mutex`] because we could change it in [`Self::reparent`]
   window_id: Arc<Mutex<WindowId>>,
   webview_id: WebviewId,
   context: Context<T>,
+}
+
+impl<T: UserEvent> WryWebviewDispatcher<T> {
+  fn window_id(&self) -> WindowId {
+    *self.window_id.lock().unwrap()
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
@@ -1542,7 +1588,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
     let id = self.context.next_webview_event_id();
     let _ = self.context.proxy.send_event(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::AddEventListener(id, Box::new(f)),
     ));
@@ -1551,7 +1597,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
     ))
@@ -1560,7 +1606,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
     let _ = self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::OpenDevTools,
     ));
@@ -1569,7 +1615,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn close_devtools(&self) {
     let _ = self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::CloseDevTools,
     ));
@@ -1603,7 +1649,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn navigate(&self, url: Url) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Navigate(url),
     ))
@@ -1611,7 +1657,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn reload(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Reload,
     ))
@@ -1619,7 +1665,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn print(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Print,
     ))
@@ -1627,7 +1673,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn close(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Close,
     ))
@@ -1635,7 +1681,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetBounds(bounds),
     ))
@@ -1643,7 +1689,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_size(&self, size: Size) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetSize(size),
     ))
@@ -1651,7 +1697,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_position(&self, position: Position) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetPosition(position),
     ))
@@ -1659,7 +1705,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_focus(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetFocus,
     ))
@@ -1683,7 +1729,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>> {
     let (tx, rx) = channel();
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::CookiesForUrl(url, tx),
     ))?;
@@ -1697,7 +1743,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetCookie(cookie.into_owned()),
     ))?;
@@ -1706,7 +1752,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn delete_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::DeleteCookie(cookie.into_owned()),
     ))?;
@@ -1715,7 +1761,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetAutoResize(auto_resize),
     ))
@@ -1729,7 +1775,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       self,
       rx,
       Message::Webview(
-        *self.window_id.lock().unwrap(),
+        self.window_id(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into(), tx, tracing::Span::current()),
       )
@@ -1739,7 +1785,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::EvaluateScript(script.into()),
     ))
@@ -1757,7 +1803,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       self,
       rx,
       Message::Webview(
-        *self.window_id.lock().unwrap(),
+        self.window_id(),
         self.webview_id,
         WebviewMessage::EvaluateScriptWithCallback(
           script.into(),
@@ -1776,7 +1822,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     callback: impl Fn(String) + Send + 'static,
   ) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
     ))
@@ -1784,7 +1830,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_zoom(&self, scale_factor: f64) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetZoom(scale_factor),
     ))
@@ -1792,7 +1838,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn clear_all_browsing_data(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::ClearAllBrowsingData,
     ))
@@ -1800,7 +1846,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn hide(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Hide,
     ))
@@ -1808,7 +1854,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn show(&self) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::Show,
     ))
@@ -1816,7 +1862,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn set_background_color(&self, color: Option<Color>) -> Result<()> {
     self.context.send_user_message(Message::Webview(
-      *self.window_id.lock().unwrap(),
+      self.window_id(),
       self.webview_id,
       WebviewMessage::SetBackgroundColor(color),
     ))
@@ -1838,6 +1884,12 @@ fn get_raw_window_handle<T: UserEvent>(
   dispatcher: &WryWindowDispatcher<T>,
 ) -> Result<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>> {
   window_getter!(dispatcher, WindowMessage::RawWindowHandle)
+}
+
+fn get_raw_display_handle<T: UserEvent>(
+  dispatcher: &WryHandle<T>,
+) -> Result<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>> {
+  event_loop_window_getter!(dispatcher, EventLoopWindowTargetMessage::RawDisplayHandle)
 }
 
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
@@ -1997,12 +2049,14 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::SceneIdentifier)
   }
 
+  /// **SAFETY:** the lifetime is wrong here, use with caution!
+  /// `WryWindowDispatcher` does not own the window handle so the window can become stale before `WryWindowDispatcher` is dropped.
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
     get_raw_window_handle(self)
-      .map_err(|_| raw_window_handle::HandleError::Unavailable)
-      .and_then(|r| r.map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }))
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) })
   }
 
   // Setters
@@ -2446,6 +2500,15 @@ pub struct WindowWrapper {
   has_children: AtomicBool,
   webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
+  /// Holds the webviews of the window, if every one of them is a child.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  gtk_fixed: Option<gtk::Fixed>,
   #[cfg(windows)]
   background_color: Option<tao::window::RGBA>,
   #[cfg(windows)]
@@ -2507,6 +2570,7 @@ pub trait Plugin<T: UserEvent> {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry<T: UserEvent> {
   context: Context<T>,
+  _window_target: Arc<EventLoopWindowTarget<Message<T>>>,
   event_loop: EventLoop<Message<T>>,
 }
 
@@ -2627,10 +2691,17 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     self.context.send_user_message(Message::Task(Box::new(f)))
   }
 
+  /// **SAFETY:** the lifetime is wrong here, use with caution!
+  /// `WryHandle` does not own the event loop so the display handle can become stale before `WryHandle` is dropped.
   fn display_handle(
     &self,
   ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
-    self.context.main_thread.window_target.display_handle()
+    get_raw_display_handle(self)
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .map(|handle| {
+        // SAFETY: the lifetime is wrong here, but the alternatives are worse, see https://github.com/tauri-apps/tauri/pull/15411
+        unsafe { raw_window_handle::DisplayHandle::borrow_raw(handle.0) }
+      })
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
@@ -2729,6 +2800,53 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
         Box::new(cb),
       )))
   }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    self.fetch_data_store_identifiers(cb)
+  }
+
+  #[cfg(windows)]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    cb(webview2_profile::fetch_profile_identifiers(
+      &data_directories,
+    ));
+    Ok(())
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self.remove_data_store(profile_identifier, cb)
+  }
+
+  #[cfg(windows)]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self
+      .context
+      .send_user_message(Message::Application(ApplicationMessage::RemoveProfile(
+        data_directories,
+        profile_identifier,
+        Box::new(cb),
+      )))
+  }
 }
 
 impl<T: UserEvent> Wry<T> {
@@ -2764,12 +2882,14 @@ impl<T: UserEvent> Wry<T> {
     let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
     let window_id_map = WindowIdStore::default();
 
+    let window_target = Arc::new(event_loop.deref().clone());
+
     let context = Context {
       window_id_map,
       main_thread_id,
       proxy: event_loop.create_proxy(),
       main_thread: DispatcherMainThreadContext {
-        window_target: event_loop.deref().clone(),
+        window_target: Arc::downgrade(&window_target),
         web_context,
         windows,
         #[cfg(feature = "tracing")]
@@ -2785,6 +2905,7 @@ impl<T: UserEvent> Wry<T> {
 
     Ok(Self {
       context,
+      _window_target: window_target,
       event_loop,
     })
   }
@@ -2915,6 +3036,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           CreateWebviewOptions {
             #[cfg(windows)]
             focused_webview: w.focused_webview.clone(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: w.gtk_fixed.clone(),
           },
         )
       });
@@ -2932,6 +3061,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         pending,
         #[cfg(windows)]
         _options.focused_webview,
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        _options.gtk_fixed.as_ref(),
       )?;
 
       if let Some(w) = self
@@ -2960,27 +3097,21 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn primary_monitor(&self) -> Option<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .primary_monitor()
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .monitor_from_point(x, y)
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .available_monitors()
       .map(|m| MonitorHandleWrapper(m).into())
       .collect()
@@ -2988,9 +3119,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .cursor_position()
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
@@ -3210,6 +3339,10 @@ fn handle_user_message<T: UserEvent>(
           cb(res.map_err(|_| Error::FailedToRemoveDataStore))
         })
       }
+      #[cfg(windows)]
+      ApplicationMessage::RemoveProfile(data_directories, profile_identifier, cb) => {
+        webview2_profile::remove_profile(windows, data_directories, profile_identifier, cb)
+      }
     },
     Message::Window(id, window_message) => {
       let w = windows.0.borrow().get(&id).map(|w| {
@@ -3239,30 +3372,42 @@ fn handle_user_message<T: UserEvent>(
           }
 
           // Getters
-          WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
-          WindowMessage::InnerPosition(tx) => tx
-            .send(
+          WindowMessage::ScaleFactor(tx) => {
+            let _ = tx.send(window.scale_factor());
+          }
+          WindowMessage::InnerPosition(tx) => {
+            let _ = tx.send(
               window
                 .inner_position()
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap(),
-          WindowMessage::OuterPosition(tx) => tx
-            .send(
+            );
+          }
+          WindowMessage::OuterPosition(tx) => {
+            let _ = tx.send(
               window
                 .outer_position()
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap(),
-          WindowMessage::InnerSize(tx) => tx
-            .send(inner_size(&window, &webviews, has_children))
-            .unwrap(),
-          WindowMessage::OuterSize(tx) => tx.send(window.outer_size()).unwrap(),
-          WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
-          WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
-          WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            );
+          }
+          WindowMessage::InnerSize(tx) => {
+            let _ = tx.send(inner_size(&window, &webviews, has_children));
+          }
+          WindowMessage::OuterSize(tx) => {
+            let _ = tx.send(window.outer_size());
+          }
+          WindowMessage::IsFullscreen(tx) => {
+            let _ = tx.send(window.fullscreen().is_some());
+          }
+          WindowMessage::IsMinimized(tx) => {
+            let _ = tx.send(window.is_minimized());
+          }
+          WindowMessage::IsMaximized(tx) => {
+            let _ = tx.send(window.is_maximized());
+          }
           #[cfg(not(windows))]
-          WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
+          WindowMessage::IsFocused(tx) => {
+            let _ = tx.send(window.is_focused());
+          }
           #[cfg(windows)]
           WindowMessage::IsFocused(tx) => {
             let focused = if has_children {
@@ -3275,44 +3420,58 @@ fn handle_user_message<T: UserEvent>(
             } else {
               window.is_focused()
             };
-            tx.send(focused).unwrap()
+            let _ = tx.send(focused);
           }
-          WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
-          WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
-          WindowMessage::IsMaximizable(tx) => tx.send(window.is_maximizable()).unwrap(),
-          WindowMessage::IsMinimizable(tx) => tx.send(window.is_minimizable()).unwrap(),
-          WindowMessage::IsClosable(tx) => tx.send(window.is_closable()).unwrap(),
-          WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
-          WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
-          WindowMessage::CurrentMonitor(tx) => tx
-            .send(
+          WindowMessage::IsDecorated(tx) => {
+            let _ = tx.send(window.is_decorated());
+          }
+          WindowMessage::IsResizable(tx) => {
+            let _ = tx.send(window.is_resizable());
+          }
+          WindowMessage::IsMaximizable(tx) => {
+            let _ = tx.send(window.is_maximizable());
+          }
+          WindowMessage::IsMinimizable(tx) => {
+            let _ = tx.send(window.is_minimizable());
+          }
+          WindowMessage::IsClosable(tx) => {
+            let _ = tx.send(window.is_closable());
+          }
+          WindowMessage::IsVisible(tx) => {
+            let _ = tx.send(window.is_visible());
+          }
+          WindowMessage::Title(tx) => {
+            let _ = tx.send(window.title());
+          }
+          WindowMessage::CurrentMonitor(tx) => {
+            let _ = tx.send(
               window
                 .current_monitor()
                 .map(|m| MonitorHandleWrapper(m).into()),
-            )
-            .unwrap(),
-          WindowMessage::PrimaryMonitor(tx) => tx
-            .send(
+            );
+          }
+          WindowMessage::PrimaryMonitor(tx) => {
+            let _ = tx.send(
               window
                 .primary_monitor()
                 .map(|m| MonitorHandleWrapper(m).into()),
-            )
-            .unwrap(),
-          WindowMessage::MonitorFromPoint(tx, (x, y)) => tx
-            .send(
+            );
+          }
+          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
+            let _ = tx.send(
               window
                 .monitor_from_point(x, y)
                 .map(|m| MonitorHandleWrapper(m).into()),
-            )
-            .unwrap(),
-          WindowMessage::AvailableMonitors(tx) => tx
-            .send(
+            );
+          }
+          WindowMessage::AvailableMonitors(tx) => {
+            let _ = tx.send(
               window
                 .available_monitors()
                 .map(|m| MonitorHandleWrapper(m).into())
                 .collect(),
-            )
-            .unwrap(),
+            );
+          }
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -3320,7 +3479,9 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::GtkWindow(tx) => {
+            let _ = tx.send(GtkWindow(window.gtk_window().clone()));
+          }
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -3328,29 +3489,33 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkBox(tx) => tx
-            .send(GtkBox(window.default_vbox().unwrap().clone()))
-            .unwrap(),
+          WindowMessage::GtkBox(tx) => {
+            let _ = tx.send(GtkBox(window.default_vbox().unwrap().clone()));
+          }
           #[cfg(target_os = "android")]
           WindowMessage::ActivityName(tx) => {
-            tx.send(window.activity_name()).unwrap();
+            let _ = tx.send(window.activity_name());
           }
           #[cfg(target_os = "ios")]
           WindowMessage::SceneIdentifier(tx) => {
-            tx.send(window.scene_identifier()).unwrap();
+            let _ = tx.send(window.scene_identifier());
           }
-          WindowMessage::RawWindowHandle(tx) => tx
-            .send(
+          WindowMessage::RawWindowHandle(tx) => {
+            let _ = tx.send(
               window
                 .window_handle()
                 .map(|h| SendRawWindowHandle(h.as_raw())),
-            )
-            .unwrap(),
-          WindowMessage::Theme(tx) => {
-            tx.send(map_theme(&window.theme())).unwrap();
+            );
           }
-          WindowMessage::IsEnabled(tx) => tx.send(window.is_enabled()).unwrap(),
-          WindowMessage::IsAlwaysOnTop(tx) => tx.send(window.is_always_on_top()).unwrap(),
+          WindowMessage::Theme(tx) => {
+            let _ = tx.send(map_theme(&window.theme()));
+          }
+          WindowMessage::IsEnabled(tx) => {
+            let _ = tx.send(window.is_enabled());
+          }
+          WindowMessage::IsAlwaysOnTop(tx) => {
+            let _ = tx.send(window.is_always_on_top());
+          }
           // Setters
           WindowMessage::Center => window.center(),
           WindowMessage::RequestUserAttention(request_type) => {
@@ -3592,6 +3757,19 @@ fn handle_user_message<T: UserEvent>(
             .map(|webview_index| w.webviews.remove(webview_index))
         });
 
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        let new_parent_gtk_fixed = windows
+          .0
+          .borrow()
+          .get(&new_parent_window_id)
+          .and_then(|w| w.gtk_fixed.clone());
+
         if let Some(webview) = webview_handle {
           if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
             .0
@@ -3615,7 +3793,9 @@ fn handle_user_message<T: UserEvent>(
               target_os = "openbsd"
             ))]
             let reparent_result = {
-              if let Some(container) = new_parent_window.default_vbox() {
+              if let Some(fixed) = &new_parent_gtk_fixed {
+                webview.inner.reparent(fixed)
+              } else if let Some(container) = new_parent_window.default_vbox() {
                 webview.inner.reparent(container)
               } else {
                 Err(wry::Error::MessageSender)
@@ -3625,16 +3805,16 @@ fn handle_user_message<T: UserEvent>(
             match reparent_result {
               Ok(_) => {
                 new_parent_window_webviews.push(webview);
-                tx.send(Ok(())).unwrap();
+                let _ = tx.send(Ok(()));
               }
               Err(e) => {
                 log::error!("failed to reparent webview: {e}");
-                tx.send(Err(Error::FailedToSendMessage)).unwrap();
+                let _ = tx.send(Err(Error::FailedToSendMessage));
               }
             }
           }
         } else {
-          tx.send(Err(Error::FailedToSendMessage)).unwrap();
+          let _ = tx.send(Err(Error::FailedToSendMessage));
         }
 
         return;
@@ -3665,7 +3845,7 @@ fn handle_user_message<T: UserEvent>(
             if let Err(e) = webview.evaluate_script(&script) {
               log::error!("{e}");
             }
-            tx.send(()).unwrap();
+            let _ = tx.send(());
           }
           #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
           WebviewMessage::EvaluateScript(script) => {
@@ -3679,7 +3859,7 @@ fn handle_user_message<T: UserEvent>(
             if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
               log::error!("{e}");
             }
-            tx.send(()).unwrap();
+            let _ = tx.send(());
           }
           #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
           WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
@@ -3727,7 +3907,7 @@ fn handle_user_message<T: UserEvent>(
               let scale_factor = window.scale_factor();
               let size = bounds.size.to_logical::<f32>(scale_factor);
               let position = bounds.position.to_logical::<f32>(scale_factor);
-              let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+              let window_size = webview.room(&window);
               b.width_rate = size.width / window_size.width;
               b.height_rate = size.height / window_size.height;
               b.x_rate = position.x / window_size.width;
@@ -3746,7 +3926,7 @@ fn handle_user_message<T: UserEvent>(
               let size = size.to_logical::<f32>(scale_factor);
 
               if let Some(b) = &mut *webview.bounds.lock().unwrap() {
-                let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+                let window_size = webview.room(&window);
                 b.width_rate = size.width / window_size.width;
                 b.height_rate = size.height / window_size.height;
               }
@@ -3767,7 +3947,7 @@ fn handle_user_message<T: UserEvent>(
               let position = position.to_logical::<f32>(scale_factor);
 
               if let Some(b) = &mut *webview.bounds.lock().unwrap() {
-                let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+                let window_size = webview.room(&window);
                 b.x_rate = position.x / window_size.width;
                 b.y_rate = position.y / window_size.height;
               }
@@ -3799,18 +3979,16 @@ fn handle_user_message<T: UserEvent>(
           }
           // Getters
           WebviewMessage::Url(tx) => {
-            tx.send(
+            let _ = tx.send(
               webview
                 .url()
                 .map(|u| u.parse().expect("invalid webview URL"))
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap();
+            );
           }
 
           WebviewMessage::Cookies(tx) => {
-            tx.send(webview.cookies().map_err(|_| Error::FailedToSendMessage))
-              .unwrap();
+            let _ = tx.send(webview.cookies().map_err(|_| Error::FailedToSendMessage));
           }
 
           WebviewMessage::SetCookie(cookie) => {
@@ -3829,11 +4007,11 @@ fn handle_user_message<T: UserEvent>(
             let webview_cookies = webview
               .cookies_for_url(url.as_str())
               .map_err(|_| Error::FailedToSendMessage);
-            tx.send(webview_cookies).unwrap();
+            let _ = tx.send(webview_cookies);
           }
 
           WebviewMessage::Bounds(tx) => {
-            tx.send(
+            let _ = tx.send(
               webview
                 .bounds()
                 .map(|bounds| tauri_runtime::dpi::Rect {
@@ -3841,26 +4019,23 @@ fn handle_user_message<T: UserEvent>(
                   position: bounds.position,
                 })
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap();
+            );
           }
           WebviewMessage::Position(tx) => {
-            tx.send(
+            let _ = tx.send(
               webview
                 .bounds()
                 .map(|bounds| bounds.position.to_physical(window.scale_factor()))
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap();
+            );
           }
           WebviewMessage::Size(tx) => {
-            tx.send(
+            let _ = tx.send(
               webview
                 .bounds()
                 .map(|bounds| bounds.size.to_physical(window.scale_factor()))
                 .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap();
+            );
           }
           WebviewMessage::SetFocus => {
             if let Err(e) = webview.focus() {
@@ -3870,7 +4045,7 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::SetAutoResize(auto_resize) => match webview.bounds() {
             Ok(bounds) => {
               let scale_factor = window.scale_factor();
-              let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+              let window_size = webview.room(&window);
               *webview.bounds.lock().unwrap() = if auto_resize {
                 let size = bounds.size.to_logical::<f32>(scale_factor);
                 let position = bounds.position.to_logical::<f32>(scale_factor);
@@ -3945,7 +4120,7 @@ fn handle_user_message<T: UserEvent>(
           }
           #[cfg(any(debug_assertions, feature = "devtools"))]
           WebviewMessage::IsDevToolsOpen(tx) => {
-            tx.send(webview.is_devtools_open()).unwrap();
+            let _ = tx.send(webview.is_devtools_open());
           }
         }
       }
@@ -3957,6 +4132,14 @@ fn handle_user_message<T: UserEvent>(
           CreateWebviewOptions {
             #[cfg(windows)]
             focused_webview: w.focused_webview.clone(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: w.gtk_fixed.clone(),
           },
         )
       });
@@ -3968,11 +4151,11 @@ fn handle_user_message<T: UserEvent>(
               w.has_children.store(true, Ordering::Relaxed);
             }
             // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-            sender.send(Ok(())).unwrap();
+            let _ = sender.send(Ok(()));
           }
           Err(e) => {
             // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-            sender.send(Err(e)).unwrap();
+            let _ = sender.send(Err(e));
           }
         }
       }
@@ -3981,11 +4164,11 @@ fn handle_user_message<T: UserEvent>(
       Ok(webview) => {
         windows.0.borrow_mut().insert(window_id, webview);
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Ok(())).unwrap();
+        let _ = sender.send(Ok(()));
       }
       Err(e) => {
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Err(e)).unwrap();
+        let _ = sender.send(Err(e));
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {
@@ -4025,6 +4208,14 @@ fn handle_user_message<T: UserEvent>(
             inner: Some(window.clone()),
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            gtk_fixed: None,
             #[cfg(windows)]
             background_color,
             #[cfg(windows)]
@@ -4035,9 +4226,9 @@ fn handle_user_message<T: UserEvent>(
             focused_webview: Default::default(),
           },
         );
-        sender.send(Ok(Arc::downgrade(&window))).unwrap();
+        let _ = sender.send(Ok(Arc::downgrade(&window)));
       } else {
-        sender.send(Err(Error::CreateWindow)).unwrap();
+        let _ = sender.send(Err(Error::CreateWindow));
       }
     }
 
@@ -4047,35 +4238,29 @@ fn handle_user_message<T: UserEvent>(
         let pos = event_loop
           .cursor_position()
           .map_err(|_| Error::FailedToSendMessage);
-        sender.send(pos).unwrap();
+        let _ = sender.send(pos);
       }
       EventLoopWindowTargetMessage::PrimaryMonitor(sender) => {
-        sender
-          .send(
-            event_loop
-              .primary_monitor()
-              .map(|m| MonitorHandleWrapper(m).into()),
-          )
-          .unwrap();
+        let _ = sender.send(
+          event_loop
+            .primary_monitor()
+            .map(|m| MonitorHandleWrapper(m).into()),
+        );
       }
       EventLoopWindowTargetMessage::MonitorFromPoint(sender, (x, y)) => {
-        sender
-          .send(
-            event_loop
-              .monitor_from_point(x, y)
-              .map(|m| MonitorHandleWrapper(m).into()),
-          )
-          .unwrap();
+        let _ = sender.send(
+          event_loop
+            .monitor_from_point(x, y)
+            .map(|m| MonitorHandleWrapper(m).into()),
+        );
       }
       EventLoopWindowTargetMessage::AvailableMonitors(sender) => {
-        sender
-          .send(
-            event_loop
-              .available_monitors()
-              .map(|m| MonitorHandleWrapper(m).into())
-              .collect(),
-          )
-          .unwrap();
+        let _ = sender.send(
+          event_loop
+            .available_monitors()
+            .map(|m| MonitorHandleWrapper(m).into())
+            .collect(),
+        );
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
         event_loop.set_theme(to_tao_theme(theme));
@@ -4093,6 +4278,14 @@ fn handle_user_message<T: UserEvent>(
       }
       EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
         event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
+      }
+      EventLoopWindowTargetMessage::RawDisplayHandle(tx) => {
+        // the receiver is gone if the caller stopped waiting, nothing to do then
+        let _ = tx.send(
+          event_loop
+            .display_handle()
+            .map(|h| SendRawDisplayHandle(h.as_raw())),
+        );
       }
     },
   }
@@ -4279,16 +4472,18 @@ fn handle_event_loop<T: UserEvent>(
             {
               let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
-                if let Some(b) = &*webview.bounds.lock().unwrap() {
-                  if let Err(e) = webview.set_bounds(wry::Rect {
-                    position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
-                      .into(),
-                    size: LogicalSize::new(size.width * b.width_rate, size.height * b.height_rate)
-                      .into(),
-                  }) {
-                    log::error!("failed to autoresize webview: {e}");
-                  }
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd"
+                ))]
+                // GTK gives the webviews their own room, see `size_to_room`
+                if window::allocated_room(&webview.webview()).is_some() {
+                  continue;
                 }
+                webview.resize_in(size);
               }
             }
           }
@@ -4343,6 +4538,16 @@ fn handle_event_loop<T: UserEvent>(
     #[cfg(target_os = "ios")]
     Event::SceneRequested { scene, options } => {
       callback(RunEvent::SceneRequested { scene, options });
+    }
+    #[cfg(target_os = "android")]
+    Event::ActivityRequested {
+      activity_id,
+      activity_name,
+    } => {
+      callback(RunEvent::ActivityRequested {
+        activity_id,
+        activity_name,
+      });
     }
     _ => (),
   }
@@ -4598,6 +4803,18 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   #[cfg(not(feature = "unstable"))]
   let has_children = false;
 
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  let gtk_fixed = window::add_webview_container(&window, {
+    let windows = context.main_thread.windows.clone();
+    move |room| size_to_room(&windows, window_id, Some(room))
+  });
+
   if let Some(webview) = webview {
     webviews.push(create_webview(
       #[cfg(feature = "unstable")]
@@ -4611,6 +4828,14 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       webview,
       #[cfg(windows)]
       focused_webview.clone(),
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      gtk_fixed.as_ref(),
     )?);
   }
 
@@ -4638,6 +4863,14 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     inner: Some(window),
     webviews,
     window_event_listeners,
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    gtk_fixed,
     #[cfg(windows)]
     background_color,
     #[cfg(windows)]
@@ -4666,6 +4899,62 @@ struct WebviewBounds {
   height_rate: f32,
 }
 
+impl WebviewWrapper {
+  /// The size that the bounds of this webview are shares of: the room that GTK gives it on Linux,
+  /// the inner size of the window elsewhere.
+  fn room(&self, window: &Window) -> LogicalSize<f32> {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    if let Some(room) = window::room(window, &self.webview()) {
+      return room;
+    }
+    window.inner_size().to_logical(window.scale_factor())
+  }
+
+  /// Sizes this webview to its share of `room`, if it resizes with the window.
+  fn resize_in(&self, room: LogicalSize<f32>) {
+    if let Some(b) = &*self.bounds.lock().unwrap() {
+      if let Err(e) = self.set_bounds(wry::Rect {
+        position: LogicalPosition::new(room.width * b.x_rate, room.height * b.y_rate).into(),
+        size: LogicalSize::new(room.width * b.width_rate, room.height * b.height_rate).into(),
+      }) {
+        log::error!("failed to autoresize webview: {e}");
+      }
+    }
+  }
+}
+
+/// Sizes the webviews of the window `window_id` that resize with it to `room`, or to the room that
+/// GTK gives them now if it is `None`. The room changes with the menu bar and, on Wayland, with the
+/// client-side decorations, which the size of the window does not say.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn size_to_room(windows: &Arc<WindowsStore>, window_id: WindowId, room: Option<LogicalSize<f32>>) {
+  let Ok(store) = windows.0.try_borrow() else {
+    // GTK allocated the room while the store was in use: do it from the main loop
+    let windows = windows.clone();
+    gtk::glib::idle_add_local_once(move || size_to_room(&windows, window_id, None));
+    return;
+  };
+  if let Some(window) = store.get(&window_id) {
+    for webview in &window.webviews {
+      if let Some(room) = room.or_else(|| window::allocated_room(&webview.webview())) {
+        webview.resize_in(room);
+      }
+    }
+  }
+}
+
 fn create_webview<T: UserEvent>(
   kind: WebviewKind,
   window: &Window,
@@ -4674,6 +4963,14 @@ fn create_webview<T: UserEvent>(
   context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
   #[cfg(windows)] focused_webview: Arc<Mutex<FocusState>>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  gtk_fixed: Option<&gtk::Fixed>,
 ) -> Result<WebviewWrapper> {
   if !context.webview_runtime_installed {
     #[cfg(all(not(debug_assertions), windows))]
@@ -4830,6 +5127,11 @@ You may have it installed on another user account, but it is not available for t
     #[cfg(desktop)]
     let context = context.clone();
     webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
+      let url = if url.is_empty() {
+        "about:blank"
+      } else {
+        url.as_str()
+      };
       let Ok(url) = url.parse() else {
         return wry::NewWindowResponse::Deny;
       };
@@ -4907,6 +5209,16 @@ You may have it installed on another user account, but it is not available for t
     webview_builder = webview_builder.with_bounds(bounds);
 
     let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    let window_size = gtk_fixed
+      .and_then(|fixed| window::room(window, fixed))
+      .unwrap_or(window_size);
 
     if webview_attributes.auto_resize {
       Some(WebviewBounds {
@@ -5006,7 +5318,8 @@ You may have it installed on another user account, but it is not available for t
   #[cfg(windows)]
   {
     webview_builder = webview_builder
-      .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled);
+      .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled)
+      .with_browser_accelerator_keys(webview_attributes.browser_accelerator_keys);
   }
 
   #[cfg(any(
@@ -5038,8 +5351,11 @@ You may have it installed on another user account, but it is not available for t
 
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   {
-    if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
-      webview_builder = webview_builder.with_data_store_identifier(*data_store_identifier);
+    if let Some(profile_identifier) = webview_attributes
+      .profile_identifier
+      .or(webview_attributes.data_store_identifier)
+    {
+      webview_builder = webview_builder.with_data_store_identifier(profile_identifier);
     }
 
     webview_builder =
@@ -5072,6 +5388,20 @@ You may have it installed on another user account, but it is not available for t
           log::error!("failed to borrow windows")
         }
       });
+    }
+  }
+
+  // Windows: use `profile_identifier` as a WebView2 named profile. Webviews that
+  // share the same data directory but use different identifiers get fully isolated
+  // cookies/storage while sharing one browser process.
+  // The deprecated `data_store_identifier` is intentionally not used here, so apps that
+  // already set it don't silently move to a new, empty profile.
+  // See https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+  #[cfg(windows)]
+  {
+    if let Some(profile_identifier) = &webview_attributes.profile_identifier {
+      webview_builder =
+        webview_builder.with_profile_name(webview2_profile::profile_name(profile_identifier));
     }
   }
 
@@ -5168,11 +5498,12 @@ You may have it installed on another user account, but it is not available for t
       target_os = "ios",
       target_os = "android"
     )))]
-    WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
-      let vbox = window.default_vbox().unwrap();
-      webview_builder.build_gtk(vbox)
-    }
+    WebviewKind::WindowChild => match gtk_fixed {
+      // the container puts each webview at its bounds, a box would stack them
+      Some(fixed) => webview_builder.build_gtk(fixed),
+      // only way to account for menu bar height
+      None => webview_builder.build_gtk(window.default_vbox().unwrap()),
+    },
     #[cfg(any(
       target_os = "windows",
       target_os = "macos",

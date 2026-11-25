@@ -7,7 +7,7 @@ keywords = ["codesign", "signing", "macos", "ios", "tauri"]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Code signing utilities for macOS and iOS apps"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.92"
 
 [dependencies]
 thiserror = "2"
@@ -15,7 +15,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
 # This must match the version apple-codesign uses
-x509-certificate = "0.24"
+x509-certificate = "0.25"
 regex = "1"
 os_pipe = "1"
 plist = "1"
@@ -28,13 +28,11 @@ p12 = "0.6"
 base64 = "0.23"
 
 # apple-codesign
-rsa = "0.9"
-rand08 = { package = "rand", version = "0.8" }
+rsa = "0.10"
 hex = "0.4"
 bcder = "0.7"
 bytes = "1"
-pkcs8 = { version = "0.10.2", features = ["alloc", "std"] }
-pem = "3"
+pem = "4"
 yasna = "0.5"
 
 [target."cfg(target_os = \"macos\")".dependencies]

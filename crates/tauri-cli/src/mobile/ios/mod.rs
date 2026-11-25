@@ -413,6 +413,35 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   }
 }
 
+/// Checks that Xcode has what the given target SDKs need.
+/// Device builds (`iphoneos`) need only the iPhoneOS SDK; anything else also needs a simulator runtime.
+fn ensure_ios_requirements_installed<'a>(sdks: impl IntoIterator<Item = &'a str>) -> Result<()> {
+  if sdks.into_iter().all(|sdk| sdk == "iphoneos") {
+    ensure_iphoneos_sdk_installed()
+  } else {
+    ensure_ios_runtime_installed()
+  }
+}
+
+fn ensure_iphoneos_sdk_installed() -> Result<()> {
+  let output = duct::cmd("xcrun", ["--sdk", "iphoneos", "--show-sdk-path"])
+    .stdout_capture()
+    .stderr_capture()
+    .unchecked()
+    .run()
+    .map_err(|e| Error::CommandFailed {
+      command: "xcrun --sdk iphoneos --show-sdk-path".to_string(),
+      error: e,
+    })?;
+  if !output.status.success() {
+    crate::error::bail!(
+      "the iPhoneOS SDK was not found: {}\nmake sure Xcode is installed and selected with `sudo xcode-select --switch /Applications/Xcode.app`",
+      String::from_utf8_lossy(&output.stderr).trim()
+    );
+  }
+  Ok(())
+}
+
 fn ensure_ios_runtime_installed() -> Result<()> {
   let installed_platforms_json = duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"])
     .read()

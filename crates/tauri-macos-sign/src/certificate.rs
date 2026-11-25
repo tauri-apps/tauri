@@ -423,10 +423,7 @@ mod tests {
     let rsa_key = rsa::PrivateKey::from_pkcs8_der(&key).unwrap();
     let pkcs1_pem = rsa_key.to_pkcs1_pem(Default::default()).unwrap();
     let parsed = parse_private_key(pkcs1_pem.as_bytes()).unwrap();
-    assert_eq!(
-      rsa::PrivateKey::from_pkcs8_der(&parsed).unwrap(),
-      rsa_key
-    );
+    assert_eq!(rsa::PrivateKey::from_pkcs8_der(&parsed).unwrap(), rsa_key);
   }
 
   #[test]

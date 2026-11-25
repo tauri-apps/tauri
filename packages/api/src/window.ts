@@ -2079,6 +2079,8 @@ class Window {
    * #### Platform-specific
    *
    * - **Windows**: Unsupported. Use {@linkcode Window.setOverlayIcon} instead.
+   * - **iOS**: Sets the app icon badge; `0` or `undefined` clears it.
+   * - **Android**: Unsupported.
    *
    * @example
    * ```typescript

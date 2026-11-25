@@ -2021,6 +2021,20 @@ impl<R: Runtime> Window<R> {
     };
     Ok(())
   }
+
+  /// Sets the taskbar badge count. Using `0` or `None` will remove the badge
+  ///
+  /// ## Platform-specific
+  /// - **Windows:** Unsupported, use [`Window::set_overlay_icon`] instead.
+  /// - **iOS:** Sets the app icon badge. The value is clamped to the `i32` range.
+  /// - **Android:** Unsupported.
+  pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_badge_count(count, Some(format!("{}.desktop", self.package_info().name)))
+      .map_err(Into::into)
+  }
 }
 
 /// Desktop window setters and actions.
@@ -2395,20 +2409,6 @@ tauri::Builder::default()
       .window
       .dispatcher
       .set_overlay_icon(icon.map(|x| x.into()))
-      .map_err(Into::into)
-  }
-
-  /// Sets the taskbar badge count. Using `0` or `None` will remove the badge
-  ///
-  /// ## Platform-specific
-  /// - **Windows:** Unsupported, use [`Window::set_overlay_icon`] instead.
-  /// - **iOS:** iOS expects i32, the value will be clamped to i32::MIN, i32::MAX.
-  /// - **Android:** Unsupported.
-  pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .set_badge_count(count, Some(format!("{}.desktop", self.package_info().name)))
       .map_err(Into::into)
   }
 

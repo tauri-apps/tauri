@@ -1575,6 +1575,17 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self.window_builder = self.window_builder.created_by_activity_name(class_name);
     self
   }
+
+  /// Attaches the window to an existing activity that is not attached to a window yet,
+  /// such as the one from [`RunEvent::ActivityRequested`](crate::RunEvent::ActivityRequested).
+  ///
+  /// By default the window is attached to the first activity that is not attached to a window,
+  /// or a new activity is created if [`Self::activity_name`] is set.
+  /// This takes precedence over [`Self::activity_name`].
+  pub fn activity_id(mut self, activity_id: i32) -> Self {
+    self.window_builder = self.window_builder.activity_id(activity_id);
+    self
+  }
 }
 
 /// iOS specific APIs

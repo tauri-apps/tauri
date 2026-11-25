@@ -5,6 +5,7 @@
 use super::{Target, get_app};
 use crate::{
   ConfigValue, Result,
+  error::Context as _,
   helpers::app_paths::Dirs,
   helpers::{config::get_config as get_tauri_config, template::JsonMap},
   interface::AppInterface,
@@ -21,7 +22,10 @@ use handlebars::{
   Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError, RenderErrorReason,
 };
 
-use std::{env::var_os, path::PathBuf};
+use std::{
+  env::var_os,
+  path::{Path, PathBuf},
+};
 
 pub fn command(
   target: Target,
@@ -75,22 +79,20 @@ fn exec(
     .next()
     .map(|bin| {
       let bin_path = PathBuf::from(&bin);
-      let mut build_args = vec!["tauri"];
+      let mut build_args = vec!["tauri".to_string()];
 
       if let Some(bin_stem) = bin_path.file_stem() {
         let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
         if r.is_match(&bin_stem.to_string_lossy()) {
           if var_os("PNPM_PACKAGE_NAME").is_some() {
-            return ("pnpm".into(), build_args);
+            return Ok(("pnpm".into(), build_args));
           } else if is_pnpm_dlx() {
-            return ("pnpm".into(), vec!["dlx", "@tauri-apps/cli"]);
+            return Ok(("pnpm".into(), vec!["dlx".into(), "@tauri-apps/cli".into()]));
           } else if is_pnpm_run() {
-            return ("pnpm".into(), build_args);
-          } else if let Some(npm_execpath) = var_os("npm_execpath") {
-            let manager_stem = PathBuf::from(&npm_execpath)
-              .file_stem()
-              .unwrap()
-              .to_os_string();
+            return Ok(("pnpm".into(), build_args));
+          } else if let Some(manager_stem) = var_os("npm_execpath")
+            .and_then(|path| PathBuf::from(path).file_stem().map(|stem| stem.to_owned()))
+          {
             let is_npm = manager_stem == "npm-cli";
             let binary = if is_npm {
               "npm".into()
@@ -101,26 +103,36 @@ fn exec(
             };
 
             if is_npm {
-              build_args.insert(0, "run");
-              build_args.insert(1, "--");
+              build_args.insert(0, "run".into());
+              build_args.insert(1, "--".into());
             }
 
-            return (binary, build_args);
+            return Ok((binary, build_args));
           }
+
+          let cwd = std::env::current_dir().context("failed to resolve current directory")?;
+          let task_dir = match target {
+            Target::Android => dirs.tauri.to_path_buf(),
+            #[cfg(target_os = "macos")]
+            Target::Ios => dirs.tauri.join("gen/apple"),
+          };
+          return node_script_command(bin_path, args.next(), &cwd, &task_dir)
+            .context("could not find the Node CLI entry script; run the Tauri CLI directly or through a package manager");
         } else if bin_stem == "deno" {
-          build_args.insert(0, "task");
-          return (std::ffi::OsString::from("deno"), build_args);
+          build_args.insert(0, "task".into());
+          return Ok((std::ffi::OsString::from("deno"), build_args));
         } else if !cfg!(debug_assertions) && bin_stem == "cargo-tauri" {
-          return (std::ffi::OsString::from("cargo"), build_args);
+          return Ok((std::ffi::OsString::from("cargo"), build_args));
         }
       }
 
-      (bin, build_args)
+      Ok((bin, build_args))
     })
-    .unwrap_or_else(|| (std::ffi::OsString::from("cargo"), vec!["tauri"]));
+    .transpose()?
+    .unwrap_or_else(|| (std::ffi::OsString::from("cargo"), vec!["tauri".into()]));
 
-  build_args.push(target.command_name());
-  build_args.push(target.ide_build_script_name());
+  build_args.push(target.command_name().into());
+  build_args.push(target.ide_build_script_name().into());
 
   let mut binary = binary.to_string_lossy().to_string();
   if binary.ends_with(".exe") || binary.ends_with(".cmd") || binary.ends_with(".bat") {
@@ -423,6 +435,42 @@ fn unprefix_path(
         })?,
     )
     .map_err(Into::into)
+}
+
+fn node_script_command(
+  binary: PathBuf,
+  entry: Option<std::ffi::OsString>,
+  cwd: &Path,
+  task_dir: &Path,
+) -> Option<(std::ffi::OsString, Vec<String>)> {
+  log::debug!("Falling back to Node CLI entry script detection");
+
+  let entry = cwd.join(entry?);
+  let resolved = entry.canonicalize().ok()?;
+  if !resolved.is_file() || !resolved.file_name().is_some_and(|name| name == "tauri.js") {
+    return None;
+  }
+
+  let entry = relative_to(&entry, task_dir);
+  let entry = entry.to_str()?;
+  let binary = if binary.is_relative()
+    && binary
+      .parent()
+      .is_some_and(|parent| !parent.as_os_str().is_empty())
+  {
+    relative_to(&cwd.join(binary), task_dir)
+  } else {
+    binary
+  };
+  Some((binary.into_os_string(), vec![entry.to_owned()]))
+}
+
+fn relative_to(path: &Path, base: &Path) -> PathBuf {
+  if common_path::common_path(path, base).is_some() {
+    util::relativize_path(path, base)
+  } else {
+    path.to_path_buf()
+  }
 }
 
 /// pnpm's native binary (pnpm >= 11) runs package scripts without setting `PNPM_PACKAGE_NAME`,

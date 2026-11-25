@@ -18,7 +18,7 @@ use crate::{
     plist::merge_plist,
   },
   interface::{AppInterface, Options as InterfaceOptions},
-  mobile::{CliOptions, TargetDevice, ios::ensure_ios_runtime_installed, write_options},
+  mobile::{CliOptions, TargetDevice, ios::ensure_ios_requirements_installed, write_options},
 };
 use clap::{ArgAction, Parser, ValueEnum};
 
@@ -272,7 +272,25 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
   let mut env = env().context("failed to load iOS environment")?;
 
   if !options.open {
-    ensure_ios_runtime_installed()?;
+    let all_targets = Target::all();
+    let mut sdks: Vec<&str> = match options.targets.as_deref() {
+      Some(names) if !names.is_empty() => names
+        .iter()
+        .filter_map(|name| all_targets.get(name.as_str()))
+        .map(|target| target.sdk)
+        .collect(),
+      // with no targets the archive falls back to the default target
+      _ => vec![all_targets.get(Target::DEFAULT_KEY).unwrap().sdk],
+    };
+    // `ios run` also builds and runs on the selected device
+    sdks.extend(
+      options
+        .target_device
+        .as_ref()
+        .and_then(|device| all_targets.values().find(|t| t.triple == device.target))
+        .map(|target| target.sdk),
+    );
+    ensure_ios_requirements_installed(sdks)?;
   }
 
   // start from the user's export options so values only inferred from the Xcode project

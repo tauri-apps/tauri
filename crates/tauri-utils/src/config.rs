@@ -61,7 +61,9 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability};
+use crate::{
+  TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability, url::UrlScope,
+};
 
 pub use self::parse::parse;
 
@@ -2239,6 +2241,61 @@ pub enum ScrollBarStyle {
   FluentOverlay,
 }
 
+/// Action to perform when a new window is requested to be created.
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "action")]
+#[non_exhaustive]
+pub enum OnNewWindow {
+  /// Allow the window to be created using the default webview implementation.
+  ///
+  /// The `urls` scope is only checked against the URL initially requested by `window.open`.
+  /// The window is then managed by the webview and Tauri cannot restrict its navigation,
+  /// so it can still be navigated to any URL afterwards (e.g. by the opener or a redirect).
+  /// Use [`Self::AllowTauriWindow`] if navigations must be restricted to the scope too.
+  AllowDefault {
+    /// Only allow URLs matching the given pattern list when set.
+    ///
+    /// Each entry is a glob pattern such as `"https://*.tauri.app/**"`, where `*` does not match `/`
+    /// and `**` matches any number of path segments.
+    /// A pattern without a path such as `"https://tauri.app"` matches any path on that origin.
+    ///
+    /// The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.
+    /// See [`UrlScope`] for details.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
+  },
+  /// Allow the window to be created using a Tauri window.
+  ///
+  /// The created windows are labeled `{label}-created-{n}`, where `{label}` is the label
+  /// of the webview that requested the new window and `{n}` is a counter starting at 0
+  /// (e.g. `main-created-0`).
+  ///
+  /// **Security**: capabilities are matched against window labels with glob patterns,
+  /// so a capability targeting `"windows": ["*"]` or `"windows": ["main*"]` also grants
+  /// its permissions to the windows created for `main`, which may load any URL
+  /// allowed by `urls` (any URL at all if `urls` is not set).
+  /// Scope capabilities to exact window labels (e.g. `"windows": ["main"]`)
+  /// and set `urls` to restrict which URLs these windows can load.
+  AllowTauriWindow {
+    /// Only allow URLs matching the given pattern list when set.
+    ///
+    /// Each entry is a glob pattern such as `"https://*.tauri.app/**"`, where `*` does not match `/`
+    /// and `**` matches any number of path segments.
+    /// A pattern without a path such as `"https://tauri.app"` matches any path on that origin.
+    ///
+    /// The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.
+    /// See [`UrlScope`] for details.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
+  },
+  /// Deny the window from being created.
+  #[default]
+  Deny,
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -2724,6 +2781,13 @@ pub struct WindowConfig {
   ///   operation.
   #[serde(default = "default_true", alias = "general-autofill-enabled")]
   pub general_autofill_enabled: bool,
+  /// Action to perform when a new window is requested to be created.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS**: Unsupported, new window requests are always denied.
+  #[serde(default, alias = "on-new-window")]
+  pub on_new_window: OnNewWindow,
 }
 
 // For [`Self::data_store_identifier`]
@@ -2796,6 +2860,7 @@ impl Default for WindowConfig {
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
       general_autofill_enabled: true,
+      on_new_window: OnNewWindow::default(),
     }
   }
 }
@@ -4714,6 +4779,24 @@ mod build {
     }
   }
 
+  impl ToTokens for OnNewWindow {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::OnNewWindow };
+
+      tokens.append_all(match self {
+        Self::AllowDefault { urls } => {
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          quote! { #prefix::AllowDefault { urls: #urls } }
+        }
+        Self::AllowTauriWindow { urls } => {
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          quote! { #prefix::AllowTauriWindow { urls: #urls } }
+        }
+        Self::Deny => quote! { #prefix::Deny },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       // For [`Self::data_store_identifier`]
@@ -4785,6 +4868,7 @@ mod build {
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
       let general_autofill_enabled = self.general_autofill_enabled;
+      let on_new_window = &self.on_new_window;
 
       literal_struct!(
         tokens,
@@ -4853,7 +4937,8 @@ mod build {
         activity_name,
         created_by_activity_name,
         requested_by_scene_identifier,
-        general_autofill_enabled
+        general_autofill_enabled,
+        on_new_window
       );
     }
   }
@@ -5885,5 +5970,15 @@ mod test {
     let config_from_default: WindowConfig = WindowConfig::default();
 
     assert_eq!(config_from_deserialization, config_from_default);
+  }
+
+  #[test]
+  fn on_new_window_kebab_case_alias() {
+    let config: WindowConfig =
+      serde_json::from_str(r#"{ "on-new-window": { "action": "allowTauriWindow" } }"#).unwrap();
+    assert_eq!(
+      config.on_new_window,
+      OnNewWindow::AllowTauriWindow { urls: None }
+    );
   }
 }

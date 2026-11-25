@@ -3,7 +3,7 @@ name = "tauri-cli"
 version = "2.12.6"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.92"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -36,7 +36,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-cargo-mobile2 = { version = "0.22.5", default-features = false }
+cargo-mobile2 = { version = "0.23.0", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.26", features = ["server"] }
@@ -88,7 +88,7 @@ ignore = "0.4"
 ctrlc = "3"
 log = { version = "0.4.21", features = ["kv", "kv_std"] }
 env_logger = "0.11"
-icns = { package = "tauri-icns", version = "0.1" }
+icns = { package = "tauri-icns", version = "0.2" }
 image = { version = "0.25", default-features = false, features = ["ico"] }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["macros", "sync"] }

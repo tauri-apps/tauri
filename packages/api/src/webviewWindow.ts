@@ -130,7 +130,11 @@ class WebviewWindow {
             typeof options.parent === 'string'
               ? options.parent
               : options.parent?.label,
-          label
+          label,
+          onNewWindow:
+            typeof options?.onNewWindow === 'string'
+              ? { action: options.onNewWindow }
+              : options?.onNewWindow
         }
       })
         .then(async () => this.emit('tauri://created'))

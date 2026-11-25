@@ -355,7 +355,9 @@ mod tests {
 
   #[test]
   fn template_matches_signing_config() {
-    let template = include_str!("../../../templates/mobile/android/app/build.gradle.kts");
+    // git may check the template out with CRLF line endings on Windows
+    let template =
+      include_str!("../../../templates/mobile/android/app/build.gradle.kts").replace("\r\n", "\n");
     for line in SIGNING_CONFIG.lines() {
       let line = line.replace("java.util.Properties()", "Properties()");
       assert!(

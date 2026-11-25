@@ -447,11 +447,7 @@ fn node_script_command(
 
   let entry = cwd.join(entry?);
   let resolved = entry.canonicalize().ok()?;
-  if !resolved.is_file()
-    || !resolved.file_name().is_some_and(|name| {
-      name == "tauri.js"
-    })
-  {
+  if !resolved.is_file() || !resolved.file_name().is_some_and(|name| name == "tauri.js") {
     return None;
   }
 

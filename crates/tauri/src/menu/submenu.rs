@@ -127,6 +127,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// Create a new submenu with a native icon.
+  ///
+  /// See [`Submenu::set_native_icon`] for the platform-specific behavior.
   pub fn new_with_native_icon<M: Manager<R>, S: AsRef<str>>(
     manager: &M,
     text: S,
@@ -194,6 +196,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// Create a new submenu with an id and a native icon.
+  ///
+  /// See [`Submenu::set_native_icon`] for the platform-specific behavior.
   pub fn with_id_and_native_icon<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
     manager: &M,
     id: I,
@@ -416,17 +420,59 @@ impl<R: Runtime> Submenu<R> {
     run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_icon(icon))
   }
 
-  /// Change this submenu icon to a native image or remove it.
+  /// Change this submenu icon, or remove it, and draw it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu the way the built-in items do. [`Submenu::set_icon`] draws the icon as-is instead.
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows / Linux**: Unsupported.
-  pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
+  /// - **Windows / Linux:** Same as [`Submenu::set_icon`], as only macOS has template images.
+  pub fn set_icon_templated(&self, icon: Option<crate::image::Image<'_>>) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    return run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().set_native_icon(_icon.map(Into::into))
-    });
-    #[allow(unreachable_code)]
+    {
+      let icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| (*self_.0)
+        .as_ref()
+        .set_icon_templated(icon))?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    self.set_icon(icon)?;
     Ok(())
+  }
+
+  /// Whether this submenu's icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// See [`Submenu::set_icon_templated`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Always `false`, as only macOS has template images.
+  pub fn icon_is_template(&self) -> crate::Result<bool> {
+    #[cfg(target_os = "macos")]
+    return run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().icon_is_template());
+    #[allow(unreachable_code)]
+    Ok(false)
+  }
+
+  /// Change this submenu icon to a native image or remove it.
+  ///
+  /// Note that this overrides any icon set with [`Submenu::set_icon`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Known variants map to freedesktop icon names, so the icon is resolved by the
+  ///   desktop icon theme and follows its light and dark variants.
+  /// - **macOS:** Known variants map to AppKit image names.
+  /// - **Windows:** Known variants map to stock shell icons where an equivalent exists, and the
+  ///   submenu is drawn without an icon otherwise.
+  pub fn set_native_icon(&self, icon: Option<NativeIcon>) -> crate::Result<()> {
+    let icon = icon.map(Into::into);
+    run_item_main_thread!(self, |self_: Self| (*self_.0)
+      .as_ref()
+      .set_native_icon(icon))
   }
 }

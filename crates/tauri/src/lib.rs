@@ -27,7 +27,7 @@
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
 //! - **objc-exception**: This feature flag is no-op since 2.3.0.
-//! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
+//! - **linux-libxdo**: This feature flag is no-op since 2.13.0.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `app > security > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`window::Window#method.open_devtools`]. Enabled by default on debug builds.
@@ -45,8 +45,9 @@
 //! - **image-ico**: Adds support to parse `.ico` image, see [`image::Image`].
 //! - **image-png**: Adds support to parse `.png` image, see [`image::Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
-//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`], [`Window`] and [`AppHandle`]
+//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`], [`Window`] and [`AppHandle`]. Also implements [`specta::Type`] for [`ipc::Channel`], [`ipc::Request`] and [`ipc::Response`].
 //! - **dynamic-acl** *(enabled by default)*: Enables you to add ACLs at runtime, notably it enables the [`Manager::add_capability`] function.
+//! - **url-pattern**: Use the [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) spec instead of glob patterns for URL scopes such as [`OnNewWindow`](crate::utils::config::OnNewWindow) `urls`. Increases the binary size since it pulls in a regex engine.
 //!
 //! ## Cargo allowlist features
 //!
@@ -86,7 +87,7 @@ pub use swift_rs;
 pub use tauri_macros::include_image;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
-pub use tauri_macros::{command, generate_handler};
+pub use tauri_macros::{command, command_metadata, generate_handler};
 
 use tauri_utils::assets::AssetsIter;
 pub use url::Url;

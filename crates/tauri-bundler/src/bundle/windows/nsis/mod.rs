@@ -17,14 +17,16 @@ use crate::{
   error::{ErrorExt, bail},
   utils::{
     CommandExt,
-    http_utils::{HashAlgorithm, download_and_verify, verify_file_hash},
+    http_utils::{HashAlgorithm, download_and_verify, extract_zip, verify_file_hash},
   },
 };
 use tauri_utils::display_path;
 
 use crate::error::Context;
 use handlebars::{Handlebars, to_json};
-use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
+use tauri_utils::config::{
+  NSISInstallerMode, NsisCompression, NsisInstallerTarget, WebviewInstallMode,
+};
 
 use std::{
   collections::BTreeMap,
@@ -33,132 +35,196 @@ use std::{
   process::Command,
 };
 
-// URLS for the NSIS toolchain.
+struct NsisToolchain {
+  compiler_path: PathBuf,
+  resource_path: PathBuf,
+}
+
+impl NsisToolchain {
+  #[cfg(target_os = "windows")]
+  const COMPILER_NAME: &str = "makensis.exe";
+  #[cfg(not(target_os = "windows"))]
+  const COMPILER_NAME: &str = "makensis";
+
+  fn detect() -> crate::Result<Self> {
+    let custom_nsis_directory = std::env::var_os("NSIS_PATH").map(PathBuf::from);
+    let compiler_path = match custom_nsis_directory {
+      Some(path) => path.join(Self::COMPILER_NAME),
+      None => which::which(Self::COMPILER_NAME)?,
+    };
+
+    Self::new(compiler_path)
+  }
+
+  #[cfg(target_os = "windows")]
+  fn get_or_download(tauri_tools_path: &Path) -> crate::Result<Self> {
+    let nsis_toolset_path = tauri_tools_path.join(NSIS_CACHE_DIRECTORY);
+
+    if !nsis_toolset_path.exists() || !verify_nsis_exe(&nsis_toolset_path) {
+      let _ = fs::remove_dir_all(&nsis_toolset_path);
+      get_and_extract_nsis(&nsis_toolset_path, tauri_tools_path)?;
+    }
+
+    Self::new(nsis_toolset_path.join(Self::COMPILER_NAME))
+  }
+
+  fn new(compiler_path: PathBuf) -> crate::Result<Self> {
+    // Resolve symlinks, including Homebrew's, before invoking the compiler.
+    let compiler_path = dunce::canonicalize(&compiler_path)
+      .fs_context("failed to resolve NSIS compiler", compiler_path)?;
+
+    #[cfg(target_os = "windows")]
+    let resource_path = compiler_path
+      .parent()
+      .context("missing NSIS compiler directory")?
+      .to_path_buf();
+    #[cfg(target_os = "linux")]
+    let resource_path = PathBuf::from("/usr/share/nsis");
+    #[cfg(target_os = "macos")]
+    let resource_path = {
+      // Homebrew installs bin/makensis and share/nsis under the same prefix.
+      // The compiler symlink has already been resolved above.
+      let bin_folder = compiler_path.parent().context("missing makensis parent")?;
+      let root_folder = bin_folder.parent().context("missing makensis root")?;
+      root_folder.join("share").join("nsis")
+    };
+
+    let resource_path = std::path::absolute(&resource_path)
+      .fs_context("failed to resolve NSIS resources", resource_path)?;
+
+    Ok(Self {
+      compiler_path,
+      resource_path,
+    })
+  }
+}
+
+struct NsisPlugin {
+  name: &'static str,
+  filename: &'static str,
+  version: &'static str,
+  url: &'static str,
+  sha256: &'static str,
+  dll_sha256: &'static [(&'static str, &'static str)],
+}
+
+impl NsisPlugin {
+  fn is_cache_valid(&self, directory: &Path) -> bool {
+    self.dll_sha256.iter().all(|(target, hash)| {
+      let path = directory.join(target).join(self.filename);
+      verify_file_hash(path, hash, HashAlgorithm::Sha256).is_ok()
+    })
+  }
+}
+
+const NSIS_PLUGINS: &[NsisPlugin] = &[NsisPlugin {
+  name: "nsis_tauri_utils",
+  filename: "nsis_tauri_utils.dll",
+  version: "0.6.1",
+  url: "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.6.1/nsis_tauri_utils.zip",
+  sha256: "83AEDE92017AC290A7F2BD606B01950CAB2C0E88093D5F2DC9D2AE83BD94DB96",
+  dll_sha256: &[
+    (
+      "x86-unicode",
+      "FC918620B9B0CF5166BF2D341E961C60A10B27161F668225E6BFF41E5371A8B9",
+    ),
+    (
+      "x86-ansi",
+      "F4987CF181A1B52DCDCE0FC0CE5E1674BEE9B6D10BDA9BFD69E136B36D517014",
+    ),
+    (
+      "amd64-unicode",
+      "5DC24F5CEB783D7E90BFBE62548CFBB059B1CB9AD7618CBDBFA28FA5D3B992D6",
+    ),
+  ],
+}];
+
+// NSIS toolchain cache directory, download URL, and checksums.
+#[cfg(target_os = "windows")]
+const NSIS_CACHE_DIRECTORY: &str = "NSIS-3.13";
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.13/nsis-3.13.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E";
-const NSIS_EXE_SHA1: &str = "6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2";
-const NSIS_TAURI_UTILS_URL: &str = "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
-
 #[cfg(target_os = "windows")]
-const NSIS_REQUIRED_FILES: &[&str] = &[
-  "makensis.exe",
-  "Bin/makensis.exe",
-  "Stubs/lzma-x86-unicode",
-  "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
-  "Include/MUI2.nsh",
-  "Include/FileFunc.nsh",
-  "Include/x64.nsh",
-  "Include/nsDialogs.nsh",
-  "Include/WinMessages.nsh",
-  "Include/Win/COM.nsh",
-  "Include/Win/Propkey.nsh",
-  "Include/Win/RestartManager.nsh",
-];
-const NSIS_PLUGIN_FILES: &[&str] = &[
-  "NSISdl.dll",
-  "StartMenu.dll",
-  "System.dll",
-  "nsDialogs.dll",
-  "additional/nsis_tauri_utils.dll",
-];
-#[cfg(not(target_os = "windows"))]
-const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/additional/nsis_tauri_utils.dll"];
+const NSIS_EXE_SHA1: &str = "6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2";
 
-const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
-  "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
-  NSIS_TAURI_UTILS_URL,
-  NSIS_TAURI_UTILS_SHA1,
-  HashAlgorithm::Sha1,
-)];
+const NSIS_BUILTIN_PLUGIN_FILES: &[&str] =
+  &["NSISdl.dll", "StartMenu.dll", "System.dll", "nsDialogs.dll"];
+
+/// Files included by `installer.nsi`, copied next to it as-is,
+/// preserving the directory structure.
+///
+/// Unlike `installer.nsi` these are not handlebars templates.
+const NSIS_TEMPLATE_INCLUDES: include_dir::Dir<'_> =
+  include_dir::include_dir!("$CARGO_MANIFEST_DIR/src/bundle/windows/nsis/includes");
 
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
   let tauri_tools_path = tools_directory(settings)?;
 
-  let nsis_toolset_path = tauri_tools_path.join("NSIS");
+  let toolchain = NsisToolchain::detect();
+  #[cfg(target_os = "windows")]
+  let toolchain = toolchain.or_else(|_| NsisToolchain::get_or_download(&tauri_tools_path));
+  let toolchain = toolchain?;
 
-  if !nsis_toolset_path.exists() {
-    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
-  } else if NSIS_REQUIRED_FILES
-    .iter()
-    .any(|p| !nsis_toolset_path.join(p).exists())
-  {
-    log::warn!("NSIS directory is missing some files. Recreating it.");
-    std::fs::remove_dir_all(&nsis_toolset_path)?;
-    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
-  } else if cfg!(target_os = "windows")
-    && let Err(e) = verify_file_hash(
-      nsis_toolset_path.join("NSIS.exe"),
-      NSIS_EXE_SHA1,
-      HashAlgorithm::Sha1,
-    )
-  {
-    log::warn!(
-      "NSIS.exe is {}. Recreating it.",
-      if matches!(e, Error::HashError) {
-        "outdated"
-      } else {
-        "missing"
-      }
-    );
-    std::fs::remove_dir_all(&nsis_toolset_path)?;
-    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
-  } else {
-    let mismatched = NSIS_REQUIRED_FILES_HASH
-      .iter()
-      .filter(|(p, _, hash, hash_algorithm)| {
-        verify_file_hash(nsis_toolset_path.join(p), hash, *hash_algorithm).is_err()
-      })
-      .collect::<Vec<_>>();
+  let additional_plugins_paths = prepare_nsis_plugins(&tauri_tools_path)?;
 
-    if !mismatched.is_empty() {
-      log::warn!("NSIS directory contains mis-hashed files. Redownloading them.");
-      for (path, url, hash, hash_algorithm) in mismatched {
-        let data = download_and_verify(url, hash, *hash_algorithm)?;
-        let out_path = nsis_toolset_path.join(path);
-        std::fs::create_dir_all(out_path.parent().context("output path has no parent")?)
-          .fs_context("failed to create file output directory", out_path.clone())?;
-        fs::write(&out_path, data)
-          .fs_context("failed to save NSIS downloaded file", out_path.clone())?;
-      }
-    }
+  build_nsis_app_installer(
+    settings,
+    &toolchain,
+    &additional_plugins_paths,
+    &tauri_tools_path,
+    updater,
+  )
+}
+
+#[cfg(target_os = "windows")]
+fn verify_nsis_exe(nsis_toolset_path: &Path) -> bool {
+  if let Err(e) = verify_file_hash(
+    nsis_toolset_path.join("NSIS.exe"),
+    NSIS_EXE_SHA1,
+    HashAlgorithm::Sha1,
+  ) {
+    let status = if matches!(e, Error::HashError) {
+      "outdated"
+    } else {
+      "missing"
+    };
+    log::warn!("NSIS.exe is {status}. Recreating it.");
+    return false;
   }
 
-  build_nsis_app_installer(settings, &nsis_toolset_path, &tauri_tools_path, updater)
+  true
 }
 
 // Gets NSIS and verifies the download via Sha1
-fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> crate::Result<()> {
-  log::info!("Verifying NSIS package");
-
-  #[cfg(target_os = "windows")]
-  {
-    let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
-    log::info!("extracting NSIS");
-    crate::utils::http_utils::extract_zip(&data, _tauri_tools_path)?;
-    fs::rename(_tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
-  }
-
-  // download additional plugins
-  let nsis_plugins = nsis_toolset_path.join("Plugins");
-
-  let data = download_and_verify(
-    NSIS_TAURI_UTILS_URL,
-    NSIS_TAURI_UTILS_SHA1,
-    HashAlgorithm::Sha1,
-  )?;
-
-  let target_folder = nsis_plugins.join("x86-unicode").join("additional");
-  fs::create_dir_all(&target_folder)?;
-  fs::write(target_folder.join("nsis_tauri_utils.dll"), data)?;
+#[cfg(target_os = "windows")]
+fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> crate::Result<()> {
+  let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
+  log::info!("extracting NSIS");
+  crate::utils::http_utils::extract_zip(&data, tauri_tools_path)?;
+  fs::rename(tauri_tools_path.join("nsis-3.13"), nsis_toolset_path)?;
 
   Ok(())
+}
+
+fn prepare_nsis_plugins(tauri_tools_path: &Path) -> crate::Result<Vec<PathBuf>> {
+  let prepare_plugin = |plugin: &NsisPlugin| -> crate::Result<PathBuf> {
+    let directory = tauri_tools_path
+      .join("NSIS-plugins")
+      .join(format!("{}-{}", plugin.name, plugin.version));
+    let plugins_directory = directory.join("Plugins");
+    if !plugin.is_cache_valid(&plugins_directory) {
+      let data = download_and_verify(plugin.url, plugin.sha256, HashAlgorithm::Sha256)?;
+      extract_zip(&data, &directory)?;
+    }
+    Ok(plugins_directory)
+  };
+
+  NSIS_PLUGINS.iter().map(prepare_plugin).collect()
 }
 
 fn try_add_numeric_build_number(version_str: &str) -> crate::Result<String> {
@@ -185,12 +251,50 @@ fn try_add_numeric_build_number(version_str: &str) -> crate::Result<String> {
   ))
 }
 
+fn copy_nsis_plugins_for_signing(
+  toolchain: &NsisToolchain,
+  additional_plugins_paths: &[PathBuf],
+  output_path: &Path,
+  plugin_target: &str,
+) -> crate::Result<PathBuf> {
+  let plugins_path = output_path.join("Plugins");
+
+  // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)
+  crate::utils::fs_utils::copy_dir(
+    &toolchain.resource_path.join("Plugins").join(plugin_target),
+    &plugins_path.join(plugin_target),
+  )
+  .context("failed to copy system NSIS Plugins folder to local copy")?;
+
+  // Copy downloaded plugins only when signing, leaving cached DLLs untouched.
+  for directory in additional_plugins_paths {
+    crate::utils::fs_utils::copy_dir(directory, &plugins_path.join(plugin_target))
+      .context("failed to copy additional NSIS Plugins folder to local copy")?;
+  }
+  Ok(plugins_path)
+}
+
 fn build_nsis_app_installer(
   settings: &Settings,
-  #[allow(unused_variables)] nsis_toolset_path: &Path,
+  toolchain: &NsisToolchain,
+  additional_plugins_paths: &[PathBuf],
   tauri_tools_path: &Path,
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
+  let installer_target = settings
+    .windows()
+    .nsis
+    .as_ref()
+    .map(|nsis| nsis.installer_target)
+    .unwrap_or_default();
+
+  let plugin_target = installer_target.as_str();
+
+  let additional_plugins_paths: Vec<_> = additional_plugins_paths
+    .iter()
+    .map(|path| path.join(plugin_target))
+    .collect();
+
   let arch = match settings.binary_arch() {
     Arch::X86_64 => "x64",
     Arch::X86 => "x86",
@@ -210,70 +314,15 @@ fn build_nsis_app_installer(
   }
   fs::create_dir_all(&output_path)?;
 
-  // we make a copy of the NSIS directory if we're going to sign its DLLs
-  // because we don't want to change the DLL hashes so the cache can reuse it
-  let maybe_plugin_copy_path = if settings.windows().can_sign() {
-    // find nsis path
-    #[cfg(target_os = "linux")]
-    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
-      .map(PathBuf::from)
-      .unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
-    #[cfg(target_os = "macos")]
-    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
-      .map(PathBuf::from)
-      .context("failed to resolve NSIS path")
-      .or_else(|_| {
-        let mut makensis_path = which::which("makensis").map_err(|error| Error::CommandFailed {
-          command: "makensis".to_string(),
-          error: std::io::Error::other(format!("failed to find makensis: {error}")),
-        })?;
-        // homebrew installs it as a symlink
-        if makensis_path.is_symlink() {
-          // read_link might return a path relative to makensis_path so we must use join() and canonicalize
-          makensis_path = makensis_path
-            .parent()
-            .context("missing makensis parent")?
-            .join(
-              std::fs::read_link(&makensis_path)
-                .fs_context("failed to resolve makensis symlink", makensis_path.clone())?,
-            )
-            .canonicalize()
-            .fs_context(
-              "failed to canonicalize makensis path",
-              makensis_path.clone(),
-            )?;
-        }
-        // file structure:
-        // ├── bin
-        // │   ├── makensis
-        // ├── share
-        // │   ├── nsis
-        let bin_folder = makensis_path.parent().context("missing makensis parent")?;
-        let root_folder = bin_folder.parent().context("missing makensis root")?;
-        crate::Result::Ok(root_folder.join("share").join("nsis"))
-      })?;
-    #[cfg(windows)]
-    let system_nsis_toolset_path = nsis_toolset_path.to_path_buf();
-
-    let plugins_path = output_path.join("Plugins");
-    // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)
-    crate::utils::fs_utils::copy_dir(
-      &system_nsis_toolset_path.join("Plugins").join("x86-unicode"),
-      &plugins_path.join("x86-unicode"),
-    )
-    .context("failed to copy system NSIS Plugins folder to local copy")?;
-    // copy our downloaded DLLs
-    crate::utils::fs_utils::copy_dir(
-      &nsis_toolset_path
-        .join("Plugins")
-        .join("x86-unicode")
-        .join("additional"),
-      &plugins_path.join("x86-unicode").join("additional"),
-    )
-    .context("failed to copy additional NSIS Plugins folder to local copy")?;
-    Some(plugins_path)
+  // Copy DLLs before signing so cached and system plugins remain unchanged.
+  let plugins_to_sign_path = if settings.windows().can_sign() && !settings.no_sign() {
+    Some(copy_nsis_plugins_for_signing(
+      toolchain,
+      &additional_plugins_paths,
+      &output_path,
+      plugin_target,
+    )?)
   } else {
-    // in this case plugin_copy_path can be None, we'll use the system default path
     None
   };
 
@@ -284,26 +333,66 @@ fn build_nsis_app_installer(
     .publisher()
     .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
 
-  let additional_plugins_path = maybe_plugin_copy_path
-    .clone()
-    .unwrap_or_else(|| nsis_toolset_path.join("Plugins"))
-    .join("x86-unicode")
-    .join("additional");
+  // See the compatibility note below for this legacy template variable.
+  let additional_plugins_path = plugins_to_sign_path
+    .as_ref()
+    .map(|p| p.join(plugin_target))
+    .or_else(|| additional_plugins_paths.first().cloned());
+
+  let additional_plugins_paths = plugins_to_sign_path
+    .is_none()
+    .then_some(additional_plugins_paths.as_slice());
 
   data.insert(
-    "additional_plugins_path",
-    // either our Plugins copy (when signing) or the cache/Plugins/x86-unicode path
-    to_json(&additional_plugins_path),
+    "additional_plugins_paths",
+    to_json(additional_plugins_paths),
   );
 
-  if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+  // TODO: remove in v3
+  // Preserve the existing template variable for custom installer templates.
+  // Previous cache layout:
+  //   NSIS/
+  //     Plugins/
+  //       x86-unicode/
+  //         additional/                 <- previous variable value
+  //           nsis_tauri_utils.dll
+  // Current cache layout:
+  //   NSIS-plugins/
+  //     <name>-<version>/
+  //       Plugins/
+  //         <target>/                   <- variable value when unsigned (first plugin)
+  //           <filename>
+  // Build-local layout when signing:
+  //   Plugins/
+  //     <target>/                       <- variable value when signing
+  //       <built-in and downloaded DLLs>
+  // Unsigned compatibility assumes a single downloaded plugin; adding or
+  // reordering plugins can break templates using this variable.
+  data.insert("additional_plugins_path", to_json(additional_plugins_path));
+
+  if let Some(plugin_copy_path) = &plugins_to_sign_path {
     data.insert(
       "signed_plugins_path",
-      to_json(plugin_copy_path.join("x86-unicode")),
+      to_json(plugin_copy_path.join(plugin_target)),
+    );
+  }
+
+  if let Some(tauri_dir) = settings.tauri_dir() {
+    data.insert(
+      "tauri_dir",
+      to_json(dunce::canonicalize(tauri_dir).fs_context(
+        "failed to resolve the tauri directory",
+        tauri_dir.to_path_buf(),
+      )?),
     );
   }
 
   data.insert("arch", to_json(arch));
+  data.insert("installer_target", to_json(plugin_target));
+  data.insert(
+    "unicode",
+    to_json(installer_target != NsisInstallerTarget::X86Ansi),
+  );
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
@@ -502,7 +591,7 @@ fn build_nsis_app_installer(
         language_files_paths.push(path);
       } else {
         log::warn!(
-          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`"
+          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > customLanguageFiles`"
         );
       }
     }
@@ -661,11 +750,7 @@ fn build_nsis_app_installer(
       .expect("Failed to setup handlebar template");
   }
 
-  write_utf8_with_bom(
-    output_path.join("FileAssociation.nsh"),
-    include_bytes!("./FileAssociation.nsh"),
-  )?;
-  write_utf8_with_bom(output_path.join("utils.nsh"), include_bytes!("./utils.nsh"))?;
+  write_template_includes(&NSIS_TEMPLATE_INCLUDES, &output_path)?;
 
   let installer_nsi_path = output_path.join("installer.nsi");
   write_utf8_with_bom(
@@ -693,10 +778,15 @@ fn build_nsis_app_installer(
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   if settings.windows().can_sign() {
-    if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
-      let plugin_copy_path = plugin_copy_path.join("x86-unicode");
+    if let Some(plugin_copy_path) = &plugins_to_sign_path {
+      let plugin_copy_path = plugin_copy_path.join(plugin_target);
       log::info!("Signing NSIS plugins");
-      for dll in NSIS_PLUGIN_FILES {
+      let downloaded_plugins = NSIS_PLUGINS.iter().map(|plugin| plugin.filename);
+      for dll in NSIS_BUILTIN_PLUGIN_FILES
+        .iter()
+        .copied()
+        .chain(downloaded_plugins)
+      {
         let path = plugin_copy_path.join(dll);
         if path.exists() {
           try_sign(&path, settings)?;
@@ -709,12 +799,7 @@ fn build_nsis_app_installer(
 
   log::info!(action = "Running"; "makensis to produce {}", display_path(&nsis_installer_path));
 
-  #[cfg(target_os = "windows")]
-  let mut nsis_cmd = Command::new(nsis_toolset_path.join("makensis.exe"));
-  #[cfg(not(target_os = "windows"))]
-  let mut nsis_cmd = Command::new("makensis");
-
-  let status = nsis_cmd
+  let status = Command::new(&toolchain.compiler_path)
     .args(["-INPUTCHARSET", "UTF8", "-OUTPUTCHARSET", "UTF8"])
     .arg(match settings.log_level() {
       log::Level::Error => "-V1",
@@ -723,12 +808,10 @@ fn build_nsis_app_installer(
       _ => "-V4",
     })
     .arg(installer_nsi_path)
-    .env_remove("NSISDIR")
-    .env_remove("NSISCONFDIR")
     .current_dir(output_path)
     .piped()
     .map_err(|error| Error::CommandFailed {
-      command: "makensis.exe".to_string(),
+      command: toolchain.compiler_path.display().to_string(),
       error,
     })?;
   if !status.success() {
@@ -981,6 +1064,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "farsi" | "persian" => include_bytes!("./languages/Farsi.nsh"),
     "turkish" => include_bytes!("./languages/Turkish.nsh"),
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
+    "polish" => include_bytes!("./languages/Polish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),
     "ukrainian" => include_bytes!("./languages/Ukrainian.nsh"),
     "norwegian" => include_bytes!("./languages/Norwegian.nsh"),
@@ -988,6 +1072,23 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     _ => return None,
   };
   Some((path, content))
+}
+
+/// Recursively writes the contents of `dir` into `output_path`.
+fn write_template_includes(dir: &include_dir::Dir<'_>, output_path: &Path) -> crate::Result<()> {
+  for file in dir.files() {
+    let path = output_path.join(file.path());
+    if let Some(parent) = path.parent() {
+      fs::create_dir_all(parent)?;
+    }
+    write_utf8_with_bom(path, file.contents())?;
+  }
+
+  for dir in dir.dirs() {
+    write_template_includes(dir, output_path)?;
+  }
+
+  Ok(())
 }
 
 fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> crate::Result<()> {
@@ -999,4 +1100,492 @@ fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> c
   output.write_all(&[0xEF, 0xBB, 0xBF])?; // UTF-8 BOM
   output.write_all(content.as_ref())?;
   Ok(())
+}
+
+/// Compiles the NSIS template with makensis, which is the only thing that knows
+/// NSIS's own rules.
+///
+/// `installer.nsi` and every file it includes share one flat, case-insensitive
+/// namespace, so makensis aborts with `variable "x" already declared` when two
+/// of them declare the same name and with `name "x" in use by constant` when
+/// one of them takes a name NSIS already uses. Reading a variable that was
+/// never declared is only a warning, which the template here turns into an
+/// error as well.
+///
+/// Declarations behind `!if` and language files only reach the compiler when a
+/// configuration pulls them in, so one build cannot see all of them. The
+/// configurations below are picked to take every branch of the template at
+/// least once.
+///
+/// Windows only: everywhere else makensis has to be installed by hand, while
+/// here the bundler downloads and caches the toolset itself on first run, the
+/// same way it does when bundling an app.
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+  use super::*;
+  use crate::bundle::{
+    settings::{
+      BundleBinary, BundleSettings, CustomSignCommandSettings, NsisSettings, PackageSettings,
+      SettingsBuilder, WindowsSettings,
+    },
+    windows::util::{WEBVIEW2_OFFLINE_INSTALLER_X64_URL, webview2_guid_path},
+  };
+  use std::collections::HashMap;
+  use tauri_utils::config::{AssociationExt, DeepLinkProtocol, FileAssociation};
+
+  /// A template configuration to compile.
+  struct Configuration {
+    name: &'static str,
+    target: &'static str,
+    install_mode: NSISInstallerMode,
+    webview_install_mode: WebviewInstallMode,
+    minimum_webview2_version: Option<&'static str>,
+    allow_downgrades: bool,
+    compression: NsisCompression,
+    /// Every built-in language rather than just English, which is the only way
+    /// the compiler reads the other language files at all.
+    all_languages: bool,
+    display_language_selector: bool,
+    /// A hook file defining all four `NSIS_HOOK_*` macros, for the
+    /// `!ifmacrodef` branches.
+    installer_hooks: bool,
+    optional_content: OptionalContent,
+    images: Images,
+    /// A custom signing command, which the bundler runs over the NSIS plugins
+    /// in a copy of its own for the template to add with `!addplugindir`, and
+    /// hands to the template for makensis to run over the uninstaller.
+    sign: bool,
+  }
+
+  /// Which of the five icon and image settings a configuration sets. The
+  /// uninstaller header image stands on its own because the template has an arm
+  /// for it being the only one set.
+  enum Images {
+    None,
+    AllButUninstallerHeader,
+    OnlyUninstallerHeader,
+  }
+
+  /// Whether a configuration sets a homepage, a license, a start menu folder, a
+  /// file association, a deep link protocol, a second binary and a resource.
+  ///
+  /// Where the resource lands matters on its own: the uninstaller removes the
+  /// directories of a resource that is in one, and the template drops the last
+  /// of those directories, which is the only one a resource at the root of the
+  /// install directory has.
+  enum OptionalContent {
+    None,
+    RootResource,
+    NestedResource,
+  }
+
+  /// Takes every branch of the template, bar the `!ifdef SHCNE_ASSOCCHANGED`
+  /// and `!ifdef SHCNF_FLUSH` guards of `includes/FileAssociation.nsh`, which
+  /// only take their branch if something defined those names first, and nothing
+  /// the bundler ships does.
+  ///
+  /// The install mode and the architecture are picked together, because the
+  /// default install directory and the MultiUser setup both branch on the
+  /// architecture inside a branch on the install mode, so a pair only compiles
+  /// the arms of the one configuration that has it.
+  fn configurations() -> Vec<Configuration> {
+    vec![
+      // Nothing optional configured, which is also the only configuration where
+      // the WebView2 section is skipped entirely
+      Configuration {
+        name: "minimal",
+        target: "i686-pc-windows-msvc",
+        install_mode: NSISInstallerMode::CurrentUser,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+      // Everything optional configured at once, bar the uninstaller header
+      // image, which the `current-user` configuration takes on its own
+      Configuration {
+        name: "full",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::Both,
+        webview_install_mode: WebviewInstallMode::DownloadBootstrapper { silent: true },
+        minimum_webview2_version: Some("110.0.1531.0"),
+        allow_downgrades: false,
+        compression: NsisCompression::Lzma,
+        all_languages: true,
+        display_language_selector: true,
+        installer_hooks: true,
+        optional_content: OptionalContent::RootResource,
+        images: Images::AllButUninstallerHeader,
+        sign: true,
+      },
+      // `perMachine` with the WebView2 section present but no minimum version,
+      // which is the pair the two configurations above never compile together,
+      // and the resource in a directory of its own
+      Configuration {
+        name: "per-machine",
+        target: "aarch64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::DownloadBootstrapper { silent: false },
+        minimum_webview2_version: None,
+        allow_downgrades: false,
+        compression: NsisCompression::Bzip2,
+        all_languages: true,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::NestedResource,
+        images: Images::None,
+        sign: false,
+      },
+      // `currentUser` with a minimum version but no hooks, for the remaining
+      // install mode and minimum version pair, the `embedBootstrapper` arm and
+      // the uninstaller header image on its own
+      Configuration {
+        name: "current-user",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::CurrentUser,
+        webview_install_mode: WebviewInstallMode::EmbedBootstrapper { silent: true },
+        minimum_webview2_version: Some("110.0.1531.0"),
+        allow_downgrades: true,
+        compression: NsisCompression::Zlib,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: true,
+        optional_content: OptionalContent::None,
+        images: Images::OnlyUninstallerHeader,
+        sign: false,
+      },
+      // The three install mode and architecture pairs the configurations above
+      // leave out. Nothing optional is configured, so each one only compiles
+      // the handful of lines its pair is there for, bar `per-machine-x64`,
+      // which carries the `offlineInstaller` arm as well
+      Configuration {
+        name: "both-arm64",
+        target: "aarch64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::Both,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+      Configuration {
+        name: "per-machine-x64",
+        target: "x86_64-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::OfflineInstaller { silent: true },
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+      Configuration {
+        name: "per-machine-x86",
+        target: "i686-pc-windows-msvc",
+        install_mode: NSISInstallerMode::PerMachine,
+        webview_install_mode: WebviewInstallMode::Skip,
+        minimum_webview2_version: None,
+        allow_downgrades: true,
+        compression: NsisCompression::None,
+        all_languages: false,
+        display_language_selector: false,
+        installer_hooks: false,
+        optional_content: OptionalContent::None,
+        images: Images::None,
+        sign: false,
+      },
+    ]
+  }
+
+  /// Writes the template the bundler ships with the `!pragma`s that turn a
+  /// reference to a variable that was never declared (warning 6000) and a
+  /// variable nothing reads or writes (warning 6001) into errors, and returns it
+  /// as a custom template. NSIS prints the name instead of a value for the first
+  /// one, so without this the installer ships a broken string.
+  fn template_with_fatal_warnings(dir: &Path) -> PathBuf {
+    let path = dir.join("template.nsi");
+    fs::write(
+      &path,
+      format!(
+        "!pragma warning error 6000\n!pragma warning error 6001\n{}",
+        include_str!("./installer.nsi")
+      ),
+    )
+    .unwrap();
+    path
+  }
+
+  /// Every language the bundler ships a file for, so that the compiler reads all
+  /// of them rather than only the ones a default build configures.
+  fn all_languages() -> Vec<String> {
+    [
+      "Arabic",
+      "Bulgarian",
+      "Dutch",
+      "English",
+      "Farsi",
+      "French",
+      "German",
+      "Hebrew",
+      "Italian",
+      "Japanese",
+      "Korean",
+      "Norwegian",
+      "Portuguese",
+      "PortugueseBR",
+      "Russian",
+      "SimpChinese",
+      "Spanish",
+      "SpanishInternational",
+      "Swedish",
+      "TradChinese",
+      "Turkish",
+      "Ukrainian",
+      "Vietnamese",
+    ]
+    .iter()
+    .map(|language| language.to_string())
+    .collect()
+  }
+
+  /// A one pixel, 32 bit icon: an icon directory with a single entry, a bitmap
+  /// header, one opaque pixel and an empty mask. `MUI_ICON` becomes NSIS's
+  /// `Icon` command, which reads the file and rejects anything that is not an
+  /// icon.
+  const ICON: &[u8] = &[
+    0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 32, 0, 48, 0, 0, 0, 22, 0, 0, 0, 40, 0, 0, 0, 1, 0, 0, 0,
+    2, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0,
+  ];
+
+  /// A one pixel, 24 bit bitmap. The images only have to exist, since NSIS packs
+  /// them into the installer without reading them.
+  const BITMAP: &[u8] = &[
+    0x42, 0x4D, 58, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+    24, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ];
+
+  /// Puts a stand-in for the WebView2 offline installer where the bundler looks
+  /// for the copy it downloads, and returns the tools directory to hand it.
+  ///
+  /// The real installer is 130 MB of runtime that makensis packs into the output
+  /// without reading, and the stand-in goes in a tools directory of this
+  /// configuration's own rather than the shared cache, so that no later build
+  /// can ship it. That costs this configuration its own copy of the NSIS
+  /// toolset. Only the name of the file comes from the network, which is one
+  /// redirect away.
+  fn fake_webview2_offline_installer(dir: &Path) -> crate::Result<PathBuf> {
+    let tools = dir.join("tools");
+    let (guid, filename) = webview2_guid_path(WEBVIEW2_OFFLINE_INSTALLER_X64_URL)?;
+    // `.tauri` and the architecture are what the bundler joins onto the
+    // directory it is given
+    let path = tools.join(".tauri").join("x64").join(guid);
+    fs::create_dir_all(&path)?;
+    fs::write(path.join(filename), b"webview2 offline installer")?;
+    Ok(tools)
+  }
+
+  fn compile(configuration: &Configuration) -> crate::Result<()> {
+    // The name goes in the directory makensis prints as it compiles, which is
+    // the only thing tying its output to a configuration
+    let dir = tempfile::Builder::new()
+      .prefix(&format!("nsis-{}-", configuration.name))
+      .tempdir()
+      .unwrap();
+    let out = dir.path().join("out");
+    fs::create_dir_all(&out).unwrap();
+
+    // makensis only needs the files to exist, not to be real executables
+    fs::write(out.join("app.exe"), b"main binary").unwrap();
+
+    let mut binaries = vec![BundleBinary::new("app".into(), true)];
+    let mut bundle_settings = BundleSettings {
+      identifier: Some("com.tauri.nsis-template-test".into()),
+      publisher: Some("Tauri".into()),
+      copyright: Some("Tauri".into()),
+      ..Default::default()
+    };
+
+    let optional_content = !matches!(configuration.optional_content, OptionalContent::None);
+    if optional_content {
+      fs::write(out.join("helper.exe"), b"second binary").unwrap();
+      binaries.push(BundleBinary::new("helper".into(), false));
+
+      let license = dir.path().join("LICENSE.txt");
+      fs::write(&license, b"license").unwrap();
+
+      bundle_settings.homepage = Some("https://tauri.app".into());
+      bundle_settings.license_file = Some(license);
+      // The resource is the manifest rather than a file in `dir` because
+      // resources are globbed from the working directory, which cargo sets to
+      // the crate root, and an absolute path loses its drive letter on the way
+      // through `resources::normalize`, leaving it on whichever drive that
+      // directory happens to be
+      match configuration.optional_content {
+        OptionalContent::None => {}
+        OptionalContent::RootResource => {
+          bundle_settings.resources = Some(vec!["Cargo.toml".into()])
+        }
+        // The map form rather than the list, because the list derives the
+        // target from the source and the source has to stay a relative path.
+        // Setting both of them is a panic
+        OptionalContent::NestedResource => {
+          bundle_settings.resources_map = Some(HashMap::from([(
+            "Cargo.toml".to_string(),
+            "resources/nested/Cargo.toml".to_string(),
+          )]))
+        }
+      }
+      bundle_settings.file_associations = Some(vec![FileAssociation {
+        ext: vec![AssociationExt("myext".into())],
+        content_types: None,
+        name: Some("MyExt".into()),
+        description: Some("My extension".into()),
+        role: Default::default(),
+        mime_type: None,
+        rank: Default::default(),
+        exported_type: None,
+        android_intent_action_filters: None,
+      }]);
+      bundle_settings.deep_link_protocols = Some(vec![DeepLinkProtocol {
+        schemes: vec!["mydeeplink".into()],
+        domains: Vec::new(),
+        name: Some("My deep link".into()),
+        role: Default::default(),
+      }]);
+    }
+
+    let installer_hooks = configuration.installer_hooks.then(|| {
+      let path = dir.path().join("hooks.nsh");
+      fs::write(
+        &path,
+        "!macro NSIS_HOOK_PREINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_POSTINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_PREUNINSTALL\n!macroend\n\
+         !macro NSIS_HOOK_POSTUNINSTALL\n!macroend\n",
+      )
+      .unwrap();
+      path
+    });
+
+    let image = |name: &str, bytes: &[u8]| {
+      let path = dir.path().join(name);
+      fs::write(&path, bytes).unwrap();
+      path
+    };
+    let all_but_uninstaller_header =
+      matches!(configuration.images, Images::AllButUninstallerHeader);
+
+    bundle_settings.windows = WindowsSettings {
+      webview_install_mode: configuration.webview_install_mode.clone(),
+      allow_downgrades: configuration.allow_downgrades,
+      minimum_webview2_version: configuration
+        .minimum_webview2_version
+        .map(|version| version.to_string()),
+      // A command that does nothing but succeed, because what the template
+      // needs is for the bundler to have made the copy of the plugins that
+      // signing them calls for and to have put the command itself in
+      // `!uninstfinalize`, which makensis runs as it compiles
+      sign_command: configuration.sign.then(|| CustomSignCommandSettings {
+        cmd: "cmd".into(),
+        args: vec!["/c".into(), "exit".into(), "0".into()],
+      }),
+      nsis: Some(NsisSettings {
+        template: Some(template_with_fatal_warnings(dir.path())),
+        install_mode: configuration.install_mode,
+        compression: configuration.compression,
+        display_language_selector: configuration.display_language_selector,
+        languages: configuration.all_languages.then(all_languages),
+        start_menu_folder: optional_content.then(|| "Tauri Tests".to_string()),
+        installer_hooks,
+        installer_icon: all_but_uninstaller_header.then(|| image("icon.ico", ICON)),
+        header_image: all_but_uninstaller_header.then(|| image("header.bmp", BITMAP)),
+        sidebar_image: all_but_uninstaller_header.then(|| image("sidebar.bmp", BITMAP)),
+        uninstaller_icon: all_but_uninstaller_header.then(|| image("uninstaller.ico", ICON)),
+        uninstaller_header_image: matches!(configuration.images, Images::OnlyUninstallerHeader)
+          .then(|| image("uninstaller-header.bmp", BITMAP)),
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+
+    let mut builder = SettingsBuilder::new()
+      .project_out_directory(&out)
+      .package_settings(PackageSettings {
+        product_name: "NSIS Template Test".into(),
+        version: "1.0.0".into(),
+        description: "NSIS template test".into(),
+        homepage: bundle_settings.homepage.clone(),
+        authors: None,
+        default_run: None,
+      })
+      .binaries(binaries)
+      .target(configuration.target.into())
+      .bundle_settings(bundle_settings)
+      // makensis warnings only reach the log at this level
+      .log_level(log::Level::Debug)
+      // Signing is skipped where there is no command to run, and has to go
+      // ahead where there is one: the bundler leaves the uninstaller signing
+      // command out of the template data when it is told not to sign
+      .no_sign(!configuration.sign)
+      .binary_patching(false);
+
+    if matches!(
+      configuration.webview_install_mode,
+      WebviewInstallMode::OfflineInstaller { .. }
+    ) {
+      builder = builder.local_tools_directory(fake_webview2_offline_installer(dir.path())?);
+    }
+
+    let settings = builder.build().unwrap();
+
+    bundle_project(&settings, false)?;
+
+    Ok(())
+  }
+
+  // Serial because the mirror tests of `http_utils` set the environment
+  // variable that redirects the toolset download, and environment variables
+  // belong to the whole process
+  #[test]
+  #[serial_test::serial]
+  fn template_compiles_in_every_configuration() {
+    let configurations = configurations();
+
+    // Every configuration is compiled even after one has failed, so that the
+    // failure names all of the broken ones rather than only the first
+    let failures = configurations
+      .iter()
+      .filter_map(|configuration| {
+        compile(configuration)
+          .err()
+          .map(|error| format!("  `{}`: {error}", configuration.name))
+      })
+      .collect::<Vec<_>>();
+
+    assert!(
+      failures.is_empty(),
+      // The makensis output says why, and names the temporary directory of the
+      // configuration it belongs to
+      "the NSIS template does not compile in {} of {} configurations:\n{}",
+      failures.len(),
+      configurations.len(),
+      failures.join("\n")
+    );
+  }
 }

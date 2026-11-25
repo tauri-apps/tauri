@@ -136,9 +136,12 @@ pub enum Error {
   #[error("invalid `app > appDirectoriesOverride` path `{path}`: {reason}", path = .0.display(), reason = .1)]
   InvalidAppDirectoriesOverride(std::path::PathBuf, String),
   /// Failed to invoke mobile plugin.
-  #[cfg(target_os = "android")]
+  #[cfg(mobile)]
   #[error(transparent)]
   PluginInvoke(#[from] crate::plugin::mobile::PluginInvokeError),
+  /// The API is not supported on the current platform.
+  #[error("`{0}` is not supported on this platform")]
+  UnsupportedPlatform(&'static str),
   /// window not found.
   #[error("window not found")]
   WindowNotFound,

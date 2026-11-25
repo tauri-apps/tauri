@@ -56,3 +56,6 @@ swift!(pub fn register_plugin(
 ));
 swift!(pub fn on_webview_created(webview: *const c_void, controller: *const c_void));
 swift!(pub fn log_stdout());
+// Entry point of the `AppPlugin` defined in the `ios-api` Swift package.
+#[cfg(feature = "wry")]
+swift!(pub fn init_plugin_app() -> *const c_void);

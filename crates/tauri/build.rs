@@ -171,6 +171,9 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("register_listener", true),
       ("remove_listener", true),
       ("supports_multiple_windows", true),
+      ("open_settings", true),
+      ("set_keep_screen_on", false),
+      ("set_privacy_screen", false),
     ],
   ),
   (

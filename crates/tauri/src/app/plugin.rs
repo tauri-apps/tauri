@@ -146,6 +146,64 @@ pub fn supports_multiple_windows<R: Runtime>(app: AppHandle<R>) -> bool {
   app.supports_multiple_windows()
 }
 
+/// Runs a command of the native `AppPlugin` (Kotlin on Android, Swift on iOS).
+#[cfg(any(target_os = "android", all(target_os = "ios", feature = "wry")))]
+async fn run_native<R: Runtime>(
+  app: &AppHandle<R>,
+  command: &str,
+  payload: impl serde::Serialize,
+) -> crate::Result<()> {
+  app
+    .state::<AppPlugin<R>>()
+    .0
+    .run_mobile_plugin_async::<()>(command, payload)
+    .await
+    .map_err(Into::into)
+}
+
+#[command(root = "crate")]
+pub async fn open_settings<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
+  #[cfg(any(target_os = "android", all(target_os = "ios", feature = "wry")))]
+  return run_native(&app, "openSettings", ()).await;
+  #[cfg(not(any(target_os = "android", all(target_os = "ios", feature = "wry"))))]
+  {
+    let _ = app;
+    Err(crate::Error::UnsupportedPlatform("openSettings"))
+  }
+}
+
+#[command(root = "crate")]
+pub async fn set_keep_screen_on<R: Runtime>(app: AppHandle<R>, enabled: bool) -> crate::Result<()> {
+  #[cfg(any(target_os = "android", all(target_os = "ios", feature = "wry")))]
+  return run_native(
+    &app,
+    "setKeepScreenOn",
+    serde_json::json!({ "enabled": enabled }),
+  )
+  .await;
+  #[cfg(not(any(target_os = "android", all(target_os = "ios", feature = "wry"))))]
+  {
+    let _ = (app, enabled);
+    Err(crate::Error::UnsupportedPlatform("setKeepScreenOn"))
+  }
+}
+
+#[command(root = "crate")]
+pub async fn set_privacy_screen<R: Runtime>(app: AppHandle<R>, enabled: bool) -> crate::Result<()> {
+  #[cfg(any(target_os = "android", all(target_os = "ios", feature = "wry")))]
+  return run_native(
+    &app,
+    "setPrivacyScreen",
+    serde_json::json!({ "enabled": enabled }),
+  )
+  .await;
+  #[cfg(not(any(target_os = "android", all(target_os = "ios", feature = "wry"))))]
+  {
+    let _ = (app, enabled);
+    Err(crate::Error::UnsupportedPlatform("setPrivacyScreen"))
+  }
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("app")
     .invoke_handler(crate::generate_handler![
@@ -166,6 +224,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       set_dock_visibility,
       bundle_type,
       supports_multiple_windows,
+      open_settings,
+      set_keep_screen_on,
+      set_privacy_screen,
     ])
     .setup(|_app, _api| {
       #[cfg(target_os = "android")]
@@ -173,10 +234,15 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         let handle = _api.register_android_plugin("app.tauri", "AppPlugin")?;
         _app.manage(AppPlugin(handle));
       }
+      #[cfg(all(target_os = "ios", feature = "wry"))]
+      {
+        let handle = _api.register_ios_plugin(crate::ios::init_plugin_app)?;
+        _app.manage(AppPlugin(handle));
+      }
       Ok(())
     })
     .build()
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", all(target_os = "ios", feature = "wry")))]
 pub(crate) struct AppPlugin<R: Runtime>(pub crate::plugin::PluginHandle<R>);

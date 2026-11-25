@@ -12,6 +12,7 @@ Default permissions for the plugin.
 - `allow-register-listener`
 - `allow-remove-listener`
 - `allow-supports-multiple-windows`
+- `allow-open-settings`
 
 ## Permission Table
 
@@ -259,6 +260,32 @@ Denies the name command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-open-settings`
+
+</td>
+<td>
+
+Enables the open_settings command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-open-settings`
+
+</td>
+<td>
+
+Denies the open_settings command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-register-listener`
 
 </td>
@@ -408,6 +435,58 @@ Enables the set_dock_visibility command without any pre-configured scope.
 <td>
 
 Denies the set_dock_visibility command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-set-keep-screen-on`
+
+</td>
+<td>
+
+Enables the set_keep_screen_on command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-set-keep-screen-on`
+
+</td>
+<td>
+
+Denies the set_keep_screen_on command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-set-privacy-screen`
+
+</td>
+<td>
+
+Enables the set_privacy_screen command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-set-privacy-screen`
+
+</td>
+<td>
+
+Denies the set_privacy_screen command without any pre-configured scope.
 
 </td>
 </tr>

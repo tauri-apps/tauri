@@ -118,7 +118,25 @@ mod desktop_commands {
   setter!(set_webview_auto_resize, set_auto_resize, bool);
   setter!(webview_hide, hide);
   setter!(webview_show, show);
-  setter!(set_webview_zoom, set_zoom, f64);
+  #[derive(serde::Deserialize)]
+  #[serde(untagged)]
+  pub enum ZoomValue {
+    Absolute(f64),
+    Relative { delta: f64 },
+  }
+
+  #[command(root = "crate")]
+  pub fn set_webview_zoom<R: Runtime>(
+    webview: Webview<R>,
+    label: Option<String>,
+    value: ZoomValue,
+  ) -> crate::Result<()> {
+    let webview = get_webview(webview, label)?;
+    match value {
+      ZoomValue::Absolute(value) => webview.set_zoom(value),
+      ZoomValue::Relative { delta } => webview.zoom_by(delta),
+    }
+  }
   setter!(
     set_webview_background_color,
     set_background_color,

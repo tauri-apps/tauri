@@ -449,9 +449,7 @@ fn node_script_command(
   let resolved = entry.canonicalize().ok()?;
   if !resolved.is_file()
     || !resolved.file_name().is_some_and(|name| {
-      ["tauri.js", "tauri.cjs", "tauri.mjs"]
-        .iter()
-        .any(|expected| name.eq_ignore_ascii_case(expected))
+      name == "tauri.js"
     })
   {
     return None;
@@ -462,7 +460,7 @@ fn node_script_command(
   let binary = if binary.is_relative()
     && binary
       .parent()
-      .is_some_and(|parent| !parent.as_os_str().is_empty())
+      .is_some_and(|parent| !parent.is_empty())
   {
     relative_to(&cwd.join(binary), task_dir)
   } else {

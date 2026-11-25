@@ -22,8 +22,8 @@ use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
-  WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, PacmanSettings, Position, RpmSettings, Size,
+  UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
 
@@ -413,6 +413,26 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
+/// The paths the dev watcher watches: the entries of every watch folder that the ignore files
+/// don't exclude. Every folder is walked, even when a pattern such as `/*` matches the folder
+/// itself; ignore rules apply to its entries here and to every change event.
+fn watch_targets(watch_folders: &[PathBuf]) -> Vec<(PathBuf, RecursiveMode)> {
+  let mut targets = Vec::new();
+  for path in watch_folders {
+    lookup(path, |file_type, p| {
+      if p != *path {
+        let mode = if file_type.is_dir() {
+          RecursiveMode::Recursive
+        } else {
+          RecursiveMode::NonRecursive
+        };
+        targets.push((p, mode));
+      }
+    });
+  }
+  targets
+}
+
 fn dev_options(
   mobile: bool,
   args: &mut Vec<String>,
@@ -544,23 +564,12 @@ impl Rust {
       }
     })
     .unwrap();
-    for path in watch_folders {
-      if !ignore_matcher.is_ignore(&path, true) {
-        log::info!("Watching {} for changes...", display_path(&path));
-        lookup(&path, |file_type, p| {
-          if p != path {
-            log::debug!("Watching {} for changes...", display_path(&p));
-            let _ = watcher.watch(
-              &p,
-              if file_type.is_dir() {
-                RecursiveMode::Recursive
-              } else {
-                RecursiveMode::NonRecursive
-              },
-            );
-          }
-        });
-      }
+    for path in &watch_folders {
+      log::info!("Watching {} for changes...", display_path(path));
+    }
+    for (path, mode) in watch_targets(&watch_folders) {
+      log::debug!("Watching {} for changes...", display_path(&path));
+      let _ = watcher.watch(&path, mode);
     }
 
     while let Ok(events) = rx.recv() {
@@ -1378,6 +1387,9 @@ fn tauri_config_to_bundle_settings(
   let mut depends_rpm = config.linux.rpm.depends.unwrap_or_default();
 
   #[allow(unused_mut)]
+  let mut depends_pacman = config.linux.pacman.depends.unwrap_or_default();
+
+  #[allow(unused_mut)]
   let mut appimage_files = config.linux.appimage.files;
 
   // set env vars used by the bundler and inject dependencies
@@ -1414,10 +1426,12 @@ fn tauri_config_to_bundle_settings(
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
           depends_deb.push("libayatana-appindicator3-1".into());
+          depends_pacman.push("libayatana-appindicator".into());
           libs.push("libayatana-appindicator3.so.1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
           depends_deb.push("libappindicator3-1".into());
+          depends_pacman.push("libappindicator-gtk3".into());
           libs.push("libappindicator3.so.1".into());
         }
       }
@@ -1432,6 +1446,9 @@ fn tauri_config_to_bundle_settings(
 
     depends_deb.push("libwebkit2gtk-4.1-0".to_string());
     depends_deb.push("libgtk-3-0".to_string());
+
+    depends_pacman.push("webkit2gtk-4.1".to_string());
+    depends_pacman.push("gtk3".to_string());
 
     libs.push("libwebkit2gtk-4.1.so.0".into());
     libs.push("libgtk-3.so.0".into());
@@ -1570,6 +1587,7 @@ fn tauri_config_to_bundle_settings(
       post_install_script: config.linux.deb.post_install_script,
       pre_remove_script: config.linux.deb.pre_remove_script,
       post_remove_script: config.linux.deb.post_remove_script,
+      compression: config.linux.deb.compression,
     },
     appimage: AppImageSettings {
       files: appimage_files,
@@ -1595,6 +1613,26 @@ fn tauri_config_to_bundle_settings(
       pre_remove_script: config.linux.rpm.pre_remove_script,
       post_remove_script: config.linux.rpm.post_remove_script,
       compression: config.linux.rpm.compression,
+    },
+    pacman: PacmanSettings {
+      pkgname: config.linux.pacman.pkgname,
+      pkgrel: config.linux.pacman.pkgrel,
+      epoch: config.linux.pacman.epoch,
+      maintainer: config.linux.pacman.maintainer,
+      depends: if depends_pacman.is_empty() {
+        None
+      } else {
+        Some(depends_pacman)
+      },
+      optdepends: config.linux.pacman.optdepends,
+      provides: config.linux.pacman.provides,
+      conflicts: config.linux.pacman.conflicts,
+      replaces: config.linux.pacman.replaces,
+      files: config.linux.pacman.files,
+      desktop_template: config.linux.pacman.desktop_template,
+      install: config.linux.pacman.install,
+      changelog: config.linux.pacman.changelog,
+      source: config.linux.pacman.source,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,
@@ -1801,6 +1839,49 @@ mod tests {
         PathBuf::from("src")
       ]
     );
+  }
+
+  fn taurignore_root_fixture() -> tempfile::TempDir {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dir = temp_dir.path();
+    fs::create_dir_all(dir.join("src")).unwrap();
+    fs::create_dir_all(dir.join("assets")).unwrap();
+    fs::write(dir.join("src/main.rs"), "").unwrap();
+    fs::write(dir.join("Cargo.toml"), "").unwrap();
+    fs::write(dir.join("README.md"), "").unwrap();
+    fs::write(dir.join(".taurignore"), "/*\n!/*.toml\n!/*.rs\n!/src\n").unwrap();
+    temp_dir
+  }
+
+  #[test]
+  fn watch_targets_watch_a_folder_whose_taurignore_matches_it() {
+    let temp_dir = taurignore_root_fixture();
+    let dir = temp_dir.path();
+
+    let mut watched: Vec<PathBuf> = watch_targets(&[dir.to_path_buf()])
+      .into_iter()
+      .map(|(path, _)| path.strip_prefix(dir).unwrap().to_path_buf())
+      .collect();
+    watched.sort();
+
+    assert_eq!(
+      watched,
+      vec![PathBuf::from("Cargo.toml"), PathBuf::from("src")]
+    );
+  }
+
+  #[test]
+  fn ignore_matcher_filters_events_under_a_root_wide_pattern() {
+    let temp_dir = taurignore_root_fixture();
+    let dir = temp_dir.path();
+
+    let ignore_matcher = build_ignore_matcher(dir);
+
+    assert!(!ignore_matcher.is_ignore(&dir.join("src"), true));
+    assert!(!ignore_matcher.is_ignore(&dir.join("src/main.rs"), false));
+    assert!(!ignore_matcher.is_ignore(&dir.join("Cargo.toml"), false));
+    assert!(ignore_matcher.is_ignore(&dir.join("README.md"), false));
+    assert!(ignore_matcher.is_ignore(&dir.join("assets"), true));
   }
 
   #[test]

@@ -14,6 +14,12 @@ use tauri_utils::config::RpmCompression;
 
 use super::{freedesktop, gst_plugin};
 
+/// The compression used when none is configured.
+///
+/// This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
+// TODO: Default to Zstd in v3 to match rpm-rs new default in 0.16
+const DEFAULT_COMPRESSION: RpmCompression = RpmCompression::Gzip { level: 6 };
+
 /// Converts a SemVer version string to the RPM `Version` tag format.
 ///
 /// RPM reserves `-` as the separator between `Version` and `Release`, and the
@@ -83,17 +89,29 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let license = settings.license().unwrap_or_default();
   let name = heck::AsKebabCase(settings.product_name()).to_string();
 
-  let compression = settings
-    .rpm()
-    .compression
-    .map(|c| match c {
-      RpmCompression::Gzip { level } => rpm::CompressionWithLevel::Gzip(level),
-      RpmCompression::Zstd { level } => rpm::CompressionWithLevel::Zstd(level),
-      RpmCompression::Xz { level } => rpm::CompressionWithLevel::Xz(level),
-      RpmCompression::Bzip2 { level } => rpm::CompressionWithLevel::Bzip2(level),
-      _ => rpm::CompressionWithLevel::None,
-    })
-    .unwrap_or(rpm::CompressionWithLevel::Gzip(6));
+  let compression = settings.rpm().compression.unwrap_or(DEFAULT_COMPRESSION);
+  let mut level = compression.level().unwrap_or_default();
+
+  if let Some(min_level) = compression.min_level()
+    && let Some(max_level) = compression.max_level()
+  {
+    let clamped = level.clamp(min_level, max_level);
+    if clamped != level {
+      log::warn!(
+        "rpm compression level {level} is outside the range {min_level} - {max_level} supported by this algorithm, clamping to {clamped}"
+      );
+      level = clamped;
+    }
+  }
+
+  let compression = match compression {
+    RpmCompression::Zstd { .. } => rpm::CompressionWithLevel::Zstd(level),
+    RpmCompression::Xz { .. } => rpm::CompressionWithLevel::Xz(level as u32),
+    RpmCompression::Bzip2 { .. } => rpm::CompressionWithLevel::Bzip2(level as u32),
+    RpmCompression::None => rpm::CompressionWithLevel::None,
+    // gzip, which unknown algorithms also fall back to
+    _ => rpm::CompressionWithLevel::Gzip(level as u32),
+  };
 
   let build_config = rpm::BuildConfig::default().compression(compression);
 
@@ -217,22 +235,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Add the `asset://` GStreamer plugin
   if let Some(plugin) = gst_plugin::download(settings)? {
     let plugin_dir = Path::new("/").join(gst_plugin::plugin_dir(product_name));
-    // Create an empty file, needed to add a directory to the RPM package
-    // (cf https://github.com/rpm-rs/rpm/issues/177)
-    let empty_file_path = &package_dir.join("empty");
-    File::create(empty_file_path)?;
-    builder = builder.with_file(
-      empty_file_path,
-      FileOptions::new(plugin_dir.to_string_lossy()).mode(FileMode::Dir { permissions: 0o755 }),
-    )?;
-    builder = builder.with_file(
+    builder.with_dir_entry(FileOptions::dir(plugin_dir.to_string_lossy()).permissions(0o755))?;
+    builder.with_file(
       &plugin,
       FileOptions::new(
         plugin_dir
           .join(gst_plugin::PLUGIN_FILE_NAME)
           .to_string_lossy(),
       )
-      .mode(FileMode::Regular { permissions: 0o755 }),
+      .permissions(0o755),
     )?;
   }
 

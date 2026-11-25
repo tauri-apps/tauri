@@ -88,6 +88,10 @@ pub struct WebviewManager<R: Runtime> {
 
   /// A runtime generated invoke key.
   pub(crate) invoke_key: String,
+
+  /// Data directories of the webviews created so far, where their profiles are stored.
+  #[cfg(windows)]
+  pub(crate) data_directories: Mutex<HashSet<std::path::PathBuf>>,
 }
 
 impl<R: Runtime> fmt::Debug for WebviewManager<R> {
@@ -267,6 +271,11 @@ impl<R: Runtime> WebviewManager<R> {
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
+      // `window_origin` is used again below when the asset protocol or isolation pattern are enabled
+      #[cfg_attr(
+        not(any(feature = "protocol-asset", feature = "isolation")),
+        allow(clippy::redundant_clone)
+      )]
       let protocol = crate::protocol::tauri::get(
         manager.manager_owned(),
         window_origin.clone(),
@@ -464,12 +473,11 @@ impl<R: Runtime> WebviewManager<R> {
 
     let app_manager = manager.manager();
 
-    #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
         let app_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let url = if PROXY_DEV_SERVER && is_local_network_url(&app_url) {
-          Cow::Owned(Url::parse("tauri://localhost").unwrap())
+          Cow::Owned(Url::parse("tauri://localhost/").unwrap())
         } else {
           app_url
         };
@@ -487,17 +495,30 @@ impl<R: Runtime> WebviewManager<R> {
       WebviewUrl::External(url) => {
         let config_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let is_app_url = config_url.make_relative(url).is_some();
-        let mut url = url.clone();
-        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
-          Url::parse("tauri://localhost").unwrap()
+        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(url) {
+          Url::parse("tauri://localhost/").unwrap()
         } else {
-          url
+          url.clone()
         }
       }
 
       WebviewUrl::CustomProtocol(url) => url.clone(),
       _ => unimplemented!(),
     };
+
+    if let Some(origin) = &app_manager.custom_app_origin {
+      // the dev server proxy would fetch the app from the real host
+      if PROXY_DEV_SERVER && app_manager.get_app_url(true).origin() == origin.origin() {
+        return Err(crate::Error::InvalidWebviewUrl(
+          "`app > androidTauriProtocolHostname` requires `build > devUrl` in development",
+        ));
+      }
+      pending
+        .webview_attributes
+        .android_tauri_protocol_hostname
+        .clone_from(&app_manager.config.app.android_tauri_protocol_hostname);
+      url = crate::protocol::with_custom_app_origin(url, origin);
+    }
 
     #[cfg(not(feature = "webview-data-url"))]
     if url.scheme() == "data" {
@@ -573,6 +594,13 @@ impl<R: Runtime> WebviewManager<R> {
       if !user_data_dir.exists() {
         create_dir_all(user_data_dir)?;
       }
+
+      #[cfg(windows)]
+      self
+        .data_directories
+        .lock()
+        .unwrap()
+        .insert(user_data_dir.clone());
     }
 
     #[cfg(all(desktop, not(target_os = "windows")))]

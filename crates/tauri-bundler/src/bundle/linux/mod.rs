@@ -7,6 +7,7 @@ pub mod appimage;
 pub mod debian;
 pub mod freedesktop;
 pub mod gst_plugin;
+pub mod pacman;
 pub mod rpm;
 
 use std::path::{Path, PathBuf};

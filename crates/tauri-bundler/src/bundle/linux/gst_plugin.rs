@@ -6,9 +6,9 @@
 
 use super::tools_directory;
 use crate::{
-  error::{Context, ErrorExt},
-  utils::http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
   Settings,
+  error::{Context, ErrorExt},
+  utils::http_utils::{HashAlgorithm, download_and_verify, verify_file_hash},
 };
 use std::{
   fs,

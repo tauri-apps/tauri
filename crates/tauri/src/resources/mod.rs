@@ -8,7 +8,7 @@
 pub(crate) mod plugin;
 
 use std::{
-  any::{type_name, Any, TypeId},
+  any::{Any, TypeId, type_name},
   borrow::Cow,
   collections::BTreeMap,
   sync::Arc,

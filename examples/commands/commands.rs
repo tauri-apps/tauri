@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri::{command, State};
+use tauri::{State, command};
 
 #[command]
 pub fn cmd(_argument: String) {}
@@ -21,6 +21,7 @@ pub fn simple_command(the_argument: String) {
   println!("{the_argument}");
 }
 
+/// Prints the argument and the managed state.
 #[command]
 pub fn stateful_command(the_argument: Option<String>, state: State<'_, super::MyState>) {
   println!("{:?} {:?}", the_argument, *state);

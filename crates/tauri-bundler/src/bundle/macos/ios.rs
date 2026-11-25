@@ -14,12 +14,12 @@
 // explanation.
 
 use crate::{
+  Settings,
   error::{Context, ErrorExt},
   utils::{self, fs_utils},
-  Settings,
 };
 
-use image::{codecs::png::PngDecoder, GenericImageView, ImageDecoder};
+use image::{GenericImageView, ImageDecoder, codecs::png::PngDecoder};
 
 use std::{
   collections::BTreeSet,

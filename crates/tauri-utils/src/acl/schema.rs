@@ -5,7 +5,7 @@
 //! Schema generation for ACL items.
 
 use std::{
-  collections::{btree_map::Values, BTreeMap},
+  collections::{BTreeMap, btree_map::Values},
   fs,
   path::{Path, PathBuf},
   slice::Iter,
@@ -17,9 +17,9 @@ use super::{Error, PERMISSION_SCHEMAS_FOLDER_NAME};
 use crate::{platform::Target, write_if_changed};
 
 use super::{
+  PERMISSION_SCHEMA_FILE_NAME, Permission, PermissionSet,
   capability::CapabilityFile,
   manifest::{Manifest, PermissionFile},
-  Permission, PermissionSet, PERMISSION_SCHEMA_FILE_NAME,
 };
 
 /// Capability schema file name.
@@ -280,7 +280,7 @@ fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<S
       let mut then_schema = SchemaObject::default();
       then_schema.object().properties = [
         (ALLOW.to_string(), scope_schema.clone()),
-        (DENY.to_string(), scope_schema.clone()),
+        (DENY.to_string(), scope_schema),
       ]
       .into();
 

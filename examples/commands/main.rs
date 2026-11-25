@@ -10,9 +10,8 @@ use commands::{cmd, invoke, message, renamed_command_in_mod, resolver};
 
 use serde::Deserialize;
 use tauri::{
-  command,
+  State, Window, command,
   ipc::{Request, Response},
-  State, Window,
 };
 
 #[derive(Debug)]
@@ -46,6 +45,9 @@ async fn async_simple_command_snake(the_argument: String) {
   println!("{the_argument}");
 }
 
+/// Prints the argument and the managed state.
+///
+/// Doc comments are available through `tauri::command_metadata!`.
 #[command]
 async fn async_stateful_command(
   the_argument: Option<String>,
@@ -229,6 +231,16 @@ fn raw_request(request: Request<'_>) -> Response {
 }
 
 fn main() {
+  // `#[command]` also exposes the name, docs, deprecation and argument keys of each command
+  for metadata in [
+    tauri::command_metadata!(async_stateful_command),
+    tauri::command_metadata!(async_simple_command_snake),
+    tauri::command_metadata!(renamed_command),
+    tauri::command_metadata!(commands::stateful_command),
+  ] {
+    println!("{metadata:#?}");
+  }
+
   tauri::Builder::default()
     .manage(MyState {
       value: 0,

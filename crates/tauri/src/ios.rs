@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use swift_rs::{swift, SRString, SwiftArg};
+use swift_rs::{SRString, SwiftArg, swift};
 
 use std::{
   ffi::c_void,
@@ -38,6 +38,15 @@ swift!(pub fn run_plugin_command(
   data: &SRString,
   callback: PluginMessageCallback,
   send_channel_data_callback: ChannelSendDataCallback
+));
+swift!(pub fn run_plugin_command_with_context(
+  id: i32,
+  name: &SRString,
+  method: &SRString,
+  data: &SRString,
+  callback: PluginMessageCallback,
+  send_channel_data_callback: ChannelSendDataCallback,
+  view_controller: *const c_void
 ));
 swift!(pub fn register_plugin(
   name: &SRString,

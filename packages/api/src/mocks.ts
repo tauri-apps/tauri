@@ -2,6 +2,45 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Test helpers that stand in for the Tauri backend.
+ *
+ * Importing any other module of this package in a plain Node/browser test
+ * environment fails, because there is no `window.__TAURI_INTERNALS__` to talk to.
+ * The functions here install a fake one: {@linkcode mockIPC} intercepts `invoke`
+ * calls, {@linkcode mockWindows} makes the window/webview APIs believe a set of
+ * windows exists, and {@linkcode mockConvertFileSrc} makes `convertFileSrc` return
+ * the URL shape of a given platform.
+ *
+ * Call {@linkcode clearMocks} after each test when your runner reuses the same
+ * `window` object between tests.
+ *
+ * @example
+ * ```typescript
+ * import { beforeEach, afterEach, expect, test } from 'vitest';
+ * import { mockIPC, clearMocks } from '@tauri-apps/api/mocks';
+ * import { invoke } from '@tauri-apps/api/core';
+ *
+ * afterEach(() => {
+ *   clearMocks();
+ * });
+ *
+ * test('greet', async () => {
+ *   mockIPC((cmd, args) => {
+ *     if (cmd === 'greet') {
+ *       return `Hello, ${(args as { name: string }).name}!`;
+ *     }
+ *   });
+ *
+ *   await expect(invoke('greet', { name: 'tauri' })).resolves.toBe('Hello, tauri!');
+ * });
+ * ```
+ *
+ * This package is also accessible with `window.__TAURI__.mocks` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
+ *
+ * @module
+ */
+
 import type { InvokeArgs, InvokeOptions } from './core'
 import { EventName } from './event'
 
@@ -93,6 +132,7 @@ export interface MockIPCOptions {
  *  emit('test-event', { foo: 'bar' });
  *  expect(eventHandler).toHaveBeenCalledWith({
  *    event: 'test-event',
+ *    id: expect.any(Number),
  *    payload: { foo: 'bar' }
  *  });
  * })
@@ -118,7 +158,9 @@ export function mockIPC(
       case 'plugin:event|emit':
         return handleEmit(args as { event: EventName; payload?: unknown })
       case 'plugin:event|unlisten':
-        return handleRemoveListener(args as { event: EventName; id: number })
+        return handleRemoveListener(
+          args as { event: EventName; eventId: number }
+        )
     }
   }
 
@@ -133,15 +175,15 @@ export function mockIPC(
 
   function handleEmit(args: { event: EventName; payload?: unknown }) {
     const eventListeners = listeners.get(args.event) || []
-    for (const handler of eventListeners) {
-      runCallback(handler, args)
+    for (const handler of [...eventListeners]) {
+      runCallback(handler, { ...args, id: handler })
     }
     return null
   }
-  function handleRemoveListener(args: { event: EventName; id: number }) {
+  function handleRemoveListener(args: { event: EventName; eventId: number }) {
     const eventListeners = listeners.get(args.event)
     if (eventListeners) {
-      const index = eventListeners.indexOf(args.id)
+      const index = eventListeners.indexOf(args.eventId)
       if (index !== -1) {
         eventListeners.splice(index, 1)
       }

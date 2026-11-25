@@ -10,6 +10,32 @@
 <tr>
 <td>
 
+`sample:allow-js-values`
+
+</td>
+<td>
+
+Enables the js_values command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sample:deny-js-values`
+
+</td>
+<td>
+
+Denies the js_values command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `sample:allow-ping`
 
 </td>

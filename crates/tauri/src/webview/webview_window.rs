@@ -11,30 +11,30 @@ use std::{
 };
 
 use crate::{
+  Emitter, EventName, Listener, ResourceTable, Window,
   event::EventTarget,
   ipc::ScopeObject,
   runtime::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   webview::{NewWindowResponse, ScrollBarStyle},
   window::Monitor,
-  Emitter, EventName, Listener, ResourceTable, Window,
 };
 #[cfg(desktop)]
 use crate::{
   image::Image,
   menu::{ContextMenu, Menu},
-  runtime::{window::CursorIcon, UserAttentionType},
+  runtime::{UserAttentionType, window::CursorIcon},
 };
 use tauri_runtime::webview::NewWindowFeatures;
 use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
+  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::{Cookie, PageLoadPayload, WebviewBuilder, WebviewEvent},
   window::WindowBuilder,
-  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
 
 use tauri_macros::default_runtime;
@@ -768,7 +768,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   #[must_use]
-  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  pub fn transient_for_raw(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for_raw(parent);
     self
   }
@@ -1142,11 +1142,6 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
   /// creating a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     #[cfg(desktop)]
@@ -1184,6 +1179,20 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn browser_accelerator_keys(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.browser_accelerator_keys(enabled);
+    self
+  }
+
   /// Set the path from which to load extensions from. Extensions stored in this path should be unpacked Chrome extensions on Windows, and compiled `.so` extensions on Linux.
   ///
   /// ## Platform-specific:
@@ -1201,11 +1210,36 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17
   /// - **Windows / Linux / Android**: Unsupported.
+  ///
+  /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `profile_identifier` instead, which is also supported on Windows."
+  )]
   pub fn data_store_identifier(mut self, data_store_identifier: [u8; 16]) -> Self {
-    self.webview_builder = self
-      .webview_builder
-      .data_store_identifier(data_store_identifier);
+    #[allow(deprecated)]
+    {
+      self.webview_builder = self
+        .webview_builder
+        .data_store_identifier(data_store_identifier);
+    }
+    self
+  }
+
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes, usually a UUID.
+  ///
+  /// See [`WebviewBuilder::profile_identifier`] for details.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17.
+  /// - **Windows**: Requires WebView2 Runtime 101+.
+  /// - **Linux / Android**: Unsupported.
+  #[must_use]
+  pub fn profile_identifier(mut self, profile_identifier: [u8; 16]) -> Self {
+    self.webview_builder = self.webview_builder.profile_identifier(profile_identifier);
     self
   }
 
@@ -2189,6 +2223,14 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_fullscreen(fullscreen)
   }
 
+  /// Sets the window as fullscreen on the monitor that contains the given physical position,
+  /// such as a [`Monitor::position`](crate::Monitor::position).
+  ///
+  /// Does nothing if no monitor contains the position.
+  pub fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> crate::Result<()> {
+    self.window.set_fullscreen_on_monitor(position)
+  }
+
   /// Toggles a fullscreen mode that doesn't require a new macOS space.
   /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
   ///
@@ -2514,6 +2556,52 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.reload()
   }
 
+  /// Converts a file path to a URL that can be loaded by this webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  ///
+  /// The `protocol-asset` Cargo feature must be enabled and the file must be included in the
+  /// [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+  /// scope. The protocol origin must also be allowed by the relevant
+  /// [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) directive,
+  /// e.g. `img-src 'self' asset: http://asset.localhost`.
+  ///
+  /// On Windows and Android the URL is `http://{protocol}.localhost/{path}`
+  /// (or `https://` if the webview was built with [`WebviewWindowBuilder::use_https_scheme`]);
+  /// on macOS, Linux and iOS it is `{protocol}://localhost/{path}`.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert.
+  /// * `protocol` - The custom protocol to use. Defaults to `asset`; you only need to set this
+  ///   when using a protocol registered with [`Builder::register_uri_scheme_protocol`](crate::Builder::register_uri_scheme_protocol).
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::NonUtf8Path`](crate::Error::NonUtf8Path) if the path is not valid UTF-8,
+  /// since the asset protocol could not resolve such a URL back to the file.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview_window("main").unwrap();
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = webview.convert_file_src(&video_path, None)?;
+  ///     webview.eval(format!("document.querySelector('video').src = '{url}'"))?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(
+    &self,
+    path: P,
+    protocol: Option<&str>,
+  ) -> crate::Result<String> {
+    self.webview.convert_file_src(path, protocol)
+  }
+
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].
   pub fn on_message(
     self,
@@ -2641,6 +2729,8 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Clear all browsing data for this webview window.
+  ///
+  /// See [`Webview::clear_all_browsing_data`] for details.
   pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
     self.webview.clear_all_browsing_data()
   }

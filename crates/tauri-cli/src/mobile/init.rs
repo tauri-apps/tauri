@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_app, Target};
+use super::{Target, get_app};
 use crate::{
+  ConfigValue, Result,
+  error::Context as _,
   helpers::app_paths::Dirs,
   helpers::{config::get_config as get_tauri_config, template::JsonMap},
   interface::AppInterface,
-  ConfigValue, Result,
 };
 use cargo_mobile2::{
   config::app::App,
@@ -21,7 +22,10 @@ use handlebars::{
   Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError, RenderErrorReason,
 };
 
-use std::{env::var_os, path::PathBuf};
+use std::{
+  env::var_os,
+  path::{Path, PathBuf},
+};
 
 pub fn command(
   target: Target,
@@ -75,20 +79,20 @@ fn exec(
     .next()
     .map(|bin| {
       let bin_path = PathBuf::from(&bin);
-      let mut build_args = vec!["tauri"];
+      let mut build_args = vec!["tauri".to_string()];
 
       if let Some(bin_stem) = bin_path.file_stem() {
         let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
         if r.is_match(&bin_stem.to_string_lossy()) {
           if var_os("PNPM_PACKAGE_NAME").is_some() {
-            return ("pnpm".into(), build_args);
+            return Ok(("pnpm".into(), build_args));
           } else if is_pnpm_dlx() {
-            return ("pnpm".into(), vec!["dlx", "@tauri-apps/cli"]);
-          } else if let Some(npm_execpath) = var_os("npm_execpath") {
-            let manager_stem = PathBuf::from(&npm_execpath)
-              .file_stem()
-              .unwrap()
-              .to_os_string();
+            return Ok(("pnpm".into(), vec!["dlx".into(), "@tauri-apps/cli".into()]));
+          } else if is_pnpm_run() {
+            return Ok(("pnpm".into(), build_args));
+          } else if let Some(manager_stem) = var_os("npm_execpath")
+            .and_then(|path| PathBuf::from(path).file_stem().map(|stem| stem.to_owned()))
+          {
             let is_npm = manager_stem == "npm-cli";
             let binary = if is_npm {
               "npm".into()
@@ -99,26 +103,36 @@ fn exec(
             };
 
             if is_npm {
-              build_args.insert(0, "run");
-              build_args.insert(1, "--");
+              build_args.insert(0, "run".into());
+              build_args.insert(1, "--".into());
             }
 
-            return (binary, build_args);
+            return Ok((binary, build_args));
           }
+
+          let cwd = std::env::current_dir().context("failed to resolve current directory")?;
+          let task_dir = match target {
+            Target::Android => dirs.tauri.to_path_buf(),
+            #[cfg(target_os = "macos")]
+            Target::Ios => dirs.tauri.join("gen/apple"),
+          };
+          return node_script_command(bin_path, args.next(), &cwd, &task_dir)
+            .context("could not find the Node CLI entry script; run the Tauri CLI directly or through a package manager");
         } else if bin_stem == "deno" {
-          build_args.insert(0, "task");
-          return (std::ffi::OsString::from("deno"), build_args);
+          build_args.insert(0, "task".into());
+          return Ok((std::ffi::OsString::from("deno"), build_args));
         } else if !cfg!(debug_assertions) && bin_stem == "cargo-tauri" {
-          return (std::ffi::OsString::from("cargo"), build_args);
+          return Ok((std::ffi::OsString::from("cargo"), build_args));
         }
       }
 
-      (bin, build_args)
+      Ok((bin, build_args))
     })
-    .unwrap_or_else(|| (std::ffi::OsString::from("cargo"), vec!["tauri"]));
+    .transpose()?
+    .unwrap_or_else(|| (std::ffi::OsString::from("cargo"), vec!["tauri".into()]));
 
-  build_args.push(target.command_name());
-  build_args.push(target.ide_build_script_name());
+  build_args.push(target.command_name().into());
+  build_args.push(target.ide_build_script_name().into());
 
   let mut binary = binary.to_string_lossy().to_string();
   if binary.ends_with(".exe") || binary.ends_with(".cmd") || binary.ends_with(".bat") {
@@ -131,7 +145,14 @@ fn exec(
 
   map.insert("tauri-binary", binary);
   map.insert("tauri-binary-args", &build_args);
-  map.insert("tauri-binary-args-str", build_args.join(" "));
+  map.insert(
+    "tauri-binary-args-str",
+    build_args
+      .iter()
+      .map(|arg| shell_escape(arg))
+      .collect::<Vec<_>>()
+      .join(" "),
+  );
 
   let app = match target {
     // Generate Android Studio project
@@ -147,7 +168,7 @@ fn exec(
         map.insert("android-debug-application-id-suffix", suffix);
       }
 
-      super::android::project::gen(
+      super::android::project::generate(
         &config,
         &metadata,
         (handlebars, map),
@@ -162,7 +183,7 @@ fn exec(
       let (config, metadata) =
         super::ios::get_config(&app, &tauri_config, &[], &Default::default(), dirs.tauri)?;
       map.insert("apple", &config);
-      super::ios::project::gen(
+      super::ios::project::generate(
         &tauri_config,
         &config,
         &metadata,
@@ -195,6 +216,7 @@ fn handlebars(app: &App) -> (Handlebars<'static>, JsonMap) {
     "quote-and-join-colon-prefix",
     Box::new(quote_and_join_colon_prefix),
   );
+  h.register_helper("shell-escape", Box::new(shell_escape_helper));
   h.register_helper("snake-case", Box::new(snake_case));
   h.register_helper("escape-kotlin-keyword", Box::new(escape_kotlin_keyword));
   // don't mix these up or very bad things will happen to all of us
@@ -231,6 +253,31 @@ fn html_escape(
 ) -> HelperResult {
   out
     .write(&handlebars::html_escape(get_str(helper)))
+    .map_err(Into::into)
+}
+
+/// Quotes a string so it is interpreted as a single word by a POSIX shell.
+fn shell_escape(s: &str) -> String {
+  if !s.is_empty()
+    && s
+      .chars()
+      .all(|c| c.is_ascii_alphanumeric() || "-_./:@%+=,".contains(c))
+  {
+    s.to_string()
+  } else {
+    format!("'{}'", s.replace('\'', r"'\''"))
+  }
+}
+
+fn shell_escape_helper(
+  helper: &Helper,
+  _: &Handlebars,
+  _: &Context,
+  _: &mut RenderContext,
+  out: &mut dyn Output,
+) -> HelperResult {
+  out
+    .write(&shell_escape(get_str(helper)))
     .map_err(Into::into)
 }
 
@@ -390,6 +437,49 @@ fn unprefix_path(
     .map_err(Into::into)
 }
 
+fn node_script_command(
+  binary: PathBuf,
+  entry: Option<std::ffi::OsString>,
+  cwd: &Path,
+  task_dir: &Path,
+) -> Option<(std::ffi::OsString, Vec<String>)> {
+  log::debug!("Falling back to Node CLI entry script detection");
+
+  let entry = cwd.join(entry?);
+  let resolved = entry.canonicalize().ok()?;
+  if !resolved.is_file() || !resolved.file_name().is_some_and(|name| name == "tauri.js") {
+    return None;
+  }
+
+  let entry = relative_to(&entry, task_dir);
+  let entry = entry.to_str()?;
+  let binary = if binary.is_relative()
+    && binary
+      .parent()
+      .is_some_and(|parent| !parent.as_os_str().is_empty())
+  {
+    relative_to(&cwd.join(binary), task_dir)
+  } else {
+    binary
+  };
+  Some((binary.into_os_string(), vec![entry.to_owned()]))
+}
+
+fn relative_to(path: &Path, base: &Path) -> PathBuf {
+  if common_path::common_path(path, base).is_some() {
+    util::relativize_path(path, base)
+  } else {
+    path.to_path_buf()
+  }
+}
+
+/// pnpm's native binary (pnpm >= 11) runs package scripts without setting `PNPM_PACKAGE_NAME`,
+/// and `npm_execpath` points at the binary itself, which is not necessarily named `pnpm`
+/// (corepack downloads it as `pnpm-native`), so the user agent is what identifies it.
+fn is_pnpm_run() -> bool {
+  std::env::var("npm_config_user_agent").is_ok_and(|user_agent| user_agent.starts_with("pnpm/"))
+}
+
 fn is_pnpm_dlx() -> bool {
   var_os("NODE_PATH")
     .map(PathBuf::from)
@@ -402,4 +492,25 @@ fn is_pnpm_dlx() -> bool {
       }
       false
     })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::shell_escape;
+
+  #[test]
+  fn shell_escape_words() {
+    assert_eq!(shell_escape("cargo"), "cargo");
+    assert_eq!(shell_escape("xcode-script"), "xcode-script");
+    assert_eq!(
+      shell_escape("/Users/me/node_modules/.bin/tauri"),
+      "/Users/me/node_modules/.bin/tauri"
+    );
+    assert_eq!(
+      shell_escape("/Users/me/My Projects/tauri"),
+      "'/Users/me/My Projects/tauri'"
+    );
+    assert_eq!(shell_escape("it's $HOME"), r"'it'\''s $HOME'");
+    assert_eq!(shell_escape(""), "''");
+  }
 }

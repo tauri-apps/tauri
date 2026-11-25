@@ -6,7 +6,7 @@ use std::{error::Error, path::PathBuf};
 
 use serde::Deserialize;
 use tauri_utils::{
-  acl::{capability::Capability, Permission, Scopes},
+  acl::{Permission, Scopes, capability::Capability},
   config::Config,
   write_if_changed,
 };

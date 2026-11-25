@@ -25,7 +25,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 }
 
-fn write_and_make_executable(path: &Path, data: Vec<u8>) -> std::io::Result<()> {
+fn write_and_make_executable(path: &Path, data: &[u8]) -> std::io::Result<()> {
   use std::os::unix::fs::PermissionsExt;
 
   fs::write(path, data)?;

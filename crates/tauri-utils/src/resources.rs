@@ -32,8 +32,7 @@ fn normalize(path: &Path) -> PathBuf {
   let mut dest = PathBuf::new();
   for component in path.components() {
     match component {
-      Component::Prefix(_) => {}
-      Component::RootDir => dest.push("/"),
+      Component::Prefix(_) | Component::RootDir => dest.push(component),
       Component::CurDir => {}
       Component::ParentDir => dest.push(".."),
       Component::Normal(string) => dest.push(string),
@@ -657,6 +656,47 @@ mod tests {
 
   #[test]
   #[serial_test::serial(resources)]
+  fn resource_paths_iter_map_absolute_paths() {
+    setup_test_dirs();
+
+    // on Windows, these paths start with a drive letter
+    let dir = std::env::current_dir().unwrap();
+    let pattern = |path: &str| dir.join(path).to_string_lossy().into_owned();
+
+    let resources = ResourcePaths::from_map(
+      &HashMap::from([
+        (pattern("src/script.js"), "main.js".to_string()),
+        (pattern("src/sounds"), "voices".to_string()),
+        (pattern("src/textures/*"), "textures".to_string()),
+      ]),
+      true,
+    )
+    .iter()
+    .collect::<crate::Result<Vec<_>>>()
+    .unwrap();
+
+    let expected = [
+      ("src/script.js", "main.js"),
+      ("src/sounds/lang/es.wav", "voices/lang/es.wav"),
+      ("src/sounds/lang/fr.wav", "voices/lang/fr.wav"),
+      ("src/textures/water.tex", "textures/water.tex"),
+      ("src/textures/fire.tex", "textures/fire.tex"),
+    ]
+    .map(|(path, target)| Resource {
+      path: dir.join(path),
+      target: Path::new(target).components().collect(),
+    });
+
+    assert_eq!(resources.len(), expected.len());
+    for resource in expected {
+      if !resources.contains(&resource) {
+        panic!("{resource:?} was expected but not found in {resources:?}");
+      }
+    }
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
   fn resource_paths_errors() {
     setup_test_dirs();
 
@@ -684,9 +724,11 @@ mod tests {
     assert!(resources.iter().all(|r| r.is_err()));
 
     // hashmap order is not guaranteed so we check the error variant exists and how many
-    assert!(resources
-      .iter()
-      .any(|r| matches!(r, Err(crate::Error::ResourcePathNotFound(_)))));
+    assert!(
+      resources
+        .iter()
+        .any(|r| matches!(r, Err(crate::Error::ResourcePathNotFound(_))))
+    );
     assert_eq!(
       resources
         .iter()
@@ -694,9 +736,11 @@ mod tests {
         .count(),
       2
     );
-    assert!(resources
-      .iter()
-      .any(|r| matches!(r, Err(crate::Error::NotAllowedToWalkDir(_)))));
+    assert!(
+      resources
+        .iter()
+        .any(|r| matches!(r, Err(crate::Error::NotAllowedToWalkDir(_))))
+    );
     assert_eq!(
       resources
         .iter()
@@ -704,9 +748,11 @@ mod tests {
         .count(),
       1
     );
-    assert!(resources
-      .iter()
-      .any(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_)))));
+    assert!(
+      resources
+        .iter()
+        .any(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_))))
+    );
     assert_eq!(
       resources
         .iter()

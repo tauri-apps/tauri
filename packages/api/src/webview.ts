@@ -13,6 +13,31 @@
  * getCurrentWebview().listen("my-webview-event", ({ event, payload }) => { });
  * ```
  *
+ * #### The `unstable` Cargo feature
+ *
+ * Creating *child webviews* — several webviews inside one window, via
+ * {@link Webview | `new Webview(...)`} — is an unstable API. It requires the
+ * `unstable` feature of the `tauri` crate:
+ *
+ * ```toml
+ * [dependencies]
+ * tauri = { version = "2", features = ["unstable"] }
+ * ```
+ *
+ * Without it the `plugin:webview|create_webview` command returns an
+ * "unstable feature not supported" error. Everything else in this module —
+ * {@link getCurrentWebview}, {@link getAllWebviews} and the methods of an existing
+ * webview — works without the feature, and so does
+ * {@link WebviewWindow | `new WebviewWindow(...)`}, which creates a window with a
+ * single webview.
+ *
+ * This package is also accessible with `window.__TAURI__.webview` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
+ *
+ * @remarks `core:webview:default` only enables the getters
+ * (`allow-get-all-webviews`, `allow-webview-position`, `allow-webview-size` and
+ * `allow-internal-toggle-devtools`). Every other method documents the permission
+ * it needs, which you must add to a capability yourself.
+ *
  * @module
  */
 
@@ -39,7 +64,16 @@ import {
 } from './window'
 import { WebviewWindow } from './webviewWindow'
 
-/** The drag and drop event types. */
+/**
+ * The payload of a drag and drop event, see {@link Webview.onDragDropEvent}.
+ *
+ * - `enter`: the user dragged files over the webview; `paths` holds the dragged files.
+ * - `over`: the cursor moved while dragging; only `position` changes.
+ * - `drop`: the files were dropped; `paths` holds the dropped files.
+ * - `leave`: the drag left the webview or was cancelled.
+ *
+ * Positions are in physical pixels, relative to the webview's top-left corner.
+ */
 type DragDropEvent =
   | { type: 'enter'; paths: string[]; position: PhysicalPosition }
   | { type: 'over'; position: PhysicalPosition }
@@ -64,6 +98,9 @@ function getCurrentWebview(): Webview {
 
 /**
  * Gets a list of instances of `Webview` for all available webviews.
+ *
+ * @remarks Uses the `core:webview:allow-get-all-webviews` permission, which is part
+ * of `core:webview:default`.
  *
  * @since 2.0.0
  */
@@ -99,6 +136,23 @@ export type WebviewLabel = string
  *
  * Webviews are identified by a *label*  a unique identifier that can be used to reference it later.
  * It may only contain alphanumeric characters `a-zA-Z` plus the following special characters `-`, `/`, `:` and `_`.
+ *
+ * #### Requires the `unstable` Cargo feature
+ *
+ * Creating a webview with `new Webview(...)` adds a *child webview* to an existing
+ * window, which is an unstable API gated behind the `unstable` feature of the
+ * `tauri` crate:
+ *
+ * ```toml
+ * [dependencies]
+ * tauri = { version = "2", features = ["unstable"] }
+ * ```
+ *
+ * Without it the call rejects with an "unstable feature not supported" error.
+ * Getting a handle to an existing webview (`Webview.getByLabel`,
+ * {@link getCurrentWebview}, {@link getAllWebviews}) and every method on this class
+ * work without the feature. To create a window that hosts a single webview, use
+ * {@link WebviewWindow} instead, which is stable.
  *
  * @example
  * ```typescript
@@ -189,7 +243,14 @@ class Webview {
    *
    * @param window the window to add this webview to.
    * @param label The unique webview label. Must be alphanumeric: `a-zA-Z-/:_`.
+   * @param options The webview configuration, see {@link WebviewOptions}.
    * @returns The {@link Webview} instance to communicate with the webview.
+   *
+   * @remarks Requires the `unstable` Cargo feature on the `tauri` crate
+   * (`tauri = { version = "2", features = ["unstable"] }`), otherwise the call
+   * rejects with an "unstable feature not supported" error. It also requires the
+   * `core:webview:allow-create-webview` permission, which is not included in
+   * `core:webview:default`.
    */
   constructor(window: Window, label: WebviewLabel, options: WebviewOptions) {
     this.window = window
@@ -203,7 +264,11 @@ class Webview {
         windowLabel: window.label,
         options: {
           ...options,
-          label
+          label,
+          onNewWindow:
+            typeof options?.onNewWindow === 'string'
+              ? { action: options.onNewWindow }
+              : options?.onNewWindow
         }
       })
         .then(async () => this.emit('tauri://created'))
@@ -250,14 +315,18 @@ class Webview {
    *   console.log(`Got error: ${payload}`);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener is removed automatically when this webview is destroyed,
+   * so you do not need to unlisten just because the webview is closing. Do call the
+   * returned function when the listener's own scope ends, e.g. on page navigation
+   * or when a component unmounts.
    */
   async listen<T>(
     event: EventName,
@@ -281,18 +350,21 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrentWebview } from '@tauri-apps/api/webview';
-   * const unlisten = await getCurrent().once<null>('initialized', (event) => {
+   * const unlisten = await getCurrentWebview().once<null>('initialized', (event) => {
    *   console.log(`Webview initialized!`);
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listener removes itself after the first event and is also removed
+   * automatically when this webview is destroyed. Do call the returned function if
+   * the listener's own scope ends before the event arrives.
    */
   async once<T>(
     event: EventName,
@@ -393,7 +465,10 @@ class Webview {
    * const position = await getCurrentWebview().position();
    * ```
    *
-   * @returns The webview's position.
+   * @returns The webview's position, in physical pixels.
+   *
+   * @remarks Uses the `core:webview:allow-webview-position` permission, which is
+   * part of `core:webview:default`.
    */
   async position(): Promise<PhysicalPosition> {
     return invoke<{ x: number; y: number }>('plugin:webview|webview_position', {
@@ -410,7 +485,10 @@ class Webview {
    * const size = await getCurrentWebview().size();
    * ```
    *
-   * @returns The webview's size.
+   * @returns The webview's size, in physical pixels.
+   *
+   * @remarks Uses the `core:webview:allow-webview-size` permission, which is part
+   * of `core:webview:default`.
    */
   async size(): Promise<PhysicalSize> {
     return invoke<{ width: number; height: number }>(
@@ -432,6 +510,9 @@ class Webview {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-webview-close` permission (not
+   * included in `core:webview:default`).
    */
   async close(): Promise<void> {
     return invoke('plugin:webview|webview_close', {
@@ -443,12 +524,16 @@ class Webview {
    * Resizes the webview.
    * @example
    * ```typescript
-   * import { getCurrent, LogicalSize } from '@tauri-apps/api/webview';
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * import { LogicalSize } from '@tauri-apps/api/dpi';
    * await getCurrentWebview().setSize(new LogicalSize(600, 500));
    * ```
    *
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-set-webview-size` permission (not
+   * included in `core:webview:default`).
    */
   async setSize(size: LogicalSize | PhysicalSize | Size): Promise<void> {
     return invoke('plugin:webview|set_webview_size', {
@@ -461,12 +546,17 @@ class Webview {
    * Sets the webview position.
    * @example
    * ```typescript
-   * import { getCurrent, LogicalPosition } from '@tauri-apps/api/webview';
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * import { LogicalPosition } from '@tauri-apps/api/dpi';
    * await getCurrentWebview().setPosition(new LogicalPosition(600, 500));
    * ```
    *
-   * @param position The new position, in logical or physical pixels.
+   * @param position The new position, in logical or physical pixels, relative to
+   * the top-left corner of the hosting window.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-set-webview-position` permission (not
+   * included in `core:webview:default`).
    */
   async setPosition(
     position: LogicalPosition | PhysicalPosition | Position
@@ -486,6 +576,9 @@ class Webview {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-set-webview-focus` permission (not
+   * included in `core:webview:default`).
    */
   async setFocus(): Promise<void> {
     return invoke('plugin:webview|set_webview_focus', {
@@ -502,6 +595,9 @@ class Webview {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-set-webview-auto-resize` permission
+   * (not included in `core:webview:default`).
    */
   async setAutoResize(autoResize: boolean): Promise<void> {
     return invoke('plugin:webview|set_webview_auto_resize', {
@@ -519,6 +615,9 @@ class Webview {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-webview-hide` permission (not
+   * included in `core:webview:default`).
    */
   async hide(): Promise<void> {
     return invoke('plugin:webview|webview_hide', {
@@ -535,6 +634,9 @@ class Webview {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-webview-show` permission (not
+   * included in `core:webview:default`).
    */
   async show(): Promise<void> {
     return invoke('plugin:webview|webview_show', {
@@ -550,7 +652,11 @@ class Webview {
    * await getCurrentWebview().setZoom(1.5);
    * ```
    *
+   * @param scaleFactor The zoom level, where `1` is 100%.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-set-webview-zoom` permission (not
+   * included in `core:webview:default`).
    */
   async setZoom(scaleFactor: number): Promise<void> {
     return invoke('plugin:webview|set_webview_zoom', {
@@ -560,14 +666,18 @@ class Webview {
   }
 
   /**
-   * Moves this webview to the given label.
+   * Moves this webview to the window with the given label.
    * @example
    * ```typescript
    * import { getCurrentWebview } from '@tauri-apps/api/webview';
    * await getCurrentWebview().reparent('other-window');
    * ```
    *
+   * @param window The target window, or its label.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-reparent` permission (not included in
+   * `core:webview:default`).
    */
   async reparent(window: Window | WebviewWindow | string): Promise<void> {
     return invoke('plugin:webview|reparent', {
@@ -577,7 +687,8 @@ class Webview {
   }
 
   /**
-   * Clears all browsing data for this webview.
+   * Clears all browsing data for this webview: cookies, localStorage, IndexedDB,
+   * caches and any other data the webview stores for the loaded origins.
    * @example
    * ```typescript
    * import { getCurrentWebview } from '@tauri-apps/api/webview';
@@ -585,6 +696,9 @@ class Webview {
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-clear-all-browsing-data` permission
+   * (not included in `core:webview:default`).
    */
   async clearAllBrowsingData(): Promise<void> {
     return invoke('plugin:webview|clear_all_browsing_data')
@@ -600,12 +714,27 @@ class Webview {
    *   - On Windows 7, transparency is not supported and the alpha value will be ignored.
    *   - On Windows higher than 7: translucent colors are not supported so any alpha value other than `0` will be replaced by `255`
    *
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().setBackgroundColor('#2f2f2f');
+   * // or with an RGBA tuple, or `null` to restore the default background
+   * await getCurrentWebview().setBackgroundColor([47, 47, 47, 255]);
+   * ```
+   *
+   * @param color The new background color, or `null` to reset it.
    * @returns A promise indicating the success or failure of the operation.
+   *
+   * @remarks Requires the `core:webview:allow-set-webview-background-color`
+   * permission (not included in `core:webview:default`).
    *
    * @since 2.1.0
    */
   async setBackgroundColor(color: Color | null): Promise<void> {
-    return invoke('plugin:webview|set_webview_background_color', { color })
+    return invoke('plugin:webview|set_webview_background_color', {
+      label: this.label,
+      value: color
+    })
   }
 
   // Listeners
@@ -628,7 +757,7 @@ class Webview {
    *  }
    * });
    *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * // call unlisten when your handler goes out of scope e.g. the component is unmounted
    * unlisten();
    * ```
    *
@@ -636,7 +765,10 @@ class Webview {
    * To retrieve the correct drop position, please detach the debugger.
    *
    * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @remarks The listeners are removed automatically when this webview is
+   * destroyed. Do call the returned function when the listener's own scope ends,
+   * e.g. on page navigation or when a component unmounts.
    */
   async onDragDropEvent(
     handler: EventCallback<DragDropEvent>
@@ -691,11 +823,13 @@ class Webview {
       }
     )
 
-    return () => {
-      unlistenDragEnter()
-      unlistenDragDrop()
-      unlistenDragOver()
-      unlistenDragLeave()
+    return async () => {
+      await Promise.all([
+        unlistenDragEnter(),
+        unlistenDragDrop(),
+        unlistenDragOver(),
+        unlistenDragLeave()
+      ])
     }
   }
 }
@@ -714,9 +848,9 @@ interface WebviewOptions {
    * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
-  /** The initial vertical position in logical pixels. */
+  /** The initial horizontal position in logical pixels, relative to the window's top-left corner. */
   x: number
-  /** The initial horizontal position in logical pixels. */
+  /** The initial vertical position in logical pixels, relative to the window's top-left corner. */
   y: number
   /** The initial width in logical pixels. */
   width: number
@@ -724,8 +858,8 @@ interface WebviewOptions {
   height: number
   /**
    * Whether the webview is transparent or not.
-   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.
-   * WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+   *
+   * On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
    */
   transparent?: boolean
   /**
@@ -856,13 +990,13 @@ interface WebviewOptions {
    */
   disableInputAccessoryView?: boolean
   /**
-   * Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
+   * Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to `localDataDir()`/${label}**.
    * For security reasons, paths outside of that location can only be configured on the Rust side.
    *
    * #### Platform-specific:
    *
    * - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
-   * - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+   * - **macOS / iOS**: Unsupported, use `profileIdentifier` instead.
    * - **Android**: Unsupported.
    *
    * @since 2.9.0
@@ -880,8 +1014,30 @@ interface WebviewOptions {
    * - **Windows / Linux / Android**: Unsupported.
    *
    * @since 2.9.0
+   * @deprecated since 2.13.0. Use {@linkcode WebviewOptions.profileIdentifier} instead, which is also supported on Windows.
    */
   dataStoreIdentifier?: number[]
+  /**
+   * Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+   * in a profile identified by the given 16 bytes, usually a UUID.
+   *
+   * Webviews using the same identifier share their browsing data,
+   * while webviews using different identifiers are fully isolated from each other.
+   *
+   * The array must contain 16 u8 numbers.
+   *
+   * #### Platform-specific:
+   *
+   * - **macOS / iOS**: Uses a [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)) created with this identifier.
+   *   Available on macOS >= 14 and iOS >= 17.
+   * - **Windows**: Uses a [WebView2 profile](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support)
+   *   named after the lowercase hex representation of the identifier, stored inside the data directory.
+   *   Requires WebView2 Runtime 101+, older runtimes ignore this option.
+   * - **Linux / Android**: Unsupported.
+   *
+   * @since 2.13.0
+   */
+  profileIdentifier?: number[]
   /**
    * Specifies the native scrollbar style to use with the webview.
    * CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
@@ -916,8 +1072,37 @@ interface WebviewOptions {
    * @since 2.11.0
    */
   generalAutofillEnabled?: boolean
+  /**
+   * Action to perform when a new window is requested to be created.
+   *
+   * 'allowDefault' lets the webview open the URL using the native implementation.
+   * 'allowTauriWindow' creates a Tauri window to load the URL.
+   * Additionally you can provide a list of filters to only allow URLs matching certain patterns.
+   * Each entry is a glob pattern such as `https://*.tauri.app/**`, where `*` does not match `/`
+   * and `**` matches any number of path segments.
+   * A pattern without a path such as `https://tauri.app` matches any path on that origin.
+   * The full {@link https://developer.mozilla.org/en-US/docs/Web/API/URLPattern|URL pattern spec} is used instead
+   * when the `url-pattern` Cargo feature is enabled.
+   *
+   * A new window is requested to be opened by the {@link https://developer.mozilla.org/en-US/docs/Web/API/Window/open|window.open API}.
+   *
+   * ## Platform-specific
+   *
+   * - **Android / iOS**: Not supported.
+   *
+   * @since 2.13.0
+   */
+  onNewWindow?: OnNewWindow
 }
+
+type OnNewWindow =
+  | 'allowDefault'
+  | 'allowTauriWindow'
+  | 'deny'
+  | { action: 'allowDefault'; urls?: string[] }
+  | { action: 'allowTauriWindow'; urls?: string[] }
+  | { action: 'deny' }
 
 export { Webview, getCurrentWebview, getAllWebviews }
 
-export type { DragDropEvent, WebviewOptions, Color }
+export type { DragDropEvent, WebviewOptions, Color, OnNewWindow }

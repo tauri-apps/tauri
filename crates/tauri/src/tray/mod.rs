@@ -9,9 +9,10 @@ pub(crate) mod plugin;
 use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
+use crate::menu::NativeIcon;
 use crate::resources::Resource;
 use crate::{
-  image::Image, menu::run_item_main_thread, AppHandle, Manager, PhysicalPosition, Rect, Runtime,
+  AppHandle, Manager, PhysicalPosition, Rect, Runtime, image::Image, menu::run_item_main_thread,
 };
 use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;
@@ -63,8 +64,11 @@ impl From<tray_icon::MouseButton> for MouseButton {
 ///
 /// ## Platform-specific:
 ///
-/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown
+/// - **Linux**: Unsupported by default. The event is not emitted even though the icon is shown
 ///   and will still show a context menu on right click.
+///   With the `linux-ksni` feature, [`TrayIconEvent::Click`] is emitted for left and middle clicks
+///   (only with [`MouseButtonState::Up`]). Right click shows the context menu and is not reported.
+///   All other events are unsupported.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
 #[non_exhaustive]
@@ -257,11 +261,45 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
+  /// Set an icon for this tray icon and draw it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu bar in light and dark mode. [`TrayIconBuilder::icon`] uses the icon as-is instead.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Same as [`TrayIconBuilder::icon`], as only macOS has template images.
+  pub fn icon_templated(mut self, icon: Image<'_>) -> Self {
+    let icon = icon.try_into().ok();
+    if let Some(icon) = icon {
+      #[cfg(target_os = "macos")]
+      {
+        self.inner = self.inner.with_icon_templated(icon);
+      }
+      #[cfg(not(target_os = "macos"))]
+      {
+        self.inner = self.inner.with_icon(icon);
+      }
+    }
+    self
+  }
+
+  /// Set a platform-native icon for this tray icon.
+  ///
+  /// Note that this overrides any icon set with [`TrayIconBuilder::icon`] or
+  /// [`TrayIconBuilder::icon_templated`].
+  ///
+  /// See [`TrayIcon::set_native_icon`] for the platform-specific behavior.
+  pub fn native_icon(mut self, icon: NativeIcon) -> Self {
+    self.inner = self.inner.with_native_icon(icon.into());
+    self
+  }
+
   /// Set a tooltip for this tray icon.
   ///
   /// ## Platform-specific:
   ///
-  /// - **Linux:** Unsupported.
+  /// - **Linux:** Unsupported, unless the `linux-ksni` feature is enabled.
   pub fn tooltip<S: AsRef<str>>(mut self, s: S) -> Self {
     self.inner = self.inner.with_tooltip(s);
     self
@@ -286,14 +324,39 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+  /// This has no effect when the `linux-ksni` feature is enabled.
   pub fn temp_dir_path<P: AsRef<Path>>(mut self, s: P) -> Self {
     self.inner = self.inner.with_temp_dir_path(s);
     self
   }
 
+  /// Set a stable key for this tray icon's saved position in the menu bar. **macOS only**.
+  ///
+  /// macOS restores where the user <kbd>Cmd</kbd>+dragged a tray icon on the next launch
+  /// either way, keyed by the order in which the app created its tray icons (`Item-0`,
+  /// `Item-1`, and so on) when no name is given. Set one when that numbering isn't stable
+  /// from launch to launch, as in an app that creates several tray icons or creates one
+  /// conditionally, so that two icons don't come back holding each other's positions.
+  ///
+  /// Use one fixed string per tray icon, typically a reverse-DNS identifier such as
+  /// `"com.example.app.tray"`. The position is saved under that name, so changing it
+  /// abandons the position saved under the old one.
+  pub fn autosave_name<S: AsRef<str>>(mut self, name: S) -> Self {
+    self.inner = self.inner.with_autosave_name(name);
+    self
+  }
+
   /// Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIconBuilder::icon_templated` instead, which takes the icon to draw as a template."
+  )]
   pub fn icon_as_template(mut self, is_template: bool) -> Self {
-    self.inner = self.inner.with_icon_as_template(is_template);
+    #[allow(deprecated)]
+    {
+      self.inner = self.inner.with_icon_as_template(is_template);
+    }
     self
   }
 
@@ -321,10 +384,27 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
-  /// Set a handler for menu events.
+  /// Whether to show the tray menu on right click or not, default is `true`.
   ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported.
+  pub fn show_menu_on_right_click(mut self, enable: bool) -> Self {
+    self.inner = self.inner.with_menu_on_right_click(enable);
+    self
+  }
+
+  /// Set a global handler for menu events.
+  ///
+  /// This handler is not specific to this tray icon.
+  /// It receives each menu event of the application.
+  /// This includes the events of the app menu, the window menus, and the menus of all tray icons.
+  ///
+  /// This method operates the same as [`Builder::on_menu_event`](crate::Builder::on_menu_event).
+  /// If you register the same handler here and on the [`Builder`](crate::Builder),
+  /// the handler runs two times for each menu event.
+  ///
+  /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(
     mut self,
     f: F,
@@ -460,10 +540,17 @@ impl<R: Runtime> TrayIcon<R> {
     &self.app_handle
   }
 
-  /// Register a handler for menu events.
+  /// Register a global handler for menu events.
   ///
-  /// Note that this handler is called for any menu event,
-  /// whether it is coming from this window, another window or from the tray icon menu.
+  /// This handler is not specific to this tray icon.
+  /// It receives each menu event of the application.
+  /// This includes the events of the app menu, the window menus, and the menus of all tray icons.
+  ///
+  /// This method operates the same as [`AppHandle::on_menu_event`].
+  /// If you register the same handler here and on the [`Builder`](crate::Builder) or the [`AppHandle`],
+  /// the handler runs two times for each menu event.
+  ///
+  /// To handle only the events of this tray menu, compare [`MenuEvent::id`] with the IDs of the items in this menu.
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Sync + Send + 'static>(&self, f: F) {
     self
       .app_handle
@@ -519,7 +606,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Linux:** Unsupported
+  /// - **Linux:** Unsupported, unless the `linux-ksni` feature is enabled.
   pub fn set_tooltip<S: AsRef<str>>(&self, tooltip: Option<S>) -> crate::Result<()> {
     let s = tooltip.map(|s| s.as_ref().to_string());
     run_item_main_thread!(self, |self_: Self| self_.inner.set_tooltip(s))?.map_err(Into::into)
@@ -549,6 +636,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+  /// This has no effect when the `linux-ksni` feature is enabled.
   pub fn set_temp_dir_path<P: AsRef<Path>>(&self, path: Option<P>) -> crate::Result<()> {
     #[allow(unused)]
     let p = path.map(|p| p.as_ref().to_path_buf());
@@ -557,9 +645,81 @@ impl<R: Runtime> TrayIcon<R> {
     Ok(())
   }
 
+  /// Sets a new tray icon, or removes it, and draws it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu bar in light and dark mode. [`TrayIcon::set_icon`] draws the icon as-is instead.
+  ///
+  /// Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+  /// To enable it, change your Cargo.toml file:
+  ///
+  /// ```toml
+  /// [dependencies]
+  /// tauri = { version = "...", features = ["...", "image-png"] }
+  /// ```
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Same as [`TrayIcon::set_icon`], as only macOS has template images.
+  pub fn set_icon_templated(&self, icon: Option<Image<'_>>) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+      let tray_icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| {
+        self_.inner.set_icon_templated(tray_icon)
+      })??;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+      self.set_icon(icon)?;
+    }
+    Ok(())
+  }
+
+  /// Whether the current tray icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// See [`TrayIcon::set_icon_templated`]. An icon set with [`TrayIcon::set_native_icon`] reports
+  /// `false`, as the system flags those itself.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux/Windows:** Always `false`, as only macOS has template images.
+  pub fn icon_is_template(&self) -> crate::Result<bool> {
+    #[cfg(target_os = "macos")]
+    return run_item_main_thread!(self, |self_: Self| self_.inner.icon_is_template());
+    #[allow(unreachable_code)]
+    Ok(false)
+  }
+
+  /// Sets a new tray icon from a platform-native icon. If `None` is provided, it will remove the icon.
+  ///
+  /// Note that this overrides any icon set with [`TrayIcon::set_icon`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Known variants map to freedesktop icon names, so the icon is resolved by the
+  ///   desktop icon theme and follows its light and dark variants.
+  /// - **macOS:** Known variants map to AppKit image names.
+  /// - **Windows:** Known variants map to stock shell icons where an equivalent exists, and an
+  ///   error is returned otherwise.
+  pub fn set_native_icon(&self, icon: Option<NativeIcon>) -> crate::Result<()> {
+    let icon = icon.map(Into::into);
+    run_item_main_thread!(self, |self_: Self| self_.inner.set_native_icon(icon))?
+      .map_err(Into::into)
+  }
+
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIcon::set_icon_templated` instead, which sets the icon and draws it as a template in one call."
+  )]
   pub fn set_icon_as_template(&self, #[allow(unused)] is_template: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
+    #[allow(deprecated)]
     run_item_main_thread!(self, |self_: Self| {
       self_.inner.set_icon_as_template(is_template)
     })?;
@@ -574,28 +734,21 @@ impl<R: Runtime> TrayIcon<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux / Windows:** Falls back to calling `set_icon`.
+  // TODO: Remove in v3
+  #[deprecated(
+    since = "2.13.0",
+    note = "Use `TrayIcon::set_icon_templated` for a template icon, or `TrayIcon::set_icon` for a plain one."
+  )]
   pub fn set_icon_with_as_template(
     &self,
     icon: Option<Image<'_>>,
-    #[allow(unused)] is_template: bool,
+    is_template: bool,
   ) -> crate::Result<()> {
-    #[cfg(target_os = "macos")]
-    {
-      let tray_icon = match icon {
-        Some(i) => Some(i.try_into()?),
-        None => None,
-      };
-      run_item_main_thread!(self, |self_: Self| {
-        self_
-          .inner
-          .set_icon_with_as_template(tray_icon, is_template)
-      })??;
+    if is_template {
+      self.set_icon_templated(icon)
+    } else {
+      self.set_icon(icon)
     }
-    #[cfg(not(target_os = "macos"))]
-    {
-      self.set_icon(icon)?;
-    }
-    Ok(())
   }
 
   /// Disable or enable showing the tray menu on left click.
@@ -610,6 +763,32 @@ impl<R: Runtime> TrayIcon<R> {
       self_.inner.set_show_menu_on_left_click(enable)
     })?;
     Ok(())
+  }
+
+  /// Disable or enable showing the tray menu on right click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  pub fn set_show_menu_on_right_click(&self, #[allow(unused)] enable: bool) -> crate::Result<()> {
+    #[cfg(any(target_os = "macos", windows))]
+    run_item_main_thread!(self, |self_: Self| {
+      self_.inner.set_show_menu_on_right_click(enable)
+    })?;
+    Ok(())
+  }
+
+  /// Show the tray menu at the current cursor position.
+  ///
+  /// Useful with [`TrayIconBuilder::show_menu_on_left_click`] and
+  /// [`TrayIconBuilder::show_menu_on_right_click`] disabled, to control when the menu shows up,
+  /// for instance after updating its items.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  pub fn show_menu(&self) -> crate::Result<()> {
+    run_item_main_thread!(self, |self_: Self| self_.inner.show_menu())
   }
 
   /// Get tray icon rect.

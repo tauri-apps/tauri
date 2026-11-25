@@ -17,8 +17,8 @@ use tauri_runtime::{
 };
 
 use crate::{
-  app::GlobalWindowEventListener, event::EventName, image::Image, sealed::ManagerBase, AppHandle,
-  EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Window, WindowEvent,
+  AppHandle, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Window, WindowEvent,
+  app::GlobalWindowEventListener, event::EventName, image::Image, sealed::ManagerBase,
 };
 
 use super::EmitPayload;
@@ -100,6 +100,13 @@ impl<R: Runtime> WindowManager<R> {
       let _ = on_window_event(&window_, event);
       for handler in window_event_listeners.iter() {
         handler(&window_, event);
+      }
+      // purge the window's Rust listeners only after `tauri://destroyed` was delivered to them
+      if matches!(event, WindowEvent::Destroyed) {
+        window_
+          .manager()
+          .listeners()
+          .remove_window_listeners(window_.label());
       }
     });
 

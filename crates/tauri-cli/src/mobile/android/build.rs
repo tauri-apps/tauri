@@ -3,20 +3,20 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_resources,
-  log_finished, open_and_wait, sync_debug_application_id_suffix, MobileTarget, OptionsHandle,
+  MobileTarget, OptionsHandle, configure_cargo, delete_codegen_vars, ensure_init, env, get_app,
+  get_config, inject_resources, log_finished, open_and_wait, sync_debug_application_id_suffix,
 };
 use crate::{
+  ConfigValue, Error, Result,
   build::Options as BuildOptions,
   error::Context,
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
   },
   interface::{AppInterface, Options as InterfaceOptions},
-  mobile::{android::generate_tauri_properties, write_options, CliOptions, TargetDevice},
-  ConfigValue, Error, Result,
+  mobile::{CliOptions, TargetDevice, android::generate_tauri_properties, write_options},
 };
 use clap::{ArgAction, Parser};
 
@@ -277,7 +277,7 @@ fn run_build(
     config: build_options.config,
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(tauri_config, cli_options)?;
+  let handle = write_options(MobileTarget::Android, tauri_dir, cli_options)?;
 
   inject_resources(config, tauri_config)?;
 

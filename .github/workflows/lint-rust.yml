@@ -81,5 +81,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.platform.target }}
+          # Only `dev` writes to the cache: an entry saved from a pull request lives on its
+          # merge ref, where nothing else can restore it, and every write evicts a `dev`
+          # entry that other runs would have hit (10 GB repository limit, LRU eviction).
+          save-if: ${{ github.ref == 'refs/heads/dev' }}
 
       - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} ${{ matrix.platform.include }}--all-targets --all-features -- -D warnings

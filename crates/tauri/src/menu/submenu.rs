@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use super::run_item_main_thread;
 use super::Submenu;
-use super::{sealed::ContextMenuBase, IsMenuItem, MenuItemKind};
+use super::run_item_main_thread;
+use super::{IsMenuItem, MenuItemKind, sealed::ContextMenuBase};
 use crate::menu::NativeIcon;
 use crate::menu::SubmenuInner;
 use crate::run_main_thread;
@@ -112,11 +112,14 @@ impl<R: Runtime> Submenu<R> {
     let handle = manager.app_handle();
     let app_handle = handle.clone();
     let text = text.as_ref().to_owned();
-    let icon_data = icon.map(|i| (i.rgba().to_vec(), i.width(), i.height()));
-    let submenu = run_main_thread!(handle, || {
+    let icon: Option<MudaIcon> = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+    let submenu = run_main_thread!(handle, move || {
       let submenu = muda::Submenu::new(text, enabled);
-      if let Some((rgba, width, height)) = icon_data.clone() {
-        submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
+      if icon.is_some() {
+        submenu.set_icon(icon);
       }
       SubmenuInner::new(app_handle, submenu)
     })?;
@@ -124,6 +127,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// Create a new submenu with a native icon.
+  ///
+  /// See [`Submenu::set_native_icon`] for the platform-specific behavior.
   pub fn new_with_native_icon<M: Manager<R>, S: AsRef<str>>(
     manager: &M,
     text: S,
@@ -156,8 +161,8 @@ impl<R: Runtime> Submenu<R> {
     let id = id.into();
     let text = text.as_ref().to_owned();
 
-    let submenu = run_main_thread!(handle, || {
-      let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
+    let submenu = run_main_thread!(handle, move || {
+      let submenu = muda::Submenu::with_id(id, text, enabled);
       SubmenuInner::new(app_handle, submenu)
     })?;
 
@@ -176,11 +181,14 @@ impl<R: Runtime> Submenu<R> {
     let app_handle = handle.clone();
     let id = id.into();
     let text = text.as_ref().to_owned();
-    let icon_data = icon.map(|i| (i.rgba().to_vec(), i.width(), i.height()));
-    let submenu = run_main_thread!(handle, || {
-      let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
-      if let Some((rgba, width, height)) = icon_data.clone() {
-        submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
+    let icon: Option<MudaIcon> = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+    let submenu = run_main_thread!(handle, move || {
+      let submenu = muda::Submenu::with_id(id, text, enabled);
+      if icon.is_some() {
+        submenu.set_icon(icon);
       }
       SubmenuInner::new(app_handle, submenu)
     })?;
@@ -188,6 +196,8 @@ impl<R: Runtime> Submenu<R> {
   }
 
   /// Create a new submenu with an id and a native icon.
+  ///
+  /// See [`Submenu::set_native_icon`] for the platform-specific behavior.
   pub fn with_id_and_native_icon<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
     manager: &M,
     id: I,
@@ -199,8 +209,8 @@ impl<R: Runtime> Submenu<R> {
     let app_handle = handle.clone();
     let id = id.into();
     let text = text.as_ref().to_owned();
-    let submenu = run_main_thread!(handle, || {
-      let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
+    let submenu = run_main_thread!(handle, move || {
+      let submenu = muda::Submenu::with_id(id, text, enabled);
       if let Some(icon) = icon {
         submenu.set_native_icon(Some(icon.into()));
       }
@@ -253,7 +263,9 @@ impl<R: Runtime> Submenu<R> {
   pub fn append(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
     run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().append(kind.inner().inner_muda())
+      (*self_.0).as_ref().append(kind.inner().inner_muda())?;
+      self_.0.items.lock().unwrap().push(kind);
+      Ok::<_, muda::Error>(())
     })?
     .map_err(Into::into)
   }
@@ -271,7 +283,9 @@ impl<R: Runtime> Submenu<R> {
   pub fn prepend(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
     run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().prepend(kind.inner().inner_muda())
+      (*self_.0).as_ref().prepend(kind.inner().inner_muda())?;
+      self_.0.items.lock().unwrap().insert(0, kind);
+      Ok::<_, muda::Error>(())
     })?
     .map_err(Into::into)
   }
@@ -287,7 +301,9 @@ impl<R: Runtime> Submenu<R> {
     run_item_main_thread!(self, |self_: Self| {
       (*self_.0)
         .as_ref()
-        .insert(kind.inner().inner_muda(), position)
+        .insert(kind.inner().inner_muda(), position)?;
+      self_.0.items.lock().unwrap().insert(position, kind);
+      Ok::<_, muda::Error>(())
     })?
     .map_err(Into::into)
   }
@@ -305,7 +321,14 @@ impl<R: Runtime> Submenu<R> {
   pub fn remove(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
     run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().remove(kind.inner().inner_muda())
+      (*self_.0).as_ref().remove(kind.inner().inner_muda())?;
+      self_
+        .0
+        .items
+        .lock()
+        .unwrap()
+        .retain(|i| i.id() != kind.id());
+      Ok::<_, muda::Error>(())
     })?
     .map_err(Into::into)
   }
@@ -313,10 +336,8 @@ impl<R: Runtime> Submenu<R> {
   /// Remove the menu item at the specified position from this submenu and returns it.
   pub fn remove_at(&self, position: usize) -> crate::Result<Option<MenuItemKind<R>>> {
     run_item_main_thread!(self, |self_: Self| {
-      (*self_.0)
-        .as_ref()
-        .remove_at(position)
-        .map(|i| MenuItemKind::from_muda(self_.0.app_handle.clone(), i))
+      (*self_.0).as_ref().remove_at(position)?;
+      Some(self_.0.items.lock().unwrap().remove(position))
     })
   }
 
@@ -327,22 +348,18 @@ impl<R: Runtime> Submenu<R> {
     MenuId: PartialEq<&'a I>,
   {
     self
-      .items()
-      .unwrap_or_default()
-      .into_iter()
+      .0
+      .items
+      .lock()
+      .unwrap()
+      .iter()
       .find(|i| i.id() == &id)
+      .cloned()
   }
 
   /// Returns a list of menu items that has been added to this submenu.
   pub fn items(&self) -> crate::Result<Vec<MenuItemKind<R>>> {
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0)
-        .as_ref()
-        .items()
-        .into_iter()
-        .map(|i| MenuItemKind::from_muda(self_.0.app_handle.clone(), i))
-        .collect::<Vec<_>>()
-    })
+    Ok(self.0.items.lock().unwrap().clone())
   }
 
   /// Get the text for this submenu.
@@ -403,17 +420,59 @@ impl<R: Runtime> Submenu<R> {
     run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_icon(icon))
   }
 
-  /// Change this submenu icon to a native image or remove it.
+  /// Change this submenu icon, or remove it, and draw it as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolours it to match
+  /// the menu the way the built-in items do. [`Submenu::set_icon`] draws the icon as-is instead.
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows / Linux**: Unsupported.
-  pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
+  /// - **Windows / Linux:** Same as [`Submenu::set_icon`], as only macOS has template images.
+  pub fn set_icon_templated(&self, icon: Option<crate::image::Image<'_>>) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    return run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().set_native_icon(_icon.map(Into::into))
-    });
-    #[allow(unreachable_code)]
+    {
+      let icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| (*self_.0)
+        .as_ref()
+        .set_icon_templated(icon))?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    self.set_icon(icon)?;
     Ok(())
+  }
+
+  /// Whether this submenu's icon is drawn as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// See [`Submenu::set_icon_templated`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Always `false`, as only macOS has template images.
+  pub fn icon_is_template(&self) -> crate::Result<bool> {
+    #[cfg(target_os = "macos")]
+    return run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().icon_is_template());
+    #[allow(unreachable_code)]
+    Ok(false)
+  }
+
+  /// Change this submenu icon to a native image or remove it.
+  ///
+  /// Note that this overrides any icon set with [`Submenu::set_icon`].
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Known variants map to freedesktop icon names, so the icon is resolved by the
+  ///   desktop icon theme and follows its light and dark variants.
+  /// - **macOS:** Known variants map to AppKit image names.
+  /// - **Windows:** Known variants map to stock shell icons where an equivalent exists, and the
+  ///   submenu is drawn without an icon otherwise.
+  pub fn set_native_icon(&self, icon: Option<NativeIcon>) -> crate::Result<()> {
+    let icon = icon.map(Into::into);
+    run_item_main_thread!(self, |self_: Self| (*self_.0)
+      .as_ref()
+      .set_native_icon(icon))
   }
 }

@@ -2611,8 +2611,18 @@ tauri::Builder::default()
         .map(|name| lib_dir.join(name).join("gstreamer-1.0"))
         .find(|dir| dir.is_dir())
       }) {
-        // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
-        unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_dir) };
+        // Keep the directories the user or a launcher already listed.
+        let plugin_path = std::env::join_paths(
+          std::iter::once(plugin_dir).chain(
+            std::env::var_os("GST_PLUGIN_PATH")
+              .iter()
+              .flat_map(std::env::split_paths),
+          ),
+        );
+        if let Ok(plugin_path) = plugin_path {
+          // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
+          unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_path) };
+        }
       } else {
         #[cfg(debug_assertions)]
         eprintln!("failed to resolve GStreamer plugin directory; media playback may not work.");

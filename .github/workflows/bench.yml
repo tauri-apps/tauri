@@ -84,10 +84,11 @@ jobs:
       - name: build benchmark binaries
         env:
           RUSTFLAGS: '-Zunstable-options -Cpanic=immediate-abort'
-        run: |
-          cargo +${{ env.BENCH_TOOLCHAIN }} build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/cpu_intensive/src-tauri/Cargo.toml
-          cargo +${{ env.BENCH_TOOLCHAIN }} build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/files_transfer/src-tauri/Cargo.toml
-          cargo +${{ env.BENCH_TOOLCHAIN }} build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml
+        run: >
+          cargo +${{ env.BENCH_TOOLCHAIN }} build --release
+          -Z build-std=std,panic_abort -Z build-std-features=
+          --target ${{ matrix.platform.target }}
+          -p bench_helloworld -p bench_cpu_intensive -p bench_ipc
 
       - name: run benchmarks
         run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark

@@ -8,7 +8,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Welcome to Tauri!",
+        "title": "Tauri IPC benchmark",
         "width": 800,
         "height": 600
       }

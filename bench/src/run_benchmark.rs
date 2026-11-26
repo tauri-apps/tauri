@@ -62,11 +62,12 @@ fn get_all_benchmarks(target: &str) -> Vec<Benchmark> {
       warmup: 1,
       runs: 5,
     },
+    // times the IPC from the inside, so it needs fewer runs
     Benchmark {
-      name: "tauri_3mb_transfer",
-      exe: exe("bench_files_transfer"),
-      warmup: 3,
-      runs: 20,
+      name: "tauri_ipc",
+      exe: exe("bench_ipc"),
+      warmup: 1,
+      runs: 5,
     },
   ]
 }
@@ -397,17 +398,6 @@ fn run_apps(
 }
 
 fn main() -> Result<()> {
-  let json_3mb = utils::home_path().join(".tauri_3mb.json");
-
-  if !json_3mb.exists() {
-    println!("Downloading test data...");
-    utils::download_file(
-      "https://github.com/lemarier/tauri-test/releases/download/v2.0.0/json_3mb.json",
-      json_3mb,
-    )
-    .context("failed to download test data")?;
-  }
-
   println!("Starting tauri benchmark");
 
   let target_dir = utils::target_dir();

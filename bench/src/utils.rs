@@ -8,8 +8,7 @@
 //! - Paths to project directories and targets
 //! - Running and collecting process outputs
 //! - Parsing memory profiler (`mprof`) and syscall profiler (`strace`) outputs
-//! - JSON read/write utilities
-//! - File download utilities (via `curl` or file copy)
+//! - JSON write utilities
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
@@ -90,19 +89,6 @@ pub fn target_dir() -> PathBuf {
 /// Get the root path of the current benchmark crate.
 pub fn bench_root_path() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
-/// Get the home directory of the current user.
-pub fn home_path() -> PathBuf {
-  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "linux"))]
-  {
-    PathBuf::from(std::env::var("HOME").unwrap_or_default())
-  }
-
-  #[cfg(target_os = "windows")]
-  {
-    PathBuf::from(std::env::var("USERPROFILE").unwrap_or_default())
-  }
 }
 
 /// Get the root path of the Tauri repository.
@@ -259,33 +245,5 @@ pub fn write_json(filename: &Path, value: &Value) -> Result<()> {
   let f = fs::File::create(filename)
     .with_context(|| format!("failed to create JSON file {}", filename.display()))?;
   serde_json::to_writer(f, value)?;
-  Ok(())
-}
-
-/// Download a file from either a local path or an HTTP/HTTPS URL.
-/// Falls back to copying the file if the URL does not start with http/https.
-pub fn download_file(url: &str, filename: PathBuf) -> Result<()> {
-  if !url.starts_with("http:") && !url.starts_with("https:") {
-    fs::copy(url, &filename).with_context(|| format!("failed to copy from {url}"))?;
-    return Ok(());
-  }
-
-  println!("Downloading {url}");
-  let status = Command::new("curl")
-    .arg("-L")
-    .arg("-s")
-    .arg("-o")
-    .arg(&filename)
-    .arg(url)
-    .status()
-    .with_context(|| format!("failed to execute curl for {url}"))?;
-
-  if !status.success() {
-    bail!("curl failed with exit code {:?}", status.code());
-  }
-  if !filename.exists() {
-    bail!("expected file {:?} to exist after download", filename);
-  }
-
   Ok(())
 }

@@ -633,7 +633,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bench_files_transfer"
+name = "bench_helloworld"
 version = "0.1.0"
 dependencies = [
  "bench_common",
@@ -642,10 +642,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "bench_helloworld"
+name = "bench_ipc"
 version = "0.1.0"
 dependencies = [
  "bench_common",
+ "serde",
  "tauri",
  "tauri-build",
 ]

@@ -2617,6 +2617,25 @@ tauri::Builder::default()
         #[cfg(debug_assertions)]
         eprintln!("failed to resolve GStreamer plugin directory; media playback may not work.");
       }
+
+      // WebKitGTK only hands GStreamer the URI schemes on its own allowlist
+      // plus the ones listed here, so without this `asset://` media is
+      // rejected before the plugin is ever asked. This does not depend on the
+      // directory above: an AppImage has the plugin in the bundled GStreamer
+      // plugin directory instead.
+      let allowed_protocols = std::env::var("WEBKIT_GST_ALLOWED_URI_PROTOCOLS").unwrap_or_default();
+      if !allowed_protocols
+        .split(',')
+        .any(|protocol| protocol.trim().eq_ignore_ascii_case("asset"))
+      {
+        let allowed_protocols = if allowed_protocols.trim().is_empty() {
+          "asset".to_string()
+        } else {
+          format!("{allowed_protocols},asset")
+        };
+        // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
+        unsafe { std::env::set_var("WEBKIT_GST_ALLOWED_URI_PROTOCOLS", allowed_protocols) };
+      }
     }
 
     #[cfg(any(windows, target_os = "linux"))]

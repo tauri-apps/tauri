@@ -4,6 +4,7 @@
 
 //! Runs the benchmark apps and collects the metrics they report about themselves.
 
+use crate::process;
 use anyhow::{Context, Result, bail};
 use bench_common::{METRICS_PREFIX, SPAWN_TIME_ENV};
 use std::{
@@ -34,6 +35,7 @@ pub struct RunningApp {
   // and can outlive the app, which would leave a pipe reader waiting for them
   stdout: NamedTempFile,
   stderr: NamedTempFile,
+  exited: bool,
 }
 
 impl RunningApp {
@@ -47,6 +49,10 @@ impl RunningApp {
       .stdin(Stdio::null())
       .stdout(stdout.reopen().context("failed to open the stdout file")?)
       .stderr(stderr.reopen().context("failed to open the stderr file")?);
+
+    // lets the webview processes be found by their process group, see [`process::usage`]
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut command, 0);
 
     let spawn_time = SystemTime::now()
       .duration_since(UNIX_EPOCH)
@@ -68,22 +74,61 @@ impl RunningApp {
       spawned,
       stdout,
       stderr,
+      exited: false,
     })
+  }
+
+  pub fn pid(&self) -> u32 {
+    self.child.id()
+  }
+
+  /// Waits for an app that keeps running (see [`bench_common::HOLD_ENV`]) to report its metrics.
+  /// The app is killed when this is dropped.
+  pub fn wait_for_report(&mut self, timeout: Duration) -> Result<AppOutput> {
+    loop {
+      if let Some((metrics, info)) = self.reported()? {
+        return Ok(AppOutput {
+          wall: self.spawned.elapsed(),
+          metrics,
+          info,
+        });
+      }
+      if let Some(status) = self
+        .child
+        .try_wait()
+        .with_context(|| format!("failed to wait for {}", self.name))?
+      {
+        self.exited = true;
+        bail!(
+          "{} exited with {status} before reporting its metrics\n{}",
+          self.name,
+          self.stderr()
+        );
+      }
+      if self.spawned.elapsed() > timeout {
+        bail!(
+          "{} did not report its metrics within {timeout:?}\n{}",
+          self.name,
+          self.stderr()
+        );
+      }
+      std::thread::sleep(Duration::from_millis(5));
+    }
   }
 
   /// Waits for the app to exit by itself, and fails if it takes longer than `timeout`,
   /// exits with an error or did not report its metrics.
-  pub fn wait(mut self, timeout: Duration) -> Result<AppOutput> {
+  pub fn wait(&mut self, timeout: Duration) -> Result<AppOutput> {
     let status = loop {
       if let Some(status) = self
         .child
         .try_wait()
         .with_context(|| format!("failed to wait for {}", self.name))?
       {
+        self.exited = true;
         break status;
       }
       if self.spawned.elapsed() > timeout {
-        self.kill();
         bail!(
           "{} did not exit within {timeout:?}\n{}",
           self.name,
@@ -151,10 +196,15 @@ impl RunningApp {
     let stderr = std::fs::read_to_string(self.stderr.path()).unwrap_or_default();
     format!("stderr:\n{stderr}")
   }
+}
 
-  fn kill(&mut self) {
-    let _ = self.child.kill();
-    let _ = self.child.wait();
+impl Drop for RunningApp {
+  fn drop(&mut self) {
+    if !self.exited {
+      process::kill_tree(self.pid());
+      let _ = self.child.kill();
+      let _ = self.child.wait();
+    }
   }
 }
 

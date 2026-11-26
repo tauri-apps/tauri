@@ -24,6 +24,8 @@ pub const SPAWN_TIME_ENV: &str = "TAURI_BENCH_SPAWN_TIME";
 /// When set, the app keeps running after reporting its metrics, so the runner can inspect the
 /// idle process. The runner is responsible for killing it.
 pub const HOLD_ENV: &str = "TAURI_BENCH_HOLD";
+/// How many extra windows the hello world app opens after its first one loaded.
+pub const WINDOWS_ENV: &str = "TAURI_BENCH_WINDOWS";
 /// Marks the stdout line carrying the metrics.
 pub const METRICS_PREFIX: &str = "TAURI_BENCH_METRICS ";
 

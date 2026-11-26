@@ -7,7 +7,7 @@
 //! This module provides helpers for:
 //! - Paths to project directories and targets
 //! - Running and collecting process outputs
-//! - Parsing memory profiler (`mprof`) and syscall profiler (`strace`) outputs
+//! - Parsing syscall profiler (`strace`) outputs
 //! - JSON write utilities
 
 use anyhow::{Context, Result, bail};
@@ -16,7 +16,6 @@ use serde_json::Value;
 use std::{
   collections::{BTreeMap, HashMap},
   fs,
-  io::{BufRead, BufReader},
   path::{Path, PathBuf},
   process::{Command, ExitStatus, Output, Stdio},
   time::{Duration, Instant},
@@ -121,31 +120,6 @@ pub fn run_collect(cmd: &[&str]) -> Result<(String, String)> {
     String::from_utf8_lossy(&output.stdout).to_string(),
     String::from_utf8_lossy(&output.stderr).to_string(),
   ))
-}
-
-/// Parse a memory profiler (`mprof`) output file and return the maximum
-/// memory usage in bytes. Returns `None` if no values are found.
-pub fn parse_max_mem(file_path: &str) -> Result<Option<u64>> {
-  let file = fs::File::open(file_path)
-    .with_context(|| format!("failed to open mprof output file {file_path}"))?;
-  let output = BufReader::new(file);
-
-  let mut highest: u64 = 0;
-
-  for line in output.lines().map_while(Result::ok) {
-    let split: Vec<&str> = line.split(' ').collect();
-    if split.len() == 3 {
-      if let Ok(mb) = split[1].parse::<f64>() {
-        let current_bytes = (mb * 1024.0 * 1024.0) as u64;
-        highest = highest.max(current_bytes);
-      }
-    }
-  }
-
-  // Best-effort cleanup
-  let _ = fs::remove_file(file_path);
-
-  Ok(if highest > 0 { Some(highest) } else { None })
 }
 
 /// Parse the output of `strace -c` and return a summary of syscalls.

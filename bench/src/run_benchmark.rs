@@ -22,6 +22,7 @@ use std::{
 };
 use time::format_description::well_known::Rfc3339;
 
+mod process;
 mod runner;
 mod utils;
 
@@ -29,6 +30,14 @@ mod utils;
 const APP_TIMEOUT: Duration = Duration::from_secs(60);
 /// Time to wait between two runs.
 const RUN_PAUSE: Duration = Duration::from_secs(1);
+/// How many times the resource usage of an app is measured.
+const USAGE_RUNS: usize = 3;
+/// Time an app is left alone before its idle resource usage is measured.
+const IDLE_SETTLE: Duration = Duration::from_secs(3);
+/// For how long the CPU usage of an idle app is observed.
+const IDLE_WINDOW: Duration = Duration::from_secs(5);
+/// How many extra windows the hello world app opens to measure the cost of a window.
+const EXTRA_WINDOWS: usize = 5;
 
 struct Benchmark {
   name: &'static str,
@@ -38,6 +47,8 @@ struct Benchmark {
   warmup: usize,
   /// Runs that are measured.
   runs: usize,
+  /// Whether to also measure the app sitting idle and the cost of opening more windows.
+  idle: bool,
 }
 
 /// The list of examples for benchmarks
@@ -52,6 +63,7 @@ fn get_all_benchmarks(target: &str) -> Vec<Benchmark> {
       exe: exe("bench_helloworld"),
       warmup: 3,
       runs: 20,
+      idle: true,
     },
     // Not a benchmark of Tauri: nearly all of its time is spent by the JavaScript engine
     // finding prime numbers. It tells how fast the machine the benchmarks ran on is,
@@ -61,6 +73,7 @@ fn get_all_benchmarks(target: &str) -> Vec<Benchmark> {
       exe: exe("bench_cpu_intensive"),
       warmup: 1,
       runs: 5,
+      idle: false,
     },
     // times the IPC from the inside, so it needs fewer runs
     Benchmark {
@@ -68,6 +81,7 @@ fn get_all_benchmarks(target: &str) -> Vec<Benchmark> {
       exe: exe("bench_ipc"),
       warmup: 1,
       runs: 5,
+      idle: false,
     },
   ]
 }
@@ -131,44 +145,125 @@ fn run_strace_benchmarks(new_data: &mut utils::BenchResult, target: &str) -> Res
   Ok(())
 }
 
-fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
-  let mut results = HashMap::<String, u64>::new();
+fn median(values: &[f64]) -> f64 {
+  runner::Stats::new(values)
+    .map(|stats| stats.median)
+    .unwrap_or_default()
+}
 
-  for Benchmark {
-    name,
-    exe: example_exe,
-    ..
-  } in get_all_benchmarks(target)
-  {
-    let benchmark_file = utils::target_dir().join(format!("mprof{name}_.dat"));
-    let benchmark_file_str = benchmark_file
-      .to_str()
-      .context("benchmark file path contains invalid UTF-8")?;
+/// Starts an app that stays alive once it is done, and waits for it to get there.
+fn hold_app(exe: &Path, envs: &[(&str, &str)]) -> Result<(runner::RunningApp, runner::AppOutput)> {
+  let mut envs = envs.to_vec();
+  envs.push((bench_common::HOLD_ENV, "1"));
+  let mut app = runner::RunningApp::spawn(exe, &envs)?;
+  let output = app.wait_for_report(APP_TIMEOUT)?;
+  Ok((app, output))
+}
 
-    let exe_path = utils::bench_root_path().join(&example_exe);
-    let exe_path_str = exe_path
-      .to_str()
-      .context("executable path contains invalid UTF-8")?;
+/// Measures what the apps use while they are running, with the processes of the webview included.
+///
+/// The apps are asked to stay alive after their workload, so the usage is read at a known point
+/// instead of being sampled from an app that exits as soon as it is done:
+/// - `max_memory`: sum of the peak resident memory of each process (Linux)
+/// - `memory_bytes`: memory in use once the workload is done
+/// - `idle_*`: memory, CPU time and wakeups of an app that is doing nothing
+/// - `open_window_ms`, `window_memory_bytes`: cost of each additional window
+fn run_usage_benchmarks(
+  target: &str,
+  metrics: &mut HashMap<String, BTreeMap<String, f64>>,
+) -> Result<HashMap<String, u64>> {
+  let mut max_memory = HashMap::new();
 
-    let status = utils::wait_with_timeout(
-      Command::new("mprof")
-        .args(["run", "-C", "-o", benchmark_file_str, exe_path_str])
-        .stdout(Stdio::null()),
-      APP_TIMEOUT,
-    )
-    .with_context(|| format!("failed to run mprof for benchmark {name}"))?;
-    if !status.success() {
-      anyhow::bail!("mprof for benchmark {name} exited with {status}");
+  for benchmark in get_all_benchmarks(target) {
+    let name = benchmark.name;
+    println!("  {name}");
+    let exe_path = utils::bench_root_path().join(&benchmark.exe);
+    let mut samples = BTreeMap::<&str, Vec<f64>>::new();
+    let mut sample = |name, value| samples.entry(name).or_default().push(value);
+
+    for _ in 0..USAGE_RUNS {
+      std::thread::sleep(RUN_PAUSE);
+
+      if process::SUPPORTED {
+        let (app, _) =
+          hold_app(&exe_path, &[]).with_context(|| format!("failed to run benchmark {name}"))?;
+        let done = process::usage(app.pid())?;
+        sample("memory_bytes", done.memory as f64);
+        if done.peak_memory > 0 {
+          sample("peak_memory_bytes", done.peak_memory as f64);
+        }
+
+        if benchmark.idle {
+          std::thread::sleep(IDLE_SETTLE);
+          let before = process::usage(app.pid())?;
+          std::thread::sleep(IDLE_WINDOW);
+          let after = process::usage(app.pid())?;
+          let seconds = IDLE_WINDOW.as_secs_f64();
+
+          sample("idle_memory_bytes", after.memory as f64);
+          sample("idle_app_memory_bytes", after.app_memory as f64);
+          sample(
+            "idle_cpu_ms_per_s",
+            (after.cpu_ms - before.cpu_ms) / seconds,
+          );
+          sample(
+            "idle_app_cpu_ms_per_s",
+            (after.app_cpu_ms - before.app_cpu_ms) / seconds,
+          );
+          if cfg!(target_os = "linux") {
+            sample(
+              "idle_app_wakeups_per_s",
+              after.app_wakeups.saturating_sub(before.app_wakeups) as f64 / seconds,
+            );
+            sample("idle_processes", after.processes as f64);
+            sample("idle_threads", after.threads as f64);
+          }
+        }
+      }
+
+      if benchmark.idle {
+        std::thread::sleep(RUN_PAUSE);
+
+        let windows = EXTRA_WINDOWS.to_string();
+        let (app, output) = hold_app(&exe_path, &[(bench_common::WINDOWS_ENV, &windows)])
+          .with_context(|| format!("failed to run benchmark {name} with {windows} windows"))?;
+        if let Some(open_window_ms) = output.metrics.get("open_window_ms") {
+          sample("open_window_ms", *open_window_ms);
+        }
+
+        if process::SUPPORTED {
+          std::thread::sleep(IDLE_SETTLE);
+          sample(
+            "windows_memory_bytes",
+            process::usage(app.pid())?.memory as f64,
+          );
+        }
+      }
     }
 
-    if let Some(mem) = utils::parse_max_mem(benchmark_file_str)
-      .with_context(|| format!("failed to parse mprof data for {name}"))?
+    let mut medians: BTreeMap<String, f64> = samples
+      .iter()
+      .map(|(name, values)| (name.to_string(), median(values)))
+      .collect();
+
+    // the history of this value is published under its own key
+    if let Some(peak) = medians.remove("peak_memory_bytes") {
+      max_memory.insert(name.to_string(), peak as u64);
+    }
+    // what each of the extra windows added to the idle app
+    if let Some(windows_memory) = medians.remove("windows_memory_bytes")
+      && let Some(idle_memory) = medians.get("idle_memory_bytes")
     {
-      results.insert(name.to_string(), mem);
+      medians.insert(
+        "window_memory_bytes".into(),
+        ((windows_memory - idle_memory) / EXTRA_WINDOWS as f64).max(0.),
+      );
     }
+
+    metrics.entry(name.to_string()).or_default().extend(medians);
   }
 
-  Ok(results)
+  Ok(max_memory)
 }
 
 /// Size of the rlib of a workspace dependency.
@@ -434,8 +529,10 @@ fn main() -> Result<()> {
   if cfg!(target_os = "linux") {
     println!("Running Linux-specific benchmarks...");
     run_strace_benchmarks(&mut new_data, target)?;
-    new_data.max_memory = run_max_mem_benchmark(target)?;
   }
+
+  println!("Measuring resource usage...");
+  new_data.max_memory = run_usage_benchmarks(target, &mut new_data.metrics)?;
 
   println!("===== <BENCHMARK RESULTS>");
   serde_json::to_writer_pretty(std::io::stdout(), &new_data)

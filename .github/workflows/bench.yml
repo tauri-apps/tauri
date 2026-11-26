@@ -68,16 +68,6 @@ jobs:
             xvfb \
             at-spi2-core
 
-      - name: Setup python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: install memory_profiler
-        run: |
-          python -m pip install --upgrade pip
-          pip install memory_profiler
-
       # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
       # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
       # evicted before the next push only costs upload time.

@@ -30,6 +30,7 @@ streaming_example_test_video.mp4
 # examples /gen directory
 /examples/**/src-tauri/gen/
 /bench/**/src-tauri/gen/
+/bench/tests/assets/dist/
 
 # logs
 logs

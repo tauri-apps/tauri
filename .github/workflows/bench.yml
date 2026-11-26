@@ -78,7 +78,7 @@ jobs:
           cargo +${{ env.BENCH_TOOLCHAIN }} build --release
           -Z build-std=std,panic_abort -Z build-std-features=
           --target ${{ matrix.platform.target }}
-          -p bench_helloworld -p bench_cpu_intensive -p bench_ipc
+          -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets
 
       - name: run benchmarks
         run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark

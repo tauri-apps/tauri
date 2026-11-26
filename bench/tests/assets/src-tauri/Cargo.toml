@@ -1,0 +1,20 @@
+[package]
+name = "bench_assets"
+version = "0.1.0"
+description = "A Tauri application with a frontend the size of a real one"
+edition = "2024"
+rust-version = "1.92"
+
+[build-dependencies]
+tauri-build = { workspace = true, default-features = true, features = [
+  "codegen",
+] }
+
+[dependencies]
+bench_common = { path = "../../common" }
+tauri = { workspace = true, default-features = true, features = [
+  "custom-protocol",
+] }
+
+[lints]
+workspace = true

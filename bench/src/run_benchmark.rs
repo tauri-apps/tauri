@@ -75,6 +75,14 @@ fn get_all_benchmarks(target: &str) -> Vec<Benchmark> {
       runs: 5,
       idle: false,
     },
+    // hello world with the frontend of a real application
+    Benchmark {
+      name: "tauri_assets",
+      exe: exe("bench_assets"),
+      warmup: 3,
+      runs: 10,
+      idle: false,
+    },
     // times the IPC from the inside, so it needs fewer runs
     Benchmark {
       name: "tauri_ipc",

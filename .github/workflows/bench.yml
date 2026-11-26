@@ -40,7 +40,9 @@ jobs:
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              runner: 'xvfb-run --auto-servernum '
+              runner: 'xvfb-run --auto-servernum ',
+              # valgrind only runs on Linux
+              args: ' --instructions'
             }
           - {
               target: x86_64-pc-windows-msvc,
@@ -65,14 +67,15 @@ jobs:
           components: rust-src
           targets: ${{ matrix.platform.target }}
 
-      - name: install webkit2gtk and xvfb (ubuntu only)
+      - name: install webkit2gtk, xvfb, strace and valgrind (ubuntu only)
         if: contains(matrix.platform.target, 'gnu')
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             webkit2gtk-4.1 libayatana-appindicator3-dev \
             xvfb \
-            at-spi2-core
+            at-spi2-core \
+            strace valgrind
 
       # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
       # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
@@ -101,7 +104,7 @@ jobs:
           -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets
 
       - name: run benchmarks
-        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark -- --build-time --bundle
+        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark -- --build-time --bundle${{ matrix.platform.args }}
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'

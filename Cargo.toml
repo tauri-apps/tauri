@@ -24,6 +24,7 @@ members = [
 
   # bench
   "bench",
+  "bench/micro",
   "bench/tests/common",
   "bench/tests/assets/src-tauri",
   "bench/tests/cpu_intensive/src-tauri",

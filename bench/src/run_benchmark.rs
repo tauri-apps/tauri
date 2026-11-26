@@ -534,6 +534,81 @@ fn run_bundle_sizes() -> Result<HashMap<String, u64>> {
   Ok(sizes)
 }
 
+/// The function of `bench_micro` that wraps the code to measure.
+const MEASURED_FUNCTION: &str = "tauri_bench_measure";
+
+/// Reads the number of executed instructions from the output file of callgrind.
+fn parse_callgrind_instructions(output: &str) -> Option<u64> {
+  // `events: Ir` is the only event collected by default, and its total is the last line
+  output
+    .lines()
+    .find_map(|line| {
+      line
+        .strip_prefix("totals:")
+        .or_else(|| line.strip_prefix("summary:"))
+    })
+    .and_then(|totals| totals.split_whitespace().next()?.parse().ok())
+}
+
+/// Counts the instructions each scenario of `bench/micro` executes.
+///
+/// The binary is built with the `release-default` profile: callgrind finds the measured
+/// function by its symbol, which the workspace's release profile strips.
+fn run_instruction_benchmarks() -> Result<HashMap<String, u64>> {
+  let mut build = Command::new("cargo");
+  build
+    .args(["build", "-p", "tauri_bench_micro"])
+    .args(["--profile", "release-default", "--target-dir"])
+    .arg(build_target_dir())
+    .current_dir(utils::tauri_root_path())
+    .stdin(Stdio::null());
+  let status = utils::wait_with_timeout(&mut build, BUILD_TIMEOUT)?;
+  if !status.success() {
+    anyhow::bail!("{build:?} exited with {status}");
+  }
+
+  let exe = build_target_dir()
+    .join("release-default")
+    .join("bench_micro");
+  let exe_str = exe
+    .to_str()
+    .context("executable path contains invalid UTF-8")?;
+  let (scenarios, _) = utils::run_collect(&[exe_str, "list"])?;
+
+  let mut instructions = HashMap::new();
+  for scenario in scenarios.lines() {
+    let output = tempfile::NamedTempFile::new()
+      .context("failed to create temporary file for callgrind output")?;
+
+    let mut callgrind = Command::new("valgrind");
+    callgrind
+      .arg("--tool=callgrind")
+      // only count what the measured function (and everything it calls) executes
+      .arg("--collect-atstart=no")
+      .arg(format!("--toggle-collect={MEASURED_FUNCTION}"))
+      .arg(format!("--callgrind-out-file={}", output.path().display()))
+      .arg(&exe)
+      .arg(scenario)
+      .stdin(Stdio::null())
+      .stderr(Stdio::null());
+    let status = utils::wait_with_timeout(&mut callgrind, BUILD_TIMEOUT)
+      .with_context(|| format!("failed to run callgrind for {scenario}"))?;
+    if !status.success() {
+      anyhow::bail!("callgrind for {scenario} exited with {status}");
+    }
+
+    let count = std::fs::read_to_string(output.path())
+      .ok()
+      .and_then(|output| parse_callgrind_instructions(&output))
+      .filter(|count| *count > 0)
+      .with_context(|| format!("callgrind did not count any instruction for {scenario}"))?;
+    println!("  {scenario}: {count}");
+    instructions.insert(scenario.to_string(), count);
+  }
+
+  Ok(instructions)
+}
+
 /// (target OS, target triple)
 const TARGETS: &[(&str, &[&str])] = &[
   (
@@ -701,6 +776,8 @@ struct Options {
   build_time: bool,
   /// `--bundle`: build the Tauri CLI and the installers of the hello world app.
   bundle: bool,
+  /// `--instructions`: count the instructions of the `bench/micro` scenarios. Needs Valgrind.
+  instructions: bool,
 }
 
 impl Options {
@@ -710,7 +787,10 @@ impl Options {
       match arg.as_str() {
         "--build-time" => options.build_time = true,
         "--bundle" => options.bundle = true,
-        _ => anyhow::bail!("unknown argument {arg}, expected --build-time or --bundle"),
+        "--instructions" => options.instructions = true,
+        _ => {
+          anyhow::bail!("unknown argument {arg}, expected --build-time, --bundle or --instructions")
+        }
       }
     }
     Ok(options)
@@ -763,6 +843,11 @@ fn main() -> Result<()> {
     new_data
       .binary_size
       .insert("tauri_hello_world_default_profile".to_string(), meta.len());
+  }
+
+  if options.instructions {
+    println!("Counting instructions...");
+    new_data.instructions = run_instruction_benchmarks()?;
   }
 
   if options.bundle {

@@ -37,6 +37,10 @@ pub struct BenchResult {
   pub thread_count: HashMap<String, u64>,
   pub syscall_count: HashMap<String, u64>,
   pub cargo_deps: HashMap<String, usize>,
+  /// Instructions executed by each scenario of `bench/micro`, counted by callgrind (Linux only).
+  /// Unlike the timings these barely change between two runs of the same code.
+  #[serde(default)]
+  pub instructions: HashMap<String, u64>,
   /// Size of the installers of the hello world app, in bytes.
   #[serde(default)]
   pub bundle_size: HashMap<String, u64>,

@@ -919,19 +919,12 @@ impl AppSettings for RustAppSettings {
       .out_dir(options, tauri_dir)
       .context("failed to get project out directory")?;
 
-    let mut path = out_dir.join(bin_name);
-    if matches!(self.target_platform, TargetPlatform::Windows) {
-      // Append the `.exe` extension without overriding the existing extensions
-      let extension = if let Some(extension) = path.extension() {
-        let mut extension = extension.to_os_string();
-        extension.push(".exe");
-        extension
-      } else {
-        "exe".into()
-      };
-      path.set_extension(extension);
-    };
-    Ok(path)
+    let path = out_dir.join(bin_name);
+    Ok(if matches!(self.target_platform, TargetPlatform::Windows) {
+      path.with_added_extension("exe")
+    } else {
+      path
+    })
   }
 
   fn get_binaries(&self, options: &Options, tauri_dir: &Path) -> crate::Result<Vec<BundleBinary>> {

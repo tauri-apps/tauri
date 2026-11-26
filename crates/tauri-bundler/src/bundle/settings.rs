@@ -1229,21 +1229,13 @@ impl Settings {
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
     let target_os = self.target_platform();
 
-    let mut path = self.project_out_directory.join(binary.name());
+    let path = self.project_out_directory.join(binary.name());
 
     if matches!(target_os, TargetPlatform::Windows) {
-      // Append the `.exe` extension without overriding the existing extensions
-      let extension = if let Some(extension) = path.extension() {
-        let mut extension = extension.to_os_string();
-        extension.push(".exe");
-        extension
-      } else {
-        "exe".into()
-      };
-      path.set_extension(extension);
-    };
-
-    path
+      path.with_added_extension("exe")
+    } else {
+      path
+    }
   }
 
   /// Returns the list of binaries to bundle.

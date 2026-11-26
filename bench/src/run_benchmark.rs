@@ -14,7 +14,7 @@
 
 use anyhow::{Context, Result};
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, HashMap, HashSet},
   env,
   path::Path,
   process::{Command, Stdio},
@@ -267,6 +267,50 @@ fn cargo_deps() -> HashMap<String, usize> {
   results
 }
 
+/// Describes the toolchain and the machine the benchmark runs on.
+fn environment() -> BTreeMap<String, String> {
+  let mut environment = BTreeMap::new();
+
+  // `cargo run` exports RUSTUP_TOOLCHAIN, so this is the toolchain running the benchmark,
+  // which on CI is the one that built the apps
+  match utils::run_collect(&["rustc", "--version"]) {
+    Ok((stdout, _)) => {
+      environment.insert("rustc".into(), stdout.trim().into());
+    }
+    Err(e) => eprintln!("failed to read the rustc version: {e:#}"),
+  }
+
+  environment.insert("arch".into(), env::consts::ARCH.into());
+  if let Ok(cpus) = std::thread::available_parallelism() {
+    environment.insert("cpus".into(), cpus.to_string());
+  }
+  #[cfg(target_os = "linux")]
+  if let Some(model) = std::fs::read_to_string("/proc/cpuinfo")
+    .ok()
+    .and_then(|cpuinfo| {
+      cpuinfo
+        .lines()
+        .find(|line| line.starts_with("model name"))
+        .and_then(|line| line.split(':').nth(1))
+        .map(|model| model.trim().to_string())
+    })
+  {
+    environment.insert("cpu".into(), model);
+  }
+
+  // set on GitHub hosted runners
+  for (key, var) in [
+    ("runner_image", "ImageOS"),
+    ("runner_image_version", "ImageVersion"),
+  ] {
+    if let Ok(value) = env::var(var) {
+      environment.insert(key.into(), value);
+    }
+  }
+
+  environment
+}
+
 const RESULT_KEYS: &[&str] = &["mean", "stddev", "user", "system", "min", "max"];
 
 fn run_exec_time(target: &str) -> Result<HashMap<String, HashMap<String, f64>>> {
@@ -376,6 +420,7 @@ fn main() -> Result<()> {
     exec_time,
     binary_size,
     cargo_deps,
+    environment: environment(),
     ..Default::default()
   };
 

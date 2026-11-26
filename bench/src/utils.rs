@@ -15,7 +15,7 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
-  collections::HashMap,
+  collections::{BTreeMap, HashMap},
   fs,
   io::{BufRead, BufReader},
   path::{Path, PathBuf},
@@ -34,6 +34,10 @@ pub struct BenchResult {
   pub thread_count: HashMap<String, u64>,
   pub syscall_count: HashMap<String, u64>,
   pub cargo_deps: HashMap<String, usize>,
+  /// What the results were measured with (compiler, runner image, CPU...),
+  /// to tell a change in Tauri apart from a change in the environment.
+  #[serde(default)]
+  pub environment: BTreeMap<String, String>,
 }
 
 /// Represents a single line of parsed `strace` output.

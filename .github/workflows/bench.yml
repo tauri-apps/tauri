@@ -18,6 +18,9 @@ env:
   RUST_BACKTRACE: 1
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
   LC_ALL: en_US.UTF-8 # This prevents strace from changing its number format to use commas.
+  # Pinned so a new compiler does not show up as a binary size or performance change of a Tauri commit.
+  # Bump it deliberately, in a pull request of its own.
+  BENCH_TOOLCHAIN: nightly-2026-11-25
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,7 +34,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: [nightly]
         platform:
           - {
               target: x86_64-unknown-linux-gnu,
@@ -48,10 +50,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: install Rust ${{ matrix.rust }}
+      - name: install Rust ${{ env.BENCH_TOOLCHAIN }}
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: ${{ env.BENCH_TOOLCHAIN }}
           components: rust-src
           targets: ${{ matrix.platform.target }}
 
@@ -87,9 +89,9 @@ jobs:
         env:
           RUSTFLAGS: '-Zunstable-options -Cpanic=immediate-abort'
         run: |
-          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/cpu_intensive/src-tauri/Cargo.toml
-          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/files_transfer/src-tauri/Cargo.toml
-          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml
+          cargo +${{ env.BENCH_TOOLCHAIN }} build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/cpu_intensive/src-tauri/Cargo.toml
+          cargo +${{ env.BENCH_TOOLCHAIN }} build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/files_transfer/src-tauri/Cargo.toml
+          cargo +${{ env.BENCH_TOOLCHAIN }} build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml
 
       - name: run benchmarks
         run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark

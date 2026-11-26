@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { defineConfig, Plugin, RollupLog } from 'rollup'
+import { defineConfig, type Plugin, type RollupLog } from 'rollup'
 import typescript from '@rollup/plugin-typescript'
 import terser from '@rollup/plugin-terser'
-import fg from 'fast-glob'
-import { basename, dirname, join } from 'path'
-import { copyFileSync, opendirSync, rmSync, Dir } from 'fs'
-import { fileURLToPath } from 'url'
+import { globSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
+import { copyFileSync, opendirSync, rmSync, Dir } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 // cleanup dist dir
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 cleanDir(join(__dirname, './dist'))
 
-const modules = fg.sync(['!./src/*.d.ts', './src/*.ts'])
+const modules = globSync('./src/*.ts', { exclude: ['./src/*.d.ts'] })
 
 export default defineConfig([
   {
@@ -85,7 +85,7 @@ function makeFlatPackageInDist(): Plugin {
     name: 'makeFlatPackageInDist',
     writeBundle() {
       // copy necessary files like `CHANGELOG.md` , `README.md` and Licenses to `./dist`
-      fg.sync('(LICENSE*|*.md|package.json)').forEach((f) =>
+      globSync('{LICENSE*,*.md,package.json}').forEach((f) =>
         copyFileSync(f, `dist/${f}`)
       )
     }
@@ -96,12 +96,13 @@ function cleanDir(path: string) {
   let dir: Dir
   try {
     dir = opendirSync(path)
-  } catch (err: any) {
+  } catch (err: unknown) {
+    // @ts-expect-error ignored
     switch (err.code) {
       case 'ENOENT':
         return // Noop when directory don't exists.
       case 'ENOTDIR':
-        throw new Error(`'${path}' is not a directory.`)
+        throw new Error(`'${path}' is not a directory.`, { cause: err })
       default:
         throw err
     }

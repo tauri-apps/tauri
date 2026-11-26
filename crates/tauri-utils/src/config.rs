@@ -25,13 +25,13 @@
 
 use http::response::Builder;
 #[cfg(feature = "schema")]
-use schemars::schema::Schema;
-#[cfg(feature = "schema")]
 use schemars::JsonSchema;
+#[cfg(feature = "schema")]
+use schemars::schema::Schema;
 use semver::Version;
 use serde::{
-  de::{Deserializer, Error as DeError, Visitor},
   Deserialize, Serialize, Serializer,
+  de::{Deserializer, Error as DeError, Visitor},
 };
 use serde_json::Value as JsonValue;
 use serde_untagged::UntaggedEnumVisitor;
@@ -42,7 +42,7 @@ use std::{
   collections::{BTreeMap, HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
-  path::PathBuf,
+  path::{Component, Path, PathBuf},
   str::FromStr,
 };
 
@@ -61,7 +61,9 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
+use crate::{
+  TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability, url::UrlScope,
+};
 
 pub use self::parse::parse;
 
@@ -136,6 +138,8 @@ pub enum BundleType {
   Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The Pacman bundle (PKGBUILD and .tar.gz).
+  Pacman,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -153,6 +157,7 @@ impl BundleType {
       BundleType::Deb,
       BundleType::Rpm,
       BundleType::AppImage,
+      BundleType::Pacman,
       BundleType::Msi,
       BundleType::Nsis,
       BundleType::App,
@@ -170,6 +175,7 @@ impl Display for BundleType {
         Self::Deb => "deb",
         Self::Rpm => "rpm",
         Self::AppImage => "appimage",
+        Self::Pacman => "pacman",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",
@@ -198,6 +204,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "deb" => Ok(Self::Deb),
       "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
+      "pacman" => Ok(Self::Pacman),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
@@ -225,7 +232,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         const_value: Some("all".into()),
@@ -237,10 +244,13 @@ impl schemars::JsonSchema for BundleTarget {
       }
       .into(),
       add_description(
-        gen.subschema_for::<Vec<BundleType>>(),
+        generator.subschema_for::<Vec<BundleType>>(),
         "A list of bundle targets.",
       ),
-      add_description(gen.subschema_for::<BundleType>(), "A single bundle target."),
+      add_description(
+        generator.subschema_for::<BundleType>(),
+        "A single bundle target.",
+      ),
     ];
 
     schemars::schema::SchemaObject {
@@ -328,6 +338,94 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+const ZSTD_MIN_CLEVEL: i32 = -1 << 17;
+
+/// Compression algorithms used when bundling DEB packages.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "type")]
+#[non_exhaustive]
+pub enum DebCompression {
+  /// Gzip compression
+  Gzip {
+    /// Gzip compression level (0-9).
+    level: u32,
+  },
+  /// Zstd compression
+  Zstd {
+    /// Zstd compression level (-131072 - 22).
+    level: i32,
+  },
+  /// Xz compression
+  Xz {
+    /// Xz compression level (0-9).
+    level: u32,
+  },
+  /// Bzip2 compression
+  Bzip2 {
+    /// Bzip2 compression level (1-9).
+    level: u32,
+  },
+  /// Disable compression
+  None,
+}
+
+impl DebCompression {
+  /// The file extension of a tar archive compressed with this algorithm.
+  pub fn ext(&self) -> &'static str {
+    match self {
+      Self::None => "tar",
+      Self::Gzip { .. } => "tar.gz",
+      Self::Xz { .. } => "tar.xz",
+      Self::Zstd { .. } => "tar.zst",
+      Self::Bzip2 { .. } => "tar.bz2",
+    }
+  }
+
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
+}
+
 /// Configuration for Debian (.deb) bundles.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#debconfig>
@@ -359,7 +457,12 @@ pub struct DebConfig {
   pub changelog: Option<PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg`, `icon`,
+  /// `name`, `mime_type` (optional) and `long_description`.
+  ///
+  /// `exec_arg` is the `Exec` field code with a leading space: ` %U` when deep link schemes are
+  /// configured, ` %F` when only file associations are, and empty otherwise, so launchers pass the
+  /// opened URLs or files to the app. Use it as `Exec={{exec}}{{exec_arg}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -378,6 +481,8 @@ pub struct DebConfig {
   /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<DebCompression>,
 }
 
 /// Configuration for Linux bundles.
@@ -397,6 +502,105 @@ pub struct LinuxConfig {
   /// Configuration for the RPM bundle.
   #[serde(default)]
   pub rpm: RpmConfig,
+  /// Configuration for the Pacman bundle.
+  #[serde(default)]
+  pub pacman: PacmanConfig,
+}
+
+/// Configuration for Pacman bundles.
+///
+/// See <https://wiki.archlinux.org/title/PKGBUILD>
+///
+/// The package license is `bundle > license` (`unknown` when it is not set),
+/// and `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PacmanConfig {
+  /// The package name.
+  ///
+  /// Defaults to the kebab-cased product name with the `-bin` suffix the AUR requires for
+  /// packages that ship prebuilt binaries, for instance `my-app-bin`.
+  /// When the name ends with `-bin`, the package also provides and conflicts with the name
+  /// without the suffix.
+  ///
+  /// See : <https://wiki.archlinux.org/title/AUR_submission_guidelines#Rules_of_submission>
+  pub pkgname: Option<String>,
+  /// The package release number, to be incremented when the package changes but the app
+  /// version does not, for instance to fix a packaging mistake. Reset it to `1` on new versions.
+  /// Defaults to `1`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#pkgrel>
+  pub pkgrel: Option<String>,
+  /// Forces the package to be seen as newer than any previous version with a lower epoch,
+  /// used when the versioning scheme changes. Must not be decreased.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#epoch>
+  pub epoch: Option<u32>,
+  /// The package maintainer, written to the `# Maintainer:` comment the AUR expects at the top
+  /// of the PKGBUILD, for instance `Jane Doe <jane at example dot com>`.
+  /// Defaults to the app authors.
+  pub maintainer: Option<String>,
+  /// List of softwares that must be installed for the app to build and run.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#depends>
+  pub depends: Option<Vec<String>>,
+  /// Optional packages that enable additional features of the app, but are not required to run it.
+  /// Each entry is the package name, optionally followed by `: ` and the reason,
+  /// for instance `libappindicator-gtk3: tray icon support`.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#optdepends>
+  pub optdepends: Option<Vec<String>>,
+  /// Additional packages that are provided by this app.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+  pub provides: Option<Vec<String>>,
+  /// Packages that conflict or cause problems with the app.
+  /// All these packages and packages providing this item will need to be removed
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>
+  pub conflicts: Option<Vec<String>>,
+  /// Only use if this app replaces some obsolete packages.
+  /// For example, if you rename any package.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
+  pub replaces: Option<Vec<String>>,
+  /// The files to include on the package.
+  /// Maps the path on the package to the path of the file to include (relative to the current working directory).
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+  /// Path to the install script, a bash script that defines any of the `pre_install`,
+  /// `post_install`, `pre_upgrade`, `post_upgrade`, `pre_remove` and `post_remove` functions
+  /// pacman runs when the package is installed, upgraded or removed.
+  /// It is written next to the PKGBUILD as `<pkgname>.install` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#install>
+  pub install: Option<PathBuf>,
+  /// Path to the changelog file, shown by `pacman -Qc`.
+  /// It is written next to the PKGBUILD as `<pkgname>.changelog` and must be published with it.
+  ///
+  /// See : <https://wiki.archlinux.org/title/PKGBUILD#changelog>
+  pub changelog: Option<PathBuf>,
+  /// Source of the package to be stored at PKGBUILD.
+  /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+  ///
+  /// To publish the package to the AUR, upload the generated `.tar.gz` archive and set the
+  /// first entry to its download URL, for instance
+  /// `https://github.com/me/app/releases/download/v${_pkgver}/app_${_pkgver}_x86_64.tar.gz`.
+  /// `${pkgver}` has `-` (and any `:`, `/` or whitespace) replaced with `_`, `${_pkgver}` is the app version as is.
+  /// The first entry is saved under the archive name and its checksum is written to
+  /// `sha512sums_<arch>`. Additional entries are not verified (`SKIP`).
+  /// Defaults to the local archive file name.
+  ///
+  /// The sources are architecture specific (`source_<arch>`), so the PKGBUILDs generated
+  /// for each target architecture can be merged into one that supports all of them by
+  /// combining their `arch`, `source_<arch>` and `sha512sums_<arch>` entries.
+  pub source: Option<Vec<String>>,
 }
 
 /// Compression algorithms used when bundling RPM packages.
@@ -407,26 +611,71 @@ pub struct LinuxConfig {
 pub enum RpmCompression {
   /// Gzip compression
   Gzip {
-    /// Gzip compression level
+    /// Gzip compression level (0-9).
     level: u32,
   },
   /// Zstd compression
   Zstd {
-    /// Zstd compression level
+    /// Zstd compression level (-131072 - 22).
     level: i32,
   },
   /// Xz compression
   Xz {
-    /// Xz compression level
+    /// Xz compression level (0-9).
     level: u32,
   },
   /// Bzip2 compression
   Bzip2 {
-    /// Bzip2 compression level
+    /// Bzip2 compression level (1-9).
     level: u32,
   },
   /// Disable compression
   None,
+}
+
+impl RpmCompression {
+  /// The default compression level for this algorithm.
+  pub fn default_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(19),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The minimum compression level supported by this algorithm.
+  pub fn min_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(0),
+      Self::Xz { .. } => Some(0),
+      Self::Zstd { .. } => Some(ZSTD_MIN_CLEVEL),
+      // bzip2 levels are block sizes, which start at 1
+      Self::Bzip2 { .. } => Some(1),
+    }
+  }
+
+  /// The maximum compression level supported by this algorithm.
+  pub fn max_level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { .. } => Some(9),
+      Self::Xz { .. } => Some(9),
+      Self::Zstd { .. } => Some(22),
+      Self::Bzip2 { .. } => Some(9),
+    }
+  }
+
+  /// The compression level configured for this algorithm.
+  pub fn level(&self) -> Option<i32> {
+    match self {
+      Self::None => None,
+      Self::Gzip { level } | Self::Xz { level } | Self::Bzip2 { level } => Some(*level as i32),
+      Self::Zstd { level } => Some(*level),
+    }
+  }
 }
 
 /// Configuration for RPM bundles.
@@ -458,7 +707,12 @@ pub struct RpmConfig {
   pub files: HashMap<PathBuf, PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  /// Available variables: `categories`, `comment` (optional), `exec`, `exec_arg`, `icon`,
+  /// `name`, `mime_type` (optional) and `long_description`.
+  ///
+  /// `exec_arg` is the `Exec` field code with a leading space: ` %U` when deep link schemes are
+  /// configured, ` %F` when only file associations are, and empty otherwise, so launchers pass the
+  /// opened URLs or files to the app. Use it as `Exec={{exec}}{{exec_arg}}`.
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -693,7 +947,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "14.0".into()
+  "15.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -840,6 +1094,41 @@ pub enum NSISInstallerMode {
   Both,
 }
 
+/// The executable target of the NSIS installer, independent of the application target.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum NsisInstallerTarget {
+  /// A 32-bit Unicode installer (default).
+  #[default]
+  #[serde(rename = "x86-unicode")]
+  X86Unicode,
+  /// A 32-bit ANSI installer. Text is limited to the system's ANSI code page.
+  #[serde(rename = "x86-ansi")]
+  X86Ansi,
+  /// A native 64-bit Unicode installer.
+  ///
+  /// Requires a compatible NSIS distribution with amd64 stubs and plugins,
+  /// such as [negrutiu's NSIS distribution](https://github.com/negrutiu/nsis/releases).
+  /// Set `NSIS_PATH` to the directory containing that distribution's `makensis` executable.
+  /// On Windows, use the installation directory containing the top-level `makensis.exe`.
+  /// If unset, Tauri searches `PATH` and downloads NSIS on Windows if it is not found.
+  /// When signing, Tauri locates built-in plugins beside the compiler on Windows,
+  /// under `/usr/share/nsis` on Linux, or under the resolved compiler's `<prefix>/share/nsis` on macOS.
+  #[serde(rename = "amd64-unicode")]
+  Amd64Unicode,
+}
+
+impl NsisInstallerTarget {
+  /// The target name used by NSIS for its stubs and plugin directories.
+  pub fn as_str(self) -> &'static str {
+    match self {
+      Self::X86Unicode => "x86-unicode",
+      Self::X86Ansi => "x86-ansi",
+      Self::Amd64Unicode => "amd64-unicode",
+    }
+  }
+}
+
 /// Configuration for the Installer bundle using NSIS.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -847,6 +1136,10 @@ pub enum NSISInstallerMode {
 pub struct NsisConfig {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
+  /// The executable target of the installer, independent of the application target.
+  /// Defaults to `x86-unicode`.
+  #[serde(default, alias = "installer-target")]
+  pub installer_target: NsisInstallerTarget,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.
@@ -865,7 +1158,7 @@ pub struct NsisConfig {
   #[serde(alias = "uninstaller-icon")]
   pub uninstaller_icon: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of uninstallers pages.
-  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `headerImage`
   ///
   /// The recommended dimensions are 150px x 57px.
   #[serde(alias = "uninstaller-header-image")]
@@ -876,9 +1169,9 @@ pub struct NsisConfig {
   /// A list of installer languages. Default to `["English"]` if not set.
   ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
-  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  /// To allow the user to select the language, set `displayLanguageSelector` to `true`.
   ///
-  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  /// See <https://github.com/nsis-dev/nsis/tree/master/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
   /// A key-value pair where the key is the language and the
   /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
@@ -915,6 +1208,9 @@ pub struct NsisConfig {
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  /// - `NSIS_HOOK_PREFINISHPAGE`: This hook is inserted right before the installer's finish page is created,
+  ///   use it to `!undef` or redefine the `MUI_FINISHPAGE_*` defines of that page
+  ///   (e.g. `!undef MUI_FINISHPAGE_RUN` removes the "Run" checkbox).
   ///
   /// ### Example
   ///
@@ -1053,9 +1349,13 @@ pub struct WindowsConfig {
   /// The installation mode for the Webview2 runtime.
   #[serde(default, alias = "webview-install-mode")]
   pub webview_install_mode: WebviewInstallMode,
-  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  /// Whether an older version can be installed when a newer one is already installed.
   ///
-  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  /// For instance, if `1.2.1` is installed and this is set to `false`:
+  ///
+  /// - The MSI installer won't install version `1.2.0` or `1.1.5`.
+  /// - The NSIS installer won't install them over `1.2.1` in silent, passive or update mode.
+  ///   The interactive installer only lets the user install them after uninstalling `1.2.1` first.
   ///
   /// The default value of this flag is `true`.
   #[serde(default = "default_true", alias = "allow-downgrades")]
@@ -1577,7 +1877,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "pacman", "nsis", "msi", "app", "dmg"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   #[serde(default)]
@@ -1667,8 +1967,10 @@ pub struct BundleConfig {
   /// If true, tools will be cached in `target/.tauri/`.
   /// If false, tools will be cached in the current user's platform-specific cache directory.
   ///
-  /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),
-  /// because the Window system's app data directory is restricted.
+  /// When building this application as the Windows `SYSTEM` user (e.g., AWS EC2 workloads or CI runners installed as a service),
+  /// that cache directory is inside `C:\Windows\System32`, where the 32-bit NSIS and WiX tools can't find their own files,
+  /// so they are cached in the build's output directory (e.g., `target/release/.tauri/`) instead.
+  /// Setting this to `true` in that case shares them across build profiles and targets.
   #[serde(default, alias = "use-local-tools-dir")]
   pub use_local_tools_dir: bool,
   /// A list of—either absolute or relative—paths to binaries to embed with your application.
@@ -1756,8 +2058,12 @@ impl From<[u8; 3]> for Color {
 
 impl FromStr for Color {
   type Err = String;
-  fn from_str(mut color: &str) -> Result<Self, Self::Err> {
-    color = color.trim().strip_prefix('#').unwrap_or(color);
+  fn from_str(color: &str) -> Result<Self, Self::Err> {
+    let color = color.trim();
+    let color = color.strip_prefix('#').unwrap_or(color);
+    if !color.bytes().all(|b| b.is_ascii_hexdigit()) {
+      return Err("Invalid hex color, must only contain hexadecimal digits, for example: #fff, #ffffff, or #ffffffff".into());
+    }
     let color = match color.len() {
       3 => color.chars()
             .flat_map(|c| std::iter::repeat_n(c, 2))
@@ -1829,7 +2135,7 @@ impl schemars::JsonSchema for Color {
     "Color".to_string()
   }
 
-  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(_generator: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let mut schema = schemars::schema_for!(InnerColor).schema;
     schema.metadata = None; // Remove `title: InnerColor` from schema
 
@@ -1864,15 +2170,28 @@ pub enum BackgroundThrottlingPolicy {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowEffectsConfig {
   /// List of Window effects to apply to the Window.
-  /// Conflicting effects will apply the first one and ignore the rest.
+  ///
+  /// Generally, conflicting effects will apply the first one and ignore the rest but
+  /// on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time
+  /// to make Tauri fallback to the latter on macOS 15 and below.
   pub effects: Vec<WindowEffect>,
-  /// Window effect state **macOS Only**
+  /// Window effect state **macOS Only**. Ignored for Liquid Glass Effects.
   pub state: Option<WindowEffectState>,
   /// Window effect corner radius **macOS Only**
   pub radius: Option<f64>,
-  /// Window effect color. Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
+  /// Window effect color.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Affects [`WindowEffect::Blur`] and [`WindowEffect::Acrylic`] only
   /// on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
+  /// - **macOS**: Only affects Liquid Glass effects.
   pub color: Option<Color>,
+  /// Enables interactive glass behavior, which adds a visual response to user interactions.
+  ///
+  /// **macOS 27.0+**. Only affects Liquid Glass effects.
+  #[serde(default)]
+  pub interactive: bool,
 }
 
 /// Enable prevent overflow with a margin
@@ -1910,7 +2229,9 @@ pub enum PreventOverflowConfig {
 #[non_exhaustive]
 pub enum ScrollBarStyle {
   #[default]
-  /// The scrollbar style to use in the webview.
+  /// The platform's native scrollbar, as rendered by the webview by default.
+  ///
+  /// This is the only supported value outside of Windows.
   Default,
 
   /// Fluent UI style overlay scrollbars. **Windows Only**
@@ -1918,6 +2239,61 @@ pub enum ScrollBarStyle {
   /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
   /// see <https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541>
   FluentOverlay,
+}
+
+/// Action to perform when a new window is requested to be created.
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "action")]
+#[non_exhaustive]
+pub enum OnNewWindow {
+  /// Allow the window to be created using the default webview implementation.
+  ///
+  /// The `urls` scope is only checked against the URL initially requested by `window.open`.
+  /// The window is then managed by the webview and Tauri cannot restrict its navigation,
+  /// so it can still be navigated to any URL afterwards (e.g. by the opener or a redirect).
+  /// Use [`Self::AllowTauriWindow`] if navigations must be restricted to the scope too.
+  AllowDefault {
+    /// Only allow URLs matching the given pattern list when set.
+    ///
+    /// Each entry is a glob pattern such as `"https://*.tauri.app/**"`, where `*` does not match `/`
+    /// and `**` matches any number of path segments.
+    /// A pattern without a path such as `"https://tauri.app"` matches any path on that origin.
+    ///
+    /// The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.
+    /// See [`UrlScope`] for details.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
+  },
+  /// Allow the window to be created using a Tauri window.
+  ///
+  /// The created windows are labeled `{label}-created-{n}`, where `{label}` is the label
+  /// of the webview that requested the new window and `{n}` is a counter starting at 0
+  /// (e.g. `main-created-0`).
+  ///
+  /// **Security**: capabilities are matched against window labels with glob patterns,
+  /// so a capability targeting `"windows": ["*"]` or `"windows": ["main*"]` also grants
+  /// its permissions to the windows created for `main`, which may load any URL
+  /// allowed by `urls` (any URL at all if `urls` is not set).
+  /// Scope capabilities to exact window labels (e.g. `"windows": ["main"]`)
+  /// and set `urls` to restrict which URLs these windows can load.
+  AllowTauriWindow {
+    /// Only allow URLs matching the given pattern list when set.
+    ///
+    /// Each entry is a glob pattern such as `"https://*.tauri.app/**"`, where `*` does not match `/`
+    /// and `**` matches any number of path segments.
+    /// A pattern without a path such as `"https://tauri.app"` matches any path on that origin.
+    ///
+    /// The full [URLPattern] spec is used instead when the `url-pattern` Cargo feature is enabled.
+    /// See [`UrlScope`] for details.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
+  },
+  /// Deny the window from being created.
+  #[default]
+  Deny,
 }
 
 /// The window configuration object.
@@ -1938,7 +2314,7 @@ pub struct WindowConfig {
   ///
   /// ## Example:
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
@@ -2038,10 +2414,9 @@ pub struct WindowConfig {
   pub focusable: bool,
   /// Whether the window is transparent or not.
   ///
-  /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.
-  /// WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+  /// ## Platform-specific
   ///
-  /// On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
+  /// - **Windows**: Using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
   #[serde(default)]
   pub transparent: bool,
   /// Whether the window is maximized or not.
@@ -2182,6 +2557,16 @@ pub struct WindowConfig {
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
   #[serde(default, alias = "browser-extensions-enabled")]
   pub browser_extensions_enabled: bool,
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[serde(default = "default_true", alias = "browser-accelerator-keys")]
+  pub browser_accelerator_keys: bool,
 
   /// Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
   ///
@@ -2192,6 +2577,11 @@ pub struct WindowConfig {
   /// ## Warning
   ///
   /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: When `app > androidTauriProtocolHostname` is set, the app itself is always served from
+  ///   `https://<androidTauriProtocolHostname>`; this setting only applies to the other custom protocols.
   #[serde(default, alias = "use-https-scheme")]
   pub use_https_scheme: bool,
   /// Enable web inspector which is usually called browser devtools. Enabled by default.
@@ -2248,21 +2638,27 @@ pub struct WindowConfig {
     alias = "disable_input_accessory_view"
   )]
   pub disable_input_accessory_view: bool,
-  ///
-  /// Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
+  /// Set a custom path for the webview's data directory (localStorage, cache, etc.),
+  /// **relative to the local data directory (`localDataDir()`), followed by the window label**.
   ///
   /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
+  ///
+  /// This path is not affected by the `app > appDirectoriesOverride` config.
+  /// To keep the webview data in an overridden directory, leave this unset (the webview then uses the app local data directory)
+  /// or resolve a path from `app.path().app_local_data_dir()` and set it with `WebviewWindowBuilder::data_directory`.
   ///
   /// #### Platform-specific:
   ///
   /// - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
-  /// - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+  /// - **macOS / iOS**: Unsupported, use `profileIdentifier` instead.
   /// - **Android**: Unsupported.
   #[serde(default, alias = "data-directory")]
   pub data_directory: Option<PathBuf>,
+  /// Deprecated: use [`Self::profile_identifier`] (`profileIdentifier`) instead.
   ///
   /// Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
-  /// See https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc
+  ///
+  /// See <https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc>
   ///
   /// The array must contain 16 u8 numbers.
   ///
@@ -2271,8 +2667,27 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   /// - **Windows / Linux / Android**: Unsupported.
+  #[deprecated(since = "2.11.0", note = "Use `profile_identifier` instead.")]
   #[serde(default, alias = "data-store-identifier")]
   pub data_store_identifier: Option<[u8; 16]>,
+  /// Isolates the webview's browsing data (cookies, local storage, IndexedDB, cache, etc.)
+  /// in a profile identified by the given 16 bytes (usually a UUID).
+  ///
+  /// Webviews using the same identifier share their browsing data,
+  /// while webviews using different identifiers are fully isolated from each other.
+  ///
+  /// The array must contain 16 u8 numbers.
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **macOS / iOS**: Uses a [`WKWebsiteDataStore`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc)
+  ///   created with this identifier. Supported on macOS 14.0+ and iOS 17.0+.
+  /// - **Windows**: Uses a [WebView2 profile](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support)
+  ///   named after the lowercase hex representation of the identifier, stored inside the data directory.
+  ///   Requires WebView2 Runtime 101+, older runtimes ignore this setting.
+  /// - **Linux / Android**: Unsupported.
+  #[serde(default, alias = "profile-identifier")]
+  pub profile_identifier: Option<[u8; 16]>,
 
   /// Specifies the native scrollbar style to use with the webview.
   /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
@@ -2289,15 +2704,15 @@ pub struct WindowConfig {
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
 
-  /// Whether to limit navigations to App-Bound Domains. This is necessary to
-  /// enable Service Workers on iOS according to
-  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  /// Whether to limit navigations to App-Bound Domains.
   ///
-  /// Default is false.
+  /// This is required to enable Service Workers in WKWebView, which are otherwise
+  /// unavailable. Defaults to `false`.
   ///
-  /// Note: If you set this to `true` make sure to add localhost and any [`registrable
-  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
-  /// used in this webview to tauri-src/Info.ios.plist:
+  /// When this is set to `true`, the webview can only navigate to the domains listed in the
+  /// `WKAppBoundDomains` array of `src-tauri/Info.ios.plist`. Add `localhost` and every
+  /// [registrable domain](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// this webview loads to that array:
   ///
   /// ```xml
   /// <plist>
@@ -2311,33 +2726,30 @@ pub struct WindowConfig {
   /// </plist>
   /// ```
   ///
-  /// You must add `localhost` if any webview with this set to true opens a
-  /// local webpage, makes any localhost calls, or uses the isolation pattern
-  /// because Tauri uses the `localhost` domain for hosting the application
-  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  /// `localhost` must be listed if any webview with this option enabled opens a local webpage,
+  /// makes any localhost call, or uses the isolation pattern, because Tauri serves the
+  /// application webpage, the IPC protocol and the isolation pattern iframe from the
+  /// `localhost` domain.
   ///
-  /// Requests served through custom uri schemes are allowed so long as they use
-  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
-  /// requests from the app, including requests for the `localhost` domain.
+  /// Requests served through custom URI schemes are allowed as long as they use a registrable
+  /// domain listed in the `WKAppBoundDomains` array, including requests to the `localhost`
+  /// domain.
   ///
-  /// In theory, you can whitelist an entire uri scheme by including the
-  /// protocol name followed by a colon. For example, to allow all requests
-  /// using a custom "stream" uri scheme (see [this tauri
-  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
-  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
-  /// sure whether Apple would let your app through app review if you do
-  /// whitelist an entire protocol because this feature is not mentioned in
-  /// [their blog post on App-Bound
-  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  /// An entire URI scheme can be listed by adding the protocol name followed by a colon, for
+  /// example `stream:` for a custom `stream` scheme (see the
+  /// [streaming example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)).
+  /// This is not covered by Apple's
+  /// [App-Bound Domains announcement](https://webkit.org/blog/10882/app-bound-domains/),
+  /// so it may not be accepted during App Store review.
   ///
-  /// See https://webkit.org/blog/10882/app-bound-domains/ and
-  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// See <https://webkit.org/blog/10882/app-bound-domains/> and
+  /// <https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains>
   /// for the official documentation on App-Bound Domains.
   ///
   /// ## Platform-specific
   ///
   /// - **iOS**: Supported since version 14.0+.
-  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  /// - **Linux / Windows / Android / macOS:** Unsupported.
   #[serde(default, alias = "limit-navigations-to-app-bound-domains")]
   pub limit_navigations_to_app_bound_domains: bool,
   /// The name of the Android activity to create for this window.
@@ -2374,8 +2786,17 @@ pub struct WindowConfig {
   ///   operation.
   #[serde(default = "default_true", alias = "general-autofill-enabled")]
   pub general_autofill_enabled: bool,
+  /// Action to perform when a new window is requested to be created.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS**: Unsupported, new window requests are always denied.
+  #[serde(default, alias = "on-new-window")]
+  pub on_new_window: OnNewWindow,
 }
 
+// For [`Self::data_store_identifier`]
+#[allow(deprecated)]
 impl Default for WindowConfig {
   fn default() -> Self {
     Self {
@@ -2427,6 +2848,7 @@ impl Default for WindowConfig {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      browser_accelerator_keys: true,
       use_https_scheme: false,
       devtools: None,
       background_color: None,
@@ -2436,12 +2858,14 @@ impl Default for WindowConfig {
       disable_input_accessory_view: false,
       data_directory: None,
       data_store_identifier: None,
+      profile_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
       limit_navigations_to_app_bound_domains: false,
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
       general_autofill_enabled: true,
+      on_new_window: OnNewWindow::default(),
     }
   }
 }
@@ -2595,7 +3019,7 @@ impl Display for Csp {
   }
 }
 
-/// The possible values for the `dangerous_disable_asset_csp_modification` config option.
+/// The possible values for the `dangerousDisableAssetCspModification` config option.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2739,12 +3163,14 @@ impl Display for HeaderSource {
       Self::Inline(s) => write!(f, "{s}"),
       Self::List(l) => write!(f, "{}", l.join(", ")),
       Self::Map(m) => {
-        let len = m.len();
-        let mut i = 0;
-        for (key, value) in m {
+        // Format through `BTreeMap` so the resulting header value is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let map: BTreeMap<_, _> = m.iter().collect();
+        let len = map.len();
+        for (i, (key, value)) in map.into_iter().enumerate() {
           write!(f, "{key} {value}")?;
-          i += 1;
-          if i != len {
+          if i + 1 != len {
             write!(f, "; ")?;
           }
         }
@@ -2808,9 +3234,9 @@ impl HeaderAddition for Builder {
         self = self.header("Cross-Origin-Resource-Policy", value.to_string());
       };
 
-      // Add the header Permission-Policy, if we find a value for it
+      // Add the header Permissions-Policy, if we find a value for it
       if let Some(value) = &headers.permissions_policy {
-        self = self.header("Permission-Policy", value.to_string());
+        self = self.header("Permissions-Policy", value.to_string());
       };
 
       if let Some(value) = &headers.service_worker_allowed {
@@ -3018,7 +3444,7 @@ impl HeaderConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
   /// The Content Security Policy that will be injected on all HTML files on the built application.
-  /// If [`dev_csp`](#SecurityConfig.devCsp) is not specified, this value is also injected on dev.
+  /// If `devCsp` is not specified, this value is also injected on dev.
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
@@ -3029,7 +3455,18 @@ pub struct SecurityConfig {
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
   #[serde(alias = "dev-csp")]
   pub dev_csp: Option<Csp>,
-  /// Freeze the `Object.prototype` when using the custom protocol.
+  /// Whether `Object.freeze(Object.prototype)` is run as an initialization script on every webview.
+  ///
+  /// This hardens the frontend against prototype pollution: once the prototype is frozen,
+  /// a script cannot add or replace properties on `Object.prototype` and thus cannot tamper
+  /// with objects it does not own, including the ones used by the Tauri API.
+  ///
+  /// The script runs before any of your frontend code, on every webview, regardless of whether
+  /// the content is served by the custom protocol or by a development server.
+  ///
+  /// Defaults to `false`. Note that frontend libraries that extend built-in prototypes
+  /// (polyfills, some older frameworks) stop working when this is enabled, so test your
+  /// application with it on before shipping.
   #[serde(default, alias = "freeze-prototype")]
   pub freeze_prototype: bool,
   /// Disables the Tauri-injected CSP sources.
@@ -3049,7 +3486,17 @@ pub struct SecurityConfig {
   /// Custom protocol config.
   #[serde(default, alias = "asset-protocol")]
   pub asset_protocol: AssetProtocolConfig,
-  /// The pattern to use.
+  /// The application pattern, which defines how the frontend communicates with the Rust core.
+  ///
+  /// - `brownfield` (default): the frontend talks to the core directly. Use it unless you need
+  ///   the extra isolation layer.
+  /// - `isolation`: every IPC message is routed through a secure JavaScript application you own,
+  ///   hosted in a sandboxed `<iframe>`, so it can validate or reject messages before they reach
+  ///   the Rust core. This protects the core from an untrusted or compromised frontend
+  ///   (for example one that loads third-party scripts), at the cost of an extra build step:
+  ///   the `dir` value must point at a directory containing the isolation application's `index.html`.
+  ///
+  /// See <https://tauri.app/concept/inter-process-communication/isolation/>.
   #[serde(default)]
   pub pattern: PatternKind,
   /// List of capabilities that are enabled on the application.
@@ -3064,13 +3511,15 @@ pub struct SecurityConfig {
   /// ```json
   /// {
   ///   "app": {
-  ///     "capabilities": [
-  ///       "main-window",
-  ///       {
-  ///         "identifier": "drag-window",
-  ///         "permissions": ["core:window:allow-start-dragging"]
-  ///       }
-  ///     ]
+  ///     "security": {
+  ///       "capabilities": [
+  ///         "main-window",
+  ///         {
+  ///           "identifier": "drag-window",
+  ///           "permissions": ["core:window:allow-start-dragging"]
+  ///         }
+  ///       ]
+  ///     }
   ///   }
   /// }
   /// ```
@@ -3119,6 +3568,270 @@ pub enum PatternKind {
     /// The dir containing the index.html file that contains the secure isolation application.
     dir: PathBuf,
   },
+}
+
+/// The base directory variables an [`AppDirectoriesOverride`] path can start with.
+///
+/// `$RESOURCE` is excluded because the resource directory is read-only in bundled apps,
+/// `$EXE`, `$FONT`, `$RUNTIME` and `$TEMPLATE` because they are not available on every desktop platform,
+/// and the `$APP*` variables because they refer to the directories being overridden.
+const APP_DIRECTORIES_OVERRIDE_VARIABLES: &[&str] = &[
+  "$AUDIO",
+  "$CACHE",
+  "$CONFIG",
+  "$DATA",
+  "$LOCALDATA",
+  "$DESKTOP",
+  "$DOCUMENT",
+  "$DOWNLOAD",
+  "$HOME",
+  "$PICTURE",
+  "$PUBLIC",
+  "$TEMP",
+  "$VIDEO",
+];
+
+/// Validates a path used to override an app directory, see [`AppDirectoriesOverride`].
+fn validate_app_directory_override(path: &Path) -> Result<(), String> {
+  let mut components = path.components();
+  let first = components.next();
+
+  if let Some(Component::Normal(first)) = first {
+    if let Some(variable) = first.to_str().filter(|s| s.starts_with('$')) {
+      if !APP_DIRECTORIES_OVERRIDE_VARIABLES.contains(&variable) {
+        return Err(format!(
+          "`{}` starts with the unsupported base directory variable `{variable}`, expected one of {}",
+          path.display(),
+          APP_DIRECTORIES_OVERRIDE_VARIABLES
+            .iter()
+            .map(|v| format!("`{v}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+        ));
+      }
+      return Ok(());
+    }
+  }
+
+  // Windows root-relative (`\foo`) and drive-relative (`C:foo`) paths are neither absolute
+  // nor relative to the executable, so they cannot be resolved predictably
+  if !path.is_absolute() && (path.has_root() || matches!(first, Some(Component::Prefix(_)))) {
+    return Err(format!(
+      "`{}` must be an absolute path, a path relative to the executable or a path starting with a base directory variable",
+      path.display()
+    ));
+  }
+
+  Ok(())
+}
+
+/// Overrides the directories returned by the `app_*_dir` path APIs.
+///
+/// See the `app > appDirectoriesOverride` config for how each path is resolved.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum AppDirectoriesOverride {
+  /// A single directory that holds all app directories.
+  ///
+  /// The config, data and local data directories resolve to this path,
+  /// the cache directory resolves to `<path>/caches` and the log directory to `<path>/logs`.
+  Root(PathBuf),
+  /// Overrides for individual app directories.
+  ///
+  /// Directories that are not listed keep their default location.
+  Directories(AppDirectoryOverrides),
+}
+
+impl AppDirectoriesOverride {
+  /// The paths configured by this override.
+  fn paths(&self) -> impl Iterator<Item = &PathBuf> {
+    match self {
+      Self::Root(root) => vec![Some(root)],
+      Self::Directories(directories) => vec![
+        directories.config.as_ref(),
+        directories.data.as_ref(),
+        directories.local_data.as_ref(),
+        directories.cache.as_ref(),
+        directories.log.as_ref(),
+      ],
+    }
+    .into_iter()
+    .flatten()
+  }
+}
+
+impl<'de> Deserialize<'de> for AppDirectoriesOverride {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let value = UntaggedEnumVisitor::new()
+      .string(|path| Ok(Self::Root(PathBuf::from(path))))
+      .map(|map| {
+        map
+          .deserialize::<AppDirectoryOverrides>()
+          .map(Self::Directories)
+      })
+      .deserialize(deserializer)?;
+
+    for path in value.paths() {
+      validate_app_directory_override(path).map_err(DeError::custom)?;
+    }
+
+    Ok(value)
+  }
+}
+
+/// Overrides for individual app directories.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppDirectoryOverrides {
+  /// Overrides the app config directory (`app_config_dir`, `$APPCONFIG`).
+  pub config: Option<PathBuf>,
+  /// Overrides the app data directory (`app_data_dir`, `$APPDATA`).
+  pub data: Option<PathBuf>,
+  /// Overrides the app local data directory (`app_local_data_dir`, `$APPLOCALDATA`).
+  ///
+  /// On Windows and Linux this is also the default data directory of the webviews.
+  #[serde(alias = "local-data", alias = "local_data")]
+  pub local_data: Option<PathBuf>,
+  /// Overrides the app cache directory (`app_cache_dir`, `$APPCACHE`).
+  pub cache: Option<PathBuf>,
+  /// Overrides the app log directory (`app_log_dir`, `$APPLOG`).
+  pub log: Option<PathBuf>,
+}
+
+/// Special-use top-level domains that Digital Asset Links can't verify.
+const ANDROID_HOSTNAME_SPECIAL_USE_TLDS: &[&str] = &[
+  "alt", "arpa", "example", "internal", "invalid", "local", "onion", "test",
+];
+
+/// The host the Android app is served from, see `app > androidTauriProtocolHostname`.
+///
+/// A lowercase domain name with at least two labels, such as `app.example.com`, without a scheme, port or path.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(try_from = "String")]
+pub struct Hostname(
+  #[cfg_attr(
+    feature = "schema",
+    validate(
+      length(max = 253),
+      regex(
+        pattern = r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$"
+      )
+    )
+  )]
+  String,
+);
+
+impl Hostname {
+  /// The hostname, e.g. `app.example.com`.
+  pub fn as_str(&self) -> &str {
+    &self.0
+  }
+}
+
+impl fmt::Display for Hostname {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.write_str(&self.0)
+  }
+}
+
+impl FromStr for Hostname {
+  type Err = String;
+
+  fn from_str(hostname: &str) -> Result<Self, Self::Err> {
+    hostname.to_owned().try_into()
+  }
+}
+
+impl TryFrom<String> for Hostname {
+  type Error = String;
+
+  fn try_from(hostname: String) -> Result<Self, Self::Error> {
+    match validate_android_tauri_protocol_hostname(&hostname) {
+      Ok(()) => Ok(Self(hostname)),
+      Err(reason) => {
+        let suggestion = suggest_android_tauri_protocol_hostname(&hostname)
+          .map(|suggestion| format!(". Use `{suggestion}` instead"))
+          .unwrap_or_default();
+        Err(format!(
+          "invalid `app > androidTauriProtocolHostname` `{hostname}`: it {reason}{suggestion}"
+        ))
+      }
+    }
+  }
+}
+
+/// Applies the host rules of wry's `with_custom_protocol_host` and rejects special-use top-level domains.
+fn validate_android_tauri_protocol_hostname(hostname: &str) -> Result<(), String> {
+  if hostname.len() > 253 {
+    return Err("must not be longer than 253 characters".into());
+  }
+  if hostname.ends_with('.') {
+    return Err("must not end with a dot".into());
+  }
+  if hostname == "localhost" || hostname.ends_with(".localhost") {
+    return Err("must not be `localhost` or a subdomain of it".into());
+  }
+
+  let Some((_, tld)) = hostname.rsplit_once('.') else {
+    return Err("must have at least two labels, like `app.example.com`".into());
+  };
+  for label in hostname.split('.') {
+    if label.is_empty() || label.len() > 63 {
+      return Err("must have labels of 1 to 63 characters".into());
+    }
+    if !label
+      .bytes()
+      .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    {
+      return Err(
+        "must only contain lowercase ASCII letters, digits, hyphens and dots, without a scheme, port or path"
+          .into(),
+      );
+    }
+    if label.starts_with('-') || label.ends_with('-') {
+      return Err("must not have labels starting or ending with a hyphen".into());
+    }
+  }
+
+  // the WHATWG URL parser treats a host whose last label is a number as an IPv4 address
+  if tld.bytes().all(|b| b.is_ascii_digit())
+    || tld
+      .strip_prefix("0x")
+      .is_some_and(|hex| hex.bytes().all(|b| b.is_ascii_hexdigit()))
+  {
+    return Err("must not be an IP address".into());
+  }
+  if ANDROID_HOSTNAME_SPECIAL_USE_TLDS.contains(&tld) {
+    return Err(format!(
+      "must not use the special-use top-level domain `.{tld}`, which Digital Asset Links can't verify"
+    ));
+  }
+
+  match Url::parse(&format!("https://{hostname}/")) {
+    Ok(url) if url.host_str() == Some(hostname) => Ok(()),
+    _ => Err("must be a valid domain name".into()),
+  }
+}
+
+/// Extracts a valid hostname from inputs like `https://App.example.com/`.
+fn suggest_android_tauri_protocol_hostname(input: &str) -> Option<String> {
+  let url = if input.contains("://") {
+    Url::parse(input)
+  } else {
+    Url::parse(&format!("https://{input}"))
+  }
+  .ok()?;
+  let hostname = url.host_str()?.trim_end_matches('.');
+  validate_android_tauri_protocol_hostname(hostname)
+    .is_ok()
+    .then(|| hostname.to_owned())
 }
 
 /// The App configuration object.
@@ -3176,7 +3889,7 @@ pub struct AppConfig {
   ///
   /// and use it like this
   ///
-  /// ```rust
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
@@ -3192,14 +3905,164 @@ pub struct AppConfig {
   #[serde(alias = "tray-icon")]
   pub tray_icon: Option<TrayIconConfig>,
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
+  ///
+  /// No-op in Tauri 2.12.1+ because the APIs are always enabled now.
   #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
   pub macos_private_api: bool,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
-  /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
+  /// Whether the application `identifier` is used as the GTK application ID on systems that use GTK.
+  ///
+  /// Setting the GTK application ID lets the desktop environment associate the app's windows with
+  /// its `.desktop` entry of the same name, which is what makes Wayland compositors and GNOME show
+  /// the correct icon and application name, and group the windows in the dock or taskbar.
+  ///
+  /// Defaults to `false`, because registering an application ID also makes GTK register the
+  /// application on the session bus under that ID, which prevents running more than one instance
+  /// of the app at the same time.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / FreeBSD / DragonFly / NetBSD / OpenBSD**: The identifier must be a valid GTK
+  ///   application ID.
+  /// - **Windows / macOS / Android / iOS**: Unsupported.
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
+  /// Overrides the directories returned by the `app_*_dir` path APIs (`app_config_dir`, `app_data_dir`,
+  /// `app_local_data_dir`, `app_cache_dir` and `app_log_dir`) and the matching `$APPCONFIG`, `$APPDATA`,
+  /// `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG` base directory variables.
+  ///
+  /// This is useful for portable apps that keep all of their data next to the executable,
+  /// and for apps that want their app directories in a location they choose, such as `$DOCUMENT/my-app`.
+  /// Everything that resolves paths through these APIs follows the override, including Tauri itself
+  /// (the default webview data directory on Windows and Linux) and plugins,
+  /// so the storage locations do not need to be configured one by one.
+  /// The only exception is a window's `dataDirectory` config, which is not affected.
+  ///
+  /// It can also isolate the data of a development build from an installed version of the app,
+  /// though a distinct `identifier` for development builds achieves that while keeping the production directory layout.
+  ///
+  /// The value is either a single path used as the root of every app directory
+  /// (config, data and local data resolve to the root itself, cache to `<root>/caches` and log to `<root>/logs`),
+  /// or an object that overrides individual directories (`config`, `data`, `localData`, `cache` and `log`),
+  /// each resolving to exactly the configured path. Directories that are not listed in the object keep their default location.
+  ///
+  /// Each path is resolved as follows:
+  ///
+  /// - A path starting with a base directory variable is resolved relative to that directory.
+  ///   The supported variables are `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`,
+  ///   `$DOWNLOAD`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$TEMP` and `$VIDEO`.
+  ///   `..` components are kept, so `$DATA/../my-app` refers to a sibling of the data directory.
+  /// - An absolute path is used as is.
+  /// - Any other path is resolved relative to the directory containing the executable,
+  ///   which must be writable, see the platform-specific notes below.
+  ///
+  /// ## Examples
+  ///
+  /// Keep all data in an `app-data` folder next to the executable, for a portable build:
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "appDirectoriesOverride": "./app-data"
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Only move the logs and the cache:
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "appDirectoriesOverride": {
+  ///       "log": "$DATA/my-app/logs",
+  ///       "cache": "$CACHE/my-app"
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Set the override at runtime, for instance from an environment variable, a command line flag
+  /// or a directory picked by the user, by modifying the config returned by `tauri::generate_context!()`
+  /// before building the app:
+  ///
+  /// ```rust,no_run
+  /// use tauri::utils::config::AppDirectoriesOverride;
+  ///
+  /// fn main() {
+  ///   // on an actual app, remove the string argument
+  ///   let mut context = tauri::generate_context!("../tauri/test/fixture/src-tauri/tauri.conf.json");
+  ///
+  ///   if let Ok(data_dir) = std::env::var("MY_APP_DATA_DIR") {
+  ///     context.config_mut().app.app_directories_override =
+  ///       Some(AppDirectoriesOverride::Root(data_dir.into()));
+  ///   }
+  ///
+  ///   tauri::Builder::default()
+  ///     .run(context)
+  ///     .expect("error while running tauri application");
+  /// }
+  /// ```
+  ///
+  /// ## Security
+  ///
+  /// Scopes and permissions that use the `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE` and `$APPLOG`
+  /// variables follow the override, so the configured paths must be directories dedicated to the app.
+  /// A single root is used as is for the config, data and local data directories, so a root that is not dedicated
+  /// to the app, such as `"./"` or `"$DOCUMENT"`, extends those scopes to everything it contains.
+  /// With `"./"`, `fs:default` (which allows reading the app directories recursively) lets the webview read
+  /// every file next to the executable, including anything else in the folder the app was run from,
+  /// such as the downloads folder. If the app also grants write access to an app directory, a compromised webview
+  /// (e.g. through XSS) can replace files next to the executable, such as dropping a DLL that Windows loads
+  /// from the executable's directory on the next launch, leading to code execution.
+  /// Always point the override to a subfolder owned by the app, such as `"./app-data"` or `"$DOCUMENT/my-app"`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// A path relative to the executable only works where the executable's directory is writable:
+  /// portable builds, `tauri dev` builds in the `target` directory and the cases listed below.
+  /// Everywhere else every write to an app directory fails at runtime, so installed apps should use
+  /// a base directory variable or an absolute path instead. Unless every distribution of the app is portable,
+  /// keep relative paths out of the shared configuration and apply them to the portable build flavor only,
+  /// for instance with the CLI's `--config` flag, which accepts a JSON file or an inline JSON string:
+  ///
+  /// ```sh
+  /// tauri build --config '{ "app": { "appDirectoriesOverride": "./app-data" } }'
+  /// ```
+  ///
+  /// - **Linux**: Relative paths only work for AppImages, where they are resolved relative to the AppImage file,
+  ///   as long as it is kept in a writable directory. `.deb` and `.rpm` packages install the executable to `/usr/bin`.
+  /// - **macOS**: Relative paths are resolved next to the `.app` bundle. This does not work for installed apps,
+  ///   since `/Applications` is not writable for standard users, nor for bundles downloaded from the internet,
+  ///   which run from a random read-only location (App Translocation) until the user moves them out of the quarantined folder.
+  /// - **Windows**: Relative paths also work for per-user NSIS installers,
+  ///   but not for per-machine installers in `Program Files`.
+  /// - **Android / iOS**: Relative paths are not supported, since there is no writable directory next to the executable.
+  ///   Use a base directory variable or an absolute path instead. `$DESKTOP` is not available on Android.
+  #[serde(alias = "app-directories-override")]
+  pub app_directories_override: Option<AppDirectoriesOverride>,
+  /// Serves the app from `https://<androidTauriProtocolHostname>` instead of `http(s)://tauri.localhost` on Android, so autofill
+  /// services can link webview credentials to the app through [Digital Asset Links](https://developers.google.com/digital-asset-links).
+  ///
+  /// The value is a lowercase domain name such as `app.example.com`, without a scheme, port or path.
+  /// Tauri trusts only this exact origin for IPC. The other custom protocols (`asset`, `ipc` and plugin protocols)
+  /// keep their `http(s)://<protocol>.localhost` URLs, following `useHttpsScheme`.
+  ///
+  /// ## Security
+  ///
+  /// Use a dedicated host that serves nothing but `/.well-known/assetlinks.json`, since WebSocket connections
+  /// and some redirected requests to the host reach the real server. Service workers can't use the host.
+  ///
+  /// ## Warning
+  ///
+  /// Setting or changing this value changes the app origin, so the app can't access its old IndexedDB, cookies
+  /// and localStorage. Backend CORS rules and Content Security Policy sources must allow the new origin.
+  ///
+  /// `http(s)://tauri.localhost` no longer serves the app, so hardcoded URLs such as navigation targets
+  /// or OAuth redirect URIs must use `https://<androidTauriProtocolHostname>` instead.
+  #[serde(alias = "android-tauri-protocol-hostname")]
+  pub android_tauri_protocol_hostname: Option<Hostname>,
 }
 
 impl AppConfig {
@@ -3207,6 +4070,7 @@ impl AppConfig {
   pub fn all_features() -> Vec<&'static str> {
     vec![
       "tray-icon",
+      // TODO: Remove in v3
       "macos-private-api",
       "protocol-asset",
       "isolation",
@@ -3219,6 +4083,7 @@ impl AppConfig {
     if self.tray_icon.is_some() {
       features.push("tray-icon");
     }
+    // TODO: Remove in v3
     if self.macos_private_api {
       features.push("macos-private-api");
     }
@@ -3252,9 +4117,19 @@ pub struct TrayIconConfig {
   /// or else it's going to bloat your final executable
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
+  /// **Deprecated since v2.13, use [`Self::icon_is_template`] instead**
+  ///
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  // TODO: Remove in v3
   #[serde(default, alias = "icon-as-template")]
+  #[deprecated(since = "2.13.0", note = "Use `icon_is_template` instead.")]
   pub icon_as_template: bool,
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  ///
+  /// A template image is drawn using only its alpha channel, so the system recolors it to match
+  /// the menu bar in light and dark mode.
+  #[serde(default, alias = "icon-is-template")]
+  pub icon_is_template: bool,
   /// **No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**
   ///
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
@@ -3275,10 +4150,30 @@ pub struct TrayIconConfig {
   /// - **Linux**: Unsupported.
   #[serde(default = "default_true", alias = "show-menu-on-left-click")]
   pub show_menu_on_left_click: bool,
+  /// A Boolean value that determines whether the menu should appear when the tray icon receives a right click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  #[serde(default = "default_true", alias = "show-menu-on-right-click")]
+  pub show_menu_on_right_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
   /// Tray icon tooltip on Windows and macOS
   pub tooltip: Option<String>,
+  /// A stable key for the tray icon's saved position in the menu bar. **macOS only**.
+  ///
+  /// macOS restores where the user Cmd+dragged the tray icon on the next launch either way,
+  /// keyed by the order in which the app created its tray icons (`Item-0`, `Item-1`, and so on)
+  /// when no name is given. Set one when that numbering isn't stable from launch to launch,
+  /// as in an app that creates more tray icons at runtime, so that two icons don't come back
+  /// holding each other's positions.
+  ///
+  /// Use one fixed string, typically a reverse-DNS identifier such as `com.example.app.tray`.
+  /// The position is saved under that name, so changing it abandons the position saved under
+  /// the old one.
+  #[serde(alias = "autosave-name")]
+  pub autosave_name: Option<String>,
 }
 
 /// General configuration for the iOS target.
@@ -3304,7 +4199,7 @@ pub struct IosConfig {
   /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
-  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
+  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `15.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
   #[serde(
@@ -3356,7 +4251,7 @@ pub struct AndroidConfig {
   ///
   /// - If `true`, the generator will try to read the last `versionCode` from
   ///   `tauri.properties` and increment it by 1 for every build.
-  /// - If `false` or not set, it falls back to `version_code` or semver-derived logic.
+  /// - If `false` or not set, it falls back to `versionCode` or semver-derived logic.
   ///
   /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]
@@ -3550,17 +4445,26 @@ pub struct BuildConfig {
   pub frontend_dist: Option<FrontendDist>,
   /// A shell command to run before `tauri dev` kicks in.
   ///
-  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
+  /// The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`
+  /// and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can
+  /// adapt its output to the target that is being built.
+  /// `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.
   #[serde(alias = "before-dev-command")]
   pub before_dev_command: Option<BeforeDevCommand>,
   /// A shell command to run before `tauri build` kicks in.
   ///
-  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
+  /// The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`
+  /// and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can
+  /// adapt its output to the target that is being built.
+  /// `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.
   #[serde(alias = "before-build-command")]
   pub before_build_command: Option<HookCommand>,
   /// A shell command to run before the bundling phase in `tauri build` kicks in.
   ///
-  /// The TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG environment variables are set if you perform conditional compilation.
+  /// The `TAURI_ENV_PLATFORM`, `TAURI_ENV_ARCH`, `TAURI_ENV_FAMILY`, `TAURI_ENV_PLATFORM_VERSION`
+  /// and `TAURI_ENV_TARGET_TRIPLE` environment variables are set for the command, so it can
+  /// adapt its output to the target that is being built.
+  /// `TAURI_ENV_DEBUG` is set to `true` for debug builds and is not set otherwise.
   #[serde(alias = "before-bundle-command")]
   pub before_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.
@@ -3575,7 +4479,11 @@ pub struct BuildConfig {
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
   /// Additional paths to watch for changes when running `tauri dev`.
-  #[serde(alias = "additional-watch-directories", default)]
+  #[serde(
+    alias = "additional-watch-folders",
+    alias = "additional-watch-directories",
+    default
+  )]
   pub additional_watch_folders: Vec<PathBuf>,
   /// Windows-specific build configuration.
   #[serde(default)]
@@ -3847,7 +4755,7 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
   use std::convert::identity;
 
   impl ToTokens for WebviewUrl {
@@ -3905,6 +4813,7 @@ mod build {
       let state = opt_lit(self.state.as_ref());
       let radius = opt_lit(self.radius.as_ref());
       let color = opt_lit(self.color.as_ref());
+      let interactive = self.interactive;
 
       literal_struct!(
         tokens,
@@ -3912,7 +4821,8 @@ mod build {
         effects,
         state,
         radius,
-        color
+        color,
+        interactive
       )
     }
   }
@@ -3961,6 +4871,8 @@ mod build {
         WindowEffect::ContentBackground => quote! { #prefix::ContentBackground},
         WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
         WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
+        WindowEffect::LiquidGlassRegular => quote! { #prefix::LiquidGlassRegular },
+        WindowEffect::LiquidGlassClear => quote! { #prefix::LiquidGlassClear },
         WindowEffect::Mica => quote! { #prefix::Mica},
         WindowEffect::MicaDark => quote! { #prefix::MicaDark},
         WindowEffect::MicaLight => quote! { #prefix::MicaLight},
@@ -4023,8 +4935,29 @@ mod build {
     }
   }
 
+  impl ToTokens for OnNewWindow {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::OnNewWindow };
+
+      tokens.append_all(match self {
+        Self::AllowDefault { urls } => {
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          quote! { #prefix::AllowDefault { urls: #urls } }
+        }
+        Self::AllowTauriWindow { urls } => {
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          quote! { #prefix::AllowTauriWindow { urls: #urls } }
+        }
+        Self::Deny => quote! { #prefix::Deny },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // For [`Self::data_store_identifier`]
+      tokens.append_all(quote!(#[allow(deprecated)]));
+
       let label = str_lit(&self.label);
       let create = &self.create;
       let url = &self.url;
@@ -4073,6 +5006,7 @@ mod build {
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let browser_extensions_enabled = self.browser_extensions_enabled;
+      let browser_accelerator_keys = self.browser_accelerator_keys;
       let use_https_scheme = self.use_https_scheme;
       let devtools = opt_lit(self.devtools.as_ref());
       let background_color = opt_lit(self.background_color.as_ref());
@@ -4081,13 +5015,16 @@ mod build {
       let allow_link_preview = self.allow_link_preview;
       let disable_input_accessory_view = self.disable_input_accessory_view;
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
+      #[allow(deprecated)]
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
+      let profile_identifier = opt_vec_lit(self.profile_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
       let limit_navigations_to_app_bound_domains = self.limit_navigations_to_app_bound_domains;
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
       let general_autofill_enabled = self.general_autofill_enabled;
+      let on_new_window = &self.on_new_window;
 
       literal_struct!(
         tokens,
@@ -4140,6 +5077,7 @@ mod build {
         parent,
         zoom_hotkeys_enabled,
         browser_extensions_enabled,
+        browser_accelerator_keys,
         use_https_scheme,
         devtools,
         background_color,
@@ -4149,12 +5087,14 @@ mod build {
         disable_input_accessory_view,
         data_directory,
         data_store_identifier,
+        profile_identifier,
         scroll_bar_style,
         limit_navigations_to_app_bound_domains,
         activity_name,
         created_by_activity_name,
         requested_by_scene_identifier,
-        general_autofill_enabled
+        general_autofill_enabled,
+        on_new_window
       );
     }
   }
@@ -4519,27 +5459,34 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      // For [`Self::menu_on_left_click`]
+      // For [`Self::menu_on_left_click`] and [`Self::icon_as_template`]
       tokens.append_all(quote!(#[allow(deprecated)]));
 
       let id = opt_str_lit(self.id.as_ref());
+      #[allow(deprecated)]
       let icon_as_template = self.icon_as_template;
+      let icon_is_template = self.icon_is_template;
       #[allow(deprecated)]
       let menu_on_left_click = self.menu_on_left_click;
       let show_menu_on_left_click = self.show_menu_on_left_click;
+      let show_menu_on_right_click = self.show_menu_on_right_click;
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
       let tooltip = opt_str_lit(self.tooltip.as_ref());
+      let autosave_name = opt_str_lit(self.autosave_name.as_ref());
       literal_struct!(
         tokens,
         ::tauri::utils::config::TrayIconConfig,
         id,
         icon_path,
         icon_as_template,
+        icon_is_template,
         menu_on_left_click,
         show_menu_on_left_click,
+        show_menu_on_right_click,
         title,
-        tooltip
+        tooltip,
+        autosave_name
       );
     }
   }
@@ -4570,6 +5517,40 @@ mod build {
     }
   }
 
+  impl ToTokens for AppDirectoryOverrides {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let config = opt_lit_owned(self.config.as_ref().map(path_buf_lit));
+      let data = opt_lit_owned(self.data.as_ref().map(path_buf_lit));
+      let local_data = opt_lit_owned(self.local_data.as_ref().map(path_buf_lit));
+      let cache = opt_lit_owned(self.cache.as_ref().map(path_buf_lit));
+      let log = opt_lit_owned(self.log.as_ref().map(path_buf_lit));
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::AppDirectoryOverrides,
+        config,
+        data,
+        local_data,
+        cache,
+        log
+      );
+    }
+  }
+
+  impl ToTokens for AppDirectoriesOverride {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::AppDirectoriesOverride };
+
+      tokens.append_all(match self {
+        Self::Root(root) => {
+          let root = path_buf_lit(root);
+          quote! { #prefix::Root(#root) }
+        }
+        Self::Directories(directories) => quote! { #prefix::Directories(#directories) },
+      })
+    }
+  }
+
   impl ToTokens for AppConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
@@ -4578,6 +5559,8 @@ mod build {
       let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
+      let app_directories_override = opt_lit(self.app_directories_override.as_ref());
+      let android_tauri_protocol_hostname = opt_lit(self.android_tauri_protocol_hostname.as_ref());
 
       literal_struct!(
         tokens,
@@ -4587,8 +5570,19 @@ mod build {
         tray_icon,
         macos_private_api,
         with_global_tauri,
-        enable_gtk_app_id
+        enable_gtk_app_id,
+        app_directories_override,
+        android_tauri_protocol_hostname
       );
+    }
+  }
+
+  impl ToTokens for Hostname {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let hostname = self.as_str();
+      tokens.append_all(
+        quote! { ::tauri::utils::config::Hostname::try_from(#hostname.to_string()).unwrap() },
+      )
     }
   }
 
@@ -4673,6 +5667,8 @@ mod test {
       macos_private_api: false,
       with_global_tauri: false,
       enable_gtk_app_id: false,
+      app_directories_override: None,
+      android_tauri_protocol_hostname: None,
     };
 
     // create a build config
@@ -4722,6 +5718,318 @@ mod test {
   }
 
   #[test]
+  fn app_directories_override_root() {
+    let config: AppDirectoriesOverride = serde_json::from_str(r#""./""#).unwrap();
+    assert_eq!(config, AppDirectoriesOverride::Root("./".into()));
+
+    let config: AppDirectoriesOverride = serde_json::from_str(r#""$DATA/my-app""#).unwrap();
+    assert_eq!(config, AppDirectoriesOverride::Root("$DATA/my-app".into()));
+  }
+
+  #[test]
+  fn app_directories_override_directories() {
+    let config: AppDirectoriesOverride = serde_json::from_str(
+      r#"{ "log": "$DATA/logs", "cache": "$CACHE/my-app", "local-data": "data" }"#,
+    )
+    .unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+        config: None,
+        data: None,
+        local_data: Some("data".into()),
+        cache: Some("$CACHE/my-app".into()),
+        log: Some("$DATA/logs".into()),
+      })
+    );
+
+    let config: AppDirectoriesOverride =
+      serde_json::from_str(r#"{ "config": "conf", "data": "data", "localData": "local" }"#)
+        .unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+        config: Some("conf".into()),
+        data: Some("data".into()),
+        local_data: Some("local".into()),
+        cache: None,
+        log: None,
+      })
+    );
+
+    let config: AppDirectoriesOverride = serde_json::from_str("{}").unwrap();
+    assert_eq!(
+      config,
+      AppDirectoriesOverride::Directories(AppDirectoryOverrides::default())
+    );
+  }
+
+  #[test]
+  fn app_directories_override_rejects_unknown_directories() {
+    let err = serde_json::from_str::<AppDirectoriesOverride>(r#"{ "logs": "x" }"#).unwrap_err();
+    assert!(err.to_string().contains("unknown field `logs`"), "{err}");
+  }
+
+  #[test]
+  fn app_directories_override_accepts_supported_variables() {
+    for variable in APP_DIRECTORIES_OVERRIDE_VARIABLES {
+      for path in [
+        variable.to_string(),
+        format!("{variable}/my-app"),
+        format!("{variable}/../my-app"),
+      ] {
+        let json = serde_json::to_string(&path).unwrap();
+        let config: AppDirectoriesOverride = serde_json::from_str(&json).unwrap();
+        assert_eq!(config, AppDirectoriesOverride::Root(path.into()));
+      }
+    }
+  }
+
+  #[test]
+  fn app_directories_override_rejects_unsupported_variables() {
+    for variable in [
+      "$APPCONFIG",
+      "$APPDATA",
+      "$APPLOCALDATA",
+      "$APPCACHE",
+      "$APPLOG",
+      "$EXE",
+      "$FONT",
+      "$RESOURCE",
+      "$RUNTIME",
+      "$TEMPLATE",
+      "$UNKNOWN",
+    ] {
+      let err = serde_json::from_str::<AppDirectoriesOverride>(&format!(r#""{variable}/my-app""#))
+        .unwrap_err();
+      assert!(
+        err
+          .to_string()
+          .contains(&format!("unsupported base directory variable `{variable}`")),
+        "{variable}: {err}"
+      );
+
+      let err =
+        serde_json::from_str::<AppDirectoriesOverride>(&format!(r#"{{ "log": "{variable}" }}"#))
+          .unwrap_err();
+      assert!(
+        err
+          .to_string()
+          .contains("unsupported base directory variable"),
+        "{variable}: {err}"
+      );
+    }
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn app_directories_override_rejects_root_relative_paths() {
+    for path in [r"\my-app", "C:my-app"] {
+      let json = serde_json::to_string(path).unwrap();
+      let err = serde_json::from_str::<AppDirectoriesOverride>(&json).unwrap_err();
+      assert!(
+        err.to_string().contains("must be an absolute path"),
+        "{path}: {err}"
+      );
+    }
+  }
+
+  #[cfg(feature = "build")]
+  #[test]
+  fn app_directories_override_to_tokens() {
+    use quote::ToTokens;
+
+    let tokens = AppDirectoriesOverride::Root("./".into())
+      .to_token_stream()
+      .to_string()
+      .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AppDirectoriesOverride::Root(::std::path::PathBuf::from("./"))"#
+    );
+
+    let tokens = AppDirectoriesOverride::Directories(AppDirectoryOverrides {
+      log: Some("$DATA/logs".into()),
+      ..Default::default()
+    })
+    .to_token_stream()
+    .to_string()
+    .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::AppDirectoriesOverride::Directories(::tauri::utils::config::AppDirectoryOverrides{config:::core::option::Option::None,data:::core::option::Option::None,local_data:::core::option::Option::None,cache:::core::option::Option::None,log:::core::option::Option::Some(::std::path::PathBuf::from("$DATA/logs"))})"#
+    );
+  }
+
+  fn valid_android_tauri_protocol_hostnames() -> Vec<String> {
+    let longest = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(61));
+    let longest_label = format!("{}.com", "a".repeat(63));
+    [
+      "app.example.com",
+      "example.com",
+      "my-app.example.co.uk",
+      "a.b.c.d",
+      "123.example.com",
+      "app.xn--p1ai",
+      "xn--bcher-kva.de",
+      &longest_label,
+      &longest,
+    ]
+    .map(ToOwned::to_owned)
+    .to_vec()
+  }
+
+  #[test]
+  fn android_tauri_protocol_hostname_accepts_domain_names() {
+    for hostname in valid_android_tauri_protocol_hostnames() {
+      let parsed: Hostname = serde_json::from_str(&format!(r#""{hostname}""#))
+        .unwrap_or_else(|e| panic!("{hostname}: {e}"));
+      assert_eq!(parsed.as_str(), hostname);
+    }
+  }
+
+  #[test]
+  fn android_tauri_protocol_hostname_rejects_invalid_hosts() {
+    let too_long = format!("{0}.{0}.{0}.{1}", "a".repeat(63), "a".repeat(62));
+    let too_long_label = format!("{}.com", "a".repeat(64));
+    for hostname in [
+      "",
+      "com",
+      "localhost",
+      "app.localhost",
+      "app.example.com.",
+      ".example.com",
+      "app..example.com",
+      "App.example.com",
+      "app_1.example.com",
+      "-app.example.com",
+      "app-.example.com",
+      "*.example.com",
+      "app.example.com:443",
+      "https://app.example.com",
+      "https://app.example.com/",
+      "app.example.com/index.html",
+      "user@app.example.com",
+      "app example.com",
+      "bücher.de",
+      "127.0.0.1",
+      "app.123",
+      "app.0x7f",
+      "app.0x",
+      "[::1]",
+      "app.local",
+      "app.test",
+      "app.invalid",
+      "app.example",
+      "app.internal",
+      "app.onion",
+      "1.0.0.127.in-addr.arpa",
+      "app.alt",
+      "xn--a.com",
+      &too_long_label,
+      &too_long,
+    ] {
+      assert!(
+        hostname.parse::<Hostname>().is_err(),
+        "`{hostname}` must be rejected"
+      );
+    }
+  }
+
+  #[test]
+  fn android_tauri_protocol_hostname_error_suggests_hostname() {
+    for (input, suggestion) in [
+      ("https://app.example.com/", "app.example.com"),
+      ("https://app.example.com:8443/login", "app.example.com"),
+      ("App.Example.com", "app.example.com"),
+      ("app.example.com/", "app.example.com"),
+      ("app.example.com.", "app.example.com"),
+      ("bücher.de", "xn--bcher-kva.de"),
+    ] {
+      let err = input.parse::<Hostname>().unwrap_err();
+      assert!(
+        err.ends_with(&format!(". Use `{suggestion}` instead")),
+        "{input}: {err}"
+      );
+    }
+
+    for input in ["app.local", "http://localhost/", "127.0.0.1", "app"] {
+      let err = input.parse::<Hostname>().unwrap_err();
+      assert!(!err.contains("Use `"), "{input}: {err}");
+    }
+  }
+
+  #[test]
+  fn android_tauri_protocol_hostname_serde_round_trip() {
+    let config: AppConfig = serde_json::from_value(
+      serde_json::json!({ "androidTauriProtocolHostname": "app.example.com" }),
+    )
+    .unwrap();
+    assert_eq!(
+      config.android_tauri_protocol_hostname,
+      Some("app.example.com".parse().unwrap())
+    );
+
+    let value = serde_json::to_value(&config).unwrap();
+    assert_eq!(value["androidTauriProtocolHostname"], "app.example.com");
+    assert_eq!(serde_json::from_value::<AppConfig>(value).unwrap(), config);
+
+    let kebab_case: AppConfig = serde_json::from_value(
+      serde_json::json!({ "android-tauri-protocol-hostname": "app.example.com" }),
+    )
+    .unwrap();
+    assert_eq!(kebab_case, config);
+
+    let err = serde_json::from_value::<AppConfig>(
+      serde_json::json!({ "androidTauriProtocolHostname": "https://app.example.com/" }),
+    )
+    .unwrap_err();
+    assert!(
+      err.to_string().contains("Use `app.example.com` instead"),
+      "{err}"
+    );
+  }
+
+  #[cfg(feature = "schema")]
+  #[test]
+  fn android_tauri_protocol_hostname_schema_pattern() {
+    let schema = schemars::schema_for!(Hostname).schema;
+    let pattern = schema.string.unwrap().pattern.unwrap();
+    let pattern = regex::Regex::new(&pattern).unwrap();
+
+    for valid in valid_android_tauri_protocol_hostnames() {
+      assert!(pattern.is_match(&valid), "{valid}");
+    }
+    for invalid in [
+      "com",
+      "App.example.com",
+      "https://app.example.com/",
+      "app.example.com.",
+      "-app.example.com",
+      "app_1.example.com",
+    ] {
+      assert!(!pattern.is_match(invalid), "{invalid}");
+    }
+  }
+
+  #[cfg(feature = "build")]
+  #[test]
+  fn android_tauri_protocol_hostname_to_tokens() {
+    use quote::ToTokens;
+
+    let tokens = "app.example.com"
+      .parse::<Hostname>()
+      .unwrap()
+      .to_token_stream()
+      .to_string()
+      .replace(' ', "");
+    assert_eq!(
+      tokens,
+      r#"::tauri::utils::config::Hostname::try_from("app.example.com".to_string()).unwrap()"#
+    );
+  }
+
+  #[test]
   fn parse_hex_color() {
     use super::Color;
 
@@ -4730,6 +6038,11 @@ mod test {
     assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
     assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
     assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
+
+    assert!("#€€".parse::<Color>().is_err());
+    assert!("#€".parse::<Color>().is_err());
+    assert!("#+f+f+f".parse::<Color>().is_err());
+    assert_eq!(Color(255, 255, 255, 255), " fff ".parse().unwrap());
   }
 
   #[test]
@@ -4941,10 +6254,67 @@ mod test {
   }
 
   #[test]
+  fn header_source_map_display_is_deterministic() {
+    let map = HashMap::from([
+      ("key3".to_string(), "'value3'".to_string()),
+      ("key1".to_string(), "'value1' 'value2'".to_string()),
+      ("key2".to_string(), "'value4'".to_string()),
+    ]);
+
+    // the value must be sorted by key and stable across runs and across `HashMap` orderings
+    assert_eq!(
+      HeaderSource::Map(map.clone()).to_string(),
+      "key1 'value1' 'value2'; key2 'value4'; key3 'value3'"
+    );
+
+    let expected = HeaderSource::Map(map).to_string();
+    for _ in 0..10 {
+      let map = HashMap::from([
+        ("key2".to_string(), "'value4'".to_string()),
+        ("key3".to_string(), "'value3'".to_string()),
+        ("key1".to_string(), "'value1' 'value2'".to_string()),
+      ]);
+      assert_eq!(HeaderSource::Map(map).to_string(), expected);
+    }
+
+    // `Serialize` must keep matching `Display`'s ordering
+    let map = HashMap::from([
+      ("b".to_string(), "2".to_string()),
+      ("a".to_string(), "1".to_string()),
+    ]);
+    assert_eq!(
+      serde_json::to_string(&HeaderSource::Map(map)).unwrap(),
+      r#"{"a":"1","b":"2"}"#
+    );
+  }
+
+  #[test]
+  fn header_source_display() {
+    assert_eq!(
+      HeaderSource::Inline("same-origin".into()).to_string(),
+      "same-origin"
+    );
+    assert_eq!(
+      HeaderSource::List(vec!["https://a.example".into(), "https://b.example".into()]).to_string(),
+      "https://a.example, https://b.example"
+    );
+  }
+
+  #[test]
   fn window_config_default_same_as_deserialize() {
     let config_from_deserialization: WindowConfig = serde_json::from_str("{}").unwrap();
     let config_from_default: WindowConfig = WindowConfig::default();
 
     assert_eq!(config_from_deserialization, config_from_default);
+  }
+
+  #[test]
+  fn on_new_window_kebab_case_alias() {
+    let config: WindowConfig =
+      serde_json::from_str(r#"{ "on-new-window": { "action": "allowTauriWindow" } }"#).unwrap();
+    assert_eq!(
+      config.on_new_window,
+      OnNewWindow::AllowTauriWindow { urls: None }
+    );
   }
 }

@@ -5,16 +5,16 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
+  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
   app::UriSchemeResponder,
   ipc::{Invoke, InvokeHandler, ScopeObject, ScopeValue},
   manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
   webview::PageLoadPayload,
-  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
 };
 use serde::{
-  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
   Serialize, Serializer,
+  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
 };
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
@@ -32,6 +32,9 @@ use std::{
 /// Mobile APIs.
 #[cfg(mobile)]
 pub mod mobile;
+
+#[cfg(any(mobile, test))]
+mod mobile_response;
 
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {
@@ -597,7 +600,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  /// and [webkit_web_context_register_uri_scheme](https://webkitgtk.org/reference/webkit2gtk/stable/method.WebContext.register_uri_scheme.html) on Linux.
   ///
   /// # Known limitations
   ///

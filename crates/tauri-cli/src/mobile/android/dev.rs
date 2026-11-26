@@ -3,23 +3,24 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_resources, open_and_wait, sync_debug_application_id_suffix, MobileTarget,
+  MobileTarget, configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app,
+  get_config, grant_local_network_permission, inject_resources, open_and_wait,
+  sync_debug_application_id_suffix,
 };
 use crate::{
+  ConfigValue, Error, Result,
   dev::Options as DevOptions,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
   },
   interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    android::generate_tauri_properties, use_network_address_for_dev_url, write_options, CliOptions,
-    DevChild, DevHost, DevProcess, TargetDevice,
+    CliOptions, DevChild, DevHost, DevProcess, TargetDevice, android::generate_tauri_properties,
+    use_network_address_for_dev_url, write_options,
   },
-  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
 
@@ -144,13 +145,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
-    std::env::set_var(
-      "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).fs_context(
-        "failed to read certificate file",
-        root_certificate_path.clone(),
-      )?,
-    );
+    unsafe {
+      std::env::set_var(
+        "TAURI_DEV_ROOT_CERTIFICATE",
+        std::fs::read_to_string(root_certificate_path).fs_context(
+          "failed to read certificate file",
+          root_certificate_path.clone(),
+        )?,
+      )
+    };
   }
 
   let tauri_config = get_tauri_config(
@@ -330,10 +333,11 @@ fn run_dev(
         target_device: device.as_ref().map(|d| TargetDevice {
           id: d.serial_no().to_string(),
           name: d.name().to_string(),
+          target: d.target().triple.to_string(),
         }),
       };
 
-      let _handle = write_options(tauri_config, cli_options)?;
+      let _handle = write_options(MobileTarget::Android, dirs.tauri, cli_options)?;
 
       inject_resources(config, tauri_config)?;
 
@@ -390,7 +394,13 @@ fn run(
     None
   };
 
-  device
+  let application_id = format!(
+    "{}{}",
+    config.app().identifier(),
+    application_id_suffix.as_deref().unwrap_or_default()
+  );
+
+  let child = device
     .run_with_application_id_suffix(
       config,
       env,
@@ -407,5 +417,27 @@ fn run(
       application_id_suffix,
     )
     .map(DevChild::new)
-    .context("failed to run Android app")
+    .context("failed to run Android app")?;
+
+  // the android-studio-script already granted the permission before the install
+  // if the app was installed; this covers the first install
+  if profile == Profile::Debug && uses_network_dev_url(tauri_config) {
+    grant_local_network_permission(env, device.serial_no(), &application_id);
+  }
+
+  Ok(child)
+}
+
+/// Whether the app loads the frontend from the dev server on a network (non-loopback) address.
+pub(super) fn uses_network_dev_url(tauri_config: &tauri_utils::config::Config) -> bool {
+  tauri_config
+    .build
+    .dev_url
+    .as_ref()
+    .is_some_and(|url| match url.host() {
+      Some(Host::Domain(d)) => d != "localhost",
+      Some(Host::Ipv4(i)) => !i.is_loopback(),
+      Some(Host::Ipv6(i)) => !i.is_loopback(),
+      None => false,
+    })
 }

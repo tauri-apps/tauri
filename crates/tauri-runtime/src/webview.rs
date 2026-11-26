@@ -7,11 +7,11 @@
 pub use crate::webview_permissions::{PermissionKind, PermissionResponse};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use crate::window::WindowId;
-use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
+use crate::{Rect, Runtime, UserEvent, window::is_label_valid};
 
 use http::Request;
 use tauri_utils::config::{
-  BackgroundThrottlingPolicy, Color, ScrollBarStyle as ConfigScrollBarStyle, WebviewUrl,
+  BackgroundThrottlingPolicy, Color, Hostname, ScrollBarStyle as ConfigScrollBarStyle, WebviewUrl,
   WindowConfig, WindowEffectsConfig,
 };
 use url::Url;
@@ -365,8 +365,15 @@ pub struct WebviewAttributes {
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
   pub browser_extensions_enabled: bool,
+  pub browser_accelerator_keys: bool,
   pub extensions_path: Option<PathBuf>,
+  /// macOS / iOS only `WKWebsiteDataStore` identifier, kept for the deprecated
+  /// `data_store_identifier` APIs. Prefer [`Self::profile_identifier`].
   pub data_store_identifier: Option<[u8; 16]>,
+  /// Identifier of the browsing data profile to use, see `WebviewBuilder::profile_identifier`.
+  ///
+  /// Takes precedence over [`Self::data_store_identifier`] on macOS / iOS.
+  pub profile_identifier: Option<[u8; 16]>,
   pub use_https_scheme: bool,
   pub devtools: Option<bool>,
   pub background_color: Option<Color>,
@@ -410,6 +417,8 @@ pub struct WebviewAttributes {
   pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
   #[cfg(target_os = "ios")]
   pub limit_navigations_to_app_bound_domains: bool,
+  /// Serves the `tauri` protocol from `https://<android_tauri_protocol_hostname>` instead of `http(s)://tauri.localhost` on Android.
+  pub android_tauri_protocol_hostname: Option<Hostname>,
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
@@ -460,8 +469,10 @@ impl From<&WindowConfig> for WebviewAttributes {
       .zoom_hotkeys_enabled(config.zoom_hotkeys_enabled)
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
+      .browser_accelerator_keys(config.browser_accelerator_keys)
       .background_throttling(config.background_throttling.clone())
       .devtools(config.devtools)
+      .transparent(config.transparent)
       .scroll_bar_style(match config.scroll_bar_style {
         ConfigScrollBarStyle::Default => ScrollBarStyle::Default,
         #[cfg(windows)]
@@ -471,10 +482,6 @@ impl From<&WindowConfig> for WebviewAttributes {
       .limit_navigations_to_app_bound_domains(config.limit_navigations_to_app_bound_domains)
       .general_autofill_enabled(config.general_autofill_enabled);
 
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    {
-      builder = builder.transparent(config.transparent);
-    }
     #[cfg(target_os = "macos")]
     {
       if let Some(position) = &config.traffic_light_position {
@@ -501,6 +508,14 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
     }
+    if let Some(data_directory) = &config.data_directory {
+      builder = builder.data_directory(data_directory.clone());
+    }
+    #[allow(deprecated)]
+    {
+      builder.data_store_identifier = config.data_store_identifier;
+    }
+    builder.profile_identifier = config.profile_identifier;
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
     #[cfg(target_os = "ios")]
@@ -534,7 +549,9 @@ impl WebviewAttributes {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      browser_accelerator_keys: true,
       data_store_identifier: None,
+      profile_identifier: None,
       extensions_path: None,
       use_https_scheme: false,
       devtools: None,
@@ -549,6 +566,7 @@ impl WebviewAttributes {
       input_accessory_view_builder: None,
       #[cfg(target_os = "ios")]
       limit_navigations_to_app_bound_domains: false,
+      android_tauri_protocol_hostname: None,
       #[cfg(windows)]
       environment: None,
       #[cfg(any(
@@ -678,7 +696,6 @@ impl WebviewAttributes {
   }
 
   /// Enable or disable transparency for the WebView.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.transparent = transparent;
@@ -730,6 +747,20 @@ impl WebviewAttributes {
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.browser_extensions_enabled = enabled;
+    self
+  }
+
+  /// Whether browser keyboard shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) are enabled.
+  ///
+  /// Defaults to `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Maps to [`ICoreWebView2Settings3::AreBrowserAcceleratorKeysEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings#arebrowseracceleratorkeysenabled).
+  /// - **Linux / macOS / Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn browser_accelerator_keys(mut self, enabled: bool) -> Self {
+    self.browser_accelerator_keys = enabled;
     self
   }
 

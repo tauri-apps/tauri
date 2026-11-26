@@ -7,19 +7,19 @@ use anyhow::Error;
 use futures_util::TryFutureExt;
 use http_body_util::{BodyExt, Full};
 use hyper::{
+  Method, Request, Response,
   body::{Bytes, Incoming},
   header::CONTENT_LENGTH,
   http::uri::Authority,
   service::service_fn,
-  Method, Request, Response,
 };
 use hyper_util::{
-  client::legacy::{connect::HttpConnector, Client},
+  client::legacy::{Client, connect::HttpConnector},
   rt::{TokioExecutor, TokioIo},
   server::conn::auto,
 };
 use serde::Deserialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use std::path::PathBuf;
 use std::process::Child;
 use tokio::net::TcpListener;

@@ -2,7 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+/**
+ * Size and position types for working with logical and physical pixels.
+ *
+ * Window and webview APIs report sizes and positions in **physical pixels** (actual
+ * screen pixels), while most browser APIs and the window creation options use
+ * **logical pixels** (physical pixels divided by the monitor scale factor). The
+ * classes in this module make the unit explicit and convert between the two.
+ *
+ * ```typescript
+ * import { getCurrentWindow } from '@tauri-apps/api/window';
+ *
+ * const appWindow = getCurrentWindow();
+ * const size = await appWindow.innerSize(); // PhysicalSize
+ * const logical = size.toLogical(await appWindow.scaleFactor());
+ * ```
+ *
+ * They also serialize into the shape `tauri::Size` / `tauri::Position` expect, so
+ * they can be passed straight to your own commands, see {@linkcode Size} and
+ * {@linkcode Position}.
+ *
+ * This package is also accessible with `window.__TAURI__.dpi` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
+ *
+ * @module
+ */
+
 import { SERIALIZE_TO_IPC_FN } from './core'
+
+// Match Rust's `f64::round()` behavior: halfway values round away from zero.
+function roundToPixel(value: number): number {
+  return value < 0 ? -Math.round(-value) : Math.round(value)
+}
 
 /**
  * A size represented in logical pixels.
@@ -43,6 +73,8 @@ class LogicalSize {
 
   /**
    * Converts the logical size to a physical one.
+   *
+   * The result can have fractional pixels, see {@linkcode PhysicalSize.round}.
    * @example
    * ```typescript
    * import { LogicalSize } from '@tauri-apps/api/dpi';
@@ -58,6 +90,27 @@ class LogicalSize {
    */
   toPhysical(scaleFactor: number): PhysicalSize {
     return new PhysicalSize(this.width * scaleFactor, this.height * scaleFactor)
+  }
+
+  /**
+   * Rounds the width and height to whole pixels, rounding halves away from zero
+   * like Rust's `LogicalSize::cast::<u32>()`.
+   *
+   * Returns a new {@linkcode LogicalSize} and leaves this one unchanged.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const size = await appWindow.innerSize(); // PhysicalSize
+   * const logical = size.toLogical(factor).round();
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): LogicalSize {
+    return new LogicalSize(roundToPixel(this.width), roundToPixel(this.height))
   }
 
   [SERIALIZE_TO_IPC_FN]() {
@@ -122,9 +175,35 @@ class PhysicalSize {
    * const size = await appWindow.innerSize(); // PhysicalSize
    * const logical = size.toLogical(factor);
    * ```
+   *
+   * @since 2.0.0
    */
   toLogical(scaleFactor: number): LogicalSize {
     return new LogicalSize(this.width / scaleFactor, this.height / scaleFactor)
+  }
+
+  /**
+   * Rounds the width and height to whole pixels, rounding halves away from zero
+   * like Rust's `PhysicalSize::cast::<u32>()`.
+   *
+   * Returns a new {@linkcode PhysicalSize} and leaves this one unchanged.
+   *
+   * APIs that take a physical size, such as `Window.setSize`, only accept whole pixels.
+   * @example
+   * ```typescript
+   * import { LogicalSize } from '@tauri-apps/api/dpi';
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const physical = new LogicalSize(301, 201).toPhysical(factor).round();
+   * await appWindow.setSize(physical);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): PhysicalSize {
+    return new PhysicalSize(roundToPixel(this.width), roundToPixel(this.height))
   }
 
   [SERIALIZE_TO_IPC_FN]() {
@@ -178,12 +257,30 @@ class Size {
     this.size = size
   }
 
+  /**
+   * Converts the wrapped size to a logical one.
+   *
+   * Returns the inner value untouched when it already is a {@linkcode LogicalSize}.
+   *
+   * @param scaleFactor The monitor scale factor, e.g. `await appWindow.scaleFactor()`.
+   *
+   * @since 2.1.0
+   */
   toLogical(scaleFactor: number): LogicalSize {
     return this.size instanceof LogicalSize
       ? this.size
       : this.size.toLogical(scaleFactor)
   }
 
+  /**
+   * Converts the wrapped size to a physical one.
+   *
+   * Returns the inner value untouched when it already is a {@linkcode PhysicalSize}.
+   *
+   * @param scaleFactor The monitor scale factor, e.g. `await appWindow.scaleFactor()`.
+   *
+   * @since 2.1.0
+   */
   toPhysical(scaleFactor: number): PhysicalSize {
     return this.size instanceof PhysicalSize
       ? this.size
@@ -241,6 +338,8 @@ class LogicalPosition {
 
   /**
    * Converts the logical position to a physical one.
+   *
+   * The result can have fractional pixels, see {@linkcode PhysicalPosition.round}.
    * @example
    * ```typescript
    * import { LogicalPosition } from '@tauri-apps/api/dpi';
@@ -256,6 +355,27 @@ class LogicalPosition {
    */
   toPhysical(scaleFactor: number): PhysicalPosition {
     return new PhysicalPosition(this.x * scaleFactor, this.y * scaleFactor)
+  }
+
+  /**
+   * Rounds the coordinates to whole pixels, rounding halves away from zero
+   * like Rust's `LogicalPosition::cast::<i32>()`.
+   *
+   * Returns a new {@linkcode LogicalPosition} and leaves this one unchanged.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const position = await appWindow.innerPosition(); // PhysicalPosition
+   * const logical = position.toLogical(factor).round();
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): LogicalPosition {
+    return new LogicalPosition(roundToPixel(this.x), roundToPixel(this.y))
   }
 
   [SERIALIZE_TO_IPC_FN]() {
@@ -316,13 +436,37 @@ class PhysicalPosition {
    * const appWindow = getCurrentWindow();
    * const factor = await appWindow.scaleFactor();
    * const position = new PhysicalPosition(400, 500);
-   * const physical = position.toLogical(factor);
+   * const logical = position.toLogical(factor);
    * ```
    *
    * @since 2.0.0
    */
   toLogical(scaleFactor: number): LogicalPosition {
     return new LogicalPosition(this.x / scaleFactor, this.y / scaleFactor)
+  }
+
+  /**
+   * Rounds the coordinates to whole pixels, rounding halves away from zero
+   * like Rust's `PhysicalPosition::cast::<i32>()`.
+   *
+   * Returns a new {@linkcode PhysicalPosition} and leaves this one unchanged.
+   *
+   * APIs that take a physical position, such as `Window.setPosition`, only accept whole pixels.
+   * @example
+   * ```typescript
+   * import { LogicalPosition } from '@tauri-apps/api/dpi';
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
+   * const physical = new LogicalPosition(-101, 84.17).toPhysical(factor).round();
+   * await appWindow.setPosition(physical);
+   * ```
+   *
+   * @since 2.13.0
+   */
+  round(): PhysicalPosition {
+    return new PhysicalPosition(roundToPixel(this.x), roundToPixel(this.y))
   }
 
   [SERIALIZE_TO_IPC_FN]() {
@@ -341,7 +485,7 @@ class PhysicalPosition {
 /**
  * A position represented either in physical or in logical pixels.
  *
- * This type is basically a union type of {@linkcode LogicalSize} and {@linkcode PhysicalSize}
+ * This type is basically a union type of {@linkcode LogicalPosition} and {@linkcode PhysicalPosition}
  * but comes in handy when using `tauri::Position` in Rust as an argument to a command, as this class
  * automatically serializes into a valid format so it can be deserialized correctly into `tauri::Position`
  *
@@ -376,12 +520,30 @@ class Position {
     this.position = position
   }
 
+  /**
+   * Converts the wrapped position to a logical one.
+   *
+   * Returns the inner value untouched when it already is a {@linkcode LogicalPosition}.
+   *
+   * @param scaleFactor The monitor scale factor, e.g. `await appWindow.scaleFactor()`.
+   *
+   * @since 2.1.0
+   */
   toLogical(scaleFactor: number): LogicalPosition {
     return this.position instanceof LogicalPosition
       ? this.position
       : this.position.toLogical(scaleFactor)
   }
 
+  /**
+   * Converts the wrapped position to a physical one.
+   *
+   * Returns the inner value untouched when it already is a {@linkcode PhysicalPosition}.
+   *
+   * @param scaleFactor The monitor scale factor, e.g. `await appWindow.scaleFactor()`.
+   *
+   * @since 2.1.0
+   */
   toPhysical(scaleFactor: number): PhysicalPosition {
     return this.position instanceof PhysicalPosition
       ? this.position

@@ -4,6 +4,7 @@
 
 package app.tauri.plugin
 
+import android.app.Activity
 import android.content.res.Configuration
 import android.content.Context
 import android.content.Intent
@@ -22,6 +23,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsonorg.JsonOrgModule
 import com.fasterxml.jackson.databind.module.SimpleModule
 import java.lang.reflect.InvocationTargetException
 
@@ -34,12 +36,38 @@ object PluginManager {
     fun onResult(result: ActivityResult)
   }
 
-  private val activities: HashSet<AppCompatActivity> = HashSet()
+  private class PendingResult(
+    val callback: ActivityResultCallback,
+    val onOriginDestroyed: () -> Unit
+  )
+
+  /** The result launchers belonging to one activity. */
+  private class ResultLaunchers(
+    val startActivityForResult: ActivityResultLauncher<Intent>,
+    val startIntentSenderForResult: ActivityResultLauncher<IntentSenderRequest>,
+    val requestPermissions: ActivityResultLauncher<Array<String>>,
+    // Separate launchers prevent contextual results from reaching legacy callbacks.
+    val contextualStartActivityForResult: ActivityResultLauncher<Intent>,
+    val contextualStartIntentSenderForResult: ActivityResultLauncher<IntentSenderRequest>
+  ) {
+    var pendingActivityResult: PendingResult? = null
+    var pendingIntentSenderResult: PendingResult? = null
+
+    fun abandonPending() {
+      val pending = listOfNotNull(pendingActivityResult, pendingIntentSenderResult)
+      pendingActivityResult = null
+      pendingIntentSenderResult = null
+      for (p in pending) {
+        p.onOriginDestroyed()
+      }
+    }
+  }
+
+  // Insertion ordered, so the activity taken over when the current one goes away is the oldest
+  // surviving one rather than an arbitrary member of a hash set.
+  private val launchers: LinkedHashMap<AppCompatActivity, ResultLaunchers> = LinkedHashMap()
   var activity: AppCompatActivity? = null
   private val plugins: HashMap<String, PluginHandle> = HashMap()
-  private var startActivityForResultLauncher: ActivityResultLauncher<Intent>? = null
-  private var startIntentSenderForResultLauncher: ActivityResultLauncher<IntentSenderRequest>? = null
-  private var requestPermissionsLauncher: ActivityResultLauncher<Array<String>>? = null
   private var requestPermissionsCallback: RequestPermissionsCallback? = null
   private var startActivityForResultCallback: ActivityResultCallback? = null
   private var startIntentSenderForResultCallback: ActivityResultCallback? = null
@@ -54,46 +82,80 @@ object PluginManager {
     }, jsonMapper)
     jsonMapper
       .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
+      // Without it, the mapper's field visibility serializes an org.json value through
+      // its private fields: a `JSArray` as `{"values":[...]}` and a `JSObject` as
+      // `{"nameValuePairs":{...}}`.
+      .registerModule(JsonOrgModule())
   }
 
   fun onCreate(activity: AppCompatActivity) {
-    // Record the activity, and if that's the only activity we got, register result launchers
-    activities.add(activity)
+    // Every activity gets its own launchers, and gets them here: registerForActivityResult must
+    // be called before its owner reaches STARTED, so an activity that is already running can
+    // never be given launchers later.
+    launchers[activity] = registerResultLaunchers(activity)
     if (this.activity == null) {
       this.activity = activity
-      registerResultLaunchers(activity)
     }
   }
 
-  private fun registerResultLaunchers(activity: AppCompatActivity) {
-    startActivityForResultLauncher =
+  // TODO: Consider merging the legacy and contextual result launchers.
+  private fun registerResultLaunchers(activity: AppCompatActivity): ResultLaunchers =
+    ResultLaunchers(
       activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()
       ) { result ->
-        if (startActivityForResultCallback != null) {
-          startActivityForResultCallback!!.onResult(result)
-        }
-      }
+        startActivityForResultCallback?.onResult(result)
+      },
 
-    startIntentSenderForResultLauncher =
       activity.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()
       ) { result ->
-        if (startIntentSenderForResultCallback != null) {
-          startIntentSenderForResultCallback!!.onResult(result)
-        }
-      }
+        startIntentSenderForResultCallback?.onResult(result)
+      },
 
-    requestPermissionsLauncher =
       activity.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()
       ) { result ->
-        if (requestPermissionsCallback != null) {
-          requestPermissionsCallback!!.onResult(result)
-        }
+        requestPermissionsCallback?.onResult(result)
+      },
+
+      activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()
+      ) { result ->
+        // Clear the request before delivering, so the callback can start a new one.
+        val l = launchers[activity]
+        val pending = l?.pendingActivityResult
+        l?.pendingActivityResult = null
+        pending?.callback?.onResult(result)
+      },
+
+      activity.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()
+      ) { result ->
+        val l = launchers[activity]
+        val pending = l?.pendingIntentSenderResult
+        l?.pendingIntentSenderResult = null
+        pending?.callback?.onResult(result)
       }
+    )
+
+  private val currentLaunchers: ResultLaunchers
+    get() = launchers[activity]
+      ?: throw IllegalStateException("the plugin manager has no activity to launch from")
+
+  // Must run on the UI thread.
+  private fun contextualLaunchers(origin: Activity): ResultLaunchers {
+    if (origin.isFinishing || origin.isDestroyed) {
+      throw OriginUnavailableException()
+    }
+    return (origin as? AppCompatActivity)?.let { launchers[it] }
+      ?: throw OriginUnavailableException()
   }
 
   fun onNewIntent(intent: Intent) {
     for (plugin in plugins.values) {
       plugin.instance.onNewIntent(intent)
+    }
+  }
+
+  fun onWebViewHistoryChanged(webView: WebView) {
+    for (plugin in plugins.values) {
+      plugin.instance.onWebViewHistoryChanged(webView)
     }
   }
 
@@ -126,18 +188,12 @@ object PluginManager {
       plugin.instance.triggerOnDestroy(activity)
     }
 
-    activities.remove(activity)
-    val nextActivity = activities.firstOrNull()
-    if (nextActivity != null) {
-      if (this.activity == activity) {
-        this.activity = nextActivity
-        registerResultLaunchers(nextActivity)
-      }
-    } else {
-      this.activity = null
-      this.startActivityForResultLauncher = null
-      this.startIntentSenderForResultLauncher = null
-      this.requestPermissionsLauncher = null
+    launchers.remove(activity)?.abandonPending()
+    if (this.activity == activity) {
+      // Whatever is left already holds its own launchers, registered when it was created. Moving
+      // this activity's launchers over instead would mean registering against an activity that is
+      // already running, which registerForActivityResult rejects with an IllegalStateException.
+      this.activity = launchers.keys.firstOrNull()
     }
   }
 
@@ -149,12 +205,57 @@ object PluginManager {
 
   fun startActivityForResult(intent: Intent, callback: ActivityResultCallback) {
     startActivityForResultCallback = callback
-    startActivityForResultLauncher!!.launch(intent)
+    currentLaunchers.startActivityForResult.launch(intent)
   }
 
   fun startIntentSenderForResult(intent: IntentSenderRequest, callback: ActivityResultCallback) {
     startIntentSenderForResultCallback = callback
-    startIntentSenderForResultLauncher!!.launch(intent)
+    currentLaunchers.startIntentSenderForResult.launch(intent)
+  }
+
+  /**
+   * Launches from [origin], allowing one pending activity result per activity.
+   * Throws [ResultPendingException] if a request is pending, or [OriginUnavailableException]
+   * if the origin cannot launch. Calls [onOriginDestroyed] if the origin is destroyed
+   * before the result arrives.
+   */
+  internal fun startActivityForResult(
+    origin: Activity,
+    intent: Intent,
+    callback: ActivityResultCallback,
+    onOriginDestroyed: () -> Unit
+  ) {
+    val l = contextualLaunchers(origin)
+    if (l.pendingActivityResult != null) {
+      throw ResultPendingException()
+    }
+    l.pendingActivityResult = PendingResult(callback, onOriginDestroyed)
+    try {
+      l.contextualStartActivityForResult.launch(intent)
+    } catch (e: Exception) {
+      l.pendingActivityResult = null
+      throw e
+    }
+  }
+
+  /** Uses the same origin checks as [startActivityForResult], with a separate pending request. */
+  internal fun startIntentSenderForResult(
+    origin: Activity,
+    intent: IntentSenderRequest,
+    callback: ActivityResultCallback,
+    onOriginDestroyed: () -> Unit
+  ) {
+    val l = contextualLaunchers(origin)
+    if (l.pendingIntentSenderResult != null) {
+      throw ResultPendingException()
+    }
+    l.pendingIntentSenderResult = PendingResult(callback, onOriginDestroyed)
+    try {
+      l.contextualStartIntentSenderForResult.launch(intent)
+    } catch (e: Exception) {
+      l.pendingIntentSenderResult = null
+      throw e
+    }
   }
 
   fun requestPermissions(
@@ -162,7 +263,7 @@ object PluginManager {
     callback: RequestPermissionsCallback
   ) {
     requestPermissionsCallback = callback
-    requestPermissionsLauncher!!.launch(permissionStrings)
+    currentLaunchers.requestPermissions.launch(permissionStrings)
   }
 
   @JniMethod
@@ -185,20 +286,29 @@ object PluginManager {
 
   @JniMethod
   fun runCommand(id: Int, pluginId: String, command: String, data: String) {
-    val successId = 0L
-    val errorId = 1L
-    val invoke = Invoke(id.toLong(), command, successId, errorId, { fn, result ->
-      var success: String? = null
-      var error: String? = null
-      if (fn == successId) {
-        success = result
-      } else {
-        error = result
-      }
-      handlePluginResponse(id, success, error)
-    }, data, jsonMapper)
-
+    val invoke = Invoke(id.toLong(), command, SUCCESS_ID, ERROR_ID, responseSender(id), data, jsonMapper)
     dispatchPluginMessage(invoke, pluginId)
+  }
+
+  @JniMethod
+  fun runCommandWithContext(id: Int, pluginId: String, command: String, data: String, activity: Activity) {
+    val invoke =
+      Invoke(id.toLong(), command, SUCCESS_ID, ERROR_ID, responseSender(id), data, jsonMapper, activity)
+    dispatchPluginMessage(invoke, pluginId)
+  }
+
+  private const val SUCCESS_ID = 0L
+  private const val ERROR_ID = 1L
+
+  private fun responseSender(id: Int): (Long, String) -> Unit = { fn, result ->
+    var success: String? = null
+    var error: String? = null
+    if (fn == SUCCESS_ID) {
+      success = result
+    } else {
+      error = result
+    }
+    handlePluginResponse(id, success, error)
   }
 
   private fun dispatchPluginMessage(invoke: Invoke, pluginId: String) {
@@ -236,6 +346,12 @@ object PluginManager {
   private external fun handlePluginResponse(id: Int, success: String?, error: String?)
   private external fun sendChannelData(id: Long, data: String)
 }
+
+internal class OriginUnavailableException :
+  Exception("the activity that originated the call is no longer available")
+
+internal class ResultPendingException :
+  Exception("another request from the same activity is still waiting for its result")
 
 @InvokeArg
 internal class Config {

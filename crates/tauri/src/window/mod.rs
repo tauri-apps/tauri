@@ -10,34 +10,34 @@ use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalRect, PhysicalSize},
   webview::PendingWebview,
 };
-pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
+pub use tauri_utils::{WindowEffect as Effect, WindowEffectState as EffectState, config::Color};
 
 #[cfg(desktop)]
 pub use crate::runtime::ProgressBarStatus;
 
+#[cfg(desktop)]
 use crate::{
+  CursorIcon,
+  image::Image,
+  menu::{ContextMenu, Menu, MenuId},
+  runtime::UserAttentionType,
+};
+use crate::{
+  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
+  WindowEvent,
   app::AppHandle,
   event::{Event, EventId, EventTarget},
   ipc::{CommandArg, CommandItem, InvokeError},
   manager::{AppManager, EmitPayload},
   runtime::{
+    RuntimeHandle, WindowDispatch,
     dpi::{Position, Size},
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
-    RuntimeHandle, WindowDispatch,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
-  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
-  WindowEvent,
-};
-#[cfg(desktop)]
-use crate::{
-  image::Image,
-  menu::{ContextMenu, Menu, MenuId},
-  runtime::UserAttentionType,
-  CursorIcon,
 };
 
 use serde::Serialize;
@@ -759,7 +759,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   #[must_use]
-  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  pub fn transient_for_raw(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for(parent);
     self
   }
@@ -919,11 +919,6 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
   /// creating a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.window_builder = self.window_builder.transparent(transparent);
@@ -963,6 +958,17 @@ impl<R: Runtime, M: Manager<R>> WindowBuilder<'_, R, M> {
   pub fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
     self.created_by_activity_name_set = true;
     self.window_builder = self.window_builder.created_by_activity_name(class_name);
+    self
+  }
+
+  /// Attaches the window to an existing activity that is not attached to a window yet,
+  /// such as the one from [`RunEvent::ActivityRequested`](crate::RunEvent::ActivityRequested).
+  ///
+  /// By default the window is attached to the first activity that is not attached to a window,
+  /// or a new activity is created if [`Self::activity_name`] is set.
+  /// This takes precedence over [`Self::activity_name`].
+  pub fn activity_id(mut self, activity_id: i32) -> Self {
+    self.window_builder = self.window_builder.activity_id(activity_id);
     self
   }
 }
@@ -1129,7 +1135,34 @@ impl<R: Runtime> Window<R> {
 
   /// Initializes a window builder with the given window label.
   ///
+  /// This creates a window without any webview attached to it;
+  /// use [`Window::add_child`] to add webviews to it.
+  /// To create a window with a single webview filling it, use
+  /// [`WebviewWindowBuilder`](crate::webview::WebviewWindowBuilder) instead.
+  ///
   /// Data URLs are only supported with the `webview-data-url` feature flag.
+  ///
+  /// This function requires the `unstable` Cargo feature.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers,
+  /// see [the Webview2 issue]. You should use `async` commands and separate threads when creating windows.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = tauri::Window::builder(app, "label")
+  ///       .title("Tauri")
+  ///       .inner_size(800., 600.)
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   #[cfg(feature = "unstable")]
   #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   pub fn builder<M: Manager<R>, L: Into<String>>(manager: &M, label: L) -> WindowBuilder<'_, R, M> {
@@ -1137,6 +1170,68 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Adds a new webview as a child of this window.
+  ///
+  /// This is the multiwebview API: a single window can host any number of webviews,
+  /// each of them positioned and sized by you. It requires the `unstable` Cargo feature
+  /// and is only available on desktop.
+  ///
+  /// The webview is not resized or moved when the parent window is resized unless
+  /// auto resize is enabled, either at build time with
+  /// [`WebviewBuilder::auto_resize`](crate::webview::WebviewBuilder::auto_resize)
+  /// or later with [`Webview::set_auto_resize`].
+  ///
+  /// # Arguments
+  ///
+  /// * `webview_builder` - the [`WebviewBuilder`] defining the webview to create.
+  /// * `position` - position of the webview's top-left corner, relative to the top-left corner of the window's
+  ///   client area. Any type that converts into [`Position`] is accepted, so you can use either logical
+  ///   ([`LogicalPosition`](crate::LogicalPosition)) or physical ([`PhysicalPosition`]) units.
+  /// * `size` - the webview size, also either logical ([`LogicalSize`](crate::LogicalSize)) or physical
+  ///   ([`PhysicalSize`]) - any type that converts into [`Size`].
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers,
+  /// see [the Webview2 issue]. You should use `async` commands and separate threads when creating webviews.
+  ///
+  /// # Examples
+  ///
+  /// Splitting a window between two webviews that resize with it:
+  ///
+  /// ```
+  /// use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let width = 800.;
+  ///     let height = 600.;
+  ///
+  ///     let window = tauri::Window::builder(app, "main")
+  ///       .inner_size(width, height)
+  ///       .build()?;
+  ///
+  ///     let _left = window.add_child(
+  ///       tauri::webview::WebviewBuilder::new("left", WebviewUrl::App(Default::default()))
+  ///         .auto_resize(),
+  ///       LogicalPosition::new(0., 0.),
+  ///       LogicalSize::new(width / 2., height),
+  ///     )?;
+  ///
+  ///     let _right = window.add_child(
+  ///       tauri::webview::WebviewBuilder::new(
+  ///         "right",
+  ///         WebviewUrl::External("https://tauri.app".parse().unwrap()),
+  ///       )
+  ///       .auto_resize(),
+  ///       LogicalPosition::new(width / 2., 0.),
+  ///       LogicalSize::new(width / 2., height),
+  ///     )?;
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   #[cfg(any(test, all(desktop, feature = "unstable")))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
   pub fn add_child<P: Into<Position>, S: Into<Size>>(
@@ -1165,13 +1260,19 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| w.window_label() == self.label())
+      .filter(|w| w.window_ref().label() == self.label())
       .cloned()
       .collect()
   }
 
   pub(crate) fn is_webview_window(&self) -> bool {
-    self.webviews().iter().all(|w| w.label() == self.label())
+    self
+      .manager
+      .webview
+      .webviews_lock()
+      .values()
+      .filter(|w| w.window_ref().label() == self.label())
+      .all(|w| w.label() == self.label())
   }
 
   /// Runs the given closure on the main thread.
@@ -1931,6 +2032,20 @@ impl<R: Runtime> Window<R> {
     };
     Ok(())
   }
+
+  /// Sets the taskbar badge count. Using `0` or `None` will remove the badge
+  ///
+  /// ## Platform-specific
+  /// - **Windows:** Unsupported, use [`Window::set_overlay_icon`] instead.
+  /// - **iOS:** Sets the app icon badge. The value is clamped to the `i32` range.
+  /// - **Android:** Unsupported.
+  pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_badge_count(count, Some(format!("{}.desktop", self.package_info().name)))
+      .map_err(Into::into)
+  }
 }
 
 /// Desktop window setters and actions.
@@ -2137,6 +2252,41 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
+  /// Sets the window as fullscreen on the monitor that contains the given physical position,
+  /// such as a [`Monitor::position`](crate::Monitor::position).
+  ///
+  /// Does nothing if no monitor contains the position.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::Manager;
+tauri::Builder::default()
+  .setup(|app| {
+    let window = app.get_window("main").unwrap();
+    if let Some(monitor) = window.available_monitors()?.into_iter().nth(1) {
+      let position = monitor.position();
+      window.set_fullscreen_on_monitor(tauri::PhysicalPosition::new(
+        position.x as f64,
+        position.y as f64,
+      ))?;
+    }
+    Ok(())
+  });
+```
+  "####
+  )]
+  pub fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_fullscreen_on_monitor(position)
+      .map_err(Into::into)
+  }
+
   /// Toggles a fullscreen mode that doesn't require a new macOS space.
   /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
   ///
@@ -2270,20 +2420,6 @@ tauri::Builder::default()
       .window
       .dispatcher
       .set_overlay_icon(icon.map(|x| x.into()))
-      .map_err(Into::into)
-  }
-
-  /// Sets the taskbar badge count. Using `0` or `None` will remove the badge
-  ///
-  /// ## Platform-specific
-  /// - **Windows:** Unsupported, use [`Window::set_overlay_icon`] instead.
-  /// - **iOS:** iOS expects i32, the value will be clamped to i32::MIN, i32::MAX.
-  /// - **Android:** Unsupported.
-  pub fn set_badge_count(&self, count: Option<i64>) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .set_badge_count(count, Some(format!("{}.desktop", self.package_info().name)))
       .map_err(Into::into)
   }
 
@@ -2470,6 +2606,12 @@ impl EffectsBuilder {
   /// Sets `color` field fo the [`WindowEffectsConfig`] **Windows Only**
   pub fn color(mut self, color: Color) -> Self {
     self.0.color = Some(color);
+    self
+  }
+
+  /// Sets `interactive` field for the [`WindowEffectsConfig`] **macOS 27.0+ Only**
+  pub fn interactive(mut self, interactive: bool) -> Self {
+    self.0.interactive = interactive;
     self
   }
 

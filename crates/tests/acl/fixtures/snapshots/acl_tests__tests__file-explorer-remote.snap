@@ -8,7 +8,7 @@ Resolved {
         "plugin:fs|read_dir": [
             ResolvedCommand {
                 context: Remote {
-                    url: RemoteUrlPattern(
+                    url: UrlPattern(
                         UrlPattern {
                             protocol: Component {
                                 pattern_string: "https",
@@ -201,7 +201,7 @@ Resolved {
         "plugin:fs|read_file": [
             ResolvedCommand {
                 context: Remote {
-                    url: RemoteUrlPattern(
+                    url: UrlPattern(
                         UrlPattern {
                             protocol: Component {
                                 pattern_string: "https",

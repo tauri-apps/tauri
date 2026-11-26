@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: MIT
 
 use crate::bundle::Settings;
-use crate::utils::{self, fs_utils, CommandExt};
+use crate::utils::{self, CommandExt, fs_utils};
 use std::{
   cmp::min,
   ffi::OsStr,
   fs::{self, File},
   io::{self, BufWriter},
   path::{Path, PathBuf},
-  process::Command,
+  process::{Command, Stdio},
 };
 
 use image::GenericImageView;
@@ -156,7 +156,9 @@ pub fn create_assets_car_file(
 
     if let Some(major) = major_version {
       if major < 26 {
-        log::error!("actool version is less than 26, skipping Assets.car file creation. Please update Xcode to 26 or above and try again.");
+        log::error!(
+          "actool version is less than 26, skipping Assets.car file creation. Please update Xcode to 26 or above and try again."
+        );
         return Ok(None);
       }
     } else {
@@ -192,6 +194,7 @@ pub fn create_assets_car_file(
 
   // Run actool command
   let mut cmd = Command::new("actool");
+  cmd.stdin(Stdio::null());
   cmd.arg(&icon_dest_path);
   cmd.arg("--compile");
   cmd.arg(&output_path);
@@ -264,6 +267,7 @@ pub fn app_icon_name_from_assets_car(assets_car_path: &Path) -> Option<String> {
 /// Returns `None` if the command fails or the output cannot be parsed.
 pub fn get_actool_version() -> Option<String> {
   let Ok(output) = Command::new("actool")
+    .stdin(Stdio::null())
     .arg("--version")
     .arg("--output-format=human-readable-text")
     .output_ok()

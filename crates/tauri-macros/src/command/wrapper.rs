@@ -9,12 +9,12 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, quote_spanned};
 use syn::{
+  Attribute, Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
   ext::IdentExt,
   parse::{Parse, ParseStream},
   parse_macro_input,
   punctuated::Punctuated,
   spanned::Spanned,
-  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
 };
 use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 
@@ -72,7 +72,7 @@ impl Parse for WrapperAttributes {
                   return Err(syn::Error::new(
                     s.span(),
                     "expected \"camelCase\" or \"snake_case\"",
-                  ))
+                  ));
                 }
               };
             }
@@ -252,8 +252,6 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     acl,
   } = invoke;
 
-  let root = attrs.root;
-
   let kind = match attrs.execution_context {
     ExecutionContext::Async if function.sig.asyncness.is_none() => "sync_threadpool",
     ExecutionContext::Async => "async",
@@ -298,6 +296,18 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     quote!(stringify!(#ident))
   };
 
+  // argument errors are already reported by the command body
+  let command_metadata_arguments = function
+    .sig
+    .inputs
+    .iter()
+    .filter_map(|arg| arg_key(arg, &attrs).ok())
+    .collect::<Vec<_>>();
+  let command_metadata_docs = parse_docs(&function.attrs);
+  let root = attrs.root;
+  let command_metadata_deprecated =
+    parse_deprecated(&function.attrs, &root).unwrap_or_else(syn::Error::into_compile_error);
+
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
     #async_command_check
@@ -320,6 +330,15 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #maybe_macro_export
     #[doc(hidden)]
     macro_rules! #wrapper {
+      (@metadata) => {
+        #root::ipc::CommandMetadata::__new(
+          #command_name_value,
+          #command_metadata_docs,
+          #command_metadata_deprecated,
+          &[#(#command_metadata_arguments),*],
+        )
+      };
+
       // double braces because the item is expected to be a block expression
       ($path:path, $invoke:ident) => {
         // The IIFE here is for preventing stack overflow on Windows,
@@ -463,47 +482,7 @@ fn parse_arg(
   acl: &Ident,
   attributes: &WrapperAttributes,
 ) -> syn::Result<TokenStream2> {
-  // we have no use for self arguments
-  let mut arg = match arg {
-    FnArg::Typed(arg) => arg.pat.as_ref().clone(),
-    FnArg::Receiver(arg) => {
-      return Err(syn::Error::new(
-        arg.span(),
-        "unable to use self as a command function parameter",
-      ))
-    }
-  };
-
-  // we only support patterns that allow us to extract some sort of keyed identifier
-  let mut key = match &mut arg {
-    Pat::Ident(arg) => arg.ident.unraw().to_string(),
-    Pat::Wild(_) => "".into(), // we always convert to camelCase, so "_" will end up empty anyways
-    Pat::Struct(s) => super::path_to_command(&mut s.path).ident.to_string(),
-    Pat::TupleStruct(s) => super::path_to_command(&mut s.path).ident.to_string(),
-    err => {
-      return Err(syn::Error::new(
-        err.span(),
-        "only named, wildcard, struct, and tuple struct arguments allowed",
-      ))
-    }
-  };
-
-  // also catch self arguments that use FnArg::Typed syntax
-  if key == "self" {
-    return Err(syn::Error::new(
-      key.span(),
-      "unable to use self as a command function parameter",
-    ));
-  }
-
-  match attributes.argument_case {
-    ArgumentCase::Camel => {
-      key = key.to_lower_camel_case();
-    }
-    ArgumentCase::Snake => {
-      key = key.to_snake_case();
-    }
-  }
+  let key = arg_key(arg, attributes)?;
 
   let root = &attributes.root;
   let command_name = if let RenamePolicy::Rename(r) = &attributes.rename {
@@ -521,4 +500,122 @@ fn parse_arg(
       acl: &#acl,
     }
   )))
+}
+
+/// The key used to deserialize a [`FnArg`] from the invoke payload.
+fn arg_key(arg: &FnArg, attributes: &WrapperAttributes) -> syn::Result<String> {
+  // we have no use for self arguments
+  let mut arg = match arg {
+    FnArg::Typed(arg) => arg.pat.as_ref().clone(),
+    FnArg::Receiver(arg) => {
+      return Err(syn::Error::new(
+        arg.span(),
+        "unable to use self as a command function parameter",
+      ));
+    }
+  };
+
+  // we only support patterns that allow us to extract some sort of keyed identifier
+  let key = match &mut arg {
+    Pat::Ident(arg) => arg.ident.unraw().to_string(),
+    Pat::Wild(_) => "".into(), // we always convert to camelCase, so "_" will end up empty anyways
+    Pat::Struct(s) => super::path_to_command(&mut s.path).ident.to_string(),
+    Pat::TupleStruct(s) => super::path_to_command(&mut s.path).ident.to_string(),
+    err => {
+      return Err(syn::Error::new(
+        err.span(),
+        "only named, wildcard, struct, and tuple struct arguments allowed",
+      ));
+    }
+  };
+
+  // also catch self arguments that use FnArg::Typed syntax
+  if key == "self" {
+    return Err(syn::Error::new(
+      key.span(),
+      "unable to use self as a command function parameter",
+    ));
+  }
+
+  Ok(match attributes.argument_case {
+    ArgumentCase::Camel => key.to_lower_camel_case(),
+    ArgumentCase::Snake => key.to_snake_case(),
+  })
+}
+
+/// Joins the `#[doc]` attributes, keeping macro values like `include_str!` with `concat!`.
+fn parse_docs(attrs: &[Attribute]) -> TokenStream2 {
+  let docs = attrs
+    .iter()
+    .filter(|attr| attr.path().is_ident("doc"))
+    .filter_map(|attr| match &attr.meta {
+      Meta::NameValue(value) => match &value.value {
+        Expr::Lit(ExprLit {
+          lit: Lit::Str(doc), ..
+        }) => {
+          let doc = doc.value();
+          let doc = doc.strip_prefix(' ').unwrap_or(&doc);
+          Some(quote!(#doc))
+        }
+        expr => Some(quote!(#expr)),
+      },
+      _ => None,
+    })
+    .enumerate()
+    .map(|(i, doc)| if i == 0 { doc } else { quote!("\n", #doc) });
+
+  quote!(::core::concat!(#(#docs),*))
+}
+
+fn parse_deprecated(attrs: &[Attribute], root: &TokenStream2) -> syn::Result<TokenStream2> {
+  let Some(attr) = attrs.iter().find(|attr| attr.path().is_ident("deprecated")) else {
+    return Ok(quote!(::core::option::Option::None));
+  };
+
+  let mut note = None;
+  let mut since = None;
+
+  match &attr.meta {
+    Meta::Path(_) => {}
+    Meta::NameValue(value) => match &value.value {
+      Expr::Lit(ExprLit {
+        lit: Lit::Str(value),
+        ..
+      }) => note = Some(value.value()),
+      _ => {
+        return Err(syn::Error::new(
+          value.value.span(),
+          "expected string literal for deprecated note",
+        ));
+      }
+    },
+    Meta::List(_) => {
+      attr.parse_nested_meta(|meta| {
+        if meta.path.is_ident("note") {
+          let value = meta.value()?;
+          let value = value.parse::<syn::LitStr>()?;
+          note = Some(value.value());
+          Ok(())
+        } else if meta.path.is_ident("since") {
+          let value = meta.value()?;
+          let value = value.parse::<syn::LitStr>()?;
+          since = Some(value.value());
+          Ok(())
+        } else {
+          Err(meta.error("expected `note` or `since`"))
+        }
+      })?;
+    }
+  }
+
+  let note = note
+    .map(|note| quote!(::core::option::Option::Some(#note)))
+    .unwrap_or_else(|| quote!(::core::option::Option::None));
+  let since = since
+    .map(|since| quote!(::core::option::Option::Some(#since)))
+    .unwrap_or_else(|| quote!(::core::option::Option::None));
+
+  Ok(quote! {
+    ::core::option::Option::Some(#root::ipc::CommandMetadataDeprecated::__new(#note, #since))
+  })
 }

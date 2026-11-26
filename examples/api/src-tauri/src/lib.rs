@@ -10,9 +10,9 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{
+  App, Emitter, Listener, Runtime, WebviewUrl,
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
-  App, Emitter, Listener, Runtime, WebviewUrl,
 };
 #[allow(unused)]
 use tauri::{Manager, RunEvent};
@@ -38,6 +38,13 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   builder: tauri::Builder<R>,
   setup: F,
 ) {
+  // WebDriver automation bridge for the `@tauri-apps/api` e2e suite (packages/api-e2e).
+  // Registered as early as possible per the plugin's docs. Behind the off-by-default
+  // `automation` feature, and `not(test)` so it never interferes with the mock-runtime
+  // unit test below.
+  #[cfg(all(desktop, feature = "automation", not(test)))]
+  let builder = builder.plugin(tauri_plugin_automation::init());
+
   let builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
@@ -61,6 +68,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         tauri::menu::MenuBuilder::new(app)
           .check("check", "Tauri is awesome!")
           .text("text", "Do something")
+          .native_icon("info", "About Tauri", tauri::menu::NativeIcon::Info)
           .copy()
           .build()?,
       ));
@@ -103,12 +111,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
             let window = builder.build().unwrap();
             tauri::webview::NewWindowResponse::Create { window }
           });
+
+        // Liquid Glass effects need a transparent window to show through
+        #[cfg(target_os = "macos")]
+        {
+          window_builder = window_builder.transparent(true);
+        }
       }
 
-      let webview = window_builder.build()?;
-
-      #[cfg(debug_assertions)]
-      webview.open_devtools();
+      let _webview = window_builder.build()?;
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {
@@ -157,7 +168,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-  #[cfg(target_os = "ios")]
+  #[cfg(mobile)]
   let mut counter = 0;
   app.run(move |_app_handle, event| {
     match event {
@@ -184,16 +195,22 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .destroy()
           .unwrap();
       }
+      // The system requested a new scene (iOS) or activity (Android) that is not attached to any window,
+      // e.g. the user opened a new app window on iPad, or relaunched the Android app while its process was still alive.
+      // Windows are not re-created automatically, so the main window created in `setup` must be re-created here.
       #[cfg(target_os = "ios")]
       RunEvent::SceneRequested { .. } => {
-        counter += 1;
-        WebviewWindowBuilder::new(
-          _app_handle,
-          format!("main-from-scene-{counter}"),
-          WebviewUrl::default(),
-        )
-        .build()
-        .unwrap();
+        requested_window_builder(_app_handle, &mut counter)
+          .build()
+          .unwrap();
+      }
+      #[cfg(target_os = "android")]
+      RunEvent::ActivityRequested { activity_id, .. } => {
+        // attach the window to the requested activity
+        requested_window_builder(_app_handle, &mut counter)
+          .activity_id(activity_id)
+          .build()
+          .unwrap();
       }
       #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
       RunEvent::Opened { urls } => {
@@ -202,6 +219,22 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       _ => (),
     }
   })
+}
+
+/// Window builder for a scene (iOS) or activity (Android) requested by the system.
+#[cfg(mobile)]
+fn requested_window_builder<'a, R: Runtime>(
+  app: &'a tauri::AppHandle<R>,
+  counter: &mut u32,
+) -> WebviewWindowBuilder<'a, R, tauri::AppHandle<R>> {
+  // re-create the main window if it was destroyed along with its scene or activity
+  let label = if app.get_webview_window("main").is_none() {
+    "main".to_string()
+  } else {
+    *counter += 1;
+    format!("main-from-system-{counter}")
+  };
+  WebviewWindowBuilder::new(app, label, WebviewUrl::default())
 }
 
 #[cfg(test)]

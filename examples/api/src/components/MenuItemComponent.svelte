@@ -1,12 +1,18 @@
 <script module lang="ts">
-  import type { PredefinedMenuItemOptions } from '@tauri-apps/api/menu'
+  import {
+    NativeIcon,
+    type PredefinedMenuItemOptions
+  } from '@tauri-apps/api/menu'
 
   type PredefinedItem = PredefinedMenuItemOptions['item']
   export type MenuItemComponentKind =
     | PredefinedItem
     | 'Normal'
     | 'Icon'
+    | 'NativeIcon'
     | 'Check'
+
+  export const nativeIcons = Object.values(NativeIcon)
 </script>
 
 <script lang="ts">
@@ -15,9 +21,11 @@
     kind,
     text = $bindable(),
     iconPath = $bindable(),
+    nativeIcon = $bindable(),
     checked = $bindable(),
     onTextChange,
     onIconPathChange,
+    onNativeIconChange,
     onCheckedChange,
     onRemove
   }: {
@@ -25,9 +33,11 @@
     kind: MenuItemComponentKind
     text?: string
     iconPath?: string
+    nativeIcon?: NativeIcon
     checked?: boolean
     onTextChange?: () => void
     onIconPathChange?: () => void
+    onNativeIconChange?: () => void
     onCheckedChange?: () => void
     onRemove?: () => void
   } = $props()
@@ -38,6 +48,7 @@
   data-kind={kind}
   data-text={text}
   data-icon-path={iconPath}
+  data-native-icon={nativeIcon}
   data-checked={checked}
   data-id={id}
 >
@@ -61,6 +72,18 @@
       bind:value={iconPath}
       onchange={onIconPathChange}
     />
+  {/if}
+  {#if nativeIcon !== undefined}
+    <select
+      title="native icon"
+      class="border border-solid dark:bg-neutral-800 dark:color-neutral-100 border-neutral-200 dark:border-neutral-700 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-1"
+      bind:value={nativeIcon}
+      onchange={onNativeIconChange}
+    >
+      {#each nativeIcons as icon}
+        <option value={icon}>{icon}</option>
+      {/each}
+    </select>
   {/if}
   {#if checked !== undefined}
     <input

@@ -37,6 +37,11 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.0")
     implementation("com.google.android.material:material:1.7.0")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
+    // (de)serializes org.json values (JSObject, JSArray) as JSON objects and arrays
+    // instead of as beans; org.json itself is part of the Android platform
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-json-org:2.15.3") {
+        exclude(group = "org.json", module = "json")
+    }
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

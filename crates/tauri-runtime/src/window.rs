@@ -5,15 +5,15 @@
 //! A layer between raw [`Runtime`] windows and Tauri.
 
 use crate::{
-  webview::{DetachedWebview, PendingWebview},
   Icon, Runtime, UserEvent, WindowDispatch,
+  webview::{DetachedWebview, PendingWebview},
 };
 
 use dpi::PixelUnit;
 use serde::{Deserialize, Deserializer, Serialize};
 use tauri_utils::{
-  config::{Color, WindowConfig},
   Theme,
+  config::{Color, WindowConfig},
 };
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -71,6 +71,7 @@ pub enum WindowEvent {
   /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
   /// - **Linux / macOS / Windows**: Unsupported.
   #[cfg(mobile)]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "android", target_os = "ios"))))]
   Suspended,
 
   /// Emitted when the application has been resumed.
@@ -81,6 +82,7 @@ pub enum WindowEvent {
   /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
   /// - **Linux / macOS / Windows**: Unsupported.
   #[cfg(mobile)]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "android", target_os = "ios"))))]
   Resumed,
 }
 
@@ -366,11 +368,6 @@ pub trait WindowBuilder: WindowBuilderBase {
   ///
   /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
   /// creating a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   #[must_use]
   fn transparent(self, transparent: bool) -> Self;
 
@@ -455,7 +452,7 @@ pub trait WindowBuilder: WindowBuilderBase {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self;
+  fn transient_for(self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self;
 
   /// Enables or disables drag and drop support.
   #[cfg(windows)]
@@ -517,6 +514,13 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// This is important to determine which stack the activity will belong to.
   #[cfg(target_os = "android")]
   fn created_by_activity_name<S: Into<String>>(self, class_name: S) -> Self;
+
+  /// Attaches the window to an existing activity that is not attached to a window yet,
+  /// such as the one from [`crate::RunEvent::ActivityRequested`].
+  ///
+  /// Takes precedence over [`Self::activity_name`].
+  #[cfg(target_os = "android")]
+  fn activity_id(self, activity_id: i32) -> Self;
 
   /// Sets the identifier of the UIScene that is requesting the creation of this new scene,
   /// establishing a relationship between the two scenes.

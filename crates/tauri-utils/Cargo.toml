@@ -1,9 +1,8 @@
 [package]
 name = "tauri-utils"
-version = "2.9.3"
+version = "2.10.4"
 description = "Utilities for Tauri"
 exclude = ["CHANGELOG.md", "/target"]
-readme = "README.md"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -17,18 +16,18 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
 thiserror = "2"
-phf = { version = "0.13", features = ["macros"] }
-brotli = { version = "8", optional = true, default-features = false, features = [
+phf = { version = "0.14", features = ["macros"] }
+brotli = { version = "9", optional = true, default-features = false, features = [
   "std",
 ] }
 url = { version = "2", features = ["serde"] }
 html5ever = { version = "0.29", optional = true }
 kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader", optional = true }
-dom_query = { version = "0.28", optional = true, default-features = false }
+dom_query = { version = "0.30", optional = true, default-features = false }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
-# Our code requires at least 0.8.21 so don't change this to 0.8
-schemars = { version = "0.8.21", features = ["url", "uuid1"], optional = true }
+# Our code requires at least 0.8.22 so don't change this to 0.8
+schemars = { version = "0.8.22", features = ["url", "uuid1"], optional = true }
 serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }
@@ -37,7 +36,7 @@ ctor = { version = "1.0", default-features = false }
 json5 = { version = "0.4", optional = true }
 # Part of public api in error type
 toml = { version = ">=0.9, <=1", features = ["parse"] }
-json-patch = "4.0"
+json-patch = "5.0"
 # Our code requires at least 0.3.1
 glob = "0.3.1"
 urlpattern = "0.6"
@@ -48,20 +47,20 @@ semver = "1"
 infer = "0.22"
 dunce = "1"
 log = "0.4.21"
-cargo_metadata = { version = "0.19", optional = true }
+cargo_metadata = { version = "0.23", optional = true }
 serde-untagged = "0.1"
 uuid = { version = "1", features = ["serde"] }
 http = "1"
 plist = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-swift-rs = { version = "1", optional = true, features = ["build"] }
+swift-rs = { version = "1.0.9", optional = true, features = ["build"] }
 
 [dev-dependencies]
 getrandom = { version = "0.3", features = ["std"] }
 serial_test = "3.5"
 # For doc tests
-tauri = { workspace = true }
+tauri = { path = "../tauri", default-features = false, features = ["wry"] }
 tempfile = "3.15.0"
 
 [features]
@@ -91,3 +90,7 @@ config-toml = []
 resources = ["walkdir"]
 html-manipulation = ["dep:html5ever", "dep:kuchiki"]
 html-manipulation-2 = ["dep:dom_query"]
+url-pattern = []
+
+[lints]
+workspace = true

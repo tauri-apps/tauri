@@ -29,15 +29,21 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   audit-rust:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: rust audit
-        uses: rustsec/audit-check@v2
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tool: cargo-audit
+      - name: Human-readable report
+        run: cargo audit --format terminal
 
   audit-js:
     runs-on: ubuntu-latest

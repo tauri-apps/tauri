@@ -285,7 +285,7 @@ mod tests {
 
     assert_eq!(
       String::from_utf8(serialize_doc(&document)).unwrap(),
-      format!(r#"<html><head><script>console.log('Test')</script></head><body></body></html>"#)
+      "<html><head><script>console.log('Test')</script></head><body></body></html>".to_string()
     );
   }
 

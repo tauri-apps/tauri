@@ -5,8 +5,8 @@ description = "A Tauri App"
 authors = ["you"]
 license = ""
 repository = ""
-edition = "2021"
-rust-version = "1.90"
+edition = "2024"
+rust-version = "1.92"
 
 [lib]
 name = "tauri_app_lib"

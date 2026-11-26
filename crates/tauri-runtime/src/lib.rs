@@ -16,8 +16,8 @@
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::config::Color;
 use tauri_utils::Theme;
+use tauri_utils::config::Color;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
@@ -91,6 +91,15 @@ pub enum UserAttentionType {
   Informational,
 }
 
+/// Defines which device events (raw input from mice, keyboards and other HID devices that is not
+/// bound to a specific window) the event loop should deliver to the application.
+///
+/// Listening to device events can be expensive, so the runtime filters them out by default
+/// while the application has no focused window. See [`crate::Runtime::set_device_event_filter`].
+///
+/// ## Platform-specific
+///
+/// - **Linux / macOS / iOS / Android**: Unsupported, device events are always filtered out.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "type")]
 pub enum DeviceEventFilter {
@@ -116,6 +125,12 @@ pub enum ResizeDirection {
   West,
 }
 
+/// Errors returned by the webview runtime.
+///
+/// These are surfaced to Tauri applications wrapped in
+/// [`tauri::Error::Runtime`](https://docs.rs/tauri/latest/tauri/enum.Error.html).
+///
+/// This enum is `#[non_exhaustive]`: new variants can be added in minor releases.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -166,6 +181,12 @@ pub enum Error {
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   #[error("failed to remove data store")]
   FailedToRemoveDataStore,
+  /// The profile cannot be removed because a webview is still using it.
+  #[error("profile is in use by webview `{0}`")]
+  ProfileInUse(String),
+  /// Failed to remove the profile directory.
+  #[error("failed to remove profile: {0}")]
+  FailedToRemoveProfile(std::io::Error),
   #[error("Could not find the webview runtime, make sure it is installed")]
   WebviewRuntimeNotInstalled,
 }
@@ -247,6 +268,21 @@ pub enum RunEvent<T: UserEvent> {
     ///
     /// This lets you determine why the scene was requested.
     options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
+  },
+  /// Emitted when the system created an activity that is not attached to any window.
+  ///
+  /// This happens when the app is launched again while its process is still alive
+  /// but all of its activities were destroyed - for instance when a foreground service keeps
+  /// the process running after the user removed the app from the recents screen.
+  ///
+  /// Not emitted for the activity that launched the app, for activities created for a new window
+  /// or for activities that are recreated due to a configuration change.
+  #[cfg(target_os = "android")]
+  ActivityRequested {
+    /// Identifier of the activity, used to attach a window to it with [`window::WindowBuilder::activity_id`].
+    activity_id: i32,
+    /// Name of the activity class, relative to the app package.
+    activity_name: String,
   },
 }
 
@@ -379,6 +415,31 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
     uuid: [u8; 16],
     cb: F,
   ) -> Result<()>;
+
+  /// Fetches the identifiers of the browsing data profiles created with [`WebviewAttributes::profile_identifier`](crate::webview::WebviewAttributes::profile_identifier).
+  ///
+  /// `data_directories` lists the webview data directories to look for profiles in. It is only used on Windows,
+  /// where profiles are stored inside the data directory.
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios", windows))))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    cb: F,
+  ) -> Result<()>;
+
+  /// Removes the browsing data profile with the given identifier.
+  ///
+  /// `data_directories` lists the webview data directories to remove the profile from. It is only used on Windows,
+  /// where profiles are stored inside the data directory.
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios", windows))))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()>;
 }
 
 pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
@@ -476,6 +537,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
+
+  /// Sets whether the application activates when launched while another application is already active.
+  ///
+  /// This API must be called before the event loop starts.
+  ///
+  /// If `false`, the app activates only if no other app is currently active.
+  /// If `true`, the app activates regardless.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
 
   /// Sets the dock visibility for the application.
   #[cfg(target_os = "macos")]
@@ -910,6 +981,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window fullscreen state.
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
+
+  /// Sets the window as fullscreen on the monitor that contains the given physical position.
+  ///
+  /// Does nothing if no monitor contains the position.
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()>;
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()>;

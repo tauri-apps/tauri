@@ -5,9 +5,9 @@
 //! The tauri plugin to create and manipulate windows from JS.
 
 use crate::{
+  Runtime, Window,
   plugin::{Builder, TauriPlugin},
   sealed::ManagerBase,
-  Runtime, Window,
 };
 
 fn get_window<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<Window<R>> {
@@ -53,9 +53,8 @@ mod commands {
 
   use super::*;
   use crate::{
-    command, sealed::ManagerBase, utils::config::WindowConfig, window::Color,
-    window::WindowBuilder, AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, Window,
+    AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme, Window, command,
+    sealed::ManagerBase, utils::config::WindowConfig, window::Color, window::WindowBuilder,
   };
 
   #[command(root = "crate")]
@@ -102,6 +101,7 @@ mod commands {
   setter!(set_size_constraints, WindowSizeConstraints);
   setter!(set_theme, Option<Theme>);
   setter!(set_enabled, bool);
+  setter!(set_badge_count, Option<i64>);
 
   getter!(current_monitor, Option<Monitor>);
   getter!(primary_monitor, Option<Monitor>);
@@ -126,8 +126,8 @@ mod desktop_commands {
 
   use super::*;
   use crate::{
-    command, utils::config::WindowEffectsConfig, window::ProgressBarState, CursorIcon, Manager,
-    PhysicalPosition, Position, UserAttentionType, Webview,
+    CursorIcon, Manager, PhysicalPosition, Position, UserAttentionType, Webview, command,
+    utils::config::WindowEffectsConfig, window::ProgressBarState,
   };
 
   getter!(is_fullscreen, bool);
@@ -155,6 +155,7 @@ mod desktop_commands {
   setter!(set_always_on_top, bool);
   setter!(set_always_on_bottom, bool);
   setter!(set_fullscreen, bool);
+  setter!(set_fullscreen_on_monitor, PhysicalPosition<f64>);
   setter!(set_simple_fullscreen, bool);
   setter!(set_skip_taskbar, bool);
   setter!(set_cursor_grab, bool);
@@ -165,7 +166,6 @@ mod desktop_commands {
   setter!(start_dragging);
   setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
-  setter!(set_badge_count, Option<i64>);
   #[cfg(target_os = "macos")]
   setter!(set_badge_label, Option<String>);
   setter!(set_visible_on_all_workspaces, bool);
@@ -235,7 +235,7 @@ mod desktop_commands {
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+  use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 
   let mut init_script = String::new();
 
@@ -294,6 +294,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::set_enabled,
       commands::set_background_color,
       commands::set_theme,
+      commands::set_badge_count,
       commands::current_monitor,
       commands::primary_monitor,
       commands::monitor_from_point,
@@ -325,6 +326,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #[cfg(desktop)] desktop_commands::set_always_on_top,
       #[cfg(desktop)] desktop_commands::set_always_on_bottom,
       #[cfg(desktop)] desktop_commands::set_fullscreen,
+      #[cfg(desktop)] desktop_commands::set_fullscreen_on_monitor,
       #[cfg(desktop)] desktop_commands::set_simple_fullscreen,
       #[cfg(desktop)] desktop_commands::set_skip_taskbar,
       #[cfg(desktop)] desktop_commands::set_cursor_grab,
@@ -334,7 +336,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #[cfg(desktop)] desktop_commands::set_ignore_cursor_events,
       #[cfg(desktop)] desktop_commands::start_dragging,
       #[cfg(desktop)] desktop_commands::start_resize_dragging,
-      #[cfg(desktop)] desktop_commands::set_badge_count,
       #[cfg(target_os = "macos")]
       #[cfg(desktop)] desktop_commands::set_badge_label,
       #[cfg(desktop)] desktop_commands::set_progress_bar,

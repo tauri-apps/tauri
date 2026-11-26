@@ -13,15 +13,15 @@ use std::{
 
 use http::HeaderMap;
 use serde::{
-  de::{DeserializeOwned, IntoDeserializer},
   Deserialize, Serialize,
+  de::{DeserializeOwned, IntoDeserializer},
 };
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_macros::default_runtime;
 use tauri_utils::acl::resolved::ResolvedCommand;
 
-use crate::{webview::Webview, Runtime, StateManager};
+use crate::{Runtime, StateManager, webview::Webview};
 
 mod authority;
 #[cfg(feature = "dynamic-acl")]
@@ -37,7 +37,7 @@ pub use authority::{
 #[cfg(feature = "dynamic-acl")]
 pub use capability_builder::{CapabilityBuilder, RuntimeCapability};
 pub use channel::{Channel, JavaScriptChannelId};
-pub use command::{private, CommandArg, CommandItem};
+pub use command::{CommandArg, CommandItem, private};
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;
@@ -162,6 +162,14 @@ impl Request<'_> {
   }
 }
 
+#[cfg(feature = "specta")]
+const _: () = {
+  #[derive(specta::Type)]
+  #[specta(remote = Request)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_REQUEST<'a>(std::marker::PhantomData<&'a ()>);
+};
+
 impl<'a, R: Runtime> CommandArg<'a, R> for Request<'a> {
   /// Returns the invoke [`Request`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
@@ -203,6 +211,14 @@ impl Response {
     Self { body: body.into() }
   }
 }
+
+#[cfg(feature = "specta")]
+const _: () = {
+  #[derive(specta::Type)]
+  #[specta(remote = Response)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_RESPONSE(std::marker::PhantomData<()>);
+};
 
 /// The message and resolver given to a custom command.
 ///
@@ -498,8 +514,6 @@ impl<R: Runtime> InvokeResolver<R> {
 pub struct InvokeMessage<R: Runtime> {
   /// The webview that received the invoke message.
   pub(crate) webview: Webview<R>,
-  /// Application managed state.
-  pub(crate) state: Arc<StateManager>,
   /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
@@ -512,7 +526,6 @@ impl<R: Runtime> Clone for InvokeMessage<R> {
   fn clone(&self) -> Self {
     Self {
       webview: self.webview.clone(),
-      state: self.state.clone(),
       command: self.command.clone(),
       payload: self.payload.clone(),
       headers: self.headers.clone(),
@@ -524,14 +537,12 @@ impl<R: Runtime> InvokeMessage<R> {
   /// Create an new [`InvokeMessage`] from a payload send by a webview.
   pub(crate) fn new(
     webview: Webview<R>,
-    state: Arc<StateManager>,
     command: String,
     payload: InvokeBody,
     headers: HeaderMap,
   ) -> Self {
     Self {
       webview,
-      state,
       command,
       payload,
       headers,
@@ -562,16 +573,20 @@ impl<R: Runtime> InvokeMessage<R> {
     &self.payload
   }
 
+  // TODO: make private or remove in v3
   /// The state manager associated with the application
+  #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
   #[inline(always)]
   pub fn state(&self) -> Arc<StateManager> {
-    self.state.clone()
+    self.webview.manager.state.clone()
   }
 
+  // TODO: make private or remove in v3
   /// A reference to the state manager associated with application.
+  #[deprecated(note = "Use `Manager::state` to access the state: `self.webview_ref().state()`")]
   #[inline(always)]
   pub fn state_ref(&self) -> &StateManager {
-    &self.state
+    &self.webview.manager.state
   }
 
   /// The request headers.
@@ -584,6 +599,66 @@ impl<R: Runtime> InvokeMessage<R> {
 /// The `Callback` type is the return value of the `transformCallback` JavaScript function.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CallbackFn(pub u32);
+
+/// Metadata about a command defined with `#[tauri::command]`.
+///
+/// This can be used by frameworks built on Tauri to introspect the registered commands.
+/// Use [`command_metadata!`](crate::command_metadata) to get it.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
+pub struct CommandMetadata {
+  /// The name of the command, after `#[tauri::command(rename = "...")]`.
+  ///
+  /// Commands registered in a plugin's invoke handler are invoked as `plugin:<plugin-name>|<name>`,
+  /// but the plugin is only known where the command is registered so it is not included here.
+  pub name: &'static str,
+  /// The Rust-doc comments for the command.
+  pub docs: &'static str,
+  /// Whether the command has a deprecated attribute.
+  pub deprecated: Option<CommandMetadataDeprecated>,
+  /// The keys used to deserialize each argument of the command function, in declaration order
+  /// and after `rename_all`. Wildcard (`_`) arguments have an empty key.
+  ///
+  /// Every argument is listed, including the ones Tauri injects instead of reading them from the
+  /// invoke payload (e.g. [`State`](crate::State), [`AppHandle`](crate::AppHandle),
+  /// [`Window`](crate::Window) or [`Request`](crate::ipc::Request)), so the positions match the
+  /// function signature. Filter them by type to get the keys the frontend must pass.
+  pub arguments: &'static [&'static str],
+}
+
+impl CommandMetadata {
+  #[doc(hidden)]
+  pub const fn __new(
+    name: &'static str,
+    docs: &'static str,
+    deprecated: Option<CommandMetadataDeprecated>,
+    arguments: &'static [&'static str],
+  ) -> Self {
+    Self {
+      name,
+      docs,
+      deprecated,
+      arguments,
+    }
+  }
+}
+
+/// Represents the Rust `#[deprecated]` attribute on a command.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
+pub struct CommandMetadataDeprecated {
+  /// Deprecation note for the developer.
+  pub note: Option<&'static str>,
+  /// Rust version where the item became deprecated.
+  pub since: Option<&'static str>,
+}
+
+impl CommandMetadataDeprecated {
+  #[doc(hidden)]
+  pub const fn __new(note: Option<&'static str>, since: Option<&'static str>) -> Self {
+    Self { note, since }
+  }
+}
 
 #[cfg(test)]
 mod tests {
@@ -603,5 +678,59 @@ mod tests {
     let values = vec![1, 2, 3, 4, 5, 6, 1];
     let raw = InvokeResponseBody::Raw(values.clone());
     assert_eq!(raw.deserialize::<Vec<u8>>().unwrap(), values);
+  }
+
+  /// Greets someone.
+  ///
+  ///   Indented paragraph.
+  #[crate::command(root = "crate")]
+  #[doc = concat!("From ", "a macro.")]
+  #[allow(dead_code)]
+  fn greet(_app: crate::AppHandle<crate::test::MockRuntime>, user_name: String, _: u32) -> String {
+    user_name
+  }
+
+  #[crate::command(root = "crate", rename = "custom_name", rename_all = "snake_case")]
+  #[deprecated(since = "1.2.0", note = "use greet")]
+  #[allow(dead_code, non_snake_case)]
+  fn old_cmd(someArg: String) {
+    let _ = someArg;
+  }
+
+  #[deprecated = "plain note"]
+  #[crate::command(root = "crate")]
+  #[allow(dead_code)]
+  async fn async_cmd() {}
+
+  #[test]
+  #[allow(deprecated)]
+  fn command_metadata() {
+    let greet = crate::command_metadata!(greet);
+    assert_eq!(greet.name, "greet");
+    assert_eq!(
+      greet.docs,
+      "Greets someone.\n\n  Indented paragraph.\nFrom a macro."
+    );
+    assert_eq!(greet.deprecated, None);
+    assert_eq!(greet.arguments, &["app", "userName", ""]);
+
+    let old_cmd = crate::command_metadata!(old_cmd);
+    assert_eq!(old_cmd.name, "custom_name");
+    assert_eq!(old_cmd.docs, "");
+    assert_eq!(
+      old_cmd.deprecated,
+      Some(CommandMetadataDeprecated::__new(
+        Some("use greet"),
+        Some("1.2.0")
+      ))
+    );
+    assert_eq!(old_cmd.arguments, &["some_arg"]);
+
+    let async_cmd = crate::command_metadata!(async_cmd);
+    assert_eq!(
+      async_cmd.deprecated,
+      Some(CommandMetadataDeprecated::__new(Some("plain note"), None))
+    );
+    assert!(async_cmd.arguments.is_empty());
   }
 }

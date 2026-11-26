@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Result,
   error::ErrorExt,
   interface::rust::manifest::{read_manifest, serialize_manifest},
-  Result,
 };
 
 use tauri_utils::config_v1::Allowlist;
@@ -80,7 +80,10 @@ fn migrate_manifest(manifest: &mut DocumentMut) -> Result<()> {
         .and_then(|v| v.as_bool())
         .unwrap_or_default()
       {
-        log::warn!("`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.", rename_message);
+        log::warn!(
+          "`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.",
+          rename_message
+        );
       } else {
         migrate_dependency(item, &version, &remove_features, &rename_features);
       }
@@ -126,15 +129,15 @@ fn find_dependency<'a>(
   name: &'a str,
   table: &'a str,
 ) -> Vec<&'a mut Item> {
+  let mut matching_deps = Vec::new();
   let m = manifest.as_table_mut();
   for (k, v) in m.iter_mut() {
     if let Some(t) = v.as_table_mut() {
       if k == table {
         if let Some(item) = t.get_mut(name) {
-          return vec![item];
+          matching_deps.push(item);
         }
       } else if k == "target" {
-        let mut matching_deps = Vec::new();
         for (_, target_value) in t.iter_mut() {
           if let Some(target_table) = target_value.as_table_mut() {
             if let Some(deps) = target_table.get_mut(table) {
@@ -144,12 +147,11 @@ fn find_dependency<'a>(
             }
           }
         }
-        return matching_deps;
       }
     }
   }
 
-  Vec::new()
+  matching_deps
 }
 
 fn features_to_rename() -> Vec<(&'static str, &'static str)> {
@@ -377,6 +379,50 @@ mod tests {
 "#
       .into()
     })
+  }
+
+  #[test]
+  fn migrate_all_dependency_sections() {
+    for toml in [
+      r#"
+    [target."cfg(windows)".dependencies]
+    tauri = { version = "1.0.0", features = ["system-tray"] }
+
+    [dependencies]
+    tauri = { version = "1.0.0", features = ["system-tray"] }
+"#,
+      r#"
+    [dependencies]
+    tauri = { version = "1.0.0", features = ["system-tray"] }
+
+    [target."cfg(windows)".dependencies]
+    tauri = { version = "1.0.0", features = ["system-tray"] }
+"#,
+    ] {
+      let mut manifest = toml
+        .parse::<toml_edit::DocumentMut>()
+        .expect("invalid toml");
+      super::migrate_manifest(&mut manifest).expect("failed to migrate manifest");
+
+      for tauri in [
+        &manifest["dependencies"]["tauri"],
+        &manifest["target"]["cfg(windows)"]["dependencies"]["tauri"],
+      ] {
+        assert_eq!(
+          tauri["version"].as_str(),
+          Some(super::dependency_version().as_str())
+        );
+        assert_eq!(
+          tauri["features"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f.as_str().unwrap())
+            .collect::<Vec<_>>(),
+          vec!["tray-icon"]
+        );
+      }
+    }
   }
 
   #[test]

@@ -8,6 +8,9 @@
     "noUnusedLocals": true,
     "noImplicitAny": true,
     "noEmit": true,
-    "lib": ["es2022", "esnext.disposable", "dom"]
+    "lib": ["es2022", "esnext.disposable", "dom"],
+    // This is used only for the dev tooling config files. You should not use node APIs inside `./src`.
+    // We need to composite multiple tsconfigs but it didn't work because of https://github.com/rollup/plugins/issues/1755
+    "types": ["node"]
   }
 }

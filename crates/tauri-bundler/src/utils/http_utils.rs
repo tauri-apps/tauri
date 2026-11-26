@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  fs::{create_dir_all, File},
+  fs::{File, create_dir_all},
   io::{Cursor, Read, Write},
   path::Path,
 };
@@ -61,7 +61,7 @@ fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
-  generate_github_alternative_url(url).unwrap_or((base_ureq_agent(), url.to_owned()))
+  generate_github_alternative_url(url).unwrap_or_else(|| (base_ureq_agent(), url.to_owned()))
 }
 
 pub(crate) fn base_ureq_agent() -> ureq::Agent {
@@ -97,7 +97,6 @@ pub fn download(url: &str) -> crate::Result<Vec<u8>> {
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub enum HashAlgorithm {
-  #[cfg(target_os = "windows")]
   Sha256,
   Sha1,
 }
@@ -118,7 +117,6 @@ pub fn download_and_verify(
 #[allow(dead_code)]
 pub fn verify_hash(data: &[u8], hash: &str, hash_algorithm: HashAlgorithm) -> crate::Result<()> {
   match hash_algorithm {
-    #[cfg(target_os = "windows")]
     HashAlgorithm::Sha256 => {
       let hasher = sha2::Sha256::new();
       verify_data_with_hasher(data, hash, hasher)
@@ -194,18 +192,38 @@ mod tests {
   const GITHUB_ASSET_URL: &str =
     "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
   const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
+  const MIRROR_TEMPLATE_VAR: &str = "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE";
+
+  /// Sets [`MIRROR_TEMPLATE_VAR`] for as long as it is alive. Environment
+  /// variables belong to the whole process, so a test that leaves this one set
+  /// sends every download after it to `mirror.example.com`.
+  struct MirrorTemplate;
+
+  impl MirrorTemplate {
+    fn set(template: &str) -> Self {
+      unsafe { env::set_var(MIRROR_TEMPLATE_VAR, template) };
+      Self
+    }
+  }
+
+  impl Drop for MirrorTemplate {
+    fn drop(&mut self) {
+      unsafe { env::remove_var(MIRROR_TEMPLATE_VAR) };
+    }
+  }
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_no_env_var() {
-    env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE");
+    unsafe { env::remove_var(MIRROR_TEMPLATE_VAR) };
 
     assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
   }
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_non_github_url() {
-    env::set_var(
-      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
+    let _template = MirrorTemplate::set(
       "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
     );
 
@@ -218,20 +236,21 @@ mod tests {
   }
 
   #[test]
+  #[serial_test::serial]
   fn test_generate_mirror_url_correctly() {
     let test_cases = vec![
-            TestCase {
-                template: "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
-                expected_url: "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip",
-            },
-            TestCase {
-                template: "https://mirror.example.com/<asset>",
-                expected_url: "https://mirror.example.com/wix311-binaries.zip",
-            },
-        ];
+      TestCase {
+        template: "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+        expected_url: "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip",
+      },
+      TestCase {
+        template: "https://mirror.example.com/<asset>",
+        expected_url: "https://mirror.example.com/wix311-binaries.zip",
+      },
+    ];
 
     for case in test_cases {
-      env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template);
+      let _template = MirrorTemplate::set(case.template);
       assert_eq!(
         generate_github_mirror_url_from_template(GITHUB_ASSET_URL),
         Some(case.expected_url.to_string())

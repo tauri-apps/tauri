@@ -65,25 +65,14 @@ pub struct StraceOutput {
 
 /// Get the compilation target triple for the current platform.
 pub fn get_target() -> &'static str {
-  #[cfg(target_os = "macos")]
-  return if cfg!(target_arch = "aarch64") {
-    "aarch64-apple-darwin"
-  } else {
-    "x86_64-apple-darwin"
-  };
-
-  #[cfg(target_os = "ios")]
-  return if cfg!(target_arch = "aarch64") {
-    "aarch64-apple-ios"
-  } else {
-    "x86_64-apple-ios"
-  };
-
-  #[cfg(target_os = "linux")]
-  return "x86_64-unknown-linux-gnu";
-
-  #[cfg(target_os = "windows")]
-  return "x86_64-pc-windows-msvc";
+  match (std::env::consts::OS, std::env::consts::ARCH) {
+    ("macos", "aarch64") => "aarch64-apple-darwin",
+    ("macos", _) => "x86_64-apple-darwin",
+    ("windows", "aarch64") => "aarch64-pc-windows-msvc",
+    ("windows", _) => "x86_64-pc-windows-msvc",
+    (_, "aarch64") => "aarch64-unknown-linux-gnu",
+    _ => "x86_64-unknown-linux-gnu",
+  }
 }
 
 /// Get the `target/release` directory path for benchmarks.

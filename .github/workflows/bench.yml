@@ -134,10 +134,3 @@ jobs:
             git pull || exit $?
             git push origin gh-pages && break
           done
-
-      - name: Print worker info
-        # TODO: How to print this info on macOS and Windows
-        if: contains(matrix.platform.target, 'gnu')
-        run: |
-          cat /proc/cpuinfo
-          cat /proc/meminfo

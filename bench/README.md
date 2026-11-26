@@ -1,38 +1,68 @@
 # Tauri Bench
 
- <img align="right" src="https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png" height="128" width="128">
+Internal benchmarks of Tauri. They run on CI for every commit on `dev` (Linux, Windows and macOS) and the results are published to the [benchmark_results](https://github.com/tauri-apps/benchmark_results) repository.
 
-[![status](https://img.shields.io/badge/Status-beta-green.svg)](https://github.com/tauri-apps/tauri)
-[![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)
-[![test core](https://img.shields.io/github/actions/workflow/status/tauri-apps/tauri/test-core.yml?label=test%20core&logo=github)](https://github.com/tauri-apps/tauri/actions/workflows/test-core.yml)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri?ref=badge_shield)
-[![Chat Server](https://img.shields.io/badge/chat-discord-7289da.svg)](https://discord.gg/SpmNs4S)
-[![website](https://img.shields.io/badge/website-tauri.app-purple.svg)](https://tauri.app)
-[![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
-[![support](https://img.shields.io/badge/sponsor-Open%20Collective-blue.svg)](https://opencollective.com/tauri)
+## Layout
 
-## About Tauri
+| Path                           | What it is                                                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `src/run_benchmark.rs`         | The runner: runs the apps, measures them and writes `bench.json`                             |
+| `src/build_benchmark_jsons.rs` | Appends `bench.json` to the history in the benchmark_results repository                      |
+| `tests/common`                 | Tiny crate the apps use to report what they measured to the runner                           |
+| `tests/helloworld`             | The smallest app: startup, idle usage, cost of a window, sizes, build times                  |
+| `tests/assets`                 | Hello world with a 4 MB generated frontend: the asset protocol                               |
+| `tests/ipc`                    | Commands, channels and events timed in a loop from the frontend                              |
+| `tests/cpu_intensive`          | A web worker computing prime numbers: a calibration of the machine, not a benchmark of Tauri |
+| `micro`                        | Core code paths that run without a webview, measured in instructions                         |
 
-Tauri is a polyglot and generic system that is very composable and allows engineers to make a wide variety of applications. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developers can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.
+## What is measured
 
-Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the system's webview. They do not ship a runtime, since the final binary is compiled from rust. This makes the reversing of Tauri apps not a trivial task.
+Each result is a `BenchResult` (see `src/utils.rs`). Timings taken on shared CI machines are noisy, so the fields are listed from the most to the least trustworthy.
 
-## This module
+| Field                           | Platforms | Meaning                                                                                                                                                                      |
+| ------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instructions`                  | Linux     | Instructions executed by each `micro` scenario, counted by callgrind. The same on every run                                                                                  |
+| `binary_size`                   | all       | Size of each app, of the `wry` and `tauri` rlibs, of hello world without tauri's default features (`_minimal`) and with Cargo's default release profile (`_default_profile`) |
+| `bundle_size`                   | all       | Size of the installers of hello world                                                                                                                                        |
+| `cargo_deps`                    | all       | Number of crates `tauri` depends on, per target OS                                                                                                                           |
+| `syscall_count`, `thread_count` | Linux     | Syscalls made and threads or processes created by a run of each app (`strace`)                                                                                               |
+| `max_memory`                    | Linux     | Sum of the peak resident memory of the processes of each app                                                                                                                 |
+| `metrics`                       | all       | What each app measured about itself, see below                                                                                                                               |
+| `build_time`                    | all       | Seconds to build hello world: clean and incremental dev builds, clean release build                                                                                          |
+| `exec_time`                     | all       | Seconds between spawning each app and it exiting. Mostly the webview booting                                                                                                 |
+| `environment`                   | all       | Compiler, webview, CPU and runner image the results were measured with                                                                                                       |
 
-This rust module run on CI, provides internal metrics results of Tauri. To learn more see [benchmark_results](https://github.com/tauri-apps/benchmark_results) repository.
+`metrics` holds the median of several runs. Names ending in `_ms` are milliseconds and `_bytes` are bytes:
 
-**\*_Internal use only_**
+- `startup_*_ms`: time since the process was spawned until `main` ran, the window was created, the page started loading, the first IPC call arrived (`first_invoke`) and all assets were loaded (`tauri_assets`).
+- `invoke_*`, `channel_*`, `event_*` (`tauri_ipc`): average time of one operation, measured with `performance.now()` over a loop inside the app.
+- `asset_fetch_1mb_ms` (`tauri_assets`): average time to fetch a 1 MB asset.
+- `memory_bytes`: memory used by the app and its webview processes once it is done (Linux, Windows).
+- `idle_*` (`tauri_hello_world`): memory, CPU time and wakeups of the app doing nothing.
+- `open_window_ms`, `window_memory_bytes` (`tauri_hello_world`): cost of each additional window.
+- `compute_ms` (`tauri_cpu_intensive`): how fast the machine ran the calibration. Compare the other timings of a run against it before blaming a commit.
 
-## Semver
+The apps are built in production mode (`custom-protocol`), with the workspace's size optimized release profile.
 
-**tauri** is following [Semantic Versioning 2.0](https://semver.org/).
+## Running locally
 
-## Licenses
+Linux needs `strace`, and `valgrind` for `--instructions`. Results are written to `target/<triple>/release/bench.json`.
 
-Code: (c) 2015 - 2021 - The Tauri Programme within The Commons Conservancy.
+```sh
+TARGET=x86_64-unknown-linux-gnu
+cargo build --release --target $TARGET -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets
+cargo run --manifest-path bench/Cargo.toml --bin run_benchmark
+```
 
-MIT or MIT/Apache 2.0 where applicable.
+Three measurements build into `target/bench-build` and take minutes, so they are opt-in:
 
-Logo: CC-BY-NC-ND
+- `--build-time`: time the builds of hello world (removes `target/bench-build` first)
+- `--bundle`: build the CLI and the installers of hello world
+- `--instructions`: build `micro` and run it under callgrind
 
-- Original Tauri Logo Designs by [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)
+CI builds the apps with a pinned nightly, `build-std` and `panic=immediate-abort` (see `.github/workflows/bench.yml`), so sizes measured locally with a stable toolchain are larger.
+
+## Adding a benchmark
+
+- A new app: call `bench_common::init()` first thing in `main`, record values with `bench_common::mark` and `bench_common::set`, and end with `bench_common::finish()`. Add it to `get_all_benchmarks` in the runner and to the build step of the workflow.
+- A new instruction count: add a scenario to `micro/src/main.rs`.

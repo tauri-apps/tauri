@@ -340,7 +340,8 @@ fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()
   settings.copy_resources(&resource_dir)
 }
 
-fn copy_gst_plugin(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+/// Copies the `asset://` GStreamer plugin into its per-app directory in `data_dir`.
+pub fn copy_gst_plugin(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(plugin) = gst_plugin::download(settings)? {
     let dest = data_dir
       .join(gst_plugin::plugin_dir(settings.product_name()))

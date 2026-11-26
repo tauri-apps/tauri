@@ -4,7 +4,7 @@
 
 use tauri_utils::config::DebCompression;
 
-use super::debian::{generate_data, tar_and_compress_dir};
+use super::debian::{copy_gst_plugin, generate_data, tar_and_compress_dir};
 use crate::{
   Settings,
   bundle::settings::Arch,
@@ -68,6 +68,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let (data_dir, _) = generate_data(settings, &package_dir, &settings.pacman().desktop_template)
     .context("Failed to build data folders and files")?;
+  copy_gst_plugin(settings, &data_dir).context("Failed to copy the asset GStreamer plugin")?;
   fs_utils::copy_custom_files(&settings.pacman().files, &data_dir)
     .context("Failed to copy custom files")?;
 

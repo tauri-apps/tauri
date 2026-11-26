@@ -170,50 +170,50 @@ fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
   Ok(results)
 }
 
+/// Size of the rlib of a workspace dependency.
 fn rlib_size(target_dir: &std::path::Path, library: &str) -> Result<u64> {
-  let prefix = format!("lib{library}");
+  let prefix = format!("lib{library}-");
 
-  let mut size = 0;
-  let mut seen = HashSet::new();
-
+  // Cargo's new build directory layout keeps every crate in a directory of its own
+  // (build/<crate>/<hash>/out), the previous one puts everything in deps/
   let build_dir = target_dir.join("build").join(library);
-  for entry in std::fs::read_dir(&build_dir).with_context(|| {
-    format!(
-      "failed to read target build directory: {}",
-      build_dir.display()
-    )
-  })? {
-    let entry = entry.context("failed to read directory entry")?;
-    let out_path = entry.path().join("out");
+  let mut candidates = Vec::new();
+  if build_dir.is_dir() {
+    for entry in std::fs::read_dir(&build_dir)
+      .with_context(|| format!("failed to read {}", build_dir.display()))?
+    {
+      candidates.push(
+        entry
+          .context("failed to read directory entry")?
+          .path()
+          .join("out"),
+      );
+    }
+  }
+  candidates.push(target_dir.join("deps"));
 
-    for file in std::fs::read_dir(&out_path).with_context(|| {
-      format!(
-        "failed to read target build output directory: {}",
-        out_path.display()
-      )
-    })? {
-      let file = file.context("failed to read build output directory entry")?;
+  // the crate can be built more than once (e.g. also as a build dependency), take the newest
+  let mut newest: Option<(std::time::SystemTime, u64)> = None;
+  for dir in candidates {
+    let Ok(files) = std::fs::read_dir(&dir) else {
+      continue;
+    };
+    for file in files {
+      let file = file.context("failed to read directory entry")?;
       let name = file.file_name().to_string_lossy().to_string();
       if name.starts_with(&prefix) && name.ends_with(".rlib") {
-        let start = name.split('-').next().unwrap();
-        if seen.insert(start.to_string()) {
-          size += file
-            .metadata()
-            .context("failed to read file metadata")?
-            .len();
+        let metadata = file.metadata().context("failed to read file metadata")?;
+        let modified = metadata.modified().context("failed to read file mtime")?;
+        if newest.is_none_or(|(time, _)| modified > time) {
+          newest = Some((modified, metadata.len()));
         }
       }
     }
   }
 
-  if size == 0 {
-    anyhow::bail!(
-      "no rlib files found for prefix {prefix} in {}",
-      build_dir.display()
-    );
-  }
-
-  Ok(size)
+  newest
+    .map(|(_, size)| size)
+    .with_context(|| format!("no {prefix}*.rlib file found in {}", target_dir.display()))
 }
 
 fn get_binary_sizes(target_dir: &Path, target: &str) -> Result<HashMap<String, u64>> {

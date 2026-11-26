@@ -19,7 +19,8 @@ use std::{
   fs,
   io::{BufRead, BufReader},
   path::{Path, PathBuf},
-  process::{Command, Output, Stdio},
+  process::{Command, ExitStatus, Output, Stdio},
+  time::{Duration, Instant},
 };
 
 /// Holds the results of a benchmark run.
@@ -217,18 +218,44 @@ pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
 }
 
 /// Run a command and wait for completion.
-/// Returns an error if the command fails.
-pub fn run(cmd: &[&str]) -> Result<()> {
-  let status = Command::new(cmd[0])
-    .args(&cmd[1..])
-    .stdin(Stdio::piped())
-    .status()
-    .with_context(|| format!("failed to execute command: {cmd:?}"))?;
+/// Returns an error if the command fails or does not exit within `timeout`.
+pub fn run(cmd: &[&str], timeout: Duration) -> Result<()> {
+  let mut command = Command::new(cmd[0]);
+  command.args(&cmd[1..]).stdin(Stdio::piped());
+  let status = wait_with_timeout(&mut command, timeout)?;
 
   if !status.success() {
     bail!("Command {:?} exited with {:?}", cmd, status.code());
   }
   Ok(())
+}
+
+/// Spawn a command and wait for it to exit, killing it when it runs for longer than `timeout`.
+///
+/// A benchmark app only exits when its frontend reports back through the IPC,
+/// so without a timeout a broken app hangs the whole job.
+pub fn wait_with_timeout(command: &mut Command, timeout: Duration) -> Result<ExitStatus> {
+  let mut child = command
+    .spawn()
+    .with_context(|| format!("failed to spawn {command:?}"))?;
+  let start = Instant::now();
+
+  loop {
+    if let Some(status) = child
+      .try_wait()
+      .with_context(|| format!("failed to wait for {command:?}"))?
+    {
+      return Ok(status);
+    }
+
+    if start.elapsed() > timeout {
+      let _ = child.kill();
+      let _ = child.wait();
+      bail!("{command:?} did not exit within {timeout:?}");
+    }
+
+    std::thread::sleep(Duration::from_millis(20));
+  }
 }
 
 /// Read a JSON file into a [`serde_json::Value`].

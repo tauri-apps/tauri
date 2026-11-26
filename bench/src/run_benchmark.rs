@@ -18,10 +18,16 @@ use std::{
   env,
   path::Path,
   process::{Command, Stdio},
+  time::Duration,
 };
 use time::format_description::well_known::Rfc3339;
 
 mod utils;
+
+/// How long a single run of a benchmark app may take.
+const APP_TIMEOUT: Duration = Duration::from_secs(60);
+/// How long the whole hyperfine session (warmup and runs of every app) may take.
+const EXEC_TIME_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// The list of examples for benchmarks
 fn get_all_benchmarks(target: &str) -> Vec<(String, String)> {
@@ -61,13 +67,17 @@ fn run_strace_benchmarks(new_data: &mut utils::BenchResult, target: &str) -> Res
       .to_str()
       .context("temporary file path contains invalid UTF-8")?;
 
-    Command::new("strace")
-      .args(["-c", "-f", "-o", temp_path_str, exe_path_str])
-      .stdout(Stdio::inherit())
-      .spawn()
-      .context("failed to spawn strace process")?
-      .wait()
-      .context("failed to wait for strace process")?;
+    // strace exits with the status of the traced app
+    let status = utils::wait_with_timeout(
+      Command::new("strace")
+        .args(["-c", "-f", "-o", temp_path_str, exe_path_str])
+        .stdout(Stdio::inherit()),
+      APP_TIMEOUT,
+    )
+    .with_context(|| format!("failed to run strace for benchmark {name}"))?;
+    if !status.success() {
+      anyhow::bail!("strace for benchmark {name} exited with {status}");
+    }
 
     let mut output = String::new();
     file
@@ -106,22 +116,15 @@ fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
       .to_str()
       .context("executable path contains invalid UTF-8")?;
 
-    let proc = Command::new("mprof")
-      .args(["run", "-C", "-o", benchmark_file_str, exe_path_str])
-      .stdout(Stdio::null())
-      .stderr(Stdio::piped())
-      .spawn()
-      .with_context(|| format!("failed to spawn mprof for benchmark {name}"))?;
-
-    let proc_result = proc
-      .wait_with_output()
-      .with_context(|| format!("failed to wait for mprof {name}"))?;
-
-    if !proc_result.status.success() {
-      eprintln!(
-        "mprof failed for {name}: {}",
-        String::from_utf8_lossy(&proc_result.stderr)
-      );
+    let status = utils::wait_with_timeout(
+      Command::new("mprof")
+        .args(["run", "-C", "-o", benchmark_file_str, exe_path_str])
+        .stdout(Stdio::null()),
+      APP_TIMEOUT,
+    )
+    .with_context(|| format!("failed to run mprof for benchmark {name}"))?;
+    if !status.success() {
+      anyhow::bail!("mprof for benchmark {name} exited with {status}");
     }
 
     if let Some(mem) = utils::parse_max_mem(benchmark_file_str)
@@ -309,7 +312,7 @@ fn run_exec_time(target: &str) -> Result<HashMap<String, HashMap<String, f64>>> 
     command.push(path.as_str());
   }
 
-  utils::run(&command)?;
+  utils::run(&command, EXEC_TIME_TIMEOUT)?;
 
   let mut results = HashMap::<String, HashMap<String, f64>>::new();
   let hyperfine_results = utils::read_json(benchmark_file_str)?;

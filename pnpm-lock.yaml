@@ -302,8 +302,8 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       appium-uiautomator2-driver:
-        specifier: ^9.2.2
-        version: 9.2.2(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
+        specifier: ^10.0.0
+        version: 10.4.0(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       appium-xcuitest-driver:
         specifier: ^13.3.0
         version: 13.6.1(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
@@ -2405,8 +2405,8 @@ packages:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==}
     engines: {node: '>=12'}
 
-  appium-uiautomator2-driver@9.2.2:
-    resolution: {integrity: sha512-v/FMbiSlUInL5Y93tu1yWnwQF9EbGMHB1icq/1Y7iXyPM0egHSnScAmvJ4V4iWTROjwVtwC9JWmndjkM+XX8Fw==}
+  appium-uiautomator2-driver@10.4.0:
+    resolution: {integrity: sha512-Y8W9JZ4ecSZpLqarlLydhLYCITYfXJ3rnJnUtwbpNSKv9ItXp2sjxgcQyUXJB/3UEh72U63ZHW9KY84JqqwmZQ==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
     peerDependencies:
       appium: ^4.0.0-beta.8
@@ -6590,7 +6590,7 @@ snapshots:
 
   ansi-styles@6.2.3: {}
 
-  appium-uiautomator2-driver@9.2.2(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
+  appium-uiautomator2-driver@10.4.0(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
     dependencies:
       appium: 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
     optionalDependencies:

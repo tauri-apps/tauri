@@ -20,11 +20,11 @@ pub const PLUGIN_FILE_NAME: &str = "libgsttauriasset.so";
 
 /// Release the prebuilt plugins are downloaded from.
 const PLUGIN_RELEASE_URL: &str =
-  "https://github.com/tauri-apps/tauri-gstreamer-plugin/releases/download/gst-plugin-tauri-v0.0.1";
+  "https://github.com/tauri-apps/tauri-gstreamer-plugin/releases/download/gst-plugin-tauri-v0.0.2";
 const PLUGIN_SHA256_X86_64: &str =
-  "ABB55C037AC07545C0E19E8D11FBC6BC642C23A24F35F550B5F830D387DB0914";
+  "7E94585BD146E20022DF4FEE574F10967840BAE9DED3B5099A13B182CDB0D2F8";
 const PLUGIN_SHA256_AARCH64: &str =
-  "A50347365B0949A3BD251689B7B5E1CBB01B4AE9A2E3446D6D28A77D55B35F6F";
+  "7B80B57E5BCB8B806FD620CA879D52CCDD9A4D65A196918AD9B0EA8FEFFB8E5A";
 
 /// Directory the plugin is installed to, relative to the bundle root.
 ///

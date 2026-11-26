@@ -5,6 +5,7 @@ Default permissions for the plugin, which enables all commands.
 #### This default permission set includes the following:
 
 - `allow-resolve-directory`
+- `allow-resolve-external-bin`
 - `allow-resolve`
 - `allow-normalize`
 - `allow-join`
@@ -226,6 +227,32 @@ Enables the resolve_directory command without any pre-configured scope.
 <td>
 
 Denies the resolve_directory command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:path:allow-resolve-external-bin`
+
+</td>
+<td>
+
+Enables the resolve_external_bin command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:path:deny-resolve-external-bin`
+
+</td>
+<td>
+
+Denies the resolve_external_bin command without any pre-configured scope.
 
 </td>
 </tr>

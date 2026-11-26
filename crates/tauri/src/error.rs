@@ -129,7 +129,6 @@ pub enum Error {
   #[error("failed to read current dir: {0}")]
   CurrentDir(std::io::Error),
   /// Unknown path.
-  #[cfg(not(target_os = "android"))]
   #[error("unknown path")]
   UnknownPath,
   /// The `app > appDirectoriesOverride` config contains a path that cannot be resolved.

@@ -42,7 +42,7 @@ Each result is a `BenchResult` (see `src/utils.rs`). Timings taken on shared CI 
 - `open_window_ms`, `window_memory_bytes` (`tauri_hello_world`): cost of each additional window.
 - `compute_ms` (`tauri_cpu_intensive`): how fast the machine ran the calibration. Compare the other timings of a run against it before blaming a commit.
 
-The apps are built in production mode (`custom-protocol`), with the workspace's size optimized release profile.
+The apps are built in production mode (their `prod` feature, which enables `custom-protocol`), with the workspace's size optimized release profile.
 
 ## Running locally
 
@@ -50,7 +50,9 @@ Linux needs `strace`, and `valgrind` for `--instructions`. Results are written t
 
 ```sh
 TARGET=x86_64-unknown-linux-gnu
-cargo build --release --target $TARGET -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets
+cargo build --release --target $TARGET \
+  -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets \
+  --features bench_helloworld/prod,bench_cpu_intensive/prod,bench_ipc/prod,bench_assets/prod
 cargo run --manifest-path bench/Cargo.toml --bin run_benchmark
 ```
 

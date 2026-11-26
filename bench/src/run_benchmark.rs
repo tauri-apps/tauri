@@ -420,7 +420,7 @@ fn run_build_time() -> Result<HashMap<String, f64>> {
 
   build_time.insert(
     "hello_world_release_clean".to_string(),
-    timed_build(&["--profile", "release-default"])?,
+    timed_build(&["--profile", "release-default", "--features", "prod"])?,
   );
 
   Ok(build_time)

@@ -90,7 +90,7 @@ jobs:
           cargo +${{ env.BENCH_TOOLCHAIN }} build --release \
             -Z build-std=std,panic_abort -Z build-std-features= \
             --target ${{ matrix.platform.target }} \
-            -p bench_helloworld --no-default-features
+            -p bench_helloworld --no-default-features --features prod
           cd target/${{ matrix.platform.target }}/release
           cp bench_helloworld${{ matrix.platform.ext }} bench_helloworld_minimal${{ matrix.platform.ext }}
 
@@ -102,6 +102,7 @@ jobs:
           -Z build-std=std,panic_abort -Z build-std-features=
           --target ${{ matrix.platform.target }}
           -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets
+          --features bench_helloworld/prod,bench_cpu_intensive/prod,bench_ipc/prod,bench_assets/prod
 
       - name: run benchmarks
         run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark -- --build-time --bundle${{ matrix.platform.args }}

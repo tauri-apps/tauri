@@ -13,9 +13,12 @@ tauri-build = { workspace = true, default-features = true, features = [
 [dependencies]
 bench_common = { path = "../../common" }
 serde = { version = "1", features = ["derive"] }
-tauri = { workspace = true, default-features = true, features = [
-  "custom-protocol",
-] }
+tauri = { workspace = true, default-features = true }
+
+[features]
+# Production mode, which is what the benchmarks measure. It is a feature so the apps do not
+# turn off `cfg(dev)` for every crate when the whole workspace is built or analyzed.
+prod = ["tauri/custom-protocol"]
 
 [lints]
 workspace = true

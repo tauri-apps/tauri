@@ -37,6 +37,9 @@ pub struct BenchResult {
   pub thread_count: HashMap<String, u64>,
   pub syscall_count: HashMap<String, u64>,
   pub cargo_deps: HashMap<String, usize>,
+  /// Size of the installers of the hello world app, in bytes.
+  #[serde(default)]
+  pub bundle_size: HashMap<String, u64>,
   /// Time to build the hello world app, in seconds.
   #[serde(default)]
   pub build_time: HashMap<String, f64>,

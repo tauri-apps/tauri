@@ -426,6 +426,114 @@ fn run_build_time() -> Result<HashMap<String, f64>> {
   Ok(build_time)
 }
 
+/// The installers to build on this platform.
+const BUNDLES: &str = if cfg!(target_os = "macos") {
+  "app,dmg"
+} else if cfg!(windows) {
+  "nsis,msi"
+} else {
+  "deb,rpm,appimage"
+};
+
+fn dir_size(path: &Path) -> Result<u64> {
+  let mut size = 0;
+  for entry in
+    std::fs::read_dir(path).with_context(|| format!("failed to read {}", path.display()))?
+  {
+    let entry = entry.context("failed to read directory entry")?;
+    let file_type = entry.file_type().context("failed to read file type")?;
+    if file_type.is_dir() {
+      size += dir_size(&entry.path())?;
+    } else if file_type.is_file() {
+      size += entry
+        .metadata()
+        .context("failed to read file metadata")?
+        .len();
+    }
+  }
+  Ok(size)
+}
+
+/// Bundles the hello world app with the Tauri CLI of this repository and returns the size of
+/// each installer: what a user downloads, which the size of the executable does not tell.
+///
+/// The app is built with the `release-default` profile, see [`run_build_time`].
+fn run_bundle_sizes() -> Result<HashMap<String, u64>> {
+  let root = utils::tauri_root_path();
+
+  let mut build_cli = Command::new("cargo");
+  build_cli
+    .args(["build", "-p", "tauri-cli"])
+    .current_dir(&root)
+    .stdin(Stdio::null());
+  let status = utils::wait_with_timeout(&mut build_cli, BUILD_TIMEOUT)?;
+  if !status.success() {
+    anyhow::bail!("{build_cli:?} exited with {status}");
+  }
+
+  let extension = if cfg!(windows) { ".exe" } else { "" };
+  let cli = root
+    .join("target")
+    .join("debug")
+    .join(format!("cargo-tauri{extension}"));
+
+  // the output of a previous run
+  let bundle_dir = build_target_dir().join("release-default").join("bundle");
+  if bundle_dir.exists() {
+    std::fs::remove_dir_all(&bundle_dir)
+      .with_context(|| format!("failed to remove {}", bundle_dir.display()))?;
+  }
+
+  let mut bundle = Command::new(&cli);
+  bundle
+    .args(["build", "--ci", "--bundles", BUNDLES])
+    .args(["--", "--profile", "release-default"])
+    .current_dir(utils::bench_root_path().join("tests/helloworld/src-tauri"))
+    .env("CARGO_TARGET_DIR", build_target_dir())
+    .env_remove("CARGO_PROFILE_DEV_DEBUG")
+    .stdin(Stdio::null());
+  let status = utils::wait_with_timeout(&mut bundle, BUILD_TIMEOUT)?;
+  if !status.success() {
+    anyhow::bail!("{bundle:?} exited with {status}");
+  }
+
+  // bundle/<type>/<installer>
+  let mut sizes = HashMap::new();
+  for (directory, name, extension) in [
+    ("deb", "deb", "deb"),
+    ("rpm", "rpm", "rpm"),
+    ("appimage", "appimage", "AppImage"),
+    ("nsis", "nsis", "exe"),
+    ("msi", "msi", "msi"),
+    ("dmg", "dmg", "dmg"),
+    ("macos", "app", "app"),
+  ] {
+    let Ok(entries) = std::fs::read_dir(bundle_dir.join(directory)) else {
+      continue;
+    };
+    for entry in entries {
+      let path = entry.context("failed to read directory entry")?.path();
+      if path.extension().and_then(|e| e.to_str()) != Some(extension) {
+        continue;
+      }
+      let size = if path.is_dir() {
+        dir_size(&path)?
+      } else {
+        std::fs::metadata(&path)
+          .with_context(|| format!("failed to read metadata for {}", path.display()))?
+          .len()
+      };
+      sizes.insert(name.to_string(), size);
+    }
+  }
+
+  if sizes.is_empty() {
+    anyhow::bail!("no installer found in {}", bundle_dir.display());
+  }
+
+  Ok(sizes)
+}
+
 /// (target OS, target triple)
 const TARGETS: &[(&str, &[&str])] = &[
   (
@@ -591,6 +699,8 @@ fn run_apps(
 struct Options {
   /// `--build-time`: build the hello world app from scratch and time it.
   build_time: bool,
+  /// `--bundle`: build the Tauri CLI and the installers of the hello world app.
+  bundle: bool,
 }
 
 impl Options {
@@ -599,7 +709,8 @@ impl Options {
     for arg in env::args().skip(1) {
       match arg.as_str() {
         "--build-time" => options.build_time = true,
-        _ => anyhow::bail!("unknown argument {arg}, expected --build-time"),
+        "--bundle" => options.bundle = true,
+        _ => anyhow::bail!("unknown argument {arg}, expected --build-time or --bundle"),
       }
     }
     Ok(options)
@@ -652,6 +763,11 @@ fn main() -> Result<()> {
     new_data
       .binary_size
       .insert("tauri_hello_world_default_profile".to_string(), meta.len());
+  }
+
+  if options.bundle {
+    println!("Measuring installer sizes...");
+    new_data.bundle_size = run_bundle_sizes()?;
   }
 
   if cfg!(target_os = "linux") {

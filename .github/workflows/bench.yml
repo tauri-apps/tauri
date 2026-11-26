@@ -51,8 +51,9 @@ jobs:
           - { target: aarch64-apple-darwin, os: macos-latest, runner: '' }
 
     runs-on: ${{ matrix.platform.os }}
-    # a full run takes around 10 minutes
-    timeout-minutes: 45
+    # the apps, the clean builds that are timed and the CLI that bundles the installers
+    # are all built without a cache
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v6
@@ -100,7 +101,7 @@ jobs:
           -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets
 
       - name: run benchmarks
-        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark -- --build-time
+        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark -- --build-time --bundle
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'

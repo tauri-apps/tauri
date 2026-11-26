@@ -2600,7 +2600,9 @@ tauri::Builder::default()
     // enabled the asset protocol.
     #[cfg(target_os = "linux")]
     {
-      if manager.config.app.security.asset_protocol.enable {
+      // `assetProtocol > enable` is not part of the embedded config, the
+      // Cargo feature it requires is what turns the protocol on.
+      if cfg!(feature = "protocol-asset") {
         // Only binaries installed by a package (or built by `tauri dev`) have
         // the plugin next to them. Anywhere else `../lib` is not ours, e.g. a
         // binary in `/tmp/x` would load plugins from `/tmp/lib`, which any

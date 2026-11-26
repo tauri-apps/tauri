@@ -120,6 +120,11 @@
       "../../.icons/icon.ico",
       "../../.icons/AppIcon.icon"
     ],
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    },
     "windows": {
       "wix": {
         "language": {

@@ -87,6 +87,9 @@ ${StrLoc}
 ; Keep above the includes below, they use plugin commands
 !addplugindir "${ADDITIONALPLUGINSPATH}"
 
+; Command line parameters without the executable path (`$CMDLINE` also holds the installer path)
+Var InstallerArgs
+
 ; Command line flags, set to 1 when the flag was passed to the installer
 Var PassiveMode    ; /P
 Var UpdateMode     ; /UPDATE
@@ -308,17 +311,19 @@ LangString choowHowToInstall 0 ""
 {{/each}}
 
 Function .onInit
-  ${GetOptions} $CMDLINE "/P" $PassiveMode
+  ${GetParameters} $InstallerArgs
+
+  ${GetOptions} $InstallerArgs "/P" $PassiveMode
   ${IfNot} ${Errors}
     StrCpy $PassiveMode 1
   ${EndIf}
 
-  ${GetOptions} $CMDLINE "/NS" $NoShortcutMode
+  ${GetOptions} $InstallerArgs "/NS" $NoShortcutMode
   ${IfNot} ${Errors}
     StrCpy $NoShortcutMode 1
   ${EndIf}
 
-  ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
+  ${GetOptions} $InstallerArgs "/UPDATE" $UpdateMode
   ${IfNot} ${Errors}
     StrCpy $UpdateMode 1
   ${EndIf}
@@ -511,9 +516,10 @@ Function .onInstSuccess
   ; GUI installer has a toggle for the user to (re)start the app
   ${If} $PassiveMode = 1
   ${OrIf} ${Silent}
-    ${GetOptions} $CMDLINE "/R" $LaunchArgs
+    ${GetParameters} $InstallerArgs
+    ${GetOptions} $InstallerArgs "/R" $LaunchArgs
     ${IfNot} ${Errors}
-      ${GetOptions} $CMDLINE "/ARGS" $LaunchArgs
+      ${GetOptions} $InstallerArgs "/ARGS" $LaunchArgs
       nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" "$LaunchArgs"
     ${EndIf}
   ${EndIf}
@@ -528,19 +534,21 @@ Function un.onInit
 
   !insertmacro MUI_UNGETLANGUAGE
 
-  ${GetOptions} $CMDLINE "/P" $PassiveMode
+  ${GetParameters} $InstallerArgs
+
+  ${GetOptions} $InstallerArgs "/P" $PassiveMode
   ${IfNot} ${Errors}
     StrCpy $PassiveMode 1
   ${EndIf}
 
-  ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
+  ${GetOptions} $InstallerArgs "/UPDATE" $UpdateMode
   ${IfNot} ${Errors}
     StrCpy $UpdateMode 1
   ${EndIf}
 
   ; Delete app data without user interaction (e.g. in silent or passive mode),
   ; also pre-checks the `Delete app data` check box in interactive mode
-  ${GetOptions} $CMDLINE "/DELETEAPPDATA" $DeleteAppDataCheckboxState
+  ${GetOptions} $InstallerArgs "/DELETEAPPDATA" $DeleteAppDataCheckboxState
   ${IfNot} ${Errors}
     StrCpy $DeleteAppDataCheckboxState 1
   ${EndIf}

@@ -22,9 +22,11 @@ env:
   # Bump it deliberately, in a pull request of its own.
   BENCH_TOOLCHAIN: nightly-2026-11-25
 
+# Every commit on dev gets its own data point: a run is never cancelled or replaced by a newer push,
+# otherwise a regression can only be narrowed down to a range of commits.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 permissions:
   contents: read

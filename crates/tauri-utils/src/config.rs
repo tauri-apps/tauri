@@ -3117,6 +3117,10 @@ impl FsScope {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AssetProtocolConfig {
   /// The access scope for the asset protocol.
+  ///
+  /// On Linux, `<audio>` and `<video>` elements load `asset://` URLs through a GStreamer plugin
+  /// that reads the file directly, so media playback is not restricted by this scope:
+  /// when the asset protocol is enabled, any file the user can read can be played.
   #[serde(default)]
   pub scope: FsScope,
   /// Enables the asset protocol.

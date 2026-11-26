@@ -1471,7 +1471,7 @@
       "type": "object",
       "properties": {
         "scope": {
-          "description": "The access scope for the asset protocol.",
+          "description": "The access scope for the asset protocol.\n\n On Linux, `<audio>` and `<video>` elements load `asset://` URLs through a GStreamer plugin\n that reads the file directly, so media playback is not restricted by this scope:\n when the asset protocol is enabled, any file the user can read can be played.",
           "default": [],
           "allOf": [
             {

@@ -2594,57 +2594,64 @@ tauri::Builder::default()
     // GStreamer only scans directories listed in `GST_PLUGIN_PATH`, and WebKit
     // inherits the environment when it spawns its web and media processes, so
     // this must happen before the Runtime is created.
+    //
+    // The plugin reads the requested file itself, without going through the
+    // asset protocol handler, so it is only made reachable for apps that
+    // enabled the asset protocol.
     #[cfg(target_os = "linux")]
     {
-      if let Some(plugin_dir) = crate::utils::platform::current_exe().ok().and_then(|exe| {
-        let lib_dir = exe.parent()?.join("../lib");
-        // Mirrors the directory the bundler installs the plugin into:
-        // `<prefix>/lib/<product name>/gstreamer-1.0`. The bundler falls back
-        // to the crate name when `productName` is unset, which is also what
-        // the executable is named, so try both.
-        [
-          manager.config.product_name.clone(),
-          exe.file_name().map(|n| n.to_string_lossy().into_owned()),
-        ]
-        .into_iter()
-        .flatten()
-        .map(|name| lib_dir.join(name).join("gstreamer-1.0"))
-        .find(|dir| dir.is_dir())
-      }) {
-        // Keep the directories the user or a launcher already listed.
-        let plugin_path = std::env::join_paths(
-          std::iter::once(plugin_dir).chain(
-            std::env::var_os("GST_PLUGIN_PATH")
-              .iter()
-              .flat_map(std::env::split_paths),
-          ),
-        );
-        if let Ok(plugin_path) = plugin_path {
-          // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
-          unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_path) };
-        }
-      } else {
-        #[cfg(debug_assertions)]
-        eprintln!("failed to resolve GStreamer plugin directory; media playback may not work.");
-      }
-
-      // WebKitGTK only hands GStreamer the URI schemes on its own allowlist
-      // plus the ones listed here, so without this `asset://` media is
-      // rejected before the plugin is ever asked. This does not depend on the
-      // directory above: an AppImage has the plugin in the bundled GStreamer
-      // plugin directory instead.
-      let allowed_protocols = std::env::var("WEBKIT_GST_ALLOWED_URI_PROTOCOLS").unwrap_or_default();
-      if !allowed_protocols
-        .split(',')
-        .any(|protocol| protocol.trim().eq_ignore_ascii_case("asset"))
-      {
-        let allowed_protocols = if allowed_protocols.trim().is_empty() {
-          "asset".to_string()
+      if manager.config.app.security.asset_protocol.enable {
+        if let Some(plugin_dir) = crate::utils::platform::current_exe().ok().and_then(|exe| {
+          let lib_dir = exe.parent()?.join("../lib");
+          // Mirrors the directory the bundler installs the plugin into:
+          // `<prefix>/lib/<product name>/gstreamer-1.0`. The bundler falls back
+          // to the crate name when `productName` is unset, which is also what
+          // the executable is named, so try both.
+          [
+            manager.config.product_name.clone(),
+            exe.file_name().map(|n| n.to_string_lossy().into_owned()),
+          ]
+          .into_iter()
+          .flatten()
+          .map(|name| lib_dir.join(name).join("gstreamer-1.0"))
+          .find(|dir| dir.is_dir())
+        }) {
+          // Keep the directories the user or a launcher already listed.
+          let plugin_path = std::env::join_paths(
+            std::iter::once(plugin_dir).chain(
+              std::env::var_os("GST_PLUGIN_PATH")
+                .iter()
+                .flat_map(std::env::split_paths),
+            ),
+          );
+          if let Ok(plugin_path) = plugin_path {
+            // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
+            unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_path) };
+          }
         } else {
-          format!("{allowed_protocols},asset")
-        };
-        // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
-        unsafe { std::env::set_var("WEBKIT_GST_ALLOWED_URI_PROTOCOLS", allowed_protocols) };
+          #[cfg(debug_assertions)]
+          eprintln!("failed to resolve GStreamer plugin directory; media playback may not work.");
+        }
+
+        // WebKitGTK only hands GStreamer the URI schemes on its own allowlist
+        // plus the ones listed here, so without this `asset://` media is
+        // rejected before the plugin is ever asked. This does not depend on the
+        // directory above: an AppImage has the plugin in the bundled GStreamer
+        // plugin directory instead.
+        let allowed_protocols =
+          std::env::var("WEBKIT_GST_ALLOWED_URI_PROTOCOLS").unwrap_or_default();
+        if !allowed_protocols
+          .split(',')
+          .any(|protocol| protocol.trim().eq_ignore_ascii_case("asset"))
+        {
+          let allowed_protocols = if allowed_protocols.trim().is_empty() {
+            "asset".to_string()
+          } else {
+            format!("{allowed_protocols},asset")
+          };
+          // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
+          unsafe { std::env::set_var("WEBKIT_GST_ALLOWED_URI_PROTOCOLS", allowed_protocols) };
+        }
       }
     }
 

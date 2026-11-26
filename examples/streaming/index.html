@@ -25,9 +25,11 @@
       const video = document.getElementById('video_source')
       const source = document.createElement('source')
       source.type = 'video/mp4'
-      source.src = convertFileSrc('streaming_example_test_video.mp4', 'stream')
-      video.appendChild(source)
-      video.load()
+      invoke('video_source').then(([path, protocol]) => {
+        source.src = convertFileSrc(path, protocol)
+        video.appendChild(source)
+        video.load()
+      })
     </script>
   </body>
 </html>

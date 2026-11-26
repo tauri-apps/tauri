@@ -7,3 +7,5 @@ To execute run the following on the root directory of the repository: `cargo run
 ### Note
 
 Tauri has a built-in `asset` protocol that implements this streaming functionality so you don't need to. This example just exists as a reference.
+
+To play the same video through the built-in `asset` protocol instead, enable the `protocol-asset` feature: `cargo run --example streaming --features protocol-asset`.

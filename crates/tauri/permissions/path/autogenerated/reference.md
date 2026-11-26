@@ -229,30 +229,4 @@ Denies the resolve_directory command without any pre-configured scope.
 
 </td>
 </tr>
-
-<tr>
-<td>
-
-`core:path:allow-resolve-external-bin`
-
-</td>
-<td>
-
-Enables the resolve_external_bin command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:path:deny-resolve-external-bin`
-
-</td>
-<td>
-
-Denies the resolve_external_bin command without any pre-configured scope.
-
-</td>
-</tr>
 </table>

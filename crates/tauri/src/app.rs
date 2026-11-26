@@ -2601,21 +2601,38 @@ tauri::Builder::default()
     #[cfg(target_os = "linux")]
     {
       if manager.config.app.security.asset_protocol.enable {
-        if let Some(plugin_dir) = crate::utils::platform::current_exe().ok().and_then(|exe| {
-          let lib_dir = exe.parent()?.join("../lib");
-          // Mirrors the directory the bundler installs the plugin into:
-          // `<prefix>/lib/<product name>/gstreamer-1.0`. The bundler falls back
-          // to the crate name when `productName` is unset, which is also what
-          // the executable is named, so try both.
-          [
-            manager.config.product_name.clone(),
-            exe.file_name().map(|n| n.to_string_lossy().into_owned()),
-          ]
-          .into_iter()
-          .flatten()
-          .map(|name| lib_dir.join(name).join("gstreamer-1.0"))
-          .find(|dir| dir.is_dir())
-        }) {
+        // Only binaries installed by a package (or built by `tauri dev`) have
+        // the plugin next to them. Anywhere else `../lib` is not ours, e.g. a
+        // binary in `/tmp/x` would load plugins from `/tmp/lib`, which any
+        // local user can create.
+        let has_plugin_dir = cfg!(dev)
+          || matches!(
+            crate::utils::platform::bundle_type(),
+            Some(
+              crate::utils::config::BundleType::Deb
+                | crate::utils::config::BundleType::Rpm
+                | crate::utils::config::BundleType::Pacman
+            )
+          );
+        let plugin_dir = has_plugin_dir
+          .then(crate::utils::platform::current_exe)
+          .and_then(Result::ok)
+          .and_then(|exe| {
+            let lib_dir = exe.parent()?.join("../lib");
+            // Mirrors the directory the bundler installs the plugin into:
+            // `<prefix>/lib/<product name>/gstreamer-1.0`. The bundler falls back
+            // to the crate name when `productName` is unset, which is also what
+            // the executable is named, so try both.
+            [
+              manager.config.product_name.clone(),
+              exe.file_name().map(|n| n.to_string_lossy().into_owned()),
+            ]
+            .into_iter()
+            .flatten()
+            .map(|name| lib_dir.join(name).join("gstreamer-1.0"))
+            .find(|dir| dir.is_dir())
+          });
+        if let Some(plugin_dir) = plugin_dir {
           // Keep the directories the user or a launcher already listed.
           let plugin_path = std::env::join_paths(
             std::iter::once(plugin_dir).chain(
@@ -2628,7 +2645,7 @@ tauri::Builder::default()
             // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
             unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_path) };
           }
-        } else {
+        } else if has_plugin_dir {
           #[cfg(debug_assertions)]
           eprintln!("failed to resolve GStreamer plugin directory; media playback may not work.");
         }

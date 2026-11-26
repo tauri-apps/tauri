@@ -336,6 +336,7 @@ impl<R: Runtime> PathResolver<R> {
   ///     Ok(())
   ///   });
   /// ```
+  #[doc(alias = "resolve_sidecar_path")]
   pub fn resolve_external_bin<P: AsRef<Path>>(&self, name: P) -> Result<PathBuf> {
     let mut path = tauri_utils::platform::external_bin_dir()
       .map_err(|_| Error::UnknownPath)?

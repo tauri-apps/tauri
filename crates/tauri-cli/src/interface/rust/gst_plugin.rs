@@ -6,7 +6,7 @@
 //! next to an unbundled binary: `<exe dir>/../lib/<exe name>/gstreamer-1.0`.
 //! Must match the lookup in `crates/tauri/src/app.rs`.
 
-use super::{get_cargo_metadata, Options, RustAppSettings};
+use super::{Options, RustAppSettings, get_cargo_metadata};
 use crate::{error::ErrorExt, interface::AppSettings};
 use std::{fs, path::Path};
 use tauri_bundler::{gst_plugin, tools_directory};

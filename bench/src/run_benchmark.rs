@@ -22,29 +22,52 @@ use std::{
 };
 use time::format_description::well_known::Rfc3339;
 
+mod runner;
 mod utils;
 
 /// How long a single run of a benchmark app may take.
 const APP_TIMEOUT: Duration = Duration::from_secs(60);
-/// How long the whole hyperfine session (warmup and runs of every app) may take.
-const EXEC_TIME_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+/// Time to wait between two runs.
+const RUN_PAUSE: Duration = Duration::from_secs(1);
+
+struct Benchmark {
+  name: &'static str,
+  /// Path of the executable, relative to the bench directory.
+  exe: String,
+  /// Runs that are not measured.
+  warmup: usize,
+  /// Runs that are measured.
+  runs: usize,
+}
 
 /// The list of examples for benchmarks
-fn get_all_benchmarks(target: &str) -> Vec<(String, String)> {
-  let extension = if cfg!(windows) { ".exe" } else { "" };
+fn get_all_benchmarks(target: &str) -> Vec<Benchmark> {
+  let exe = |name: &str| {
+    let extension = if cfg!(windows) { ".exe" } else { "" };
+    format!("../target/{target}/release/{name}{extension}")
+  };
   vec![
-    (
-      "tauri_hello_world".into(),
-      format!("../target/{target}/release/bench_helloworld{extension}"),
-    ),
-    (
-      "tauri_cpu_intensive".into(),
-      format!("../target/{target}/release/bench_cpu_intensive{extension}"),
-    ),
-    (
-      "tauri_3mb_transfer".into(),
-      format!("../target/{target}/release/bench_files_transfer{extension}"),
-    ),
+    Benchmark {
+      name: "tauri_hello_world",
+      exe: exe("bench_helloworld"),
+      warmup: 3,
+      runs: 20,
+    },
+    // Not a benchmark of Tauri: nearly all of its time is spent by the JavaScript engine
+    // finding prime numbers. It tells how fast the machine the benchmarks ran on is,
+    // which the other timings can be compared against.
+    Benchmark {
+      name: "tauri_cpu_intensive",
+      exe: exe("bench_cpu_intensive"),
+      warmup: 1,
+      runs: 5,
+    },
+    Benchmark {
+      name: "tauri_3mb_transfer",
+      exe: exe("bench_files_transfer"),
+      warmup: 3,
+      runs: 20,
+    },
   ]
 }
 
@@ -54,7 +77,12 @@ fn run_strace_benchmarks(new_data: &mut utils::BenchResult, target: &str) -> Res
   let mut thread_count = HashMap::<String, u64>::new();
   let mut syscall_count = HashMap::<String, u64>::new();
 
-  for (name, example_exe) in get_all_benchmarks(target) {
+  for Benchmark {
+    name,
+    exe: example_exe,
+    ..
+  } in get_all_benchmarks(target)
+  {
     let mut file = tempfile::NamedTempFile::new()
       .context("failed to create temporary file for strace output")?;
 
@@ -91,8 +119,8 @@ fn run_strace_benchmarks(new_data: &mut utils::BenchResult, target: &str) -> Res
       + strace_result.get("clone3").map(|d| d.calls).unwrap_or(0);
 
     if let Some(total) = strace_result.get("total") {
-      thread_count.insert(name.clone(), clone_calls);
-      syscall_count.insert(name, total.calls);
+      thread_count.insert(name.to_string(), clone_calls);
+      syscall_count.insert(name.to_string(), total.calls);
     }
   }
 
@@ -105,7 +133,12 @@ fn run_strace_benchmarks(new_data: &mut utils::BenchResult, target: &str) -> Res
 fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
   let mut results = HashMap::<String, u64>::new();
 
-  for (name, example_exe) in get_all_benchmarks(target) {
+  for Benchmark {
+    name,
+    exe: example_exe,
+    ..
+  } in get_all_benchmarks(target)
+  {
     let benchmark_file = utils::target_dir().join(format!("mprof{name}_.dat"));
     let benchmark_file_str = benchmark_file
       .to_str()
@@ -130,7 +163,7 @@ fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
     if let Some(mem) = utils::parse_max_mem(benchmark_file_str)
       .with_context(|| format!("failed to parse mprof data for {name}"))?
     {
-      results.insert(name, mem);
+      results.insert(name.to_string(), mem);
     }
   }
 
@@ -189,11 +222,16 @@ fn get_binary_sizes(target_dir: &Path, target: &str) -> Result<HashMap<String, u
   let wry_size = rlib_size(target_dir, "wry")?;
   sizes.insert("wry_rlib".to_string(), wry_size);
 
-  for (name, example_exe) in get_all_benchmarks(target) {
+  for Benchmark {
+    name,
+    exe: example_exe,
+    ..
+  } in get_all_benchmarks(target)
+  {
     let exe_path = utils::bench_root_path().join(&example_exe);
     let meta = std::fs::metadata(&exe_path)
       .with_context(|| format!("failed to read metadata for {}", exe_path.display()))?;
-    sizes.insert(name, meta.len());
+    sizes.insert(name.to_string(), meta.len());
   }
 
   Ok(sizes)
@@ -311,75 +349,51 @@ fn environment() -> BTreeMap<String, String> {
   environment
 }
 
-const RESULT_KEYS: &[&str] = &["mean", "stddev", "user", "system", "min", "max"];
+/// Runs every app several times, returning the wall clock time of the runs
+/// and the metrics the apps reported about themselves.
+#[allow(clippy::type_complexity)]
+fn run_apps(
+  target: &str,
+  environment: &mut BTreeMap<String, String>,
+) -> Result<(
+  HashMap<String, HashMap<String, f64>>,
+  HashMap<String, BTreeMap<String, f64>>,
+)> {
+  let mut exec_time = HashMap::new();
+  let mut metrics = HashMap::new();
 
-fn run_exec_time(target: &str) -> Result<HashMap<String, HashMap<String, f64>>> {
-  let target_dir = utils::target_dir();
-  let benchmark_file = target_dir.join("hyperfine_results.json");
-  let benchmark_file_str = benchmark_file
-    .to_str()
-    .context("benchmark file path contains invalid UTF-8")?;
+  for benchmark in get_all_benchmarks(target) {
+    let name = benchmark.name;
+    println!("  {name}");
+    let exe_path = utils::bench_root_path().join(&benchmark.exe);
+    let runs = runner::run_app(
+      &exe_path,
+      benchmark.warmup,
+      benchmark.runs,
+      APP_TIMEOUT,
+      RUN_PAUSE,
+    )
+    .with_context(|| format!("failed to run benchmark {name}"))?;
 
-  let mut command = vec![
-    "hyperfine",
-    "--export-json",
-    benchmark_file_str,
-    "--show-output",
-    "--warmup",
-    "3",
-    // It seems like if we run them back to back,
-    // the execution time will get longer and longer for some reason on macOS and Windows
-    "--prepare",
-    "sleep 1",
-  ];
+    let wall = runner::Stats::new(&runs.wall).context("benchmark did not run")?;
+    exec_time.insert(
+      name.to_string(),
+      HashMap::from([
+        ("mean".to_string(), wall.mean),
+        ("stddev".to_string(), wall.stddev),
+        ("median".to_string(), wall.median),
+        ("min".to_string(), wall.min),
+        ("max".to_string(), wall.max),
+      ]),
+    );
+    metrics.insert(name.to_string(), runs.medians());
 
-  if cfg!(target_os = "windows") {
-    // For `sleep 1` to work
-    // hyperfine uses cmd by default and it would fail with
-    // 'Input redirection is not supported, exiting the process immediately.'
-    command.push("--shell");
-    command.push("powershell");
-  }
-
-  let benchmarks = get_all_benchmarks(target);
-  let mut benchmark_paths = Vec::new();
-
-  for (_, example_exe) in &benchmarks {
-    let exe_path = utils::bench_root_path().join(example_exe);
-    let exe_path_str = exe_path
-      .to_str()
-      .context("executable path contains invalid UTF-8")?;
-    benchmark_paths.push(exe_path_str.to_string());
-  }
-
-  for path in &benchmark_paths {
-    command.push(path.as_str());
-  }
-
-  utils::run(&command, EXEC_TIME_TIMEOUT)?;
-
-  let mut results = HashMap::<String, HashMap<String, f64>>::new();
-  let hyperfine_results = utils::read_json(benchmark_file_str)?;
-
-  if let Some(results_array) = hyperfine_results
-    .as_object()
-    .and_then(|obj| obj.get("results"))
-    .and_then(|val| val.as_array())
-  {
-    for ((name, _), data) in benchmarks.iter().zip(results_array.iter()) {
-      if let Some(data_obj) = data.as_object() {
-        let filtered_data: HashMap<String, f64> = data_obj
-          .iter()
-          .filter(|(key, _)| RESULT_KEYS.contains(&key.as_str()))
-          .filter_map(|(key, val)| val.as_f64().map(|v| (key.clone(), v)))
-          .collect();
-
-        results.insert(name.clone(), filtered_data);
-      }
+    if let Some(version) = runs.info.get("webview_version") {
+      environment.insert("webview".into(), version.clone());
     }
   }
 
-  Ok(results)
+  Ok((exec_time, metrics))
 }
 
 fn main() -> Result<()> {
@@ -402,8 +416,10 @@ fn main() -> Result<()> {
   env::set_current_dir(utils::bench_root_path())
     .context("failed to set working directory to bench root")?;
 
-  println!("Running execution time benchmarks...");
-  let exec_time = run_exec_time(target)?;
+  let mut environment = environment();
+
+  println!("Running the apps...");
+  let (exec_time, metrics) = run_apps(target, &mut environment)?;
 
   println!("Getting binary sizes...");
   let binary_size = get_binary_sizes(&target_dir, target)?;
@@ -418,9 +434,10 @@ fn main() -> Result<()> {
       output.0.trim().to_string()
     },
     exec_time,
+    metrics,
     binary_size,
     cargo_deps,
-    environment: environment(),
+    environment,
     ..Default::default()
   };
 

@@ -10,7 +10,11 @@ use tauri::{AppHandle, Manager, Runtime, command, ipc::Response, path::BaseDirec
 
 #[command]
 fn app_should_close(exit_code: i32) {
-  std::process::exit(exit_code);
+  if exit_code == 0 {
+    bench_common::finish();
+  } else {
+    std::process::exit(exit_code);
+  }
 }
 
 #[command]
@@ -24,6 +28,8 @@ async fn read_file<R: Runtime>(app: AppHandle<R>) -> Result<Response, String> {
 }
 
 fn main() {
+  bench_common::init();
+
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![app_should_close, read_file])
     .run(tauri::generate_context!())

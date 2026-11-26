@@ -21,7 +21,9 @@ const onMessage = (message) => {
 
   if (message.data.status === 'done') {
     // tell tauri that we are done
-    window.__TAURI__.core.invoke('app_completed_successfully')
+    window.__TAURI__.core.invoke('app_completed_successfully', {
+      computeMs: message.data.time
+    })
   }
 
   status.innerHTML = `${prefix} Found <code>${message.data.count}</code> prime numbers in <code>${message.data.time}ms</code>`

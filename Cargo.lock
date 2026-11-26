@@ -620,11 +620,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bench_common"
+version = "0.1.0"
+
+[[package]]
 name = "bench_cpu_intensive"
 version = "0.1.0"
 dependencies = [
- "serde",
- "serde_json",
+ "bench_common",
  "tauri",
  "tauri-build",
 ]
@@ -633,8 +636,7 @@ dependencies = [
 name = "bench_files_transfer"
 version = "0.1.0"
 dependencies = [
- "serde",
- "serde_json",
+ "bench_common",
  "tauri",
  "tauri-build",
 ]
@@ -643,8 +645,7 @@ dependencies = [
 name = "bench_helloworld"
 version = "0.1.0"
 dependencies = [
- "serde",
- "serde_json",
+ "bench_common",
  "tauri",
  "tauri-build",
 ]
@@ -9157,6 +9158,7 @@ name = "tauri_bench"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bench_common",
  "serde",
  "serde_json",
  "tempfile",

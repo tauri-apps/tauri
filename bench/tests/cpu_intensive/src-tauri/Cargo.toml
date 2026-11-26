@@ -11,8 +11,7 @@ tauri-build = { workspace = true, default-features = true, features = [
 ] }
 
 [dependencies]
-serde_json = "1"
-serde = { version = "1", features = ["derive"] }
+bench_common = { path = "../../common" }
 tauri = { workspace = true, default-features = true, features = [
   "custom-protocol",
 ] }

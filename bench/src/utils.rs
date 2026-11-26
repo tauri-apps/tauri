@@ -28,7 +28,12 @@ use std::{
 pub struct BenchResult {
   pub created_at: String,
   pub sha1: String,
+  /// Wall clock time of a whole run of each app, in seconds (`mean`, `median`, `stddev`...).
   pub exec_time: HashMap<String, HashMap<String, f64>>,
+  /// What each app measured about itself, as the median of all runs.
+  /// Names ending in `_ms` are milliseconds, `startup_*_ms` are counted from the process spawn.
+  #[serde(default)]
+  pub metrics: HashMap<String, BTreeMap<String, f64>>,
   pub binary_size: HashMap<String, u64>,
   pub max_memory: HashMap<String, u64>,
   pub thread_count: HashMap<String, u64>,
@@ -221,19 +226,6 @@ pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
   summary
 }
 
-/// Run a command and wait for completion.
-/// Returns an error if the command fails or does not exit within `timeout`.
-pub fn run(cmd: &[&str], timeout: Duration) -> Result<()> {
-  let mut command = Command::new(cmd[0]);
-  command.args(&cmd[1..]).stdin(Stdio::piped());
-  let status = wait_with_timeout(&mut command, timeout)?;
-
-  if !status.success() {
-    bail!("Command {:?} exited with {:?}", cmd, status.code());
-  }
-  Ok(())
-}
-
 /// Spawn a command and wait for it to exit, killing it when it runs for longer than `timeout`.
 ///
 /// A benchmark app only exits when its frontend reports back through the IPC,
@@ -260,13 +252,6 @@ pub fn wait_with_timeout(command: &mut Command, timeout: Duration) -> Result<Exi
 
     std::thread::sleep(Duration::from_millis(20));
   }
-}
-
-/// Read a JSON file into a [`serde_json::Value`].
-pub fn read_json(filename: &str) -> Result<Value> {
-  let f =
-    fs::File::open(filename).with_context(|| format!("failed to open JSON file {filename}"))?;
-  Ok(serde_json::from_reader(f)?)
 }
 
 /// Write a [`serde_json::Value`] into a JSON file.

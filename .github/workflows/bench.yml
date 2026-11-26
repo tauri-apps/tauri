@@ -78,12 +78,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install memory_profiler
 
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.19.1
-
-      - name: Install hyperfine
-        run: cargo binstall hyperfine@1.20 --no-confirm
-
       # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
       # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
       # evicted before the next push only costs upload time.

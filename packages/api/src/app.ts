@@ -8,10 +8,10 @@
  *
  * This package is also accessible with `window.__TAURI__.app` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * @remarks Only the read-only commands are enabled by `core:app:default`
+ * @remarks Only the read-only and harmless commands are enabled by `core:app:default`
  * (`allow-version`, `allow-name`, `allow-tauri-version`, `allow-identifier`,
- * `allow-bundle-type`, `allow-supports-multiple-windows`, `allow-register-listener`
- * and `allow-remove-listener`). Every other function in this module documents the
+ * `allow-bundle-type`, `allow-supports-multiple-windows`, `allow-open-settings`,
+ * `allow-register-listener` and `allow-remove-listener`). Every other function in this module documents the
  * permission it needs, which you must add to a capability yourself.
  *
  * @module
@@ -446,6 +446,101 @@ async function supportsMultipleWindows(): Promise<boolean> {
 }
 
 /**
+ * Opens this app's page in the system settings, where the user can manage its
+ * permissions, notifications and storage.
+ *
+ * Use it to let users recover after they denied a permission the app needs, since
+ * mobile systems stop showing the permission prompt once it has been denied.
+ *
+ * #### Platform-specific
+ *
+ * - **Android:** Opens the app details screen (`Settings.ACTION_APPLICATION_DETAILS_SETTINGS`).
+ * - **iOS:** Opens the app's page in the Settings app (`UIApplication.openSettingsURLString`).
+ * - **Windows / Linux / macOS:** Unsupported, the promise is rejected.
+ *
+ * @example
+ * ```typescript
+ * import { openSettings } from '@tauri-apps/api/app';
+ * await openSettings();
+ * ```
+ *
+ * @since 2.13.0
+ */
+async function openSettings(): Promise<void> {
+  return invoke('plugin:app|open_settings')
+}
+
+/**
+ * Keeps the screen on while the app is in the foreground, preventing the device
+ * from dimming the display and locking itself, for instance while showing a video,
+ * a map or a boarding pass.
+ *
+ * The setting applies to the whole app and lasts until it is disabled again or the
+ * app exits. The system still turns the screen off once the app goes to the background.
+ *
+ * #### Platform-specific
+ *
+ * - **Android:** Sets `FLAG_KEEP_SCREEN_ON` on the window of every activity, so on every
+ *   Tauri window, including the windows created after this call.
+ * - **iOS:** Sets [`UIApplication.isIdleTimerDisabled`](https://developer.apple.com/documentation/uikit/uiapplication/isidletimerdisabled).
+ * - **Windows / Linux / macOS:** Unsupported, the promise is rejected.
+ *
+ * @example
+ * ```typescript
+ * import { setKeepScreenOn } from '@tauri-apps/api/app';
+ * await setKeepScreenOn(true);
+ * // later, when the screen no longer needs to stay on
+ * await setKeepScreenOn(false);
+ * ```
+ *
+ * @param enabled Whether the screen should stay on.
+ *
+ * @remarks Requires the `core:app:allow-set-keep-screen-on` permission (not
+ * included in `core:app:default`).
+ *
+ * @since 2.13.0
+ */
+async function setKeepScreenOn(enabled: boolean): Promise<void> {
+  return invoke('plugin:app|set_keep_screen_on', { enabled })
+}
+
+/**
+ * Hides the app's content from the app switcher and, where the system allows it,
+ * from screenshots and screen recordings, to protect sensitive data such as banking
+ * or health information.
+ *
+ * The setting applies to the whole app and lasts until it is disabled again or the
+ * app exits.
+ *
+ * #### Platform-specific
+ *
+ * - **Android:** Sets `FLAG_SECURE` on the window of every activity, so on every Tauri
+ *   window, including the windows created after this call. The app switcher shows a
+ *   blank preview, and screenshots and screen recordings of the app are blocked. Disabling
+ *   it also clears a `FLAG_SECURE` the app set on its activities itself.
+ * - **iOS:** Covers every window with a blur while the app is inactive, which hides the
+ *   content from the app switcher snapshot. iOS does not let apps block screenshots or
+ *   screen recordings, so those still capture the app's content while it is active.
+ * - **Windows / Linux / macOS:** Unsupported, the promise is rejected.
+ *
+ * @example
+ * ```typescript
+ * import { setPrivacyScreen } from '@tauri-apps/api/app';
+ * await setPrivacyScreen(true);
+ * ```
+ *
+ * @param enabled Whether the app's content should be hidden.
+ *
+ * @remarks Requires the `core:app:allow-set-privacy-screen` permission (not
+ * included in `core:app:default`).
+ *
+ * @since 2.13.0
+ */
+async function setPrivacyScreen(enabled: boolean): Promise<void> {
+  return invoke('plugin:app|set_privacy_screen', { enabled })
+}
+
+/**
  * Exits the app with the given exit code.
  *
  * This is the same as the `exit` function of the `@tauri-apps/plugin-process` plugin,
@@ -492,5 +587,8 @@ export {
   type OnBackButtonPressPayload,
   onBackButtonPress,
   supportsMultipleWindows,
+  openSettings,
+  setKeepScreenOn,
+  setPrivacyScreen,
   exit
 }

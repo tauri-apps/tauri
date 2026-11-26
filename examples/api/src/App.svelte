@@ -14,6 +14,7 @@
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
   import Window from './views/Window.svelte'
+  import Asset from './views/Asset.svelte'
   import WebRTC from './views/WebRTC.svelte'
   import App from './views/App.svelte'
   import Menu from './views/Menu.svelte'
@@ -68,6 +69,11 @@
       label: 'Communication',
       component: Communication,
       icon: 'i-codicon-radio-tower'
+    },
+    {
+      label: 'Asset',
+      component: Asset,
+      icon: 'i-ph-film-strip'
     },
     ...(isMobile ? [] : desktopViews),
     {

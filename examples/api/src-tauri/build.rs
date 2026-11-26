@@ -15,6 +15,7 @@ fn main() {
         "perform_request",
         "echo",
         "spam",
+        "asset_media",
       ])),
   )
   .expect("failed to run tauri-build");

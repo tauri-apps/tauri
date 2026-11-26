@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-asset-media"
+description = "Enables the asset_media command without any pre-configured scope."
+commands.allow = ["asset_media"]
+
+[[permission]]
+identifier = "deny-asset-media"
+description = "Denies the asset_media command without any pre-configured scope."
+commands.deny = ["asset_media"]

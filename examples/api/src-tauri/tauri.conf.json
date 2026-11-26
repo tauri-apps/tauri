@@ -22,16 +22,21 @@
       },
       "csp": {
         "default-src": "'self' customprotocol: asset:",
-        "connect-src": "ipc: http://ipc.localhost",
+        "connect-src": "ipc: http://ipc.localhost asset: http://asset.localhost",
         "font-src": ["https://fonts.gstatic.com"],
         "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "media-src": "'self' asset: http://asset.localhost",
         "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
       },
       "freezePrototype": true,
       "assetProtocol": {
         "enable": true,
         "scope": {
-          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
+          "allow": [
+            "$APPDATA/db/**",
+            "$RESOURCE/**",
+            "$APPCACHE/asset-view/**"
+          ],
           "deny": ["$APPDATA/db/*.stronghold"]
         }
       }

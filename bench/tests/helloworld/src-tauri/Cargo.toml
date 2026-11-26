@@ -12,9 +12,12 @@ tauri-build = { workspace = true, default-features = true, features = [
 
 [dependencies]
 bench_common = { path = "../../common" }
-tauri = { workspace = true, default-features = true, features = [
-  "custom-protocol",
-] }
+tauri = { workspace = true, features = ["wry", "custom-protocol"] }
+
+[features]
+# The runner also measures the size of this app built with `--no-default-features`,
+# which tells how much the default features of tauri cost.
+default = ["tauri/default"]
 
 [lints]
 workspace = true

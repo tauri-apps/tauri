@@ -323,8 +323,19 @@ fn rlib_size(target_dir: &std::path::Path, library: &str) -> Result<u64> {
 fn get_binary_sizes(target_dir: &Path, target: &str) -> Result<HashMap<String, u64>> {
   let mut sizes = HashMap::<String, u64>::new();
 
-  let wry_size = rlib_size(target_dir, "wry")?;
-  sizes.insert("wry_rlib".to_string(), wry_size);
+  for library in ["wry", "tauri"] {
+    sizes.insert(format!("{library}_rlib"), rlib_size(target_dir, library)?);
+  }
+
+  // hello world built without the default features of tauri, when CI built it
+  let extension = if cfg!(windows) { ".exe" } else { "" };
+  let minimal = target_dir.join(format!("bench_helloworld_minimal{extension}"));
+  match std::fs::metadata(&minimal) {
+    Ok(meta) => {
+      sizes.insert("tauri_hello_world_minimal".to_string(), meta.len());
+    }
+    Err(_) => println!("  {} not found, skipping", minimal.display()),
+  }
 
   for Benchmark {
     name,

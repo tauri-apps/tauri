@@ -88,11 +88,10 @@ where
 {
   let sk_path = sk_path.as_ref();
 
-  let pubkey_path = format!("{}.pub", sk_path.display());
-  let pk_path = Path::new(&pubkey_path);
+  let pk_path = sk_path.with_added_extension("pub");
 
   if !force {
-    for path in [sk_path, pk_path] {
+    for path in [sk_path, pk_path.as_path()] {
       if path.exists() {
         crate::error::bail!(
           "Key generation aborted:\n{} already exists\nIf you really want to overwrite the existing key pair, add the --force switch to force this operation.",
@@ -107,17 +106,14 @@ where
   }
 
   write_secret_key(sk_path, key).fs_context("failed to write secret key", sk_path.to_path_buf())?;
-  fs::write(pk_path, pubkey).fs_context("failed to write public key", pk_path.to_path_buf())?;
+  fs::write(&pk_path, pubkey).fs_context("failed to write public key", pk_path.clone())?;
 
   Ok((
     fs::canonicalize(sk_path).fs_context(
       "failed to canonicalize secret key path",
       sk_path.to_path_buf(),
     )?,
-    fs::canonicalize(pk_path).fs_context(
-      "failed to canonicalize public key path",
-      pk_path.to_path_buf(),
-    )?,
+    fs::canonicalize(&pk_path).fs_context("failed to canonicalize public key path", pk_path)?,
   ))
 }
 
@@ -138,14 +134,7 @@ where
 {
   let bin_path = bin_path.as_ref();
   // We need to append .sig at the end it's where the signature will be stored
-  // TODO: use `with_added_extension` when we bump MSRV to >= 1.91
-  let signature_path = if let Some(ext) = bin_path.extension() {
-    let mut extension = ext.to_os_string();
-    extension.push(".sig");
-    bin_path.with_extension(extension)
-  } else {
-    bin_path.with_extension("sig")
-  };
+  let signature_path = bin_path.with_added_extension("sig");
 
   let file_name = bin_path
     .file_name()

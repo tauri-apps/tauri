@@ -406,7 +406,7 @@ pub(crate) fn tar_and_compress_dir<P: AsRef<Path>>(
   }
 
   let src_dir = src_dir.as_ref();
-  let dest_path = src_dir.with_extension(compression.ext());
+  let dest_path = src_dir.with_added_extension(compression.ext());
   let dest_file = fs_utils::create_file(&dest_path)?;
 
   let mut dest_file = match compression {

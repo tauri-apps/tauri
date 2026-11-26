@@ -224,6 +224,8 @@ fn cargo_deps() -> HashMap<String, usize> {
     for target in *targets {
       let mut cmd = Command::new("cargo");
       cmd.arg("tree");
+      // without `-p` cargo walks every workspace member (CLI, bundler, examples...)
+      cmd.args(["-p", "tauri"]);
       cmd.arg("--no-dedupe");
       cmd.args(["--edges", "normal"]);
       cmd.args(["--prefix", "none"]);
@@ -237,7 +239,7 @@ fn cargo_deps() -> HashMap<String, usize> {
             .lines()
             .collect::<HashSet<_>>()
             .len()
-            .saturating_sub(1); // output includes wry itself
+            .saturating_sub(1); // output includes tauri itself
 
           // set the count to the highest count seen for this OS
           let existing = results.entry(os.to_string()).or_default();

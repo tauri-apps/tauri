@@ -1264,8 +1264,10 @@ impl<R: Runtime> Window<R> {
       .collect()
   }
 
+  /// Whether this window has a webview of its own, the one that shares its label.
+  /// Child webviews added to it do not change that.
   pub(crate) fn is_webview_window(&self) -> bool {
-    self.webviews().iter().all(|w| w.label() == self.label())
+    self.webviews().iter().any(|w| w.label() == self.label())
   }
 
   /// The label of this window.

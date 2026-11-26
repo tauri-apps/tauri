@@ -63,7 +63,7 @@ fn try_install(
 
   fs::create_dir_all(&dest_dir).fs_context(
     "failed to create the asset GStreamer plugin directory",
-    dest_dir.clone(),
+    dest_dir,
   )?;
   fs::write(&dest, data).fs_context("failed to install the asset GStreamer plugin", dest)?;
 

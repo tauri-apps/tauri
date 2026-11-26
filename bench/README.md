@@ -1,6 +1,6 @@
 # Tauri Bench
 
-Internal benchmarks of Tauri. They run on CI for every commit on `dev` (Linux, Windows and macOS) and the results are published to the [benchmark_results](https://github.com/tauri-apps/benchmark_results) repository.
+Internal benchmarks of Tauri. They run on CI for every commit on `dev` (Linux, Windows and macOS) and the results are published to the `next` branch of the [benchmark_results](https://github.com/tauri-apps/benchmark_results) repository (`BENCH_RESULTS_BRANCH` in the workflow).
 
 ## Layout
 

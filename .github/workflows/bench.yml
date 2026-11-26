@@ -21,6 +21,8 @@ env:
   # Pinned so a new compiler does not show up as a binary size or performance change of a Tauri commit.
   # Bump it deliberately, in a pull request of its own.
   BENCH_TOOLCHAIN: nightly-2026-11-25
+  # Branch of tauri-apps/benchmark_results the results are pushed to.
+  BENCH_RESULTS_BRANCH: next
 
 # Every commit on dev gets its own data point: a run is never cancelled or replaced by a newer push,
 # otherwise a regression can only be narrowed down to a range of commits.
@@ -107,6 +109,18 @@ jobs:
       - name: run benchmarks
         run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark -- --build-time --bundle${{ matrix.platform.args }}
 
+      # The results are published to a branch of their own instead of `gh-pages`, which feeds the
+      # public page: the page does not know the new metrics yet, and some of the existing ones
+      # changed meaning. The first run creates the branch from `gh-pages`, history included.
+      - name: find the results branch
+        id: results
+        if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/tauri-apps/benchmark_results "$BENCH_RESULTS_BRANCH" > /dev/null; then
+            echo "ref=$BENCH_RESULTS_BRANCH" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
         uses: actions/checkout@v7
@@ -114,6 +128,8 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           path: gh-pages
           repository: tauri-apps/benchmark_results
+          # empty (the default branch) until the results branch exists
+          ref: ${{ steps.results.outputs.ref }}
 
       - name: push new benchmarks
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
@@ -127,11 +143,14 @@ jobs:
           git config user.email "tauri-bot@tauri.app"
           git config pull.rebase merges
 
+          git checkout -B "$BENCH_RESULTS_BRANCH"
           git add .
           git commit --message "Update Tauri benchmarks"
 
           # Retry 3 times in case we're colliding with other CI runs
           for _ in {1..3}; do
-            git pull || exit $?
-            git push origin gh-pages && break
+            if git ls-remote --exit-code --heads origin "$BENCH_RESULTS_BRANCH" > /dev/null; then
+              git pull origin "$BENCH_RESULTS_BRANCH" || exit $?
+            fi
+            git push origin "$BENCH_RESULTS_BRANCH" && break
           done

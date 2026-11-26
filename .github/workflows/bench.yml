@@ -22,7 +22,7 @@ env:
   # Bump it deliberately, in a pull request of its own.
   BENCH_TOOLCHAIN: nightly-2026-11-25
   # Branch of tauri-apps/benchmark_results the results are pushed to.
-  BENCH_RESULTS_BRANCH: next
+  BENCH_RESULTS_BRANCH: v2
 
 # Every commit on dev gets its own data point: a run is never cancelled or replaced by a newer push,
 # otherwise a regression can only be narrowed down to a range of commits.

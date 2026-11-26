@@ -100,11 +100,11 @@ css-color = "0.2"
 resvg = "0.50"
 dunce = "1"
 glob = "0.3"
-# 0.111 raised msrv to 1.91
-oxc_parser = "0.110"
-oxc_span = "0.110"
-oxc_allocator = "0.110"
-oxc_ast = "0.110"
+# 0.127 raised msrv to 1.93
+oxc_parser = "0.126"
+oxc_span = "0.126"
+oxc_allocator = "0.126"
+oxc_ast = "0.126"
 magic_string = "0.3"
 phf = { version = "0.14", features = ["macros"] }
 walkdir = "2"

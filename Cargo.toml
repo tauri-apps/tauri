@@ -68,6 +68,16 @@ incremental = false
 opt-level = "s"
 strip = true
 
+# What `cargo build --release` does when an app does not configure the profile.
+# The benchmarks use it to measure what such an app gets, see bench/README.md.
+[profile.release-default]
+inherits = "release"
+panic = "unwind"
+codegen-units = 16
+lto = false
+opt-level = 3
+strip = "none"
+
 # profiles for tauri-cli
 [profile.dev.package.miniz_oxide]
 opt-level = 3

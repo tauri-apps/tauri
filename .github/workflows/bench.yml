@@ -100,7 +100,7 @@ jobs:
           -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets
 
       - name: run benchmarks
-        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark
+        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark -- --build-time
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'

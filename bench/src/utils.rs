@@ -37,6 +37,9 @@ pub struct BenchResult {
   pub thread_count: HashMap<String, u64>,
   pub syscall_count: HashMap<String, u64>,
   pub cargo_deps: HashMap<String, usize>,
+  /// Time to build the hello world app, in seconds.
+  #[serde(default)]
+  pub build_time: HashMap<String, f64>,
   /// What the results were measured with (compiler, runner image, CPU...),
   /// to tell a change in Tauri apart from a change in the environment.
   #[serde(default)]

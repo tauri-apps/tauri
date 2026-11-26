@@ -16,9 +16,9 @@ use anyhow::{Context, Result};
 use std::{
   collections::{BTreeMap, HashMap, HashSet},
   env,
-  path::Path,
+  path::{Path, PathBuf},
   process::{Command, Stdio},
-  time::Duration,
+  time::{Duration, Instant},
 };
 use time::format_description::well_known::Rfc3339;
 
@@ -30,6 +30,8 @@ mod utils;
 const APP_TIMEOUT: Duration = Duration::from_secs(60);
 /// Time to wait between two runs.
 const RUN_PAUSE: Duration = Duration::from_secs(1);
+/// How long a build made by the runner may take.
+const BUILD_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 /// How many times the resource usage of an app is measured.
 const USAGE_RUNS: usize = 3;
 /// Time an app is left alone before its idle resource usage is measured.
@@ -352,6 +354,78 @@ fn get_binary_sizes(target_dir: &Path, target: &str) -> Result<HashMap<String, u
   Ok(sizes)
 }
 
+/// Target directory of the builds the runner makes itself.
+/// It is a directory of its own so they always start from scratch,
+/// and so they do not disturb the artifacts of the benchmark apps.
+fn build_target_dir() -> PathBuf {
+  utils::tauri_root_path().join("target").join("bench-build")
+}
+
+/// Path of the hello world app built by [`run_build_time`] with the default release profile.
+fn default_profile_exe() -> PathBuf {
+  let extension = if cfg!(windows) { ".exe" } else { "" };
+  build_target_dir()
+    .join("release-default")
+    .join(format!("bench_helloworld{extension}"))
+}
+
+/// Builds the hello world app in the [`build_target_dir`] and returns how long it took.
+fn timed_build(args: &[&str]) -> Result<f64> {
+  let mut command = Command::new("cargo");
+  command
+    .args(["build", "-p", "bench_helloworld", "--target-dir"])
+    .arg(build_target_dir())
+    .args(args)
+    .current_dir(utils::tauri_root_path())
+    // CI disables the debug information of the dev profile to keep its caches small,
+    // which is not what an app developer builds with
+    .env_remove("CARGO_PROFILE_DEV_DEBUG")
+    .stdin(Stdio::null());
+
+  let start = Instant::now();
+  let status = utils::wait_with_timeout(&mut command, BUILD_TIMEOUT)?;
+  let elapsed = start.elapsed();
+  if !status.success() {
+    anyhow::bail!("{command:?} exited with {status}");
+  }
+
+  Ok(elapsed.as_secs_f64())
+}
+
+/// Measures how long the hello world app takes to build:
+/// - `hello_world_dev_clean`: `cargo build` from scratch, tauri and all its dependencies included
+/// - `hello_world_dev_incremental`: `cargo build` again after touching the app's main.rs
+/// - `hello_world_release_clean`: a release build from scratch with the profile Cargo defaults to
+///   (`release-default` in the workspace manifest, the `release` profile there is size optimized)
+///
+/// The crates are already downloaded at this point, so the network is not part of it.
+fn run_build_time() -> Result<HashMap<String, f64>> {
+  let mut build_time = HashMap::new();
+
+  let target_dir = build_target_dir();
+  if target_dir.exists() {
+    std::fs::remove_dir_all(&target_dir)
+      .with_context(|| format!("failed to remove {}", target_dir.display()))?;
+  }
+
+  build_time.insert("hello_world_dev_clean".to_string(), timed_build(&[])?);
+
+  let main_rs = utils::bench_root_path().join("tests/helloworld/src-tauri/src/main.rs");
+  std::fs::File::options()
+    .append(true)
+    .open(&main_rs)
+    .and_then(|file| file.set_modified(std::time::SystemTime::now()))
+    .with_context(|| format!("failed to touch {}", main_rs.display()))?;
+  build_time.insert("hello_world_dev_incremental".to_string(), timed_build(&[])?);
+
+  build_time.insert(
+    "hello_world_release_clean".to_string(),
+    timed_build(&["--profile", "release-default"])?,
+  );
+
+  Ok(build_time)
+}
+
 /// (target OS, target triple)
 const TARGETS: &[(&str, &[&str])] = &[
   (
@@ -511,7 +585,30 @@ fn run_apps(
   Ok((exec_time, metrics))
 }
 
+/// The measurements that are only made when asked for, because they take minutes
+/// and build into the target directory.
+#[derive(Default)]
+struct Options {
+  /// `--build-time`: build the hello world app from scratch and time it.
+  build_time: bool,
+}
+
+impl Options {
+  fn parse() -> Result<Self> {
+    let mut options = Self::default();
+    for arg in env::args().skip(1) {
+      match arg.as_str() {
+        "--build-time" => options.build_time = true,
+        _ => anyhow::bail!("unknown argument {arg}, expected --build-time"),
+      }
+    }
+    Ok(options)
+  }
+}
+
 fn main() -> Result<()> {
+  let options = Options::parse()?;
+
   println!("Starting tauri benchmark");
 
   let target_dir = utils::target_dir();
@@ -544,6 +641,18 @@ fn main() -> Result<()> {
     environment,
     ..Default::default()
   };
+
+  if options.build_time {
+    println!("Measuring build times...");
+    new_data.build_time = run_build_time()?;
+
+    let exe = default_profile_exe();
+    let meta = std::fs::metadata(&exe)
+      .with_context(|| format!("failed to read metadata for {}", exe.display()))?;
+    new_data
+      .binary_size
+      .insert("tauri_hello_world_default_profile".to_string(), meta.len());
+  }
 
   if cfg!(target_os = "linux") {
     println!("Running Linux-specific benchmarks...");

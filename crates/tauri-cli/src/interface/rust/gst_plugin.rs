@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Puts the `asset://` GStreamer plugin where the Tauri runtime looks for it
-//! next to an unbundled binary: `<exe dir>/../lib/<exe name>/gstreamer-1.0`.
-//! Must match the lookup in `crates/tauri/src/app.rs`.
+//! Makes the `asset://` GStreamer plugin available to the app run by `tauri dev`.
+//!
+//! The plugin is loaded from the tools directory it is downloaded to. The
+//! Tauri runtime finds the default one on its own (see `crates/tauri/src/app.rs`),
+//! `GST_PLUGIN_PATH` covers a local tools directory.
 
 use super::{Options, RustAppSettings, get_cargo_metadata};
-use crate::{error::ErrorExt, interface::AppSettings};
-use std::{fs, path::Path};
+use crate::{error::Context, interface::AppSettings};
+use std::path::Path;
 use tauri_bundler::{gst_plugin, tools_directory};
 use tauri_utils::platform::Target as TargetPlatform;
 
-/// Downloads the plugin and installs it for the app binary built with `options`.
+/// Downloads the plugin and lists its directory in `GST_PLUGIN_PATH` for the app binary built with `options`.
 pub fn install(
   app_settings: &RustAppSettings,
   options: &Options,
@@ -37,7 +39,7 @@ fn try_install(
   tauri_dir: &Path,
 ) -> crate::Result<()> {
   let bin_path = app_settings.app_binary_path(options, tauri_dir)?;
-  let (Some(out_dir), Some(exe_name)) = (bin_path.parent(), bin_path.file_name()) else {
+  let Some(out_dir) = bin_path.parent() else {
     return Ok(());
   };
 
@@ -51,21 +53,20 @@ fn try_install(
     return Ok(());
   };
 
-  let dest_dir = out_dir.join("../lib").join(exe_name).join("gstreamer-1.0");
-  let dest = dest_dir.join(gst_plugin::PLUGIN_FILE_NAME);
-
-  // Overwriting a shared library in place can crash an app that still has it
-  // loaded, so leave an identical copy alone.
-  let data = fs::read(&plugin).fs_context("failed to read the asset GStreamer plugin", plugin)?;
-  if fs::read(&dest).is_ok_and(|existing| existing == data) {
+  let Some(plugin_dir) = plugin.parent() else {
     return Ok(());
-  }
+  };
 
-  fs::create_dir_all(&dest_dir).fs_context(
-    "failed to create the asset GStreamer plugin directory",
-    dest_dir,
-  )?;
-  fs::write(&dest, data).fs_context("failed to install the asset GStreamer plugin", dest)?;
+  let plugin_path = std::env::join_paths(
+    std::iter::once(plugin_dir.to_path_buf()).chain(
+      std::env::var_os("GST_PLUGIN_PATH")
+        .iter()
+        .flat_map(std::env::split_paths),
+    ),
+  )
+  .context("failed to add the asset GStreamer plugin to GST_PLUGIN_PATH")?;
+  // SAFETY: called from the main thread before the app is built and run.
+  unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_path) };
 
   Ok(())
 }

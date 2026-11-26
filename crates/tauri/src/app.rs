@@ -2603,23 +2603,19 @@ tauri::Builder::default()
       // `assetProtocol > enable` is not part of the embedded config, the
       // Cargo feature it requires is what turns the protocol on.
       if cfg!(feature = "protocol-asset") {
-        // Only binaries installed by a package (or built by `tauri dev`) have
-        // the plugin next to them. Anywhere else `../lib` is not ours, e.g. a
-        // binary in `/tmp/x` would load plugins from `/tmp/lib`, which any
-        // local user can create.
-        let has_plugin_dir = cfg!(dev)
-          || matches!(
-            crate::utils::platform::bundle_type(),
-            Some(
-              crate::utils::config::BundleType::Deb
-                | crate::utils::config::BundleType::Rpm
-                | crate::utils::config::BundleType::Pacman
-            )
-          );
-        let plugin_dir = has_plugin_dir
-          .then(crate::utils::platform::current_exe)
-          .and_then(Result::ok)
-          .and_then(|exe| {
+        // Only binaries installed by a package have the plugin next to them.
+        // Anywhere else `../lib` is not ours, e.g. a binary in `/tmp/x` would
+        // load plugins from `/tmp/lib`, which any local user can create.
+        let is_packaged = matches!(
+          crate::utils::platform::bundle_type(),
+          Some(
+            crate::utils::config::BundleType::Deb
+              | crate::utils::config::BundleType::Rpm
+              | crate::utils::config::BundleType::Pacman
+          )
+        );
+        let plugin_dir = if is_packaged {
+          crate::utils::platform::current_exe().ok().and_then(|exe| {
             let lib_dir = exe.parent()?.join("../lib");
             // Mirrors the directory the bundler installs the plugin into:
             // `<prefix>/lib/<product name>/gstreamer-1.0`. The bundler falls back
@@ -2633,23 +2629,47 @@ tauri::Builder::default()
             .flatten()
             .map(|name| lib_dir.join(name).join("gstreamer-1.0"))
             .find(|dir| dir.is_dir())
-          });
+          })
+        } else if cfg!(dev) {
+          // Development binaries load the plugin straight from the directory
+          // the CLI downloads it to, so a plain `cargo run` works too once
+          // `tauri dev` or `tauri build` fetched it. Must match the bundler's
+          // `gst_plugin::cache_dir`.
+          dirs::cache_dir()
+            .map(|cache_dir| {
+              cache_dir
+                .join("tauri")
+                .join("gstreamer-1.0")
+                .join(std::env::consts::ARCH)
+            })
+            .filter(|dir| dir.is_dir())
+        } else {
+          None
+        };
+        let current_plugin_path = std::env::var_os("GST_PLUGIN_PATH");
         if let Some(plugin_dir) = plugin_dir {
           // Keep the directories the user or a launcher already listed.
-          let plugin_path = std::env::join_paths(
-            std::iter::once(plugin_dir).chain(
-              std::env::var_os("GST_PLUGIN_PATH")
-                .iter()
-                .flat_map(std::env::split_paths),
-            ),
-          );
-          if let Ok(plugin_path) = plugin_path {
+          let mut plugin_path = current_plugin_path
+            .iter()
+            .flat_map(std::env::split_paths)
+            .collect::<Vec<_>>();
+          // `tauri dev` already lists the directory it downloaded the plugin to.
+          if !plugin_path.contains(&plugin_dir) {
+            plugin_path.insert(0, plugin_dir);
+          }
+          if let Ok(plugin_path) = std::env::join_paths(plugin_path) {
             // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
             unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_path) };
           }
-        } else if has_plugin_dir {
+        } else if is_packaged {
           #[cfg(debug_assertions)]
           eprintln!("failed to resolve GStreamer plugin directory; media playback may not work.");
+        } else if cfg!(dev) && current_plugin_path.is_none() {
+          // With a local tools directory the CLI passes the plugin through
+          // `GST_PLUGIN_PATH` instead, so only complain when that is missing too.
+          eprintln!(
+            "the GStreamer plugin for `asset://` media is not downloaded yet, audio and video over `asset://` will not play. Run `tauri dev` or `tauri build` once to fetch it."
+          );
         }
 
         // WebKitGTK only hands GStreamer the URI schemes on its own allowlist

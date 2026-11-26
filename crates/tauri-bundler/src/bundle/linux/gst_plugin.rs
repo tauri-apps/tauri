@@ -45,6 +45,15 @@ pub fn plugin_dir(product_name: &str) -> PathBuf {
 /// deb/rpm would never be scanned inside an AppImage.
 pub const APPIMAGE_PLUGIN_DIR: &str = "usr/lib/gstreamer-1.0";
 
+/// Directory the plugin for `arch` is cached in, inside the tools directory.
+///
+/// The plugin is stored under [`PLUGIN_FILE_NAME`] in a directory of its own,
+/// so GStreamer can load it straight from here. The Tauri runtime does that
+/// for development binaries, see the lookup in `crates/tauri/src/app.rs`.
+pub fn cache_dir(tools_path: &Path, arch: &str) -> PathBuf {
+  tools_path.join("gstreamer-1.0").join(arch)
+}
+
 /// Downloads the prebuilt plugin for the target architecture, caching it in the
 /// tools directory alongside the AppImage tooling.
 ///
@@ -76,10 +85,11 @@ pub fn download_for_target(target: &str, tools_path: &Path) -> crate::Result<Opt
     return Ok(None);
   };
 
-  fs::create_dir_all(tools_path)?;
+  let cache_dir = cache_dir(tools_path, arch);
+  fs::create_dir_all(&cache_dir)?;
 
   let file_name = format!("libgsttauriasset-{arch}.so");
-  let cached = tools_path.join(&file_name);
+  let cached = cache_dir.join(PLUGIN_FILE_NAME);
   if cached.exists() {
     if verify_file_hash(&cached, hash, HashAlgorithm::Sha256).is_ok() {
       return Ok(Some(cached));

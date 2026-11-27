@@ -282,16 +282,16 @@ importers:
         version: 26.6.6
       '@wdio/appium-service':
         specifier: ^10.2.0
-        version: 10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)(yauzl@3.4.0)
+        version: 10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)(yauzl@3.4.0)
       '@wdio/cli':
         specifier: ^10.2.0
-        version: 10.2.0(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(yauzl@3.4.0)
+        version: 10.2.0(@types/node@26.6.6)(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(yauzl@3.4.0)
       '@wdio/globals':
         specifier: ^10.2.0
         version: 10.2.0(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))
       '@wdio/local-runner':
         specifier: ^10.2.0
-        version: 10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)
+        version: 10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)
       '@wdio/mocha-framework':
         specifier: ^10.2.0
         version: 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
@@ -299,14 +299,14 @@ importers:
         specifier: ^10.2.0
         version: 10.2.0
       appium:
-        specifier: ^4.0.0
-        version: 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+        specifier: ^4.0.1
+        version: 4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       appium-uiautomator2-driver:
-        specifier: ^10.0.0
-        version: 10.4.0(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
+        specifier: ^10.1.0
+        version: 10.4.0(@types/node@26.6.6)(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       appium-xcuitest-driver:
-        specifier: ^13.3.0
-        version: 13.6.1(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
+        specifier: ^13.7.0
+        version: 13.8.0(@types/node@26.6.6)(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -340,21 +340,21 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@appium/base-driver@11.0.0':
-    resolution: {integrity: sha512-pxdZGstdV0VpQ+NO28ESTBaIb/eSMg5zr2fdUIdTeZhPlIe/jQWcqfJRVXLdt4lv0mqAq1wbFsYYaiycfU0Zxw==}
+  '@appium/base-driver@11.0.1':
+    resolution: {integrity: sha512-8piX/pJDWJup4pNnIqKl44CuJDj8wVFvj+8ARPuGE9TnZ9qRn36LwufBA9y9FIseGTgK4VyZBMdwGznGCtjKng==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
 
-  '@appium/base-plugin@4.0.0':
-    resolution: {integrity: sha512-yXSKzF9yGQ4ZjR3YHGIVsQcsr0I74KYuN4WfzneEjs2nWCtL4P57SugQQ2Lpz2qOwM7udBbnX5LNqxf1JDy++g==}
+  '@appium/base-plugin@4.0.1':
+    resolution: {integrity: sha512-Iuggz7VcNwqJzUpUUDDhFR7WvR6rtJ/C5TuKkJUe0bj1MlRmTchwbN4DLkRNt6+TbXCJSx1lIUi823KahjVLRQ==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
 
-  '@appium/docutils@4.0.0':
-    resolution: {integrity: sha512-UCmr3TJ4LAn/K8K+qcmySf+dz0bF3vqD9nFzW7O60sUGTsRE3yzEm2fYwuItcjUAA7MWiPH1v5ZqtofEeH97/Q==}
+  '@appium/docutils@4.0.1':
+    resolution: {integrity: sha512-M9HVRLN6JPufJHqYt8kxaD18AiAkCAcoBv+w6dMXIzEi/tsVGsTVvJSIu/cGWhYTRcQzyVhnm8yxSqY+EQXe9Q==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
     hasBin: true
 
-  '@appium/http-server@1.0.0':
-    resolution: {integrity: sha512-NCHqGD+53ZoD/WLGvyBHLEUHJQYmuHmt1udVw23EkSpdffxLNC7dvIlSrYoRwjwL5+SxzN9HxV1S7A8H/yfW3Q==}
+  '@appium/http-server@1.0.1':
+    resolution: {integrity: sha512-Vp1zYgFvcc1XqEIHycMblj1qlcr8EJeiQBV0Y9anj59EHibEf8wv0Udcyros+FZ1aliRmyyoPzt4Ub7MmcxhxA==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
 
   '@appium/logger@3.0.0':
@@ -365,8 +365,8 @@ packages:
     resolution: {integrity: sha512-r2qLm0ag4AskYnDzV6CZ2y9P479HZ4qbmi1TPPl7f+VJfRF6B2x9Ki9TTXd60dzOBElU0QoLR+fKmmwsqRxDyw==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
 
-  '@appium/support@8.0.0':
-    resolution: {integrity: sha512-WdNWEfMO2ODz6HeLwVtVrPBPmZCF4zfyYio68NNbcIzOiETElC0obDNuwmt2D2D5QIoY8vPEFxmm8suosqqPhw==}
+  '@appium/support@8.0.1':
+    resolution: {integrity: sha512-DkDGyhvR3/vGqisxy7vCTGa5VG5MrPtOv7xLXZCex/rSaiahAP7n2Nx1JO8EpUwUWhjCfFvRFc+wxkukHHLfQg==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
 
   '@appium/types@2.0.0':
@@ -2420,8 +2420,8 @@ packages:
       - io.appium.settings
       - teen_process
 
-  appium-xcuitest-driver@13.6.1:
-    resolution: {integrity: sha512-IqpzhLiFT3QOmCRDS3hjjUmiptSk3aOhUUbpH7QWAn31a8PuUKapa3ZyTqirrn4R2uywnNVUpm2rKDSjQUlD/Q==}
+  appium-xcuitest-driver@13.8.0:
+    resolution: {integrity: sha512-ijlJNcpk5yHg/aexL32cPAZpgqEDhe5QJ66jpHGWjMw59nXRo3dckBt/X1KtGd3oPKrv9ASd/dEFsws62C2koQ==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
     peerDependencies:
       appium: ^4.0.0
@@ -2446,17 +2446,14 @@ packages:
       - ws
       - '@appium/media-proxy'
 
-  appium@4.0.0:
-    resolution: {integrity: sha512-8Ev8mJAMWFQhht2fL7UtjHocsdfTfec+xd2aydSZbcJJIs3JKudP8UPH867Rv1feeXD1hd2K4SJh5JF5u1hOaA==}
+  appium@4.0.1:
+    resolution: {integrity: sha512-0xVTeYmTm6h37Cq7nqYjpurBpXTE6XgAFBKaVAo/SY3H9qeADF2pCpZNR0ClJjmlmNZjeiQ7nbK9EHC62JqyXw==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
     hasBin: true
 
   archiver@8.0.0:
     resolution: {integrity: sha512-fV1orZfsnPn9BaSByR/qE67rJCLJEy2Ox5bq7nJh+jquWaNh6Sfec75kJ2T6PtdGUbPQlrVoSVCEOa5SdiTQ1g==}
     engines: {node: '>=18'}
-
-  argparse@3.0.3:
-    resolution: {integrity: sha512-Sn98ftV3KfsO8xfLPHG6oT8y+b0yvbrLgZjgPDXsharNY15tTAjqIsIju4S32nl6/iEUNNE4v+yL2Zhm8ooP3w==}
 
   argparse@3.0.4:
     resolution: {integrity: sha512-fwWK3Zq22l4XJJjx5mcBHGikIk+hJqO+32dPm0Jur7+rtG5x1scOjSfdT9ZKeWHPpsya/l0HHK4tDImBkTrtvA==}
@@ -2480,15 +2477,15 @@ packages:
   async@3.2.6:
     resolution: {integrity: sha512-htCUDlxyyCLMgaM3xXg0C0LW2xqfuQ6p05pCEIsXuyQ+a1koYKTuBMzRNwmybfLgvJDMd0r1LTn4+E0Ti6C2AA==}
 
-  asyncbox@6.6.0:
-    resolution: {integrity: sha512-sl3oWB7x196p2Rc1WZa6YgzWZp24vwIGj8+P8e1BICskW55gH/iePMflsVe+jyn8Dle5wrTg+GL5/nS7SaYFUQ==}
-    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0, npm: '>=10'}
+  asyncbox@7.1.0:
+    resolution: {integrity: sha512-1uYOcGTatZ1ROpTc5Fve/rev83fsz9CRL7OG/q283bxgHJqKuR/wlqq8N7Glde9ElAkKZ7RPhdHaIFqNhSIz/Q==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
 
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
 
-  axios@1.20.0:
-    resolution: {integrity: sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==}
+  axios@1.21.1:
+    resolution: {integrity: sha512-6eI5Q/Y4u/Um9dDlsRoq5pY2rxnUTv+L4PpLitnbk/i4jb3MxLZ5CsN5Ih3IysbeRYK4pR+P7qfMsOQl9fwwFQ==}
 
   axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
@@ -3534,8 +3531,8 @@ packages:
     resolution: {integrity: sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==}
     engines: {node: '>= 12.0.0'}
 
-  lilconfig@3.1.4:
-    resolution: {integrity: sha512-zJZyBmQhArDRefuWTypZxwDpFDIYmrj8ypSBvwGD5P13Y95s6DjzKgu4DVdGbeQa5PDEsAOCAPNk4X+QOR006w==}
+  lilconfig@3.1.5:
+    resolution: {integrity: sha512-aRAOI9Ia43ygL4o1EOmC/sc/0OFxrm7qcQngiIyWaqVnSnz932ybJ07zyCcgMNGSDP8Yxaf88Xj1zHEXmvQ4SA==}
     engines: {node: '>=14'}
 
   locate-app@2.5.0:
@@ -3755,10 +3752,6 @@ packages:
     resolution: {integrity: sha512-TYOanM3wGwNGsZN2cVTYPArw454xnXj5qmWF1bEoAc4+cU/ol7GVh7odevjp1FNHduHc3KZMcFduxU5Xc6uJRQ==}
     engines: {node: '>=10'}
 
-  p-limit@7.3.2:
-    resolution: {integrity: sha512-Ll0w3fU24vYpXoZmjjZIee6bJQDgG0oAyo1PdmFYI8UDwJJddaHAypxIH9avUu+t+lSsAwKVsb1jDCMIIChliw==}
-    engines: {node: '>=20'}
-
   p-locate@5.0.0:
     resolution: {integrity: sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw==}
     engines: {node: '>=10'}
@@ -3814,6 +3807,9 @@ packages:
 
   path-to-regexp@8.4.2:
     resolution: {integrity: sha512-qRcuIdP69NPm4qbACK+aDogI5CBDMi1jKe0ry5rSQJz8JVLsC7jV8XpiJjGRLLol3N+R5ihGYcrPLTno6pAdBA==}
+
+  path-to-regexp@9.0.0:
+    resolution: {integrity: sha512-kfo5HIFCfEH24bcHSWEFIfrwiCsm/DXR+j1fc0696VIdWkICdAcKH2LxRClvz5HQcG4iCQpb4qBZ7pttGPG/dA==}
 
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
@@ -4011,11 +4007,6 @@ packages:
   sanitize-filename@1.6.4:
     resolution: {integrity: sha512-9ZyI08PsvdQl2r/bBIGubpVdR3RR9sY6RDiWFPreA21C/EFlQhmgo20UZlNjZMMZNubusLhAQozkA0Od5J21Eg==}
 
-  semver@7.8.5:
-    resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
-    engines: {node: '>=10'}
-    hasBin: true
-
   semver@7.8.6:
     resolution: {integrity: sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw==}
     engines: {node: '>=10'}
@@ -4206,9 +4197,9 @@ packages:
   tar-stream@3.2.0:
     resolution: {integrity: sha512-ojzvCvVaNp6aOTFmG7jaRD0meowIAuPc3cMMhSgKiVWws1GyHbGd/xvnyuRKcKlMpt3qvxx6r0hreCNITP9hIg==}
 
-  teen_process@4.2.1:
-    resolution: {integrity: sha512-jtLcBR01HF2z2FGhfvuMpbr+y8wnVQumrh947dLz5Iodv2iZGIJg79TVYK9oznXb5gkQznxdwgonxGQLhmWeWg==}
-    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0, npm: '>=10'}
+  teen_process@5.0.1:
+    resolution: {integrity: sha512-CKoQTxel3OsxvXXj4GX8vRXRVei3+y/SCIwNj+fxy0EkFPMZdpssGPpTWFocDTxNtWTglqNb67UpBO5PuEsZ8w==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0, npm: '>=10'}
 
   teex@1.0.1:
     resolution: {integrity: sha512-eYE6iEI62Ni1H8oIa7KlDU6uQBtqr4Eajni3wX7rpfXD8ysFx8z0+dri+KWEPWpBsxXfxu58x/0jvTVT1ekOSg==}
@@ -4591,8 +4582,8 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.22.0:
-    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
+  ws@8.23.0:
+    resolution: {integrity: sha512-wCkmX8QMOrKjgO8HW2WyDbTSGeqkocxgDzS9iR79rEAexty6/2qzilx3Ag8Tqf9ykop3irLKle0MtVn5qjVnoQ==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -4636,10 +4627,6 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
-  yocto-queue@1.2.2:
-    resolution: {integrity: sha512-4LCcse/U2MHZ63HAJVE+v71o7yOdIe4cZ70Wpf8D/IyjDKYQLV5GD46B+hSTjJsvV5PztjvHoU580EftxjDZFQ==}
-    engines: {node: '>=12.20'}
-
   yocto-spinner@1.2.2:
     resolution: {integrity: sha512-DODGl1wJjA/s5pnJFKau9lIYHT81lnhob1i3e1TjxZRxEhWRKl74nTbWE6H5KlkViQQTo/Z29YFdxzTZAMY3ng==}
     engines: {node: '>=18.19'}
@@ -4668,14 +4655,14 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.3.1
 
-  '@appium/base-driver@11.0.0(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
+  '@appium/base-driver@11.0.1(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
     dependencies:
-      '@appium/support': 8.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/support': 8.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       '@appium/types': 2.0.0(@appium/logger@3.0.0)
-      asyncbox: 6.6.0
-      axios: 1.20.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      asyncbox: 7.1.0
+      axios: 1.21.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       lru-cache: 11.5.3
-      path-to-regexp: 8.4.2
+      path-to-regexp: 9.0.0
       picomatch: 4.0.7
     transitivePeerDependencies:
       - '@appium/logger'
@@ -4685,10 +4672,10 @@ snapshots:
       - react-native-b4a
       - supports-color
 
-  '@appium/base-plugin@4.0.0(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
+  '@appium/base-plugin@4.0.1(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
     dependencies:
-      '@appium/base-driver': 11.0.0(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
-      '@appium/support': 8.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/base-driver': 11.0.1(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/support': 8.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       '@appium/types': 2.0.0(@appium/logger@3.0.0)
     transitivePeerDependencies:
       - '@appium/logger'
@@ -4698,14 +4685,14 @@ snapshots:
       - react-native-b4a
       - supports-color
 
-  '@appium/docutils@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
+  '@appium/docutils@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
     dependencies:
-      '@appium/support': 8.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/support': 8.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       consola: 3.4.2
       diff: 9.0.0
-      lilconfig: 3.1.4
+      lilconfig: 3.1.5
       normalize-package-data: 9.0.0
-      teen_process: 4.2.1
+      teen_process: 5.0.1
       yaml: 2.9.1
       yargs: 18.2.0
       yargs-parser: 22.0.0
@@ -4716,17 +4703,17 @@ snapshots:
       - react-native-b4a
       - supports-color
 
-  '@appium/http-server@1.0.0(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
+  '@appium/http-server@1.0.1(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
     dependencies:
-      '@appium/base-driver': 11.0.0(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
-      '@appium/support': 8.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/base-driver': 11.0.1(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/support': 8.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       '@appium/types': 2.0.0(@appium/logger@3.0.0)
       '@types/express': 5.0.6
       body-parser: 2.4.0(supports-color@8.1.1)
       express: 5.2.1(supports-color@8.1.1)
       method-override: 3.0.0(supports-color@8.1.1)
       morgan: 1.12.1(supports-color@8.1.1)
-      path-to-regexp: 8.4.2
+      path-to-regexp: 9.0.0
     transitivePeerDependencies:
       - '@appium/logger'
       - bare-abort-controller
@@ -4743,21 +4730,21 @@ snapshots:
     dependencies:
       '@types/json-schema': 7.0.15
 
-  '@appium/support@8.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
+  '@appium/support@8.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)':
     dependencies:
       '@appium/logger': 3.0.0
       '@appium/types': 2.0.0(@appium/logger@3.0.0)
       archiver: 8.0.0
-      asyncbox: 6.6.0
-      axios: 1.20.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      asyncbox: 7.1.0
+      axios: 1.21.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       lockfile: 1.0.4
       mime-types: 3.0.2
       plist: 5.1.1
       pluralize: 8.0.0
       sanitize-filename: 1.6.4
-      semver: 7.8.5
+      semver: 7.8.6
       shell-quote: 1.12.0
-      teen_process: 4.2.1
+      teen_process: 5.0.1
       which: 7.0.0
       yauzl: 3.4.0
     transitivePeerDependencies:
@@ -6279,7 +6266,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
-  '@wdio/appium-service@10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)(yauzl@3.4.0)':
+  '@wdio/appium-service@10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)(yauzl@3.4.0)':
     dependencies:
       '@wdio/config': 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
       '@wdio/logger': 10.2.0
@@ -6293,7 +6280,7 @@ snapshots:
       webdriverio: 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
       xpath: 0.0.36
     optionalDependencies:
-      appium: 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      appium: 4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
@@ -6306,14 +6293,14 @@ snapshots:
       - utf-8-validate
       - yauzl
 
-  '@wdio/cli@10.2.0(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(yauzl@3.4.0)':
+  '@wdio/cli@10.2.0(@types/node@26.6.6)(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(yauzl@3.4.0)':
     dependencies:
       '@vitest/snapshot': 5.0.3
       '@wdio/config': 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
       '@wdio/globals': 10.2.0(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))
       '@wdio/logger': 10.2.0
       '@wdio/protocols': 10.2.0
-      '@wdio/session': 10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)
+      '@wdio/session': 10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)
       '@wdio/types': 10.2.0
       '@wdio/utils': 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
       async-exit-hook: 2.0.1
@@ -6377,14 +6364,14 @@ snapshots:
       expect-webdriverio: 8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))
       webdriverio: 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
 
-  '@wdio/local-runner@10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)':
+  '@wdio/local-runner@10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)':
     dependencies:
       '@types/node': 22.20.5
       '@types/split2': 4.2.3
       '@wdio/display-server': 10.2.0
       '@wdio/logger': 10.2.0
       '@wdio/repl': 10.2.0
-      '@wdio/runner': 10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)
+      '@wdio/runner': 10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)
       '@wdio/types': 10.2.0
       exit-hook: 5.1.0
       expect-webdriverio: 8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))
@@ -6437,14 +6424,14 @@ snapshots:
       diff: 9.0.0
       object-inspect: 1.13.4
 
-  '@wdio/runner@10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)':
+  '@wdio/runner@10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)':
     dependencies:
       '@types/node': 22.20.5
       '@wdio/config': 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
       '@wdio/dot-reporter': 10.2.0
       '@wdio/globals': 10.2.0(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))
       '@wdio/logger': 10.2.0
-      '@wdio/session': 10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)
+      '@wdio/session': 10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)
       '@wdio/types': 10.2.0
       '@wdio/utils': 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
       deepmerge-ts: 8.0.2
@@ -6463,7 +6450,7 @@ snapshots:
       - utf-8-validate
       - yauzl
 
-  '@wdio/session@10.2.0(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)':
+  '@wdio/session@10.2.0(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(expect-webdriverio@8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0)))(supports-color@8.1.1)(tsx@4.23.15)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))(yauzl@3.4.0)':
     dependencies:
       '@types/node': 22.20.5
       '@wdio/config': 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
@@ -6480,7 +6467,7 @@ snapshots:
       webdriverio: 10.2.0(supports-color@8.1.1)(yauzl@3.4.0)
       yargs: 18.2.0
     optionalDependencies:
-      appium: 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      appium: 4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       expect-webdriverio: 8.1.0(@wdio/types@10.2.0)(webdriverio@10.2.0(supports-color@8.1.1)(yauzl@3.4.0))
       tsx: 4.23.15
     transitivePeerDependencies:
@@ -6590,45 +6577,45 @@ snapshots:
 
   ansi-styles@6.2.3: {}
 
-  appium-uiautomator2-driver@10.4.0(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
+  appium-uiautomator2-driver@10.4.0(@types/node@26.6.6)(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
     dependencies:
-      appium: 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      appium: 4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
     optionalDependencies:
       sharp: 0.35.5(@types/node@26.6.6)
     transitivePeerDependencies:
       - '@types/node'
 
-  appium-xcuitest-driver@13.6.1(@types/node@26.6.6)(appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
+  appium-xcuitest-driver@13.8.0(@types/node@26.6.6)(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)):
     dependencies:
-      appium: 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      appium: 4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
     optionalDependencies:
       sharp: 0.35.5(@types/node@26.6.6)
     transitivePeerDependencies:
       - '@types/node'
 
-  appium@4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
+  appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
     dependencies:
-      '@appium/base-driver': 11.0.0(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
-      '@appium/base-plugin': 4.0.0(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
-      '@appium/docutils': 4.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
-      '@appium/http-server': 1.0.0(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/base-driver': 11.0.1(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/base-plugin': 4.0.1(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/docutils': 4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/http-server': 1.0.1(@appium/logger@3.0.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       '@appium/logger': 3.0.0
       '@appium/schema': 2.0.0
-      '@appium/support': 8.0.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@appium/support': 8.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       '@appium/types': 2.0.0(@appium/logger@3.0.0)
       '@sidvind/better-ajv-errors': 7.0.0(ajv@8.20.0)
       ajv: 8.20.0
       ajv-formats: 3.0.1
-      argparse: 3.0.3
-      asyncbox: 6.6.0
-      axios: 1.20.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
-      lilconfig: 3.1.4
+      argparse: 3.0.4
+      asyncbox: 7.1.0
+      axios: 1.21.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      lilconfig: 3.1.5
       lru-cache: 11.5.3
       normalize-package-data: 9.0.0
-      semver: 7.8.5
-      teen_process: 4.2.1
+      semver: 7.8.6
+      teen_process: 5.0.1
       winston: 3.19.0
-      ws: 8.22.0
+      ws: 8.23.0
       yaml: 2.9.1
       yocto-spinner: 1.2.2
     transitivePeerDependencies:
@@ -6656,8 +6643,6 @@ snapshots:
       - bare-buffer
       - react-native-b4a
 
-  argparse@3.0.3: {}
-
   argparse@3.0.4: {}
 
   aria-query@5.3.1: {}
@@ -6670,13 +6655,11 @@ snapshots:
 
   async@3.2.6: {}
 
-  asyncbox@6.6.0:
-    dependencies:
-      p-limit: 7.3.2
+  asyncbox@7.1.0: {}
 
   asynckit@0.4.0: {}
 
-  axios@1.20.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
+  axios@1.21.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1):
     dependencies:
       follow-redirects: 1.16.2(debug@4.4.3(supports-color@8.1.1))
       form-data: 4.0.6
@@ -7713,7 +7696,7 @@ snapshots:
       lightningcss-win32-arm64-msvc: 1.33.0
       lightningcss-win32-x64-msvc: 1.33.0
 
-  lilconfig@3.1.4: {}
+  lilconfig@3.1.5: {}
 
   locate-app@2.5.0:
     dependencies:
@@ -7892,7 +7875,7 @@ snapshots:
   normalize-package-data@9.0.0:
     dependencies:
       hosted-git-info: 10.1.1
-      semver: 7.8.5
+      semver: 7.8.6
       validate-npm-package-license: 3.0.4
 
   normalize-path@3.0.0: {}
@@ -7975,10 +7958,6 @@ snapshots:
     dependencies:
       yocto-queue: 0.1.0
 
-  p-limit@7.3.2:
-    dependencies:
-      yocto-queue: 1.2.2
-
   p-locate@5.0.0:
     dependencies:
       p-limit: 3.1.0
@@ -8026,6 +8005,8 @@ snapshots:
   path-to-regexp@6.3.0: {}
 
   path-to-regexp@8.4.2: {}
+
+  path-to-regexp@9.0.0: {}
 
   pathe@2.0.3: {}
 
@@ -8255,8 +8236,6 @@ snapshots:
   sanitize-filename@1.6.4:
     dependencies:
       truncate-utf8-bytes: 1.0.2
-
-  semver@7.8.5: {}
 
   semver@7.8.6: {}
 
@@ -8502,7 +8481,7 @@ snapshots:
       - bare-buffer
       - react-native-b4a
 
-  teen_process@4.2.1:
+  teen_process@5.0.1:
     dependencies:
       shell-quote: 1.12.0
 
@@ -8752,7 +8731,7 @@ snapshots:
       deepmerge-ts: 8.0.2
       https-proxy-agent: 9.1.0(supports-color@8.1.1)
       undici: 8.12.3
-      ws: 8.22.0
+      ws: 8.23.0
     transitivePeerDependencies:
       - bufferutil
       - kerberos
@@ -8876,7 +8855,7 @@ snapshots:
 
   ws@8.21.0: {}
 
-  ws@8.22.0: {}
+  ws@8.23.0: {}
 
   xmlbuilder@15.1.1: {}
 
@@ -8902,8 +8881,6 @@ snapshots:
       pend: 1.2.0
 
   yocto-queue@0.1.0: {}
-
-  yocto-queue@1.2.2: {}
 
   yocto-spinner@1.2.2:
     dependencies:

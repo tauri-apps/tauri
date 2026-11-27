@@ -123,7 +123,19 @@ jobs:
           profile: pixel_6
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: E2E_SKIP_BUILD=1 E2E_SPEC_RETRIES=1 pnpm test:api-e2e:android
+          # The tauri-android library's own tests run first, on the same emulator: the library
+          # only builds as a module of a generated app, which the step above set up.
+          script: |
+            cd examples/api/src-tauri/gen/android && ./gradlew :tauri-android:testDebugUnitTest :tauri-android:connectedDebugAndroidTest
+            E2E_SKIP_BUILD=1 E2E_SPEC_RETRIES=1 pnpm test:api-e2e:android
+
+      - name: upload tauri-android test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tauri-android-test-reports
+          path: crates/tauri/mobile/android/build/reports
+          if-no-files-found: ignore
 
       - name: upload appium logs
         if: failure()

@@ -41,8 +41,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
-  if output_path.exists() {
-    fs::remove_dir_all(&output_path)?;
+  let package_dir = settings
+    .project_out_directory()
+    .join("bundle/appimage_deb")
+    .join(settings.product_name());
+  if package_dir.exists() {
+    fs::remove_dir_all(&package_dir)?;
   }
 
   let tools_cache_path = settings
@@ -51,7 +55,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .unwrap_or_else(|| {
       dirs::cache_dir().map_or_else(|| output_path.to_path_buf(), |p| p.join("tauri"))
     });
-  let intermediate_tools_path = output_path.join("tools");
+  let intermediate_tools_path = package_dir.join("tools");
 
   fs::create_dir_all(&tools_cache_path)?;
   fs::create_dir_all(&intermediate_tools_path)?;
@@ -62,8 +66,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     tools_arch,
     settings.log_level() != log::Level::Error,
   )?;
-
-  let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
   let main_binary = settings.main_binary()?;
   let product_name = settings.product_name();

@@ -35,8 +35,19 @@ HDIUTIL_VERBOSITY=""
 SANDBOX_SAFE=0
 BLESS=0
 SKIP_JENKINS=0
+# Total number of detach attempts (including the first), controlled via TAURI_DMG_DETACH_ATTEMPTS
 MAXIMUM_UNMOUNTING_ATTEMPTS="${TAURI_DMG_DETACH_ATTEMPTS:-3}"
 DMG_DETACH_DELAY="${TAURI_DMG_DETACH_DELAY:-1}"
+
+if ! [[ "$MAXIMUM_UNMOUNTING_ATTEMPTS" =~ ^[1-9][0-9]*$ ]]; then
+	echo "Warning: TAURI_DMG_DETACH_ATTEMPTS must be a positive integer; using default 3." >&2
+	MAXIMUM_UNMOUNTING_ATTEMPTS=3
+fi
+
+if ! [[ "$DMG_DETACH_DELAY" =~ ^[1-9][0-9]*$ ]]; then
+	echo "Warning: TAURI_DMG_DETACH_DELAY must be a positive integer; using default 1." >&2
+	DMG_DETACH_DELAY=1
+fi
 SIGNATURE=""
 NOTARIZE=""
 

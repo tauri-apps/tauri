@@ -1218,14 +1218,32 @@ macro_rules! shared_app_impl {
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
-        self.manager.resources_table().clear();
+        // take the resources out and drop them after releasing the table locks:
+        // dropping a resource may need the main thread (e.g. tray icons),
+        // which could be waiting for one of these locks
+        let mut resources = vec![self.manager.resources_table().take_all()];
         for (_, window) in self.manager.windows() {
-          window.resources_table().clear();
+          resources.push(window.resources_table().take_all());
           #[cfg(windows)]
           let _ = window.hide();
         }
         for (_, webview) in self.manager.webviews() {
-          webview.resources_table().clear();
+          resources.push(webview.resources_table().take_all());
+        }
+        drop(resources);
+
+        // resources that must be dropped on the main thread (e.g. tray icons) queue
+        // a task there, wait for it to run so the process does not exit before that
+        // (on Windows a tray icon would be left over).
+        // The event loop runs tasks in order, so once this one runs the previous ones did too.
+        let (tx, rx) = std::sync::mpsc::channel();
+        if self
+          .run_on_main_thread(move || {
+            let _ = tx.send(());
+          })
+          .is_ok()
+        {
+          let _ = rx.recv();
         }
       }
 

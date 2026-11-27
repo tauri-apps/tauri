@@ -215,9 +215,10 @@ impl ResourceTable {
       .map(|resource| resource.close())
   }
 
-  /// Removes and frees all resources stored. Note that the
-  /// resource's `close()` method is *not* called.
-  pub(crate) fn clear(&mut self) {
-    self.index.clear()
+  /// Removes all resources stored and returns them, so they can be dropped
+  /// after the table's lock is released. Note that the resource's `close()`
+  /// method is *not* called.
+  pub(crate) fn take_all(&mut self) -> BTreeMap<ResourceId, Arc<dyn Resource>> {
+    std::mem::take(&mut self.index)
   }
 }

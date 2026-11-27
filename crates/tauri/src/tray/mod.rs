@@ -480,22 +480,18 @@ struct TrayIconInner<R: Runtime> {
 
 impl<R: Runtime> Drop for TrayIconInner<R> {
   fn drop(&mut self) {
+    // SAFETY: `inner` is never used again after this
     let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
     // SAFETY: inner was created on main thread and is being dropped on main thread
     let inner = UnsafeSend(inner);
-    let (sender, receiver) = std::sync::mpsc::channel();
-    if self
-      .app_handle
-      .run_on_main_thread(move || {
-        drop(inner.take());
-        sender.send(0).unwrap();
-      })
-      .is_ok()
-    {
-      // We need to wait for the drop to finish on Windows or if we return too early and the program exits,
-      // there will be a left over tray icon
-      receiver.recv().unwrap();
-    }
+    // Do not wait for the main thread here: the last reference is usually dropped
+    // while a lock is held (e.g. the resources table), and blocking on the main thread
+    // there can deadlock. `AppHandle::cleanup_before_exit` waits for pending drops instead.
+    //
+    // If the event loop is gone the closure, and the tray icon, is dropped on this thread.
+    let _ = self.app_handle.run_on_main_thread(move || {
+      drop(inner.take());
+    });
   }
 }
 

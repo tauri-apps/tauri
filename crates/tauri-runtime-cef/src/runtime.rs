@@ -150,26 +150,30 @@ pub enum SecretStorage {
 ///
 /// Defaults to [`SandboxPolicy::Auto`], which keeps the sandbox wherever the runtime can.
 ///
-/// # Windows does not have a sandbox here yet
+/// # Windows needs the bootstrap host
 ///
-/// **Whatever this policy says, a Windows build currently runs unsandboxed.** CEF wants a
-/// sandbox broker pointer that, since Chromium M138, only a binary built with Chromium's
-/// own toolchain can create; CEF supplies prebuilt `bootstrap.exe` hosts for that, and
-/// they load the application as a DLL, which a Tauri application is not. Given a null
-/// broker CEF sets `no_sandbox` itself, so there is no configuration here that changes
-/// the outcome — only whether the runtime warns about it ([`Self::Auto`]) or refuses to
-/// start ([`Self::Required`]).
+/// CEF can only sandbox a Windows process when its `bootstrap.exe` launches the
+/// application and hands the DLL's `RunWinMain` export a sandbox information object.
+/// Since Chromium M138 that object can only be created by a binary built with Chromium's
+/// own toolchain, which is why CEF ships the prebuilt host. A build that ships the
+/// application through `bundle > cef > windowsBootstrap` — a `cdylib` whose
+/// [`cef_entry_point`] function exports `RunWinMain` — keeps the sandbox. A plain
+/// executable has no broker to pass and CEF sets `no_sandbox` itself when it gets a null
+/// one: [`Self::Auto`] logs that loss, and [`Self::Required`] refuses to start.
+///
+/// [`cef_entry_point`]: https://docs.rs/tauri-runtime-cef/latest/tauri_runtime_cef/attr.cef_entry_point.html
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SandboxPolicy {
   /// Keep the sandbox wherever it can be kept, and log a warning naming the reason
   /// wherever it cannot.
   ///
-  /// It cannot be kept in two situations: on Windows, always, for the reason above; and
-  /// on Linux or BSD when the application runs from an AppImage on a system that has
-  /// neither the setuid `chrome-sandbox` helper nor usable unprivileged user namespaces,
-  /// where the alternative is not an unsandboxed application but no application at all,
-  /// since Chromium aborts with "No usable sandbox!".
+  /// It cannot be kept in two situations: on Windows when the process was not launched
+  /// by CEF's bootstrap host, for the reason above; and on Linux or BSD when the
+  /// application runs from an AppImage on a system that has neither the setuid
+  /// `chrome-sandbox` helper nor usable unprivileged user namespaces, where the
+  /// alternative is not an unsandboxed application but no application at all, since
+  /// Chromium aborts with "No usable sandbox!".
   ///
   /// macOS always keeps it.
   #[default]
@@ -179,7 +183,8 @@ pub enum SandboxPolicy {
   /// Pick this when running unsandboxed is not an acceptable outcome and a hard failure
   /// is preferable. On Linux the user can then install the setuid helper, point
   /// `CHROME_DEVEL_SANDBOX` at one, or re-enable unprivileged user namespaces; on Windows
-  /// there is nothing they can do, so this always fails there.
+  /// the build has to ship the application through CEF's bootstrap host, so this fails
+  /// for a plain executable and during `tauri dev`.
   Required,
   /// Always run without a sandbox, on every platform.
   ///
@@ -2769,7 +2774,7 @@ pub fn run_cef_helper_process() {
   let _ = cef::execute_process(
     Some(args.as_main_args()),
     Some(&mut app),
-    std::ptr::null_mut(),
+    crate::sandbox::windows_sandbox_info(),
   );
 }
 
@@ -3081,7 +3086,7 @@ impl<T: UserEvent> CefRuntime<T> {
       let ret = cef::execute_process(
         Some(args.as_main_args()),
         Some(&mut helper_app),
-        std::ptr::null_mut(),
+        crate::sandbox::windows_sandbox_info(),
       );
       // A subprocess finished its work; exit with its exit code instead of
       // falling through to browser runtime initialization.
@@ -3419,7 +3424,7 @@ impl<T: UserEvent> CefRuntime<T> {
     let ret = cef::execute_process(
       Some(args.as_main_args()),
       Some(&mut app),
-      std::ptr::null_mut(),
+      crate::sandbox::windows_sandbox_info(),
     );
     assert_eq!(
       ret, -1,
@@ -3500,7 +3505,7 @@ impl<T: UserEvent> CefRuntime<T> {
       Some(args.as_main_args()),
       Some(&settings),
       Some(&mut app),
-      std::ptr::null_mut(),
+      crate::sandbox::windows_sandbox_info(),
     ) != 1
     {
       return Err(Error::WebviewRuntimeNotInstalled);

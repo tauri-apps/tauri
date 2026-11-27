@@ -2675,6 +2675,15 @@ wrap_with_args! {
           }
         }
 
+        // The command line the singleton relays carries the switches CEF and we add, ahead of
+        // the positional arguments, and nothing at all when the lockdown cleared it. Record
+        // the real argv for `AppHandleCefExt::on_relaunch`. Chromium ignores the switch and
+        // does not pass it on to child processes.
+        command_line.append_switch_with_value(
+          Some(&CefString::from(RELAUNCH_ARGV_SWITCH)),
+          Some(&CefString::from(encode_relaunch_argv().as_str())),
+        );
+
         append_command_line_args(command_line, &self.browser_command_line_args);
 
         // Last, and merging rather than replacing: CEF has already written its own
@@ -2716,6 +2725,26 @@ wrap_with_args! {
 /// (`crates/tauri-bundler/cef-helper/main.rs`), which parses this switch itself. Keep
 /// both in sync.
 pub(crate) const API_VERSION_SWITCH: &str = "tauri-cef-api-version";
+
+/// Carries a browser process's original argv to the instance Chromium's process singleton
+/// relays its command line to.
+pub(crate) const RELAUNCH_ARGV_SWITCH: &str = "tauri-relaunch-argv";
+
+fn encode_relaunch_argv() -> String {
+  let argv: Vec<String> = std::env::args_os()
+    .map(|arg| arg.to_string_lossy().into_owned())
+    .collect();
+  base64::Engine::encode(
+    &base64::engine::general_purpose::URL_SAFE_NO_PAD,
+    serde_json::to_vec(&argv).unwrap_or_default(),
+  )
+}
+
+pub(crate) fn decode_relaunch_argv(value: &str) -> Option<Vec<String>> {
+  let json =
+    base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, value).ok()?;
+  serde_json::from_slice(&json).ok()
+}
 
 /// The CEF API version the browser process passed to this child process.
 ///

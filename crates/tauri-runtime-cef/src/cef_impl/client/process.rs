@@ -68,10 +68,17 @@ wrap_browser_process_handler! {
       // Clone it out so the handler can replace itself without deadlocking.
       let handler = self.context.relaunch_handler.lock().unwrap().clone();
       if let Some(handler) = handler {
-        let mut argv = CefStringList::new();
-        command_line.argv(Some(&mut argv));
+        let relayed = CefString::from(&command_line.switch_value(Some(&CefString::from(
+          crate::runtime::RELAUNCH_ARGV_SWITCH,
+        ))))
+        .to_string();
+        let argv = crate::runtime::decode_relaunch_argv(&relayed).unwrap_or_else(|| {
+          let mut argv = CefStringList::new();
+          command_line.argv(Some(&mut argv));
+          argv.into_iter().collect()
+        });
         let cwd = current_directory.map(ToString::to_string).unwrap_or_default();
-        handler(argv.into_iter().collect(), cwd);
+        handler(argv, cwd);
       }
       1
     }

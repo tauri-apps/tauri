@@ -48,7 +48,7 @@ wrap_browser_process_handler! {
     fn on_already_running_app_relaunch(
       &self,
       command_line: Option<&mut CommandLine>,
-      _current_directory: Option<&CefString>,
+      current_directory: Option<&CefString>,
     ) -> std::os::raw::c_int {
       let Some(command_line) = command_line else {
         return 0;
@@ -65,8 +65,13 @@ wrap_browser_process_handler! {
           return 1;
         }
       }
-      if let Some(handler) = &self.context.relaunch_handler {
-        handler();
+      // Clone it out so the handler can replace itself without deadlocking.
+      let handler = self.context.relaunch_handler.lock().unwrap().clone();
+      if let Some(handler) = handler {
+        let mut argv = CefStringList::new();
+        command_line.argv(Some(&mut argv));
+        let cwd = current_directory.map(ToString::to_string).unwrap_or_default();
+        handler(argv.into_iter().collect(), cwd);
       }
       1
     }

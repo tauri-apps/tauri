@@ -901,6 +901,37 @@ tauri::Builder::default()
 
     Ok(webview)
   }
+
+  /// Creates a new webview on the given window without blocking the calling thread.
+  #[cfg(desktop)]
+  pub(crate) async fn build_async(self, window: Window<R>) -> crate::Result<Webview<R>> {
+    let app_manager = window.manager();
+
+    let pending = self.into_pending_webview(&window, window.label())?;
+
+    let use_https_scheme = pending.webview_attributes.use_https_scheme;
+    let devtools = pending.webview_attributes.devtools;
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    match &mut window.runtime() {
+      RuntimeOrDispatch::Dispatch(dispatcher) => {
+        dispatcher.create_webview_async(pending, move |res| {
+          let _ = tx.send(res);
+        });
+      }
+      _ => unimplemented!(),
+    }
+
+    let detached = rx
+      .await
+      .map_err(|_| crate::Error::Runtime(tauri_runtime::Error::FailedToReceiveMessage))??;
+
+    Ok(
+      app_manager
+        .webview
+        .attach_webview(window.clone(), detached, use_https_scheme, devtools),
+    )
+  }
 }
 
 /// Webview attributes.

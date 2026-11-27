@@ -27,7 +27,7 @@ use url::Url;
 use windows::Win32::Foundation::HWND;
 
 use std::{
-  cell::RefCell,
+  cell::{Cell, RefCell},
   collections::HashMap,
   fmt,
   sync::{
@@ -38,6 +38,32 @@ use std::{
 };
 
 type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
+
+thread_local! {
+  static MOCK_REENTRANT_CALLBACK_DEPTH: Cell<u32> = const { Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) struct MockReentrantCallbackGuard;
+
+#[cfg(test)]
+impl MockReentrantCallbackGuard {
+  pub(crate) fn enter() -> Self {
+    MOCK_REENTRANT_CALLBACK_DEPTH.with(|depth| depth.set(depth.get() + 1));
+    Self
+  }
+}
+
+#[cfg(test)]
+impl Drop for MockReentrantCallbackGuard {
+  fn drop(&mut self) {
+    MOCK_REENTRANT_CALLBACK_DEPTH.with(|depth| depth.set(depth.get().saturating_sub(1)));
+  }
+}
+
+fn is_in_reentrant_callback() -> bool {
+  MOCK_REENTRANT_CALLBACK_DEPTH.with(|depth| depth.get() > 0)
+}
 
 enum Message {
   Task(Box<dyn FnOnce() + Send>),
@@ -102,6 +128,140 @@ impl RuntimeContext {
   fn next_webview_id(&self) -> u32 {
     self.next_webview_id.fetch_add(1, Ordering::Relaxed)
   }
+
+  fn create_window_inner<T: UserEvent>(
+    &self,
+    pending: PendingWindow<T, MockRuntime>,
+  ) -> Result<DetachedWindow<T, MockRuntime>> {
+    let id = self.next_window_id();
+
+    let (webview_id, webviews) = if pending.webview.is_some() {
+      (Some(self.next_webview_id()), vec![Webview])
+    } else {
+      (None, Vec::new())
+    };
+
+    self.windows.borrow_mut().insert(
+      id,
+      Window {
+        label: pending.label.clone(),
+        webviews,
+      },
+    );
+
+    let webview = webview_id.map(|id| {
+      let w = pending.webview.as_ref().unwrap();
+      DetachedWindowWebview {
+        webview: DetachedWebview {
+          label: pending.label.clone(),
+          dispatcher: MockWebviewDispatcher {
+            id,
+            context: self.clone(),
+            url: Arc::new(Mutex::new(w.url.clone())),
+            last_evaluated_script: Default::default(),
+          },
+        },
+        use_https_scheme: w.webview_attributes.use_https_scheme,
+        devtools: w.webview_attributes.devtools,
+      }
+    });
+
+    Ok(DetachedWindow {
+      id,
+      label: pending.label,
+      dispatcher: MockWindowDispatcher {
+        id,
+        context: self.clone(),
+      },
+      webview,
+    })
+  }
+
+  fn create_window<T: UserEvent>(
+    &self,
+    pending: PendingWindow<T, MockRuntime>,
+  ) -> Result<DetachedWindow<T, MockRuntime>> {
+    if std::thread::current().id() == self.main_thread_id && is_in_reentrant_callback() {
+      return Err(Error::ReentrantWindowCreation);
+    }
+    self.create_window_inner(pending)
+  }
+
+  fn create_window_async<
+    T: UserEvent,
+    C: FnOnce(Result<DetachedWindow<T, MockRuntime>>) + Send + 'static,
+  >(
+    &self,
+    pending: PendingWindow<T, MockRuntime>,
+    callback: C,
+  ) {
+    if self.is_running.load(Ordering::Relaxed) {
+      let ctx = self.clone();
+      if self
+        .run_tx
+        .send(Message::Task(Box::new(move || {
+          callback(ctx.create_window_inner(pending));
+        })))
+        .is_err()
+      {
+        // Note: `SendError` consumed the closure; only fails if event loop stopped.
+      }
+    } else {
+      callback(self.create_window_inner(pending));
+    }
+  }
+
+  fn create_webview_inner<T: UserEvent>(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, MockRuntime>,
+  ) -> Result<DetachedWebview<T, MockRuntime>> {
+    let id = self.next_webview_id();
+    let webview = Webview;
+    if let Some(w) = self.windows.borrow_mut().get_mut(&window_id) {
+      w.webviews.push(webview);
+    }
+
+    Ok(DetachedWebview {
+      label: pending.label,
+      dispatcher: MockWebviewDispatcher {
+        id,
+        context: self.clone(),
+        last_evaluated_script: Default::default(),
+        url: Arc::new(Mutex::new(pending.url)),
+      },
+    })
+  }
+
+  fn create_webview<T: UserEvent>(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, MockRuntime>,
+  ) -> Result<DetachedWebview<T, MockRuntime>> {
+    if std::thread::current().id() == self.main_thread_id && is_in_reentrant_callback() {
+      return Err(Error::ReentrantWindowCreation);
+    }
+    self.create_webview_inner(window_id, pending)
+  }
+
+  fn create_webview_async<
+    T: UserEvent,
+    C: FnOnce(Result<DetachedWebview<T, MockRuntime>>) + Send + 'static,
+  >(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, MockRuntime>,
+    callback: C,
+  ) {
+    if self.is_running.load(Ordering::Relaxed) {
+      let ctx = self.clone();
+      let _ = self.run_tx.send(Message::Task(Box::new(move || {
+        callback(ctx.create_webview_inner(window_id, pending));
+      })));
+    } else {
+      callback(self.create_webview_inner(window_id, pending));
+    }
+  }
 }
 
 impl fmt::Debug for RuntimeContext {
@@ -155,48 +315,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     pending: PendingWindow<T, Self::Runtime>,
     _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    let id = self.context.next_window_id();
-
-    let (webview_id, webviews) = if let Some(w) = &pending.webview {
-      (Some(self.context.next_webview_id()), vec![Webview])
-    } else {
-      (None, Vec::new())
-    };
-
-    self.context.windows.borrow_mut().insert(
-      id,
-      Window {
-        label: pending.label.clone(),
-        webviews,
-      },
-    );
-
-    let webview = webview_id.map(|id| {
-      let w = pending.webview.as_ref().unwrap();
-      DetachedWindowWebview {
-        webview: DetachedWebview {
-          label: pending.label.clone(),
-          dispatcher: MockWebviewDispatcher {
-            id,
-            context: self.context.clone(),
-            url: Arc::new(Mutex::new(w.url.clone())),
-            last_evaluated_script: Default::default(),
-          },
-        },
-        use_https_scheme: w.webview_attributes.use_https_scheme,
-        devtools: w.webview_attributes.devtools,
-      }
-    });
-
-    Ok(DetachedWindow {
-      id,
-      label: pending.label,
-      dispatcher: MockWindowDispatcher {
-        id,
-        context: self.context.clone(),
-      },
-      webview,
-    })
+    self.context.create_window(pending)
   }
 
   fn create_webview(
@@ -204,21 +323,30 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     window_id: WindowId,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
-    let id = self.context.next_webview_id();
-    let webview = Webview;
-    if let Some(w) = self.context.windows.borrow_mut().get_mut(&window_id) {
-      w.webviews.push(webview);
-    }
+    self.context.create_webview(window_id, pending)
+  }
 
-    Ok(DetachedWebview {
-      label: pending.label,
-      dispatcher: MockWebviewDispatcher {
-        id,
-        context: self.context.clone(),
-        last_evaluated_script: Default::default(),
-        url: Arc::new(Mutex::new(pending.url)),
-      },
-    })
+  fn create_window_async<
+    F: Fn(RawWindow<'_>) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, Self::Runtime>>) + Send + 'static,
+  >(
+    &self,
+    pending: PendingWindow<T, Self::Runtime>,
+    _after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    self.context.create_window_async(pending, callback)
+  }
+
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, Self::Runtime>>) + Send + 'static>(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self::Runtime>,
+    callback: C,
+  ) {
+    self
+      .context
+      .create_webview_async(window_id, pending, callback)
   }
 
   /// Run a task on the main thread.
@@ -896,69 +1024,36 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     pending: PendingWindow<T, Self::Runtime>,
     _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>> {
-    let id = self.context.next_window_id();
-
-    let (webview_id, webviews) = if let Some(w) = &pending.webview {
-      (Some(self.context.next_webview_id()), vec![Webview])
-    } else {
-      (None, Vec::new())
-    };
-
-    self.context.windows.borrow_mut().insert(
-      id,
-      Window {
-        label: pending.label.clone(),
-        webviews,
-      },
-    );
-
-    let webview = webview_id.map(|id| {
-      let w = pending.webview.as_ref().unwrap();
-      DetachedWindowWebview {
-        webview: DetachedWebview {
-          label: pending.label.clone(),
-          dispatcher: MockWebviewDispatcher {
-            id,
-            context: self.context.clone(),
-            url: Arc::new(Mutex::new(w.url.clone())),
-            last_evaluated_script: Default::default(),
-          },
-        },
-        use_https_scheme: w.webview_attributes.use_https_scheme,
-        devtools: w.webview_attributes.devtools,
-      }
-    });
-
-    Ok(DetachedWindow {
-      id,
-      label: pending.label,
-      dispatcher: MockWindowDispatcher {
-        id,
-        context: self.context.clone(),
-      },
-      webview,
-    })
+    self.context.create_window(pending)
   }
 
   fn create_webview(
     &mut self,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
-    let id = self.context.next_webview_id();
-    let webview = Webview;
-    if let Some(w) = self.context.windows.borrow_mut().get_mut(&self.id) {
-      w.webviews.push(webview);
-    }
+    self.context.create_webview(self.id, pending)
+  }
 
-    Ok(DetachedWebview {
-      label: pending.label,
-      dispatcher: MockWebviewDispatcher {
-        id,
-        context: self.context.clone(),
-        last_evaluated_script: Default::default(),
-        url: Arc::new(Mutex::new(pending.url)),
-      },
-    })
+  fn create_window_async<
+    F: Fn(RawWindow<'_>) + Send + 'static,
+    C: FnOnce(Result<DetachedWindow<T, Self::Runtime>>) + Send + 'static,
+  >(
+    &mut self,
+    pending: PendingWindow<T, Self::Runtime>,
+    _after_window_creation: Option<F>,
+    callback: C,
+  ) {
+    self.context.create_window_async(pending, callback)
+  }
+
+  fn create_webview_async<C: FnOnce(Result<DetachedWebview<T, Self::Runtime>>) + Send + 'static>(
+    &mut self,
+    pending: PendingWebview<T, Self::Runtime>,
+    callback: C,
+  ) {
+    self
+      .context
+      .create_webview_async(self.id, pending, callback)
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1256,48 +1351,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     pending: PendingWindow<T, Self>,
     _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
-    let id = self.context.next_window_id();
-
-    let (webview_id, webviews) = if let Some(w) = &pending.webview {
-      (Some(self.context.next_webview_id()), vec![Webview])
-    } else {
-      (None, Vec::new())
-    };
-
-    self.context.windows.borrow_mut().insert(
-      id,
-      Window {
-        label: pending.label.clone(),
-        webviews,
-      },
-    );
-
-    let webview = webview_id.map(|id| {
-      let w = pending.webview.as_ref().unwrap();
-      DetachedWindowWebview {
-        webview: DetachedWebview {
-          label: pending.label.clone(),
-          dispatcher: MockWebviewDispatcher {
-            id,
-            context: self.context.clone(),
-            url: Arc::new(Mutex::new(w.url.clone())),
-            last_evaluated_script: Default::default(),
-          },
-        },
-        use_https_scheme: w.webview_attributes.use_https_scheme,
-        devtools: w.webview_attributes.devtools,
-      }
-    });
-
-    Ok(DetachedWindow {
-      id,
-      label: pending.label,
-      dispatcher: MockWindowDispatcher {
-        id,
-        context: self.context.clone(),
-      },
-      webview,
-    })
+    self.context.create_window(pending)
   }
 
   fn create_webview(
@@ -1305,21 +1359,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     window_id: WindowId,
     pending: PendingWebview<T, Self>,
   ) -> Result<DetachedWebview<T, Self>> {
-    let id = self.context.next_webview_id();
-    let webview = Webview;
-    if let Some(w) = self.context.windows.borrow_mut().get_mut(&window_id) {
-      w.webviews.push(webview);
-    }
-
-    Ok(DetachedWebview {
-      label: pending.label,
-      dispatcher: MockWebviewDispatcher {
-        id,
-        context: self.context.clone(),
-        last_evaluated_script: Default::default(),
-        url: Arc::new(Mutex::new(pending.url)),
-      },
-    })
+    self.context.create_webview(window_id, pending)
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {

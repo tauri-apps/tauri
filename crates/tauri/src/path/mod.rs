@@ -344,8 +344,7 @@ impl<R: Runtime> PathResolver<R> {
 
     #[cfg(windows)]
     if path.extension().is_none_or(|ext| ext != "exe") {
-      // do not use with_extension to retain dots in the file name
-      path.as_mut_os_string().push(".exe");
+      path.add_extension("exe");
     }
 
     #[cfg(not(windows))]

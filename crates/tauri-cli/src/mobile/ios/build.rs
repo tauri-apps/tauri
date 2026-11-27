@@ -518,7 +518,7 @@ fn run_build(
           .join("Products")
           .join("Applications")
           .join(config.app().stylized_name())
-          .with_extension("app");
+          .with_added_extension("app");
 
         let path = out_dir.join(app_path.file_name().unwrap());
         // `rename` does not replace a non-empty directory, such as the previous build
@@ -537,11 +537,11 @@ fn run_build(
           .join("Products")
           .join("Applications")
           .join(config.app().stylized_name())
-          .with_extension("app");
+          .with_added_extension("app");
 
         let ipa_path = out_dir
           .join(config.app().stylized_name())
-          .with_extension("ipa");
+          .with_added_extension("ipa");
         create_ipa(&app_path, &ipa_path)?;
         out_files.push(ipa_path);
       } else {

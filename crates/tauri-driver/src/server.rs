@@ -50,11 +50,13 @@ impl TauriOptions {
 
   #[cfg(target_os = "windows")]
   fn into_native_object(self) -> Map<String, Value> {
+    let mut application = self.application;
+    if application.extension().is_none_or(|ext| ext != "exe") {
+      application.add_extension("exe");
+    }
+
     let mut ms_edge_options = Map::new();
-    ms_edge_options.insert(
-      "binary".into(),
-      json!(self.application.with_extension("exe")),
-    );
+    ms_edge_options.insert("binary".into(), json!(application));
     ms_edge_options.insert("args".into(), self.args.into());
 
     if let Some(webview_options) = self.webview_options {

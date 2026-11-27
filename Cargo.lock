@@ -5937,6 +5937,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pem"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d354a98a3d1251555de99e8fdd8afda05573c31b82f59063a7b0a29b5527f120"
+dependencies = [
+ "base64 0.23.1",
+ "serde_core",
+]
+
+[[package]]
 name = "pem-rfc7468"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8818,6 +8828,7 @@ dependencies = [
  "oxc_ast",
  "oxc_parser",
  "oxc_span",
+ "p256",
  "percent-encoding",
  "phf 0.14.0",
  "plist",
@@ -8933,20 +8944,25 @@ dependencies = [
  "bcder",
  "bytes",
  "chrono",
+ "core-foundation 0.10.0",
  "dirs",
  "hex",
  "log",
  "os_pipe",
  "p12",
+ "pem 4.0.0",
  "plist",
  "rand 0.10.3",
  "regex",
  "rsa 0.10.0",
+ "security-framework 3.5.1",
+ "security-framework-sys",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "x509-certificate",
+ "yasna",
 ]
 
 [[package]]
@@ -10946,7 +10962,7 @@ dependencies = [
  "chrono",
  "der 0.7.9",
  "hex",
- "pem",
+ "pem 3.0.4",
  "ring",
  "signature 2.2.0",
  "spki 0.7.3",

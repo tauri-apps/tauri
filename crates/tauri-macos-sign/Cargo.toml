@@ -32,6 +32,13 @@ rsa = "0.10"
 hex = "0.4"
 bcder = "0.7"
 bytes = "1"
+pem = "4"
+yasna = "0.5"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+security-framework = "3"
+security-framework-sys = "2"
+core-foundation = "0.10"
 
 [lints]
 workspace = true

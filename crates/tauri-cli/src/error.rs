@@ -23,7 +23,6 @@ pub enum Error {
     command: String,
     error: std::io::Error,
   },
-  #[cfg(target_os = "macos")]
   #[error(transparent)]
   MacosSign(#[from] Box<tauri_macos_sign::Error>),
 }

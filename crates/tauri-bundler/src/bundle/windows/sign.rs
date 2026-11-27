@@ -23,11 +23,9 @@ impl Settings {
         .as_ref()
         .map(|algorithm| algorithm.to_string())
         .unwrap_or_else(|| "sha256".to_string()),
-      certificate_thumbprint: self
-        .windows()
-        .certificate_thumbprint
-        .clone()
-        .unwrap_or_default(),
+      certificate_thumbprint: certificate_thumbprint(
+        self.windows().certificate_thumbprint.as_deref(),
+      ),
       timestamp_url: self
         .windows()
         .timestamp_url
@@ -37,6 +35,80 @@ impl Settings {
       sign_command: self.windows().sign_command.clone(),
     }
   }
+}
+
+/// Resolves the thumbprint of the certificate used by signtool.
+///
+/// The certificate from the `WINDOWS_CERTIFICATE` environment variable is imported into the
+/// current user's certificate store, which is required for signtool to find it even when the
+/// thumbprint is set in the configuration.
+fn certificate_thumbprint(configured: Option<&str>) -> String {
+  #[cfg(windows)]
+  let from_env = env_certificate_thumbprint();
+  #[cfg(not(windows))]
+  let from_env: Option<String> = None;
+
+  configured
+    .map(ToString::to_string)
+    .or(from_env)
+    .unwrap_or_default()
+}
+
+/// Imports the base64 encoded .pfx certificate from the `WINDOWS_CERTIFICATE` environment variable,
+/// protected by the `WINDOWS_CERTIFICATE_PASSWORD` password, into `Cert:\CurrentUser\My`.
+/// The certificate is only imported once per process.
+#[cfg(windows)]
+fn env_certificate_thumbprint() -> Option<String> {
+  // the certificate and its password are read from the environment by the script
+  // so they do not show up in the process list
+  const IMPORT_SCRIPT: &str = r#"$ErrorActionPreference = 'Stop'
+$path = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName() + '.pfx')
+try {
+  [System.IO.File]::WriteAllBytes($path, [Convert]::FromBase64String(($env:WINDOWS_CERTIFICATE -replace '\s', '')))
+  if ($env:WINDOWS_CERTIFICATE_PASSWORD) {
+    $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+  } else {
+    $password = New-Object System.Security.SecureString
+  }
+  $certificate = Import-PfxCertificate -FilePath $path -CertStoreLocation Cert:\CurrentUser\My -Password $password | Where-Object { $_.HasPrivateKey } | Select-Object -First 1
+  Write-Output $certificate.Thumbprint
+} finally {
+  Remove-Item -Force -ErrorAction SilentlyContinue $path
+}"#;
+
+  static THUMBPRINT: OnceLock<Option<String>> = OnceLock::new();
+  THUMBPRINT
+    .get_or_init(|| {
+      std::env::var_os("WINDOWS_CERTIFICATE").filter(|c| !c.is_empty())?;
+      log::info!(action = "Importing"; "certificate from the WINDOWS_CERTIFICATE environment variable");
+
+      let output = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", IMPORT_SCRIPT])
+        .output();
+      match output {
+        Ok(output) if output.status.success() => {
+          let thumbprint = String::from_utf8_lossy(&output.stdout).trim().to_string();
+          if thumbprint.is_empty() {
+            log::error!("WINDOWS_CERTIFICATE does not contain a certificate with a private key");
+            None
+          } else {
+            Some(thumbprint)
+          }
+        }
+        Ok(output) => {
+          log::error!(
+            "failed to import the certificate from WINDOWS_CERTIFICATE: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+          );
+          None
+        }
+        Err(e) => {
+          log::error!("failed to run powershell to import the certificate from WINDOWS_CERTIFICATE: {e}");
+          None
+        }
+      }
+    })
+    .clone()
 }
 
 #[cfg_attr(not(windows), allow(dead_code))]

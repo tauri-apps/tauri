@@ -237,6 +237,139 @@ impl Keychain {
   }
 }
 
+/// Lists the code signing identities (certificates with a private key) in the user's keychains.
+#[cfg(target_os = "macos")]
+pub fn find_identities() -> Result<Vec<crate::certificate::CertificateInfo>> {
+  Ok(
+    keychain_identities()?
+      .into_iter()
+      .map(|(info, _)| info)
+      .collect(),
+  )
+}
+
+#[cfg(target_os = "macos")]
+fn keychain_identities() -> Result<
+  Vec<(
+    crate::certificate::CertificateInfo,
+    security_framework::identity::SecIdentity,
+  )>,
+> {
+  use security_framework::item::{ItemClass, ItemSearchOptions, Limit, Reference, SearchResult};
+
+  let results = match ItemSearchOptions::new()
+    .class(ItemClass::identity())
+    .load_refs(true)
+    .limit(Limit::All)
+    .search()
+  {
+    Ok(results) => results,
+    // errSecItemNotFound
+    Err(e) if e.code() == -25300 => return Ok(Vec::new()),
+    Err(e) => return Err(Error::KeychainExport(e.to_string())),
+  };
+
+  let mut identities = Vec::new();
+  for result in results {
+    let SearchResult::Ref(Reference::Identity(identity)) = result else {
+      continue;
+    };
+    let Ok(certificate) = identity.certificate() else {
+      continue;
+    };
+    let Ok(certificate) = crate::certificate::parse_certificate(&certificate.to_der()) else {
+      continue;
+    };
+    let info = crate::certificate::CertificateInfo::from_certificate(&certificate)?;
+    let is_code_signing = info.common_name.as_deref().is_some_and(|name| {
+      identity::CERTIFICATE_PREFIXES
+        .iter()
+        .any(|prefix| name.starts_with(prefix))
+    });
+    if is_code_signing {
+      identities.push((info, identity));
+    }
+  }
+
+  identities.sort_by(|(a, _), (b, _)| a.common_name.cmp(&b.common_name));
+  identities.dedup_by(|(a, _), (b, _)| a.sha1_thumbprint == b.sha1_thumbprint);
+
+  Ok(identities)
+}
+
+/// Exports a code signing identity from the user's keychains as a PKCS#12 archive.
+///
+/// The identity is matched by its SHA-1 thumbprint or by its full common name.
+/// macOS asks the user to allow exporting the private key.
+#[cfg(target_os = "macos")]
+pub fn export_identity(
+  identity: &str,
+  password: &str,
+) -> Result<(crate::certificate::CertificateInfo, Vec<u8>)> {
+  use core_foundation::{base::TCFType, data::CFData, string::CFString};
+  use security_framework_sys::import_export::{
+    SEC_KEY_IMPORT_EXPORT_PARAMS_VERSION, SecItemExport, SecItemImportExportKeyParameters,
+  };
+
+  // not exposed by the security-framework-sys version we depend on
+  #[allow(non_upper_case_globals)]
+  const kSecFormatPKCS12: u32 = 12;
+
+  let (info, sec_identity) = keychain_identities()?
+    .into_iter()
+    .find(|(info, _)| {
+      info.sha1_thumbprint.eq_ignore_ascii_case(identity)
+        || info.common_name.as_deref() == Some(identity)
+    })
+    .ok_or_else(|| Error::IdentityNotFound(identity.to_string()))?;
+
+  let passphrase = CFString::new(password);
+  let alert_title = CFString::new("Export signing certificate");
+  let params = SecItemImportExportKeyParameters {
+    version: SEC_KEY_IMPORT_EXPORT_PARAMS_VERSION,
+    flags: 0,
+    passphrase: passphrase.as_CFTypeRef(),
+    alertTitle: alert_title.as_concrete_TypeRef(),
+    alertPrompt: std::ptr::null(),
+    accessRef: std::ptr::null_mut(),
+    keyUsage: std::ptr::null(),
+    keyAttributes: std::ptr::null(),
+  };
+
+  let mut data = std::ptr::null();
+  // SAFETY: all pointers are valid for the duration of the call and the
+  // returned data follows the create rule
+  let status = unsafe {
+    SecItemExport(
+      sec_identity.as_CFTypeRef(),
+      kSecFormatPKCS12,
+      0,
+      &params,
+      &mut data,
+    )
+  };
+  if status != 0 || data.is_null() {
+    return Err(Error::KeychainExport(
+      security_framework::base::Error::from_code(status).to_string(),
+    ));
+  }
+  // SAFETY: SecItemExport succeeded so data points to a valid CFData
+  let data = unsafe { CFData::wrap_under_create_rule(data) };
+
+  Ok((info, data.bytes().to_vec()))
+}
+
+/// Imports a PKCS#12 archive into the login keychain, allowing codesign to use it.
+#[cfg(target_os = "macos")]
+pub fn import_into_login_keychain(cert_path: &Path, certificate_password: &OsString) -> Result<()> {
+  let home_dir = dirs::home_dir().ok_or(Error::ResolveHomeDir)?;
+  let keychain_path = home_dir
+    .join("Library")
+    .join("Keychains")
+    .join("login.keychain-db");
+  import_certificate(cert_path, certificate_password, &keychain_path)
+}
+
 /// Format of the certificate file handed to `security import`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CertificateFormat {
@@ -421,6 +554,21 @@ mod tests {
     #[test]
     fn imports_pem_bundle() {
       import("bundle.pem", PASSWORD).unwrap();
+    }
+
+    #[test]
+    fn imports_generated_p12() {
+      let identities =
+        crate::certificate::parse_pkcs12(&std::fs::read(fixture("legacy.p12")).unwrap(), PASSWORD)
+          .unwrap();
+      let p12 = identities[0].to_pkcs12("generated").unwrap();
+
+      let dir = tempfile::tempdir().unwrap();
+      let path = dir.path().join("generated.p12");
+      std::fs::write(&path, p12).unwrap();
+
+      let keychain = TempKeychain::new();
+      import_certificate(&path, &"generated".into(), &keychain.path).unwrap();
     }
 
     #[test]

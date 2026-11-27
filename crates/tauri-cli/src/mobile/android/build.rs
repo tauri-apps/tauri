@@ -215,6 +215,19 @@ pub fn run(
     .build(&config, &metadata, &env, noise_level, true, profile)
     .context("failed to build Android app")?;
 
+  // keep the keystore configured from environment variables until the build finishes
+  let _env_keystore = if matches!(profile, Profile::Release) {
+    let env_keystore = super::signing::keystore_from_env(&config.project_dir())?;
+    if env_keystore.is_none() && !super::signing::has_release_signing(&config.project_dir()) {
+      log::warn!(
+        "No upload key configured, release builds are unsigned and cannot be published to the Play Store. Run `tauri signer android generate-keystore` to create one, or set the ANDROID_KEYSTORE and ANDROID_KEYSTORE_PASSWORD environment variables."
+      );
+    }
+    env_keystore
+  } else {
+    None
+  };
+
   let open = options.open;
   let options_handle = run_build(
     &interface,

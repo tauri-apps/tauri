@@ -16,7 +16,9 @@ mod keychain;
 mod provisioning_profile;
 
 pub use keychain::{Keychain, Team};
-pub use provisioning_profile::ProvisioningProfile;
+#[cfg(target_os = "macos")]
+pub use keychain::{export_identity, find_identities, import_into_login_keychain};
+pub use provisioning_profile::{ProvisioningProfile, ProvisioningProfileInfo};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -71,6 +73,14 @@ pub enum Error {
   CertificateMissingCommonName,
   #[error("certificate missing organization unit for common name {common_name}")]
   CertificateMissingOrganizationUnit { common_name: String },
+  #[error("invalid private key: {0}")]
+  PrivateKey(String),
+  #[error("failed to read PKCS#12 file: {0}")]
+  Pkcs12(String),
+  #[error("could not find signing identity {0} in the keychain")]
+  IdentityNotFound(String),
+  #[error("failed to export signing identity from the keychain: {0}")]
+  KeychainExport(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -96,6 +106,33 @@ impl CommandExt for Command {
 pub enum ApiKey {
   Path(PathBuf),
   Raw(Vec<u8>),
+}
+
+impl ApiKey {
+  /// Reads an App Store Connect API private key from its contents,
+  /// either the PEM encoded `.p8` file or its base64 representation.
+  pub fn from_content(content: &OsStr) -> Result<Self> {
+    use base64::Engine;
+
+    let content = content.to_string_lossy();
+    if content.contains("-----BEGIN") {
+      return Ok(Self::Raw(content.trim().as_bytes().to_vec()));
+    }
+
+    let cleaned: String = content
+      .chars()
+      .filter(|c| !c.is_ascii_whitespace())
+      .collect();
+    let decoded = base64::engine::general_purpose::STANDARD
+      .decode(&cleaned)
+      .map_err(Error::Base64Decode)?;
+    if !decoded.starts_with(b"-----BEGIN") {
+      return Err(Error::PrivateKey(
+        "the API key content must be the PEM encoded .p8 file or its base64 representation".into(),
+      ));
+    }
+    Ok(Self::Raw(decoded))
+  }
 }
 
 pub enum AppleNotarizationCredentials {

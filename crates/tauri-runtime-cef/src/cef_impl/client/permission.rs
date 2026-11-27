@@ -48,10 +48,14 @@
 
 use std::sync::Arc;
 
+use crate::runtime::RuntimeContext;
 use cef::sys::cef_media_access_permission_types_t as MediaPermissionType;
 use cef::sys::cef_permission_request_types_t as PermissionType;
 use cef::*;
-use tauri_runtime::webview::{PermissionKind, PermissionResponse};
+use tauri_runtime::{
+  UserEvent,
+  webview::{PermissionKind, PermissionResponse},
+};
 
 /// The application's answer to a permission request, as
 /// `PendingWebview::permission_request_handler` carries it.
@@ -180,7 +184,8 @@ enum AppDecision {
 }
 
 wrap_permission_handler! {
-  pub struct TauriCefPermissionHandler {
+  pub struct TauriCefPermissionHandler<T: UserEvent> {
+    context: RuntimeContext<T>,
     permission_request_handler: Option<Arc<PermissionRequestHandler>>,
   }
 
@@ -221,7 +226,7 @@ wrap_permission_handler! {
             requesting_origin,
             &media_content_settings(requested_permissions),
           );
-          callback.cont(requested_permissions);
+          self.grant_media_access(callback, requested_permissions);
           1
         }
         AppDecision::NoOpinion => {
@@ -254,7 +259,7 @@ wrap_permission_handler! {
             &media_content_settings(allowed),
           );
 
-          callback.cont(allowed);
+          self.grant_media_access(callback, allowed);
           1
         }
       }
@@ -315,7 +320,21 @@ wrap_permission_handler! {
   }
 }
 
-impl TauriCefPermissionHandler {
+impl<T: UserEvent> TauriCefPermissionHandler<T> {
+  fn grant_media_access(&self, callback: &mut MediaAccessCallback, permissions: u32) {
+    #[cfg(target_os = "android")]
+    {
+      let callback = callback.clone();
+      self.context.android.request_media_permissions(
+        permissions & AUDIO_CAPTURE != 0,
+        permissions & VIDEO_CAPTURE != 0,
+        move |granted| callback.cont(if granted { permissions } else { 0 }),
+      );
+    }
+    #[cfg(not(target_os = "android"))]
+    callback.cont(permissions);
+  }
+
   /// Asks the application about every type set in `requested` and combines the
   /// answers, as [`AppDecision`] describes.
   ///

@@ -466,6 +466,8 @@ mod native_window_identity_tests {
 const PENDING_ACTIVATION_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub(crate) struct AppWindow {
+  #[cfg(target_os = "android")]
+  pub(crate) android: Arc<crate::platform::android::AndroidContext>,
   pub(crate) lifetime: NativeWindowToken,
   #[allow(unused)]
   pub(crate) id: WindowId,
@@ -808,6 +810,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       )
     };
     let mut appwindow = AppWindow {
+      #[cfg(target_os = "android")]
+      android: self.context.android.clone(),
       lifetime: NativeWindowToken::new(),
       id: window_id,
       label: pending.label.clone(),
@@ -1469,7 +1473,7 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
 
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String> {
-    Ok(crate::platform::android::with_env(|env, activity| {
+    Ok(self.context.android.with_env(|env, activity| {
       let class = env
         .call_method(activity, "getClass", "()Ljava/lang/Class;", &[])
         .unwrap()

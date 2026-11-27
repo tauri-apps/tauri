@@ -306,6 +306,7 @@ fn apply_proxy(request_context: &RequestContext, proxy_url: &url::Url) {
 /// navigation against any of these schemes the factories have been wired up
 /// on the IO thread.
 pub(crate) fn request_context_from_webview_attributes<'a>(
+  #[cfg(target_os = "android")] android: &crate::platform::android::AndroidContext,
   global_cache_path: &Path,
   webview_attributes: &WebviewAttributes,
   profile_preferences: Arc<Vec<(String, serde_json::Value)>>,
@@ -381,9 +382,7 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
   #[cfg(target_os = "android")]
   // `handler` and `settings` are exclusively borrowed until Java finishes.
   let request_context = unsafe {
-    crate::platform::android::on_ui_scoped(|| {
-      request_context_create_context(Some(&settings), Some(&mut handler))
-    })
+    android.on_ui_scoped(|| request_context_create_context(Some(&settings), Some(&mut handler)))
   };
   #[cfg(not(target_os = "android"))]
   let request_context = request_context_create_context(Some(&settings), Some(&mut handler));

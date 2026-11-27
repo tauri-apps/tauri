@@ -16,4 +16,10 @@ fn main() {
   let mobile = target_os == "ios" || target_os == "android";
   alias("desktop", !mobile);
   alias("mobile", mobile);
+
+  if target_os == "android" {
+    let manifest_dir = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let android = manifest_dir.join("src/android");
+    println!("cargo:android_codegen_path={}", android.display());
+  }
 }

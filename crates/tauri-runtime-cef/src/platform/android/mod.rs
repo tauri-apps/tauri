@@ -13,7 +13,7 @@ use jni::{
   objects::{GlobalRef, JClass, JObject, JValue},
   sys::jlong,
 };
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use tauri_runtime::{
   Error, Result,
   dpi::{PhysicalPosition, PhysicalRect, PhysicalSize, Rect},
@@ -22,166 +22,241 @@ use winit::{
   event_loop::ActiveEventLoop, monitor::MonitorHandle, platform::android::activity::AndroidApp,
 };
 
-struct Context {
+static ANDROID_APP: OnceLock<AndroidApp> = OnceLock::new();
+
+#[doc(hidden)]
+pub fn android_setup(app: AndroidApp) {
+  assert!(
+    ANDROID_APP.set(app).is_ok(),
+    "AndroidApp is already initialized"
+  );
+}
+
+pub(crate) fn app() -> AndroidApp {
+  ANDROID_APP
+    .get()
+    .expect("use #[tauri::mobile_entry_point] to initialize AndroidApp")
+    .clone()
+}
+
+pub(crate) struct AndroidContext {
   vm: JavaVM,
-  app: AndroidApp,
+  pub(crate) app: AndroidApp,
   activity: GlobalRef,
   container: OnceLock<GlobalRef>,
 }
-static CONTEXT: OnceLock<Context> = OnceLock::new();
-static UI_THREAD: OnceLock<std::thread::ThreadId> = OnceLock::new();
 type Task = Box<dyn FnOnce() + Send>;
+type MediaPermissionCallback = Box<dyn FnOnce(bool) + Send>;
 
-pub(crate) fn initialize(app: &AndroidApp) -> Result<()> {
-  // android-activity owns both JNI pointers for the lifetime of this activity.
-  let vm = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) }.unwrap();
-  let activity = {
-    let env = vm.attach_current_thread().unwrap();
-    let activity = unsafe { JObject::from_raw(app.activity_as_ptr().cast()) };
-    env.new_global_ref(activity).unwrap()
-  };
-  CONTEXT
-    .set(Context {
+impl AndroidContext {
+  pub(crate) fn new(app: AndroidApp) -> Arc<Self> {
+    // android-activity owns both JNI pointers for the lifetime of this activity.
+    let vm = unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) }.unwrap();
+    let activity = {
+      let env = vm.attach_current_thread().unwrap();
+      let activity = unsafe { JObject::from_raw(app.activity_as_ptr().cast()) };
+      env.new_global_ref(activity).unwrap()
+    };
+    Arc::new(Self {
       vm,
-      app: app.clone(),
+      app,
       activity,
       container: OnceLock::new(),
     })
-    .map_err(|_| Error::FailedToSendMessage)?;
-  Ok(())
-}
+  }
 
-pub(crate) fn has_window() -> bool {
-  CONTEXT.get().unwrap().app.native_window().is_some()
-}
+  pub(crate) fn set_on_destroy(&self, callback: impl FnOnce() + Send + 'static) -> Result<()> {
+    let task: Box<Task> = Box::new(Box::new(callback));
+    let pointer = Box::into_raw(task);
+    let registered = self.with_env(|env, activity| {
+      env
+        .call_method(
+          activity,
+          "setOnDestroyTask",
+          "(J)Z",
+          &[JValue::Long(pointer as jlong)],
+        )
+        .and_then(|result| result.z())
+    });
+    if !matches!(registered, Ok(true)) {
+      // Java did not accept ownership of the callback.
+      drop(unsafe { Box::from_raw(pointer) });
+      return Err(Error::FailedToSendMessage);
+    }
+    Ok(())
+  }
 
-fn container() -> &'static GlobalRef {
-  CONTEXT.get().unwrap().container.get_or_init(|| {
-    on_ui(|| {
-      with_env(|env, activity| {
-        let view = env
-          .call_method(
-            activity,
-            "getCefContainer",
-            "()Landroid/widget/FrameLayout;",
-            &[],
-          )
-          .unwrap()
-          .l()
-          .unwrap();
-        env.new_global_ref(view).unwrap()
+  pub(crate) fn has_window(&self) -> bool {
+    self.app.native_window().is_some()
+  }
+
+  fn container(self: &Arc<Self>) -> &GlobalRef {
+    self.container.get_or_init(|| {
+      let context = self.clone();
+      self.on_ui(move || {
+        context.with_env(|env, activity| {
+          let view = env
+            .call_method(
+              activity,
+              "getCefContainer",
+              "()Landroid/widget/FrameLayout;",
+              &[],
+            )
+            .unwrap()
+            .l()
+            .unwrap();
+          env.new_global_ref(view).unwrap()
+        })
       })
     })
-  })
-}
-
-pub(crate) fn cache_dir() -> std::path::PathBuf {
-  // File/context methods are safe on the native thread, including before the
-  // GameActivity lifecycle has started its event loop.
-  with_env(|env, activity| {
-    let directory = env
-      .call_method(activity, "getCacheDir", "()Ljava/io/File;", &[])
-      .unwrap()
-      .l()
-      .unwrap();
-    let path = env
-      .call_method(directory, "getAbsolutePath", "()Ljava/lang/String;", &[])
-      .unwrap()
-      .l()
-      .unwrap();
-    let path: String = env
-      .get_string(&jni::objects::JString::from(path))
-      .unwrap()
-      .into();
-    std::path::PathBuf::from(path)
-  })
-}
-
-pub(crate) fn with_env<R>(f: impl FnOnce(&mut JNIEnv, &JObject) -> R) -> R {
-  let context = CONTEXT
-    .get()
-    .expect("CEF Android context is not initialized");
-  let mut env = context.vm.attach_current_thread().unwrap();
-  f(&mut env, context.activity.as_obj())
-}
-
-pub(crate) fn post(f: impl FnOnce() + Send + 'static) {
-  let task: Box<Task> = Box::new(Box::new(f));
-  let pointer = Box::into_raw(task);
-  with_env(|env, activity| {
-    if let Err(error) = env.call_method(
-      activity,
-      "postCefTask",
-      "(J)V",
-      &[JValue::Long(pointer as jlong)],
-    ) {
-      // Java did not accept ownership of the closure.
-      drop(unsafe { Box::from_raw(pointer) });
-      panic!("failed to dispatch to Android UI thread: {error}");
-    }
-  });
-}
-
-pub(crate) fn on_ui<R: Send + 'static>(f: impl FnOnce() -> R + Send + 'static) -> R {
-  if UI_THREAD.get() == Some(&std::thread::current().id()) {
-    return f();
   }
-  let (tx, rx) = std::sync::mpsc::sync_channel(1);
-  post(move || {
-    let _ = tx.send(f());
-  });
-  rx.recv().expect("Android UI task did not complete")
-}
 
-/// Run a CEF operation synchronously on Java's UI thread.
-///
-/// Safety: captured values must support access on that thread. The caller must
-/// not capture winit objects or thread-local state. Unlike a posted task, this
-/// blocks until completion, so borrowed CEF argument structures stay alive and
-/// cannot be accessed concurrently by the calling thread.
-pub(crate) unsafe fn on_ui_scoped<R: Send + 'static, F: FnOnce() -> R>(f: F) -> R {
-  let mut work = Some(f);
-  let pointer = (&mut work as *mut Option<F>) as usize;
-  on_ui(move || {
-    let work = unsafe { &mut *(pointer as *mut Option<F>) };
-    work.take().unwrap()()
-  })
-}
-
-/// Run startup work while acknowledging GameActivity's synchronous lifecycle commands.
-/// Safety: the same capture restrictions as `on_ui_scoped` apply.
-pub(crate) unsafe fn on_ui_with_event_loop<R: Send + 'static, F: FnOnce() -> R>(
-  event_loop: &mut winit::event_loop::EventLoop,
-  f: F,
-) -> R {
-  use winit::{application::ApplicationHandler, event_loop::pump_events::EventLoopExtPumpEvents};
-  struct Startup;
-  impl ApplicationHandler for Startup {
-    fn can_create_surfaces(&mut self, _: &dyn ActiveEventLoop) {}
-    fn window_event(
-      &mut self,
-      _: &dyn ActiveEventLoop,
-      _: winit::window::WindowId,
-      _: winit::event::WindowEvent,
-    ) {
-    }
+  pub(crate) fn cache_dir(&self) -> std::path::PathBuf {
+    // File/context methods are safe on the native thread, including before the
+    // GameActivity lifecycle has started its event loop.
+    self.with_env(|env, activity| {
+      let directory = env
+        .call_method(activity, "getCacheDir", "()Ljava/io/File;", &[])
+        .unwrap()
+        .l()
+        .unwrap();
+      let path = env
+        .call_method(directory, "getAbsolutePath", "()Ljava/lang/String;", &[])
+        .unwrap()
+        .l()
+        .unwrap();
+      let path: String = env
+        .get_string(&jni::objects::JString::from(path))
+        .unwrap()
+        .into();
+      std::path::PathBuf::from(path)
+    })
   }
-  let mut work = Some(f);
-  let pointer = (&mut work as *mut Option<F>) as usize;
-  let (tx, rx) = std::sync::mpsc::sync_channel(1);
-  post(move || {
-    let work = unsafe { &mut *(pointer as *mut Option<F>) };
-    let _ = tx.send(work.take().unwrap()());
-  });
-  loop {
-    match rx.try_recv() {
-      Ok(result) => return result,
-      Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-        panic!("CEF startup task did not complete")
+
+  pub(crate) fn with_env<R>(&self, f: impl FnOnce(&mut JNIEnv, &JObject) -> R) -> R {
+    let mut env = self.vm.attach_current_thread().unwrap();
+    f(&mut env, self.activity.as_obj())
+  }
+
+  pub(crate) fn post(&self, f: impl FnOnce() + Send + 'static) {
+    let task: Box<Task> = Box::new(Box::new(f));
+    let pointer = Box::into_raw(task);
+    self.with_env(|env, activity| {
+      if let Err(error) = env.call_method(
+        activity,
+        "postCefTask",
+        "(J)V",
+        &[JValue::Long(pointer as jlong)],
+      ) {
+        drop(unsafe { Box::from_raw(pointer) });
+        panic!("failed to dispatch to Android UI thread: {error}");
       }
-      Err(std::sync::mpsc::TryRecvError::Empty) => {}
+    });
+  }
+
+  pub(crate) fn on_ui<R: Send + 'static>(&self, f: impl FnOnce() -> R + Send + 'static) -> R {
+    // Activity.runOnUiThread executes inline when already on the Java UI thread.
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    self.post(move || {
+      let _ = tx.send(f());
+    });
+    rx.recv().expect("Android UI task did not complete")
+  }
+
+  /// Run a CEF operation synchronously on Java's UI thread.
+  ///
+  /// Safety: captured values must support access on that thread. The caller must
+  /// not capture winit objects or thread-local state. The call blocks until
+  /// completion, so borrowed CEF arguments cannot be accessed concurrently.
+  pub(crate) unsafe fn on_ui_scoped<R: Send + 'static, F: FnOnce() -> R>(&self, f: F) -> R {
+    let mut work = Some(f);
+    let pointer = (&mut work as *mut Option<F>) as usize;
+    self.on_ui(move || {
+      let work = unsafe { &mut *(pointer as *mut Option<F>) };
+      work.take().unwrap()()
+    })
+  }
+
+  /// Run startup work while acknowledging GameActivity's synchronous lifecycle commands.
+  /// Safety: the same capture restrictions as `on_ui_scoped` apply.
+  pub(crate) unsafe fn on_ui_with_event_loop<R: Send + 'static, F: FnOnce() -> R>(
+    &self,
+    event_loop: &mut winit::event_loop::EventLoop,
+    f: F,
+  ) -> R {
+    use winit::{application::ApplicationHandler, event_loop::pump_events::EventLoopExtPumpEvents};
+    struct Startup;
+    impl ApplicationHandler for Startup {
+      fn can_create_surfaces(&mut self, _: &dyn ActiveEventLoop) {}
+      fn window_event(
+        &mut self,
+        _: &dyn ActiveEventLoop,
+        _: winit::window::WindowId,
+        _: winit::event::WindowEvent,
+      ) {
+      }
     }
-    event_loop.pump_app_events(Some(std::time::Duration::from_millis(10)), &mut Startup);
+    let mut work = Some(f);
+    let pointer = (&mut work as *mut Option<F>) as usize;
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    self.post(move || {
+      let work = unsafe { &mut *(pointer as *mut Option<F>) };
+      let _ = tx.send(work.take().unwrap()());
+    });
+    loop {
+      match rx.try_recv() {
+        Ok(result) => return result,
+        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+          panic!("CEF startup task did not complete")
+        }
+        Err(std::sync::mpsc::TryRecvError::Empty) => {}
+      }
+      event_loop.pump_app_events(Some(std::time::Duration::from_millis(10)), &mut Startup);
+    }
+  }
+
+  pub(crate) fn request_media_permissions(
+    self: &Arc<Self>,
+    audio: bool,
+    video: bool,
+    callback: impl FnOnce(bool) + Send + 'static,
+  ) {
+    let context = self.clone();
+    self.on_ui(move || {
+      let callback: Box<MediaPermissionCallback> = Box::new(Box::new(callback));
+      let pointer = Box::into_raw(callback);
+      context.with_env(|env, activity| {
+        if let Err(error) = env.call_method(
+          activity,
+          "requestMediaPermissions",
+          "(ZZJ)V",
+          &[
+            JValue::Bool(audio as u8),
+            JValue::Bool(video as u8),
+            JValue::Long(pointer as jlong),
+          ],
+        ) {
+          log::error!("failed to request Android media permissions: {error}");
+          let _ = env.exception_clear();
+          let callback = unsafe { Box::from_raw(pointer) };
+          callback(false);
+        }
+      });
+    });
+  }
+
+  fn with_view<R: Send + 'static>(
+    self: &Arc<Self>,
+    handle: usize,
+    f: impl FnOnce(&mut JNIEnv, &JObject) -> R + Send + 'static,
+  ) -> R {
+    let context = self.clone();
+    self.on_ui(move || {
+      context.with_env(|env, _| {
+        let view = unsafe { JObject::from_raw(handle as jni::sys::jobject) };
+        f(env, &view)
+      })
+    })
   }
 }
 
@@ -191,10 +266,20 @@ pub extern "system" fn Java_app_tauri_cef_CefActivity_nativeRunTask(
   _class: JClass,
   pointer: jlong,
 ) {
-  UI_THREAD.get_or_init(|| std::thread::current().id());
-  // Each pointer is posted exactly once by `post` and consumed on Java's UI thread.
+  // Each pointer is owned by one Java task and consumed exactly once.
   let task = unsafe { Box::from_raw(pointer as *mut Task) };
   task();
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_app_tauri_cef_CefActivity_nativeMediaPermissionResult(
+  _env: JNIEnv,
+  _class: JClass,
+  pointer: jlong,
+  granted: jni::sys::jboolean,
+) {
+  let callback = unsafe { Box::from_raw(pointer as *mut MediaPermissionCallback) };
+  callback(granted != 0);
 }
 
 pub(crate) fn find_class<'a>(
@@ -217,18 +302,6 @@ pub(crate) fn find_class<'a>(
     .map(JClass::from)
 }
 
-fn with_view<R: Send + 'static>(
-  handle: usize,
-  f: impl FnOnce(&mut JNIEnv, &JObject) -> R + Send + 'static,
-) -> R {
-  on_ui(move || {
-    with_env(|env, _| {
-      let view = unsafe { JObject::from_raw(handle as jni::sys::jobject) };
-      f(env, &view)
-    })
-  })
-}
-
 impl MonitorExt for MonitorHandle {
   fn work_area(&self) -> PhysicalRect<i32, u32> {
     super::monitor_bounds(self)
@@ -243,23 +316,27 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
 }
 impl AppWindow {
   pub(crate) fn cef_host_handle(&self) -> cef::sys::cef_window_handle_t {
-    container().as_obj().as_raw().cast()
+    self.android.container().as_obj().as_raw().cast()
   }
   pub(crate) fn is_enabled(&self) -> bool {
-    with_view(self.cef_host_handle() as usize, |env, view| {
-      env
-        .call_method(view, "isEnabled", "()Z", &[])
-        .unwrap()
-        .z()
-        .unwrap()
-    })
+    self
+      .android
+      .with_view(self.cef_host_handle() as usize, |env, view| {
+        env
+          .call_method(view, "isEnabled", "()Z", &[])
+          .unwrap()
+          .z()
+          .unwrap()
+      })
   }
   pub(crate) fn set_enabled(&self, enabled: bool) {
-    with_view(self.cef_host_handle() as usize, move |env, view| {
-      env
-        .call_method(view, "setEnabled", "(Z)V", &[JValue::Bool(enabled as u8)])
-        .unwrap();
-    });
+    self
+      .android
+      .with_view(self.cef_host_handle() as usize, move |env, view| {
+        env
+          .call_method(view, "setEnabled", "(Z)V", &[JValue::Bool(enabled as u8)])
+          .unwrap();
+      });
   }
   pub(crate) fn set_background_color(&mut self, color: Option<tauri_utils::config::Color>) {
     let color = color
@@ -267,16 +344,18 @@ impl AppWindow {
         ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | b as u32
       })
       .unwrap_or(0xffffffff);
-    with_view(self.cef_host_handle() as usize, move |env, view| {
-      env
-        .call_method(
-          view,
-          "setBackgroundColor",
-          "(I)V",
-          &[JValue::Int(color as i32)],
-        )
-        .unwrap();
-    });
+    self
+      .android
+      .with_view(self.cef_host_handle() as usize, move |env, view| {
+        env
+          .call_method(
+            view,
+            "setBackgroundColor",
+            "(I)V",
+            &[JValue::Int(color as i32)],
+          )
+          .unwrap();
+      });
   }
   pub(crate) fn set_progress_bar(&self, _: tauri_runtime::ProgressBarState) {}
 }
@@ -286,18 +365,22 @@ impl AppWebview {
   }
   pub(crate) fn native_parent_matches(&self, parent: &AppWindow) -> Option<bool> {
     let parent = parent.cef_host_handle() as usize;
-    Some(with_view(self.android_view(), move |env, view| {
-      let actual = env
-        .call_method(view, "getParent", "()Landroid/view/ViewParent;", &[])
-        .unwrap()
-        .l()
-        .unwrap();
-      let parent = unsafe { JObject::from_raw(parent as jni::sys::jobject) };
-      env.is_same_object(actual, parent).unwrap()
-    }))
+    Some(
+      self
+        .android
+        .with_view(self.android_view(), move |env, view| {
+          let actual = env
+            .call_method(view, "getParent", "()Landroid/view/ViewParent;", &[])
+            .unwrap()
+            .l()
+            .unwrap();
+          let parent = unsafe { JObject::from_raw(parent as jni::sys::jobject) };
+          env.is_same_object(actual, parent).unwrap()
+        }),
+    )
   }
   pub(crate) fn native_visible(&self) -> Option<bool> {
-    Some(with_view(self.android_view(), |env, view| {
+    Some(self.android.with_view(self.android_view(), |env, view| {
       env
         .call_method(view, "isShown", "()Z", &[])
         .unwrap()
@@ -306,7 +389,7 @@ impl AppWebview {
     }))
   }
   pub(crate) fn bounds(&self) -> Option<Rect> {
-    Some(with_view(self.android_view(), |env, view| {
+    Some(self.android.with_view(self.android_view(), |env, view| {
       let mut get = |method| {
         env
           .call_method(view, method, "()I", &[])
@@ -323,56 +406,62 @@ impl AppWebview {
   pub(crate) fn reparent(&self, _: &AppWindow) { /* One Android activity owns the main webview. */
   }
   pub(crate) fn apply_visible(&self, visible: bool) {
-    with_view(self.android_view(), move |env, view| {
-      env
-        .call_method(
-          view,
-          "setVisibility",
-          "(I)V",
-          &[JValue::Int(if visible { 0 } else { 8 })],
-        )
-        .unwrap();
-    });
+    self
+      .android
+      .with_view(self.android_view(), move |env, view| {
+        env
+          .call_method(
+            view,
+            "setVisibility",
+            "(I)V",
+            &[JValue::Int(if visible { 0 } else { 8 })],
+          )
+          .unwrap();
+      });
   }
   pub(crate) fn set_background_color(&self, color: Option<tauri_utils::config::Color>) {
     let tauri_utils::config::Color(r, g, b, a) =
       color.unwrap_or(tauri_utils::config::Color(255, 255, 255, 255));
     let color = ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | b as u32;
-    with_view(self.android_view(), move |env, view| {
-      env
-        .call_method(
-          view,
-          "setBackgroundColor",
-          "(I)V",
-          &[JValue::Int(color as i32)],
-        )
-        .unwrap();
-    });
+    self
+      .android
+      .with_view(self.android_view(), move |env, view| {
+        env
+          .call_method(
+            view,
+            "setBackgroundColor",
+            "(I)V",
+            &[JValue::Int(color as i32)],
+          )
+          .unwrap();
+      });
   }
   pub(crate) fn apply_physical_bounds(&self, _: f64, x: i32, y: i32, width: i32, height: i32) {
-    with_view(self.android_view(), move |env, view| {
-      let params = env
-        .new_object(
-          "android/widget/FrameLayout$LayoutParams",
-          "(II)V",
-          &[JValue::Int(width), JValue::Int(height)],
-        )
-        .unwrap();
-      env
-        .set_field(&params, "leftMargin", "I", JValue::Int(x))
-        .unwrap();
-      env
-        .set_field(&params, "topMargin", "I", JValue::Int(y))
-        .unwrap();
-      env
-        .call_method(
-          view,
-          "setLayoutParams",
-          "(Landroid/view/ViewGroup$LayoutParams;)V",
-          &[JValue::Object(&params)],
-        )
-        .unwrap();
-    });
+    self
+      .android
+      .with_view(self.android_view(), move |env, view| {
+        let params = env
+          .new_object(
+            "android/widget/FrameLayout$LayoutParams",
+            "(II)V",
+            &[JValue::Int(width), JValue::Int(height)],
+          )
+          .unwrap();
+        env
+          .set_field(&params, "leftMargin", "I", JValue::Int(x))
+          .unwrap();
+        env
+          .set_field(&params, "topMargin", "I", JValue::Int(y))
+          .unwrap();
+        env
+          .call_method(
+            view,
+            "setLayoutParams",
+            "(Landroid/view/ViewGroup$LayoutParams;)V",
+            &[JValue::Object(&params)],
+          )
+          .unwrap();
+      });
   }
 }
 

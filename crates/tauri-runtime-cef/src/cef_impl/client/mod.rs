@@ -271,6 +271,7 @@ wrap_with_args! {
 
     fn permission_handler(&self) -> Option<PermissionHandler> {
       Some(TauriCefPermissionHandler::new(
+        self.context.clone(),
         self.handlers.permission_request_handler.clone(),
       ))
     }

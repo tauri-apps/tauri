@@ -44,6 +44,9 @@ mod window_builder;
 mod window_handle;
 
 pub use cef::sys::CEF_API_VERSION_LAST;
+#[cfg(target_os = "android")]
+#[doc(hidden)]
+pub use platform::android::android_setup;
 #[cfg(target_os = "macos")]
 pub use platform::macos::setup_application as prepare_macos_application;
 pub use runtime::*;
@@ -53,3 +56,5 @@ pub use tauri_macros::cef_entry_point;
 pub use webview::*;
 pub use window::{CefWindowDispatcher, NativeWindowToken};
 pub use window_builder::WindowBuilderWrapper;
+#[cfg(target_os = "android")]
+pub use winit::platform::android::activity::AndroidApp;

@@ -26,6 +26,9 @@ targets = [
 name = "macos-application-bootstrap"
 harness = false
 
+[build-dependencies]
+tauri-utils = { workspace = true, features = ["build-2"] }
+
 [dependencies]
 tauri = { workspace = true, features = ["gtk4"] }
 tauri-macros = { workspace = true }

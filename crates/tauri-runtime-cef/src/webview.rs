@@ -494,6 +494,8 @@ impl Default for BoundsRate {
 }
 
 pub(crate) struct AppWebview {
+  #[cfg(target_os = "android")]
+  pub(crate) android: Arc<crate::platform::android::AndroidContext>,
   pub(crate) webview_id: u32,
   pub(crate) label: String,
   pub(crate) browser: cef::Browser,
@@ -882,6 +884,8 @@ impl<T: UserEvent> WinitCefApp<T> {
     let real_initial_url = pending.url.as_str().to_string();
     let (browser_tx, browser_rx) = mpsc::channel();
     let (init_done, on_initialized) = request_context::deferred_init_continuation({
+      #[cfg(target_os = "android")]
+      let android = context.android.clone();
       let scheme_registry = scheme_registry.clone();
       let uri_scheme_protocols = uri_scheme_protocols.clone();
       let initialization_scripts = initialization_scripts.clone();
@@ -957,6 +961,8 @@ impl<T: UserEvent> WinitCefApp<T> {
 
         browser_tx
           .send(AppWebview {
+            #[cfg(target_os = "android")]
+            android,
             webview_id,
             label,
             browser,
@@ -983,6 +989,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
     });
     let request_context = request_context::request_context_from_webview_attributes(
+      #[cfg(target_os = "android")]
+      &context.android,
       &context.cache_path,
       &pending.webview_attributes,
       context.profile_preferences.clone(),
@@ -1363,6 +1371,14 @@ impl<T: UserEvent> WinitCefApp<T> {
       #[cfg(any(debug_assertions, feature = "devtools"))]
       WebviewMessage::IsDevToolsOpen(tx) => _ = tx.send(child.host.has_dev_tools() == 1),
       WebviewMessage::SendDevToolsMessage(message, tx) => {
+        #[cfg(target_os = "android")]
+        // CEF returns false off its UI thread even when it posts the message.
+        let result = unsafe {
+          child
+            .android
+            .on_ui_scoped(|| child.host.send_dev_tools_message(Some(&message)))
+        };
+        #[cfg(not(target_os = "android"))]
         let result = child.host.send_dev_tools_message(Some(&message));
         let _ = tx.send(if result == 1 {
           Ok(())

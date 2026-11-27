@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet, fs, path::PathBuf};
 
 use anyhow::{Context, Result};
 use tauri_utils::{config::AndroidIntentAction, write_if_changed};
@@ -144,6 +144,59 @@ fn extension_to_mime_type(ext: &str) -> Option<String> {
   )
 }
 
+pub fn generate_android_sources() -> Result<()> {
+  println!("cargo:rerun-if-env-changed=TAURI_ANDROID_KOTLIN_FILES_OUT_DIR");
+  println!("cargo:rerun-if-env-changed=TAURI_ANDROID_PACKAGE");
+  println!("cargo:rerun-if-env-changed=TAURI_ANDROID_LIBRARY");
+
+  let Some(out_dir) = std::env::var_os("TAURI_ANDROID_KOTLIN_FILES_OUT_DIR").map(PathBuf::from)
+  else {
+    return Ok(());
+  };
+
+  fs::create_dir_all(&out_dir)
+    .with_context(|| format!("failed to create {}", out_dir.display()))?;
+
+  // Runtimes advertise template files or directories.
+  for (name, source) in std::env::vars_os() {
+    let name = name.to_string_lossy();
+    if !name.starts_with("DEP_") || !name.ends_with("_ANDROID_CODEGEN_PATH") {
+      continue;
+    }
+
+    let package =
+      std::env::var("TAURI_ANDROID_PACKAGE").context("TAURI_ANDROID_PACKAGE is not set")?;
+    let library =
+      std::env::var("TAURI_ANDROID_LIBRARY").context("TAURI_ANDROID_LIBRARY is not set")?;
+
+    let source = PathBuf::from(source);
+    println!("cargo:rerun-if-changed={}", source.display());
+
+    let files = if source.is_dir() {
+      fs::read_dir(&source)?
+        .map(|file| file.map(|file| file.path()))
+        .collect::<std::io::Result<Vec<_>>>()?
+    } else {
+      vec![source]
+    };
+    for file in files {
+      let content = fs::read_to_string(&file)
+        .with_context(|| format!("failed to read Android template {}", file.display()))?
+        .replace("{{package}}", &package)
+        .replace("{{library}}", &library);
+      let file_name = file
+        .file_name()
+        .context("Android template has no filename")?;
+      let out_path = out_dir.join(file_name);
+      write_if_changed(&out_path, content)
+        .with_context(|| format!("failed to write {}", out_path.display()))?;
+      println!("cargo:rerun-if-changed={}", out_path.display());
+    }
+  }
+
+  Ok(())
+}
+
 pub fn generate_gradle_files(project_dir: PathBuf) -> Result<()> {
   let gradle_settings_path = project_dir.join("tauri.settings.gradle");
   let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
@@ -186,6 +239,14 @@ dependencies {
   }
 
   app_build_gradle.push_str("\n}");
+
+  for (env, value) in std::env::vars_os() {
+    let env = env.to_string_lossy();
+    if env.starts_with("DEP_") && env.ends_with("_ANDROID_APP_GRADLE_PATH") {
+      let gradle_path = tauri_utils::display_path(PathBuf::from(value));
+      app_build_gradle.push_str(&format!("\napply(from = {gradle_path:?})\n"));
+    }
+  }
 
   // Overwrite only if changed to not trigger rebuilds
   write_if_changed(&gradle_settings_path, gradle_settings)

@@ -2,6 +2,7 @@
 name = "tauri-runtime-wry"
 version = "3.0.0-alpha.5"
 description = "Wry bindings to the Tauri runtime"
+links = "tauri_runtime_wry"
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true
 homepage.workspace = true

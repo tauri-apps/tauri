@@ -75,9 +75,17 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
       fn _start_app() {
         #[cfg(target_os = "ios")]
         ::tauri::log_stdout();
-        #[cfg(target_os = "android")]
+        #[cfg(all(target_os = "android", not(tauri_runtime_cef)))]
         {
           ::tauri_runtime_wry::android_binding!(#domain, #app_name, _start_app);
+        }
+        #[cfg(all(target_os = "android", tauri_runtime_cef))]
+        {
+          #[unsafe(no_mangle)]
+          pub fn android_main(app: ::tauri_runtime_cef::AndroidApp) {
+            ::tauri_runtime_cef::android_setup(app);
+            _start_app();
+          }
         }
         stop_unwind(#wrapper_name);
       }

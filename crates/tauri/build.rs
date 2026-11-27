@@ -298,43 +298,9 @@ fn main() {
       })
     }
 
-    if let Some(kotlin_out_dir) = std::env::var_os("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
-      let package = env_var("WRY_ANDROID_PACKAGE");
-      let library = env_var("WRY_ANDROID_LIBRARY");
-
-      let kotlin_out_dir = PathBuf::from(&kotlin_out_dir)
-        .canonicalize()
-        .unwrap_or_else(move |_| {
-          panic!(
-            "Failed to canonicalize `WRY_ANDROID_KOTLIN_FILES_OUT_DIR` path {kotlin_out_dir:?}"
-          )
-        });
-
-      let kotlin_files_path =
-        PathBuf::from(env_var("CARGO_MANIFEST_DIR")).join("mobile/android-codegen");
-      println!("cargo:rerun-if-changed={}", kotlin_files_path.display());
-      let kotlin_files =
-        fs::read_dir(kotlin_files_path).expect("failed to read Android codegen directory");
-
-      for file in kotlin_files {
-        let file = file.unwrap();
-
-        let content = fs::read_to_string(file.path())
-          .expect("failed to read kotlin file as string")
-          .replace("{{package}}", &package)
-          .replace("{{library}}", &library);
-
-        let out_path = kotlin_out_dir.join(file.file_name());
-        // Overwrite only if changed to not trigger rebuilds
-        write_if_changed(&out_path, &content).expect("Failed to write kotlin file");
-
-        println!("cargo:rerun-if-changed={}", out_path.display());
-      }
-    }
-
     if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
       let package_unescaped = env::var("TAURI_ANDROID_PACKAGE_UNESCAPED")
-        .unwrap_or_else(|_| env_var("WRY_ANDROID_PACKAGE").replace('`', ""));
+        .unwrap_or_else(|_| env_var("TAURI_ANDROID_PACKAGE").replace('`', ""));
       let tauri_proguard =
         include_str!("./mobile/proguard-tauri.pro").replace("$PACKAGE", &package_unescaped);
       std::fs::write(

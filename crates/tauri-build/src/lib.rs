@@ -72,7 +72,7 @@
 //!   Set by the Tauri CLI when the configuration is changed from the command line
 //!   (e.g. `tauri build --config`). The build script reruns when it changes.
 //! - `TAURI_ANDROID_PROJECT_PATH`: path to the Android Studio project of the application,
-//!   set by the Tauri CLI on Android builds. When set, the Gradle files of the project are
+//!   set by the Tauri CLI on Android builds. When set, runtime sources and Gradle files are
 //!   regenerated and the Android manifest is updated with the configured file associations.
 //!   (the `tauri-plugin` crate reads the matching `TAURI_IOS_PROJECT_PATH` for iOS projects).
 //! - `STATIC_VCRUNTIME`: **deprecated**, use `build > windows > staticVCRuntime` in the Tauri
@@ -797,6 +797,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let mobile = target_os == "ios" || target_os == "android";
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
+  cfg_alias("tauri_runtime_cef", uses_cef_runtime());
 
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
@@ -833,6 +834,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={android_package_prefix}");
 
   if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+    mobile::generate_android_sources()?;
     mobile::generate_gradle_files(project_dir)?;
 
     // Update Android manifest with file associations

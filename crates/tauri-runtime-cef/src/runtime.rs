@@ -471,8 +471,6 @@ pub enum DowngradePolicy {
 /// ```
 #[derive(Default)]
 pub struct Cef {
-  #[cfg(target_os = "android")]
-  android_app: Option<winit::platform::android::activity::AndroidApp>,
   command_line_args: Vec<(String, Option<String>)>,
   disabled_features: Vec<String>,
   enabled_features: Vec<String>,
@@ -546,13 +544,6 @@ impl fmt::Debug for Cef {
 }
 
 impl Cef {
-  /// Binds this runtime to the GameActivity passed to `android_main`.
-  #[cfg(target_os = "android")]
-  pub fn android_app(mut self, app: winit::platform::android::activity::AndroidApp) -> Self {
-    self.android_app = Some(app);
-    self
-  }
-
   /// Observes native input, resize and redraw events without replacing Tauri's handling.
   ///
   /// Runs before Tauri handles the event. Offscreen embedders forward input, focus and IME
@@ -1230,8 +1221,10 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 
 #[derive(Clone)]
 pub(crate) struct RuntimeContext<T: UserEvent> {
+  #[cfg(target_os = "android")]
+  pub(crate) android: Arc<crate::platform::android::AndroidContext>,
   pub(crate) sender: Sender<Message<T>>,
-  /// Only ever woken through [`Self::wake_event_loop`].
+  /// Woken through [`Self::wake_event_loop`] and Android's destroy callback.
   #[cfg(not(target_os = "macos"))]
   proxy: WinitEventLoopProxy,
   /// Pokes the main run loop, which then delivers pending wake-ups at the start of its next
@@ -1433,8 +1426,8 @@ impl<T: UserEvent> RuntimeContext<T> {
 
   /// Has winit call [`WinitCefApp::proxy_wake_up`], which drains the message queue.
   ///
-  /// Every wake-up of the event loop goes through here; on macOS the context does not even
-  /// hold the proxy, only [`MainThreadDispatchSlot::deliver_wake`] signals it (see below).
+  /// Android's destroy callback also wakes its cloned proxy directly. On macOS the context
+  /// holds no proxy; only [`MainThreadDispatchSlot::deliver_wake`] signals it (see below).
   pub(crate) fn wake_event_loop(&self) {
     #[cfg(not(target_os = "macos"))]
     self.proxy.wake_up();
@@ -1517,6 +1510,8 @@ pub(crate) type AfterWindowCreationCallback = Box<dyn for<'a> Fn(RawWindow<'a>) 
 
 pub(crate) enum Message<T: UserEvent> {
   EventLoop(EventLoopMessage),
+  #[cfg(target_os = "android")]
+  AndroidActivityDestroyed,
   BrowserClosed(WindowId, u32),
   PopupPending(crate::popup::PopupRequest, Arc<crate::popup::PopupFamily>),
   PopupCreated(
@@ -1821,6 +1816,19 @@ impl<T: UserEvent> WinitCefApp<T> {
   fn handle_message(&mut self, event_loop: &dyn ActiveEventLoop, message: Message<T>) {
     match message {
       Message::EventLoop(message) => self.handle_event_loop_message(event_loop, message),
+      #[cfg(target_os = "android")]
+      Message::AndroidActivityDestroyed => {
+        // GameActivity's Java thread is joining us. Do not post CEF shutdown back
+        // to that thread; finish Tauri cleanup and end the process like wry/tao.
+        let windows = self.state.windows.keys().copied().collect::<Vec<_>>();
+        for window_id in windows {
+          self.emit_window_event(window_id, WindowEvent::Destroyed);
+        }
+        self.run_callback(RunEvent::Exit);
+        // Native exit handlers can wait on the Java thread that is joining us.
+        // CEF's Android context lives until process termination, so skip them.
+        unsafe { libc::_exit(0) };
+      }
       Message::PopupPending(request, family) => {
         self.state.pending_popups.push((request, family));
       }
@@ -2331,7 +2339,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     let _guard = self.install_current_dispatch(event_loop);
 
     #[cfg(target_os = "android")]
-    if !self.ready && crate::platform::android::has_window() {
+    if !self.ready && self.context.android.has_window() {
       self.ready = true;
       self.run_callback(RunEvent::Ready);
     }
@@ -2944,10 +2952,9 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   where
     F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
   {
-    crate::platform::android::post(move || {
-      crate::platform::android::with_env(|env, activity| {
-        f(env, activity, &jni::objects::JObject::null())
-      })
+    let android = self.context.android.clone();
+    self.context.android.post(move || {
+      android.with_env(|env, activity| f(env, activity, &jni::objects::JObject::null()))
     });
   }
 
@@ -3075,23 +3082,18 @@ impl<T: UserEvent> CefRuntime<T> {
     let pre_cef_signals = TerminationSignals::capture();
 
     #[cfg(target_os = "android")]
-    {
+    let android = {
       use winit::platform::android::EventLoopBuilderExtAndroid;
-      let app = runtime_args
-        .runtime_init_attrs
-        .android_app
-        .take()
-        .expect("pass the GameActivity's AndroidApp with Cef::android_app");
-
-      crate::platform::android::initialize(&app)?;
+      let app = crate::platform::android::app();
+      let android = crate::platform::android::AndroidContext::new(app);
 
       if runtime_args.runtime_init_attrs.cache_path.is_none() {
-        runtime_args.runtime_init_attrs.cache_path =
-          Some(crate::platform::android::cache_dir().join("cef"));
+        runtime_args.runtime_init_attrs.cache_path = Some(android.cache_dir().join("cef"));
       }
 
-      event_loop_builder.with_android_app(app);
-    }
+      event_loop_builder.with_android_app(android.app.clone());
+      android
+    };
 
     let args = cef::args::Args::new();
 
@@ -3163,8 +3165,6 @@ impl<T: UserEvent> CefRuntime<T> {
     }
 
     let Cef {
-      #[cfg(target_os = "android")]
-        android_app: _,
       command_line_args,
       disabled_features,
       enabled_features,
@@ -3446,6 +3446,8 @@ impl<T: UserEvent> CefRuntime<T> {
     };
 
     let context = RuntimeContext {
+      #[cfg(target_os = "android")]
+      android,
       window_event_handler,
       sender: sender.clone(),
       #[cfg(not(target_os = "macos"))]
@@ -3465,6 +3467,19 @@ impl<T: UserEvent> CefRuntime<T> {
       certificate_errors,
       devtools_allowed,
     };
+
+    #[cfg(target_os = "android")]
+    context.android.set_on_destroy({
+      let sender = context.sender.clone();
+      let proxy = context.proxy.clone();
+      move || {
+        // GameActivity's destroy event delivers the pending proxy wake even
+        // when the activity is paused.
+        if sender.send(Message::AndroidActivityDestroyed).is_ok() {
+          proxy.wake_up();
+        }
+      }
+    })?;
 
     internal_command_line_args.push(("--no-first-run".to_string(), None));
 
@@ -3590,8 +3605,11 @@ impl<T: UserEvent> CefRuntime<T> {
     };
     #[cfg(target_os = "android")]
     // All CEF strings are owned here, and the native thread waits for the call.
-    let initialized =
-      unsafe { crate::platform::android::on_ui_with_event_loop(&mut event_loop, initialize_cef) };
+    let initialized = unsafe {
+      context
+        .android
+        .on_ui_with_event_loop(&mut event_loop, initialize_cef)
+    };
     #[cfg(not(target_os = "android"))]
     let initialized = initialize_cef();
     if initialized != 1 {
@@ -3649,9 +3667,11 @@ impl<T: UserEvent> CefRuntime<T> {
     // message pump.
     #[cfg(target_os = "android")]
     unsafe {
-      crate::platform::android::on_ui_with_event_loop(&mut event_loop, move || {
-        crate::cef_impl::preferences::apply_global_preferences(&global_preferences)
-      });
+      context
+        .android
+        .on_ui_with_event_loop(&mut event_loop, move || {
+          crate::cef_impl::preferences::apply_global_preferences(&global_preferences)
+        });
     }
     #[cfg(not(target_os = "android"))]
     crate::cef_impl::preferences::apply_global_preferences(&global_preferences);

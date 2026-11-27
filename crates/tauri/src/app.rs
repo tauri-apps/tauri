@@ -3256,6 +3256,61 @@ mod tests {
     );
     assert!(matches!(rx.try_recv(), Ok(true)));
   }
+
+  #[test]
+  fn webview_window_is_resolved_by_its_own_webview_with_child_webviews() {
+    use crate::webview::{WebviewBuilder, WebviewWindowBuilder};
+
+    let app = mock_app();
+    let webview_window = WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+    webview_window
+      .as_ref()
+      .window()
+      .add_child(WebviewBuilder::new("child", Default::default()))
+      .unwrap();
+
+    assert!(app.get_webview_window("main").is_some());
+    // a child webview is not the window's own webview
+    assert!(app.get_webview_window("child").is_none());
+    assert_eq!(
+      app.webview_windows().into_keys().collect::<Vec<_>>(),
+      vec!["main"]
+    );
+  }
+
+  #[test]
+  fn window_drag_drop_reaches_the_window_own_webview_with_child_webviews() {
+    use crate::{
+      Listener,
+      manager::window::DRAG_LEAVE_EVENT,
+      webview::{WebviewBuilder, WebviewWindowBuilder},
+    };
+
+    let app = mock_app();
+    let webview_window = WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+    let webview = webview_window.as_ref().clone();
+    webview
+      .window()
+      .add_child(WebviewBuilder::new("child", Default::default()))
+      .unwrap();
+
+    let count = Arc::new(Mutex::new(0));
+    let count_ = count.clone();
+    webview.listen(DRAG_LEAVE_EVENT.as_str(), move |_| {
+      *count_.lock().unwrap() += 1;
+    });
+
+    dispatch_window_event(
+      &app,
+      "main",
+      RuntimeWindowEvent::DragDrop(DragDropEvent::Leave),
+    );
+    assert_eq!(*count.lock().unwrap(), 1);
+  }
 }
 
 /// Whether the current executable lives inside a macOS application bundle (`*.app/Contents/MacOS`).

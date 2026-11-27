@@ -12,7 +12,7 @@ use std::{
 };
 use tauri_utils::config::RpmCompression;
 
-use super::freedesktop;
+use super::{freedesktop, gst_plugin};
 
 /// The compression used when none is configured.
 ///
@@ -221,8 +221,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   // Add resources
-  if settings.resource_files().count() > 0 {
-    let resource_dir = Path::new("/usr/lib").join(settings.product_name());
+  let resource_dir = Path::new("/usr/lib").join(settings.product_name());
+  let has_resources = settings.resource_files().count() > 0;
+  if has_resources {
     builder.with_dir_entry(FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755))?;
     // Then add the resources files in that directory
     for resource in settings.resource_files().iter() {
@@ -230,6 +231,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       let dest = resource_dir.join(resource.target());
       builder.with_file(resource.path(), FileOptions::new(dest.to_string_lossy()))?;
     }
+  }
+
+  // Add the `asset://` GStreamer plugin
+  if let Some(plugin) = gst_plugin::download(settings)? {
+    // The plugin directory lives in the resource directory, which the package
+    // must own too or it is left behind on removal.
+    if !has_resources {
+      builder
+        .with_dir_entry(FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755))?;
+    }
+    let plugin_dir = Path::new("/").join(gst_plugin::plugin_dir(product_name));
+    builder.with_dir_entry(FileOptions::dir(plugin_dir.to_string_lossy()).permissions(0o755))?;
+    builder.with_file(
+      &plugin,
+      FileOptions::new(
+        plugin_dir
+          .join(gst_plugin::PLUGIN_FILE_NAME)
+          .to_string_lossy(),
+      )
+      .permissions(0o755),
+    )?;
   }
 
   // Add Desktop entry file

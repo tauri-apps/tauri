@@ -1471,7 +1471,7 @@
       "type": "object",
       "properties": {
         "scope": {
-          "description": "The access scope for the asset protocol.",
+          "description": "The access scope for the asset protocol.\n\n On Linux, `<audio>` and `<video>` elements load `asset://` URLs through a GStreamer plugin\n that reads the file directly, so media playback is not restricted by this scope:\n when the asset protocol is enabled, any file the user can read can be played.",
           "default": [],
           "allOf": [
             {
@@ -3590,7 +3590,7 @@
       "type": "object",
       "properties": {
         "bundleMediaFramework": {
-          "description": "Include additional gstreamer dependencies needed for audio and video playback.\n This increases the bundle size by ~15-35MB depending on your build system.",
+          "description": "Include additional gstreamer dependencies needed for audio and video playback.\n This also bundles Tauri's GStreamer plugin so audio and video can be streamed over `asset://`.\n This increases the bundle size by ~15-35MB depending on your build system.",
           "default": false,
           "type": "boolean"
         },

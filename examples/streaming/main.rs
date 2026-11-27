@@ -12,6 +12,8 @@ use std::{
   process::{Command, Stdio},
 };
 
+const VIDEO_FILE: &str = "streaming_example_test_video.mp4";
+
 fn get_stream_response(
   request: http::Request<Vec<u8>>,
 ) -> Result<http::Response<Vec<u8>>, Box<dyn std::error::Error>> {
@@ -21,7 +23,7 @@ fn get_stream_response(
     .to_string();
 
   // return error 404 if it's not our video
-  if path != "streaming_example_test_video.mp4" {
+  if path != VIDEO_FILE {
     return Ok(ResponseBuilder::new().status(404).body(Vec::new())?);
   }
 
@@ -167,15 +169,17 @@ fn random_boundary() -> String {
 }
 
 fn download_video() {
-  let video_file = PathBuf::from("streaming_example_test_video.mp4");
+  let video_file = PathBuf::from(VIDEO_FILE);
   if !video_file.exists() {
     let video_url =
-      "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      "https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4";
 
     // Downloading with curl this saves us from adding
     // a Rust HTTP client dependency.
     println!("Downloading {video_url}");
     let status = Command::new("curl")
+      // do not save an HTTP error page as the video
+      .arg("--fail")
       .arg("-L")
       .arg("-o")
       .arg(&video_file)
@@ -190,10 +194,25 @@ fn download_video() {
   }
 }
 
+/// Tells the frontend where the video is and which protocol serves it:
+/// the built-in `asset` protocol when the `protocol-asset` feature is enabled,
+/// the `stream` protocol registered below otherwise.
+#[tauri::command]
+fn video_source() -> (PathBuf, &'static str) {
+  if cfg!(feature = "protocol-asset") {
+    // the asset protocol takes the absolute path of the file
+    let path = std::fs::canonicalize(VIDEO_FILE).expect("failed to resolve the video path");
+    (path, "asset")
+  } else {
+    (PathBuf::from(VIDEO_FILE), "stream")
+  }
+}
+
 fn main() {
   download_video();
 
   tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![video_source])
     .register_asynchronous_uri_scheme_protocol("stream", move |_ctx, request, responder| {
       match get_stream_response(request) {
         Ok(http_response) => responder.respond(http_response),

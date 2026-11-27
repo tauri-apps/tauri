@@ -270,6 +270,7 @@ dependencies = [
  "tauri-plugin-automation",
  "tauri-plugin-log",
  "tauri-plugin-sample",
+ "ureq",
 ]
 
 [[package]]

@@ -169,13 +169,20 @@ pub fn build(
     std::fs::create_dir_all(&out_dir)
       .fs_context("failed to create project out directory", out_dir.clone())?;
 
-    let bin_name = bin_path.file_stem().unwrap();
+    // The bundler copies every binary that `get_binaries` returns, so each of them has to
+    // exist in the universal output directory. Merge all of them, not only the main one.
+    //
+    // Features from the config (`build.features`) are merged into the CLI ones here: cargo
+    // is invoked with both lists, while `get_binaries` filters on `options.features` alone
+    // (see `build_production_app`), so without this the merged set can be smaller than the
+    // set the bundler will later look for.
+    let mut binaries_options = options.clone();
+    binaries_options
+      .features
+      .extend(config_features.iter().cloned());
+    let binaries = app_settings.get_binaries(&binaries_options, tauri_dir)?;
 
-    let mut lipo_cmd = Command::new("lipo");
-    lipo_cmd
-      .arg("-create")
-      .arg("-output")
-      .arg(out_dir.join(bin_name));
+    let mut triple_out_dirs = Vec::with_capacity(2);
     for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
       let mut options = options.clone();
       options.target.replace(triple.into());
@@ -187,14 +194,29 @@ pub fn build(
       build_production_app(options, available_targets, config_features.clone())
         .with_context(|| format!("failed to build {triple} binary"))?;
 
-      lipo_cmd.arg(triple_out_dir.join(bin_name));
+      triple_out_dirs.push(triple_out_dir);
     }
 
-    let lipo_status = lipo_cmd.output_ok()?.status;
-    if !lipo_status.success() {
-      crate::error::bail!(
-        "Result of `lipo` command was unsuccessful: {lipo_status}. (Is `lipo` installed?)"
-      );
+    // `rename_app` below is the only place that decides the final name of the main binary,
+    // so `lipo` keeps the cargo names for every binary.
+    for binary in &binaries {
+      let bin_name = binary.name();
+
+      let mut lipo_cmd = Command::new("lipo");
+      lipo_cmd
+        .arg("-create")
+        .arg("-output")
+        .arg(out_dir.join(bin_name));
+      for triple_out_dir in &triple_out_dirs {
+        lipo_cmd.arg(triple_out_dir.join(bin_name));
+      }
+
+      let lipo_status = lipo_cmd.output_ok()?.status;
+      if !lipo_status.success() {
+        crate::error::bail!(
+          "Result of `lipo` for `{bin_name}` was unsuccessful: {lipo_status}. (Is `lipo` installed?)"
+        );
+      }
     }
   } else {
     build_production_app(options, available_targets, config_features)

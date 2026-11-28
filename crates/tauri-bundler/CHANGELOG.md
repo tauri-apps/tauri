@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.0.0-alpha.6]
+
+### Bug Fixes
+
+- [`588a5c17d`](https://www.github.com/tauri-apps/tauri/commit/588a5c17d37c89e94d679a9462a29ad030090238) ([#16573](https://www.github.com/tauri-apps/tauri/pull/16573) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Stop bundling CEF's `dxil.dll` on Windows, which CEF no longer ships since 156.
+- [`6620118f0`](https://www.github.com/tauri-apps/tauri/commit/6620118f0fe85472abfdccea8d99fd0ec9447c3f) ([#16338](https://www.github.com/tauri-apps/tauri/pull/16338) by [@aervxa](https://www.github.com/tauri-apps/tauri/../../aervxa)) Remove outdated CEF files `libEGL.so` and `libGLESv2.so`, which are not seperate libraries since cef v152
+
+### What's Changed
+
+- [``](https://www.github.com/tauri-apps/tauri/commit/undefined) Pulled latest Tauri v2.13 changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@3.0.0-alpha.5`
+- Upgraded to `tauri-macos-sign@3.0.0-alpha.4`
+
 ## [3.0.0-alpha.5]
 
 ### Bug Fixes

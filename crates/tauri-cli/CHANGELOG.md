@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.0.0-alpha.7]
+
+### What's Changed
+
+- [``](https://www.github.com/tauri-apps/tauri/commit/undefined) Pulled latest Tauri v2.13 changes.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@3.0.0-alpha.6`
+- Upgraded to `tauri-utils@3.0.0-alpha.5`
+- Upgraded to `tauri-macos-sign@3.0.0-alpha.4`
+
 ## [3.0.0-alpha.6]
 
 ### Dependencies

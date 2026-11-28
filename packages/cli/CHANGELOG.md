@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.0.0-alpha.7]
+
+### What's Changed
+
+- [``](https://www.github.com/tauri-apps/tauri/commit/undefined) Pulled latest Tauri v2.13 changes.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@3.0.0-alpha.7`
+
 ## [3.0.0-alpha.6]
 
 ### Dependencies

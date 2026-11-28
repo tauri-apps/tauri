@@ -44,7 +44,6 @@ type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
 type PermissionRequestHandler = dyn Fn(PermissionKind) -> PermissionResponse + Send + Sync;
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
 type OnWebContentProcessTerminateHandler = dyn Fn() + Send;
 
 #[cfg(target_os = "ios")]

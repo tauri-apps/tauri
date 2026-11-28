@@ -48,7 +48,7 @@ wrap_browser_process_handler! {
     fn on_already_running_app_relaunch(
       &self,
       command_line: Option<&mut CommandLine>,
-      _current_directory: Option<&CefString>,
+      current_directory: Option<&CefString>,
     ) -> std::os::raw::c_int {
       let Some(command_line) = command_line else {
         return 0;
@@ -65,7 +65,21 @@ wrap_browser_process_handler! {
           return 1;
         }
       }
-      // TODO: add event
+      // Clone it out so the handler can replace itself without deadlocking.
+      let handler = self.context.relaunch_handler.lock().unwrap().clone();
+      if let Some(handler) = handler {
+        let relayed = CefString::from(&command_line.switch_value(Some(&CefString::from(
+          crate::runtime::RELAUNCH_ARGV_SWITCH,
+        ))))
+        .to_string();
+        let argv = crate::runtime::decode_relaunch_argv(&relayed).unwrap_or_else(|| {
+          let mut argv = CefStringList::new();
+          command_line.argv(Some(&mut argv));
+          argv.into_iter().collect()
+        });
+        let cwd = current_directory.map(ToString::to_string).unwrap_or_default();
+        handler(argv, cwd);
+      }
       1
     }
   }

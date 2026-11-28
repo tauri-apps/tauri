@@ -10,12 +10,14 @@
 
 use std::sync::Arc;
 
-use tauri::{EventLoopMessage, Manager, Runtime, Webview, WebviewWindow};
-use tauri_runtime::dynamic::{DynWebviewAttributes, DynWebviewDispatcher, DynWindowOpener};
+use tauri::{AppHandle, EventLoopMessage, Manager, Runtime, Webview, WebviewWindow};
+use tauri_runtime::dynamic::{
+  DynRuntimeHandle, DynWebviewAttributes, DynWebviewDispatcher, DynWindowOpener,
+};
 
 use crate::{
-  CefWebviewAttributes, CefWebviewDispatcher, ChromeCommandGroup, ConsoleMessage, DevToolsProtocol,
-  FrameEvent, NewWindowOpener, RuntimeStyle,
+  CefRuntimeHandle, CefWebviewAttributes, CefWebviewDispatcher, ChromeCommandGroup, ConsoleMessage,
+  DevToolsProtocol, FrameEvent, NewWindowOpener, RuntimeStyle,
 };
 
 type Result<T> = std::result::Result<T, tauri::Error>;
@@ -520,5 +522,62 @@ where
       attributes.browser_settings_callback = Some(callback.clone());
     });
     self
+  }
+}
+
+/// Returns the CEF runtime handle behind `handle`, whatever runtime generic the app uses.
+fn as_cef_runtime_handle(
+  handle: &dyn std::any::Any,
+) -> Option<&CefRuntimeHandle<EventLoopMessage>> {
+  handle
+    .downcast_ref::<CefRuntimeHandle<EventLoopMessage>>()
+    .or_else(|| {
+      handle
+        .downcast_ref::<DynRuntimeHandle<EventLoopMessage>>()?
+        .downcast_ref()
+    })
+}
+
+/// CEF-specific APIs of [`tauri::AppHandle`].
+pub trait AppHandleCefExt {
+  /// Called on the main thread when the application is launched again while this instance
+  /// is running.
+  ///
+  /// Chromium allows a single browser process per root cache path, so the second launch
+  /// exits inside runtime initialization, before any plugin runs, and its argv and working
+  /// directory are handed to this instance. A launch whose first argument is a URL of one of
+  /// the [`Cef::deep_link_schemes`](crate::Cef::deep_link_schemes) arrives as
+  /// [`tauri::RunEvent::Opened`] instead.
+  ///
+  /// Replaces the previously registered handler.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// use tauri_runtime_cef::AppHandleCefExt;
+  ///
+  /// tauri::Builder::default()
+  ///   .runtime(tauri_runtime_cef::Cef::default())
+  ///   .setup(|app| {
+  ///     let handle = app.handle().clone();
+  ///     app.handle().on_relaunch(move |argv, cwd| {
+  ///       println!("launched again with {argv:?} in {cwd}");
+  ///       if let Some(window) = handle.get_webview_window("main") {
+  ///         let _ = window.set_focus();
+  ///       }
+  ///     })?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  fn on_relaunch<F: Fn(Vec<String>, String) + Send + Sync + 'static>(&self, f: F) -> Result<()>;
+}
+
+impl<R: Runtime> AppHandleCefExt for AppHandle<R> {
+  fn on_relaunch<F: Fn(Vec<String>, String) + Send + Sync + 'static>(&self, f: F) -> Result<()> {
+    as_cef_runtime_handle(self.runtime_handle())
+      .ok_or_else(not_cef)?
+      .set_relaunch_handler(Arc::new(f));
+    Ok(())
   }
 }

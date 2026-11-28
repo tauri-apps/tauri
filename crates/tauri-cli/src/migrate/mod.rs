@@ -42,7 +42,7 @@ pub fn command() -> Result<()> {
   let tauri_version = crate_version(dirs.tauri, Some(&manifest), lock.as_ref(), "tauri")
     .version
     .context("failed to get tauri version")?;
-  let tauri_version = semver::Version::from_str(&tauri_version)
+  let tauri_version = parse_tauri_version(&tauri_version)
     .with_context(|| format!("failed to parse tauri version {tauri_version}"))?;
 
   if tauri_version.major == 1 {
@@ -69,4 +69,57 @@ pub fn command() -> Result<()> {
   }
 
   Ok(())
+}
+
+/// Parses the tauri version, which is either a resolved version from the lockfile
+/// or a version requirement from the manifest (e.g. `"1"` or `"^2.0.0-beta.3"`)
+fn parse_tauri_version(version: &str) -> Option<semver::Version> {
+  if let Ok(version) = semver::Version::from_str(version) {
+    return Some(version);
+  }
+
+  let req = semver::VersionReq::from_str(version).ok()?;
+  let comparator = req.comparators.first()?;
+  Some(semver::Version {
+    major: comparator.major,
+    minor: comparator.minor.unwrap_or(0),
+    patch: comparator.patch.unwrap_or(0),
+    pre: comparator.pre.clone(),
+    build: semver::BuildMetadata::EMPTY,
+  })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::parse_tauri_version;
+
+  #[test]
+  fn parses_lockfile_versions() {
+    let version = parse_tauri_version("1.8.3").unwrap();
+    assert_eq!((version.major, version.minor, version.patch), (1, 8, 3));
+
+    let version = parse_tauri_version("2.0.0-beta.25").unwrap();
+    assert_eq!(version.major, 2);
+    assert_eq!(version.pre.as_str(), "beta.25");
+  }
+
+  #[test]
+  fn rejects_invalid_versions() {
+    assert!(parse_tauri_version("*").is_none());
+    assert!(parse_tauri_version("not a version").is_none());
+  }
+
+  #[test]
+  fn parses_manifest_requirements() {
+    assert_eq!(parse_tauri_version("1").unwrap().major, 1);
+    assert_eq!(parse_tauri_version("1.8").unwrap().major, 1);
+    assert_eq!(parse_tauri_version("^1.5").unwrap().major, 1);
+    assert_eq!(parse_tauri_version("=1.8.3").unwrap().major, 1);
+    assert_eq!(parse_tauri_version("2").unwrap().major, 2);
+    assert!(parse_tauri_version("2").unwrap().pre.is_empty());
+
+    let version = parse_tauri_version("2.0.0-beta").unwrap();
+    assert_eq!(version.major, 2);
+    assert_eq!(version.pre.as_str(), "beta");
+  }
 }

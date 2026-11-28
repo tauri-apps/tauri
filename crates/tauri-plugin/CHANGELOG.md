@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.8.0]
+
+### What's Changed
+
+- [`8cbd4f200`](https://www.github.com/tauri-apps/tauri/commit/8cbd4f2001a40ee84c444fa94f3eca8f7d48b174) ([#16170](https://www.github.com/tauri-apps/tauri/pull/16170) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Set MSRV to 1.92.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.11.0`
+
 ## [2.7.4]
 
 ### Dependencies

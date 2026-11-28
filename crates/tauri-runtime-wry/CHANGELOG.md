@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.13.0]
+
+### New Features
+
+- [`df7c8a8a1`](https://www.github.com/tauri-apps/tauri/commit/df7c8a8a13943219f636f4487b9cfc903c0fdf8e) ([#16647](https://www.github.com/tauri-apps/tauri/pull/16647) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `RunEvent::ActivityRequested` on Android, emitted when the system creates an activity that is not attached to a window, for instance when the app is launched again while a foreground service kept its process alive. Pass its `activity_id` to the new `WebviewWindowBuilder::activity_id` (or `WindowBuilder::activity_id`) to attach a window to that activity.
+- [`89caf00bd`](https://www.github.com/tauri-apps/tauri/commit/89caf00bd46c19564b7cb62688a8f3120e9e24e8) ([#16220](https://www.github.com/tauri-apps/tauri/pull/16220) by [@VityaSchel](https://www.github.com/tauri-apps/tauri/../../VityaSchel)) Added `app > androidTauriProtocolHostname` config to serve the Android app from `https://<androidTauriProtocolHostname>` instead of `http(s)://tauri.localhost`, so autofill services can link webview credentials to the app through Digital Asset Links. The other custom protocols keep following `useHttpsScheme`.
+- [`61a3537e0`](https://www.github.com/tauri-apps/tauri/commit/61a3537e040f1f5feb59a3892f061cef545da2c8) ([#16397](https://www.github.com/tauri-apps/tauri/pull/16397) by [@rudy-07](https://www.github.com/tauri-apps/tauri/../../rudy-07)) Expose `browser_accelerator_keys` on `WebviewBuilder`, `WebviewWindowBuilder`, and `browserAcceleratorKeys` in the window configuration to control default browser shortcuts (such as F5, Ctrl+R, Ctrl+F, Ctrl+P) on Windows.
+- [`d03f76daf`](https://www.github.com/tauri-apps/tauri/commit/d03f76daf4fd557dbbffa3205e78dd30faa87b12) ([#16054](https://www.github.com/tauri-apps/tauri/pull/16054) by [@jhasheng](https://www.github.com/tauri-apps/tauri/../../jhasheng)) Add `AppHandle::fetch_profile_identifiers` and `AppHandle::remove_profile`, and the `fetchProfileIdentifiers` and `removeProfile` JS functions, to list and delete the browsing data profiles created with `profile_identifier` on macOS, iOS and Windows.
+- [`d03f76daf`](https://www.github.com/tauri-apps/tauri/commit/d03f76daf4fd557dbbffa3205e78dd30faa87b12) ([#16054](https://www.github.com/tauri-apps/tauri/pull/16054) by [@jhasheng](https://www.github.com/tauri-apps/tauri/../../jhasheng)) Add `WebviewBuilder::profile_identifier`, `WebviewWindowBuilder::profile_identifier`, the `profileIdentifier` window config option and the `profileIdentifier` JS webview option to isolate a webview's browsing data. On macOS and iOS it maps to a `WKWebsiteDataStore` identifier, and on Windows to a WebView2 named profile, so webviews sharing a data directory get isolated cookies and storage while still sharing a single browser process.
+
+### Bug Fixes
+
+- [`84af754a6`](https://www.github.com/tauri-apps/tauri/commit/84af754a644920c333c365184d9aa31d688fd055) ([#15411](https://www.github.com/tauri-apps/tauri/pull/15411) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fixed a crash related to the `DispatcherMainThreadContext` being cloned and dropped off main thread. `WryHandle::display_handle` has a wrong lifetime now because it can't own the event loop off main thread. It now goes through the event loop like `window_handle`, so calling it off the main thread blocks until the main thread handles the request.
+- [`8627ddca9`](https://www.github.com/tauri-apps/tauri/commit/8627ddca9bba4c03e8ea0d4fbbeeb23a559a071a) ([#16507](https://www.github.com/tauri-apps/tauri/pull/16507) by [@jrandolf](https://www.github.com/tauri-apps/tauri/../../jrandolf)) On Linux with the `unstable` feature, child webviews added with `Window::add_child` are placed at their bounds, instead of being stacked in the window's box. They are clipped at the edge of the window and do not scroll. A webview that resizes with its window, the window's own webview included, takes the size of the room that GTK gives it, instead of the inner size of the window, which counts the menu bar and, on Wayland, the client-side decorations. `Webview::reparent` keeps the position of the webview.
+
+### What's Changed
+
+- [`8cbd4f200`](https://www.github.com/tauri-apps/tauri/commit/8cbd4f2001a40ee84c444fa94f3eca8f7d48b174) ([#16170](https://www.github.com/tauri-apps/tauri/pull/16170) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Set MSRV to 1.92.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.11.0`
+- Upgraded to `tauri-runtime@2.13.0`
+- [`8cbd4f200`](https://www.github.com/tauri-apps/tauri/commit/8cbd4f2001a40ee84c444fa94f3eca8f7d48b174) ([#16170](https://www.github.com/tauri-apps/tauri/pull/16170) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Update `gtk` to 0.19, `webkit2gtk` to 3, `wry` to 0.58, `tao` to 0.38, `muda` to 0.22 and `tray-icon` to 0.27. The `linux-libxdo` feature is now a no-op since `muda` no longer has the `libxdo` feature.
+
+### Breaking Changes
+
+- [`84af754a6`](https://www.github.com/tauri-apps/tauri/commit/84af754a644920c333c365184d9aa31d688fd055) ([#15411](https://www.github.com/tauri-apps/tauri/pull/15411) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `DispatcherMainThreadContext::window_target` now takes a `Weak<EventLoopWindowTarget<Message<T>>>` instead of `EventLoopWindowTarget<Message<T>>`
+
 ## [2.12.5]
 
 ### Dependencies

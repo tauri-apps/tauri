@@ -21,17 +21,21 @@ build = [
   "dep:glob",
   "dep:plist",
   "dep:walkdir",
+  "dep:tauri-utils",
+  "dep:schemars",
 ]
 runtime = []
 
 [dependencies]
 anyhow = { version = "1", optional = true }
 serde = { version = "1", optional = true }
-tauri-utils = { workspace = true, features = ["build-2"] }
+tauri-utils = { workspace = true, features = ["build-2"], optional = true }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 # Our code requires at least 0.8.22 so don't simplify this to 0.8
-schemars = { version = "0.8.22", features = ["preserve_order"] }
+schemars = { version = "0.8.22", features = [
+  "preserve_order",
+], optional = true }
 walkdir = { version = "2", optional = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]

@@ -137,21 +137,45 @@ pub struct Rust {
 }
 
 impl Rust {
-  pub fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self> {
+  pub fn new(
+    config: &Config,
+    target: Option<String>,
+    tauri_dir: &Path,
+    no_watch: bool,
+  ) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
-      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
-        if let Ok(_events) = r {
-          let _ = tx.send(());
+      // The watcher only exists to detect the manifest rewrite so it can wait for the
+      // modified event. It is never used again once `new` returns, so skip it entirely
+      // when watching is not wanted, and degrade gracefully if the OS refuses to create
+      // one (for example when the inotify instance limit is exhausted).
+      let mut watcher = if no_watch {
+        None
+      } else {
+        let manifest_path = tauri_dir.join("Cargo.toml");
+        match new_debouncer(Duration::from_secs(1), None, move |r| {
+          if let Ok(_events) = r {
+            let _ = tx.send(());
+          }
+        }) {
+          Ok(watcher) => Some(watcher),
+          Err(error) => {
+            log::warn!(
+              "failed to create the watcher for {}: {error}",
+              manifest_path.display()
+            );
+            None
+          }
         }
-      })
-      .unwrap();
-      let manifest_path = tauri_dir.join("Cargo.toml");
-      watcher
-        .watch(&manifest_path, RecursiveMode::NonRecursive)
-        .with_context(|| format!("failed to watch {}", manifest_path.display()))?;
+      };
+      if let Some(watcher) = watcher.as_mut() {
+        let manifest_path = tauri_dir.join("Cargo.toml");
+        if let Err(error) = watcher.watch(&manifest_path, RecursiveMode::NonRecursive) {
+          log::warn!("failed to watch {}: {error}", manifest_path.display());
+        }
+      }
       let (manifest, modified) = rewrite_manifest(config, tauri_dir)?;
-      if modified {
+      if modified && watcher.is_some() {
         // Wait for the modified event so we don't trigger a re-build later on
         let _ = rx.recv_timeout(Duration::from_secs(2));
       }

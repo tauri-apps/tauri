@@ -104,7 +104,7 @@ pub fn command(options: Options) -> Result<()> {
     &get_app(
       MobileTarget::Ios,
       &tauri_config,
-      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      &AppInterface::new(&tauri_config, None, dirs.tauri, false)?,
       dirs.tauri,
     ),
     &tauri_config,
@@ -219,7 +219,7 @@ pub fn command(options: Options) -> Result<()> {
       }
     };
 
-    let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri)?;
+    let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri, false)?;
 
     let cflags = format!("CFLAGS_{env_triple}");
     let cxxflags = format!("CXXFLAGS_{env_triple}");

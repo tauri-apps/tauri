@@ -119,7 +119,7 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri, false)?;
 
   setup(&interface, &mut options, &mut config, &dirs)?;
 

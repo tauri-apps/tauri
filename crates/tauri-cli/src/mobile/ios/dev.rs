@@ -191,7 +191,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let interface = AppInterface::new(&tauri_config, Some(target_triple), dirs.tauri)?;
+  let interface = AppInterface::new(&tauri_config, Some(target_triple), dirs.tauri, false)?;
 
   let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
   let (config, _) = get_config(

@@ -782,6 +782,23 @@ pub fn build_wix_app_installer(
     data.insert("enable_elevated_update_task", to_json(true));
   }
 
+  // `main.wxs` is rendered without escaping because some values are already WiX XML,
+  // so escape the plain text values, for example a publisher such as `Smith & Sons`.
+  // The update task files above are rendered from the unescaped values.
+  data.insert(
+    "product_name",
+    to_json(html_escape(settings.product_name())),
+  );
+  data.insert("manufacturer", to_json(html_escape(manufacturer)));
+  data.insert(
+    "homepage",
+    to_json(settings.homepage_url().map(html_escape)),
+  );
+  data.insert(
+    "long_description",
+    to_json(html_escape(settings.long_description().unwrap_or_default())),
+  );
+
   let main_wxs_path = output_path.join("main.wxs");
   fs::write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
@@ -852,7 +869,7 @@ pub fn build_wix_app_installer(
     let locale_strings = include_str!("./default-locale-strings.xml")
       .replace("__language__", &language_metadata.lang_id.to_string())
       .replace("__codepage__", &language_metadata.ascii_code.to_string())
-      .replace("__productName__", settings.product_name());
+      .replace("__productName__", &html_escape(settings.product_name()));
 
     let mut unset_locale_strings = String::new();
     let prefix_len = "<String ".len();

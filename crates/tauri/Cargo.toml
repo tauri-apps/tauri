@@ -54,7 +54,7 @@ tauri-runtime = { workspace = true }
 tauri-macros = { workspace = true }
 tauri-utils = { workspace = true, features = ["resources"] }
 tauri-runtime-wry = { workspace = true, optional = true }
-getrandom = "0.3"
+getrandom = "0.4"
 serde_repr = "0.1"
 http = "1"
 dirs = "7"

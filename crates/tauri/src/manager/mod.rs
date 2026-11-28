@@ -106,6 +106,25 @@ pub(crate) fn set_csp<R: Runtime>(
   csp
 }
 
+/// Allows the isolation frame's origin in the page CSP.
+///
+/// Frames are governed by `frame-src`, falling back to `child-src` and then `default-src`,
+/// so the origin has to be added to every one of those the CSP defines. Adding it only to
+/// `default-src` blocks the isolation iframe as soon as `frame-src` or `child-src` is set,
+/// and every IPC call then waits forever for the frame to become ready.
+#[cfg(feature = "isolation")]
+fn allow_isolation_frame(csp: &mut HashMap<String, CspDirectiveSources>, origin: String) {
+  for directive in ["frame-src", "child-src"] {
+    if let Some(sources) = csp.get_mut(directive) {
+      sources.push(&origin);
+    }
+  }
+  csp
+    .entry("default-src".to_owned())
+    .or_default()
+    .push(origin);
+}
+
 // inspired by <https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297>
 fn replace_with_callback<F: FnMut() -> String>(
   original: &str,
@@ -453,11 +472,10 @@ impl<R: Runtime> AppManager<R> {
         let mut csp_map = set_csp(&mut asset, &self.assets, &asset_path, self, csp);
         #[cfg(feature = "isolation")]
         if let Pattern::Isolation { schema, .. } = &*self.pattern {
-          let default_src = csp_map.entry("default-src".to_owned()).or_default();
-          default_src.push(crate::pattern::format_real_schema(
-            schema,
-            _use_https_schema,
-          ));
+          allow_isolation_frame(
+            &mut csp_map,
+            crate::pattern::format_real_schema(schema, _use_https_schema),
+          );
         }
 
         csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
@@ -748,6 +766,40 @@ impl<R: Runtime> AppManager<R> {
 #[cfg(test)]
 mod tests {
   use super::replace_with_callback;
+
+  #[cfg(feature = "isolation")]
+  #[test]
+  fn isolation_origin_is_allowed_for_frames() {
+    use super::allow_isolation_frame;
+    use std::collections::HashMap;
+    use tauri_utils::config::{Csp, CspDirectiveSources};
+
+    let origin = "isolation-abc://localhost".to_owned();
+    for (policy, directives) in [
+      ("default-src 'self'", &["default-src"][..]),
+      (
+        "default-src 'self'; frame-src https://example.com",
+        &["default-src", "frame-src"][..],
+      ),
+      (
+        "default-src 'self'; child-src 'self'",
+        &["default-src", "child-src"][..],
+      ),
+      (
+        "script-src 'self'; frame-src 'self'; child-src 'self'",
+        &["default-src", "frame-src", "child-src"][..],
+      ),
+    ] {
+      let mut csp: HashMap<String, CspDirectiveSources> = Csp::Policy(policy.into()).into();
+      allow_isolation_frame(&mut csp, origin.clone());
+      for directive in directives {
+        assert!(
+          csp[*directive].contains(&origin),
+          "{directive} does not allow the isolation origin for `{policy}`"
+        );
+      }
+    }
+  }
 
   #[test]
   fn string_replace_with_callback() {

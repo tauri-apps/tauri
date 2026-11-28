@@ -108,13 +108,34 @@ impl<'a, R: Runtime> CommandItem<'a, R> {
       ))),
       InvokeBody::Json(v) => match v.get(self.key) {
         Some(value) => Ok(value),
-        None => Err(serde_json::Error::custom(format!(
-          "command {} missing required key {}",
-          self.name, self.key
-        ))),
+        None => {
+          let hint = similar_key(v, self.key)
+            .map(|found| format!(", found `{found}` instead (argument keys are camelCase by default, see `rename_all` on `#[tauri::command]`)"))
+            .unwrap_or_default();
+          Err(serde_json::Error::custom(format!(
+            "command {} missing required key {}{hint}",
+            self.name, self.key
+          )))
+        }
       },
     }
   }
+}
+
+/// Finds a payload key that only differs from `key` in case and underscores, e.g. `on_raw` for `onRaw`.
+fn similar_key<'v>(payload: &'v serde_json::Value, key: &str) -> Option<&'v str> {
+  let normalize = |s: &str| -> String {
+    s.chars()
+      .filter(|c| *c != '_')
+      .map(|c| c.to_ascii_lowercase())
+      .collect()
+  };
+  let key = normalize(key);
+  payload
+    .as_object()?
+    .keys()
+    .map(String::as_str)
+    .find(|k| normalize(k) == key)
 }
 
 /// A [`Deserializer`] wrapper around [`CommandItem`].
@@ -328,5 +349,62 @@ pub mod private {
       let response = value.await.map_err(Into::into)?;
       Ok(response.body()?)
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    command,
+    test::{INVOKE_KEY, get_ipc_response, mock_builder, mock_context, noop_assets},
+    webview::InvokeRequest,
+  };
+
+  #[command(root = "crate")]
+  fn set_raw(on_raw: bool) -> bool {
+    on_raw
+  }
+
+  #[test]
+  fn missing_key_error_mentions_similar_key() {
+    let app = mock_builder()
+      .invoke_handler(crate::generate_handler![set_raw])
+      .build(mock_context(noop_assets()))
+      .unwrap();
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    let invoke = |body: serde_json::Value| {
+      get_ipc_response(
+        &webview,
+        InvokeRequest {
+          cmd: "set_raw".into(),
+          callback: crate::ipc::CallbackFn(0),
+          error: crate::ipc::CallbackFn(1),
+          url: crate::protocol::origin("tauri", false).parse().unwrap(),
+          body: body.into(),
+          headers: Default::default(),
+          invoke_key: INVOKE_KEY.to_string(),
+        },
+      )
+    };
+
+    let error = invoke(serde_json::json!({ "on_raw": true })).unwrap_err();
+    assert!(
+      error.as_str().unwrap().contains("found `on_raw` instead"),
+      "{error}"
+    );
+
+    let error = invoke(serde_json::json!({ "raw": true })).unwrap_err();
+    assert!(
+      error
+        .as_str()
+        .unwrap()
+        .ends_with("command set_raw missing required key onRaw"),
+      "{error}"
+    );
+
+    assert!(invoke(serde_json::json!({ "onRaw": true })).is_ok());
   }
 }

@@ -111,6 +111,75 @@
     - The CEF files, code signing entitlements and macOS dev flow are only used when the app uses CEF.
     - Nothing runtime-specific is done for other runtimes.
     - The app and plugin templates add the `tauri-runtime-wry` dependency and select it with `tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default())`.
+## [2.13.0]
+
+### New Features
+
+- [`9eda95fa0`](https://www.github.com/tauri-apps/tauri/commit/9eda95fa0af7863c04644cae1fea0f233e94b1ca) ([#8656](https://www.github.com/tauri-apps/tauri/pull/8656) by [@naman-crabnebula](https://www.github.com/tauri-apps/tauri/../../naman-crabnebula)) Add the `pacman` bundle target for Arch Linux. It produces a `.tar.gz` archive with a `PKGBUILD` and `.SRCINFO` ready to be published to the AUR; see `bundle > linux > pacman` for the package name (`<name>-bin` by default), release, dependencies, install script, changelog and source options. `bundle > licenseFile` is installed to `/usr/share/licenses/<pkgname>/`.
+    
+    The `pacman` target is part of `"all"`, so Linux builds that bundle all targets now also produce the pacman package; list the targets explicitly in `bundle > targets` to opt out.
+- [`74ff201f6`](https://www.github.com/tauri-apps/tauri/commit/74ff201f661a6b29ee95562d00cb0a0dece9eb8d) ([#15965](https://www.github.com/tauri-apps/tauri/pull/15965) by [@aaalloc](https://www.github.com/tauri-apps/tauri/../../aaalloc)) Audio and video elements can now play `asset://` URLs on Linux. The `deb`, `rpm` and `pacman` bundles ship a GStreamer plugin in `/usr/lib/<productName>/gstreamer-1.0`, the `appimage` bundle includes it when `bundle > linux > appimage > bundleMediaFramework` is enabled, and `tauri dev` downloads it to the tools directory, where development binaries load it from. The plugin is downloaded at bundle time.
+    
+    The plugin is only used when `app > security > assetProtocol > enable` is set. It reads the requested file directly, so media playback is not restricted by `assetProtocol > scope`.
+- [`988cd2ea0`](https://www.github.com/tauri-apps/tauri/commit/988cd2ea02495a39ecfd6208d3413a4ddc39ca80) ([#16296](https://www.github.com/tauri-apps/tauri/pull/16296) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Add `bundle > linux > deb > compression` config option to control Debian bundle compression type and level.
+- [`f69d1f98e`](https://www.github.com/tauri-apps/tauri/commit/f69d1f98ebae6cce509ef79688bdbb963914612b) ([#16562](https://www.github.com/tauri-apps/tauri/pull/16562) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `bundle.windows.nsis.installerTarget` to select `x86-unicode` (default), `x86-ansi`, or `amd64-unicode` independently of the application architecture.
+- [`e1d7dca25`](https://www.github.com/tauri-apps/tauri/commit/e1d7dca25598b8a9843cec2de120337de5c19c34) ([#16267](https://www.github.com/tauri-apps/tauri/pull/16267) by [@savvasioakeim](https://www.github.com/tauri-apps/tauri/../../savvasioakeim)) Added the `TAURIDIR` NSIS define, holding the path of the directory that contains `tauri.conf.json`. It is defined before the installer hooks are included, so a hook can refer to files kept next to the config, for example `!define MUI_UNICON "${TAURIDIR}\nsis\uninstall.ico"`.
+- [`90747a598`](https://www.github.com/tauri-apps/tauri/commit/90747a5986ff55f7956867f606bae152099cf86f) ([#16157](https://www.github.com/tauri-apps/tauri/pull/16157) by [@ThomasBraun1979](https://www.github.com/tauri-apps/tauri/../../ThomasBraun1979)) Add `/DELETEAPPDATA` flag to the NSIS uninstaller to delete the application data without user interaction (e.g. in silent or passive mode). In interactive mode, the flag pre-checks the `Delete the application data` check box.
+
+### Enhancements
+
+- [`f69d1f98e`](https://www.github.com/tauri-apps/tauri/commit/f69d1f98ebae6cce509ef79688bdbb963914612b) ([#16562](https://www.github.com/tauri-apps/tauri/pull/16562) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Windows, use an existing NSIS installation found through `NSIS_PATH` or `PATH`, falling back to downloading NSIS if none is found.
+
+### Bug Fixes
+
+- [`d094c3a24`](https://www.github.com/tauri-apps/tauri/commit/d094c3a242300a09d708de3c2b7c4b41c7f5dda4) ([#16651](https://www.github.com/tauri-apps/tauri/pull/16651) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `tauri android dev` failing to load the frontend on physical Android 17 devices. The app could not reach the dev server on the network address because Android 17 requires the `ACCESS_LOCAL_NETWORK` permission. Debug builds now declare this permission and the CLI grants it.
+- [`5e891a8a6`](https://www.github.com/tauri-apps/tauri/commit/5e891a8a6e16e7bbce12c92db73dd8cb83d7a6a7) ([#15992](https://www.github.com/tauri-apps/tauri/pull/15992) by [@cuishuang](https://www.github.com/tauri-apps/tauri/../../cuishuang)) Fix iOS builds failing when the app version contains both a prerelease tag and build metadata.
+- [`4863d2d74`](https://www.github.com/tauri-apps/tauri/commit/4863d2d74de8b645478c14fe665fe00ae566cf23) ([#16565](https://www.github.com/tauri-apps/tauri/pull/16565) by [@Stiven-Gjekaj](https://www.github.com/tauri-apps/tauri/../../Stiven-Gjekaj)) Do not require an iOS simulator runtime for `tauri ios build` and `tauri ios dev` when the target is a device. The CLI now checks the iPhoneOS SDK for device targets. It still checks the simulator runtime for simulator targets.
+- [`e36b0b96f`](https://www.github.com/tauri-apps/tauri/commit/e36b0b96fb27f1e2c621101ad86e93386562851e) ([#16312](https://www.github.com/tauri-apps/tauri/pull/16312) by [@su-huldra](https://www.github.com/tauri-apps/tauri/../../su-huldra)) Preserve the entitlements of embedded app extensions (and other nested bundles such as watch apps and app clips) when building an iOS app with App Store Connect API key authentication. Previously only the main app binary was signed before export, so extensions silently lost entitlements such as App Groups.
+- [`67fbb3d21`](https://www.github.com/tauri-apps/tauri/commit/67fbb3d21fc9e885995dc5cd56caaaf723713a65) ([#16630](https://www.github.com/tauri-apps/tauri/pull/16630) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fix mobile build tasks generated when the CLI is invoked directly with Node.js.
+
+### What's Changed
+
+- [`8cbd4f200`](https://www.github.com/tauri-apps/tauri/commit/8cbd4f2001a40ee84c444fa94f3eca8f7d48b174) ([#16170](https://www.github.com/tauri-apps/tauri/pull/16170) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Set MSRV to 1.92.
+- [`31b2efc9d`](https://www.github.com/tauri-apps/tauri/commit/31b2efc9d1537122ab0888b64520f36f85c86a0a) ([#16328](https://www.github.com/tauri-apps/tauri/pull/16328) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) The built-in NSIS language strings now interpolate `$ExistingVersionKind`, `$Webview2DownloadResult` and `$Webview2InstallExitCode` instead of `$R4`, `$0` and `$1`. Custom language files using the registers keep working, but should be updated to the named variables.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.11.0`
+- Upgraded to `tauri-utils@2.11.0`
+- Upgraded to `tauri-macos-sign@2.5.0`
+- [`003fcd99e`](https://www.github.com/tauri-apps/tauri/commit/003fcd99e0fa588015031a017d7128f7d22b9219) ([#16631](https://www.github.com/tauri-apps/tauri/pull/16631) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Updated AGP to v9.5.2 and Gradle to v9.9.2 in `tauri android init` template
+
+## [2.12.6]
+
+### Bug Fixes
+
+- [`f5578bc1e`](https://www.github.com/tauri-apps/tauri/commit/f5578bc1e07cc2e87a6b4526bc20299aaba3495e) ([#16547](https://www.github.com/tauri-apps/tauri/pull/16547) by [@Gorkem-Taha](https://www.github.com/tauri-apps/tauri/../../Gorkem-Taha)) Serve the built-in development server's root URL ('/') always as HTML. Fixes HTML auto-reload script not injected.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.10.6`
+- Upgraded to `tauri-utils@2.10.4`
+
+## [2.12.5]
+
+### Bug Fixes
+
+- [`9a66eab83`](https://www.github.com/tauri-apps/tauri/commit/9a66eab8386fcefbe9bbab3e12a3caa90b7644ca) ([#16478](https://www.github.com/tauri-apps/tauri/pull/16478) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Fix a Windows `signCommand` that replaces the main binary (for example by writing a signed copy and renaming it over the original) failing with `Access is denied. (os error 5)`. The bundler no longer keeps the main binary open after copying it.
+- [`5edd31c8a`](https://www.github.com/tauri-apps/tauri/commit/5edd31c8a8914674c217b21a660a914823da2dae) ([#16506](https://www.github.com/tauri-apps/tauri/pull/16506) by [@TakahiroNago](https://www.github.com/tauri-apps/tauri/../../TakahiroNago)) Fix the MSI installer re-creating the desktop shortcut on every update even after the user deleted it. The shortcut is now only re-created during an upgrade if it still exists, matching the NSIS installer.
+- [`8d3efdeea`](https://www.github.com/tauri-apps/tauri/commit/8d3efdeea5b4221301a4fc5e2d4ab969abe8aa7f) ([#16060](https://www.github.com/tauri-apps/tauri/pull/16060) by [@Raaif-Yousuf](https://www.github.com/tauri-apps/tauri/../../Raaif-Yousuf)) Fix NSIS and MSI bundling failing with `Unable to start child process, error 0x2` when running as the Windows `SYSTEM` account, for example on a CI runner installed as a service. When the cache directory is inside `C:\Windows\System32`, where WOW64 file system redirection hides the downloaded tools from the 32-bit NSIS and WiX executables, the bundler now stores them in the project output directory instead. If the tools directory would still be inside `System32`, for example because the project is, bundling now fails early with an error that explains why.
+- [`31f29e197`](https://www.github.com/tauri-apps/tauri/commit/31f29e197e7ac18797dbb9270fe658c1ca1010c8) ([#16436](https://www.github.com/tauri-apps/tauri/pull/16436) by [@b84330808](https://www.github.com/tauri-apps/tauri/../../b84330808)) Fix the builtin dev server serving `index.html` instead of files whose names contain spaces or non-ASCII characters, such as `my font.woff2`.
+- [`7b568e9c0`](https://www.github.com/tauri-apps/tauri/commit/7b568e9c025598fc30c063c675a832c4a31e075c) ([#16521](https://www.github.com/tauri-apps/tauri/pull/16521) by [@1AbdullahButt](https://www.github.com/tauri-apps/tauri/../../1AbdullahButt)) Fix `tauri migrate` failing to parse the app's `Cargo.toml` when its package version is inherited from the workspace (`version.workspace = true`).
+- [`71b668096`](https://www.github.com/tauri-apps/tauri/commit/71b668096ee12ff871d7bb4edd27486c58454549) ([#14712](https://www.github.com/tauri-apps/tauri/pull/14712) by [@onebytegone](https://www.github.com/tauri-apps/tauri/../../onebytegone)) Fix iOS export failing with "Couldn't load -exportOptionsPlist" error when running `tauri ios run`.
+- [`7facf4f23`](https://www.github.com/tauri-apps/tauri/commit/7facf4f2317bf46347e1d631729e579f54c88196) ([#16398](https://www.github.com/tauri-apps/tauri/pull/16398) by [@ashokram-si](https://www.github.com/tauri-apps/tauri/../../ashokram-si)) Fix `tauri dev` not watching the app at all when its `.taurignore` contains a pattern like `/*` that matches every entry at the top level, even if other entries are re-included with `!` negations. Watch folders are now always watched; ignore rules apply to their entries and to change events.
+- [`9a010f444`](https://www.github.com/tauri-apps/tauri/commit/9a010f4444f876abd787b817d6973e5756834721) ([#15773](https://www.github.com/tauri-apps/tauri/pull/15773) by [@yingyanzhitong](https://www.github.com/tauri-apps/tauri/../../yingyanzhitong)) Read manual iOS signing certificates and provisioning profiles from the Xcode project when generating export options, without overriding the values configured in `ExportOptions.plist`. Provisioning profiles from `ExportOptions.plist` (such as the ones for app extensions) are now kept when merging.
+- [`7e39750cf`](https://www.github.com/tauri-apps/tauri/commit/7e39750cf6a4e05234a781088ff5fb8cb890370a) Update the CLI's locked Zstandard dependencies to address RUSTSEC-2026-0391 and RUSTSEC-2026-0395 through RUSTSEC-2026-0406, plus RUSTSEC-2026-0410.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.10.5`
+- Upgraded to `tauri-utils@2.10.3`
+
 ## [2.12.4]
 
 ### Bug Fixes

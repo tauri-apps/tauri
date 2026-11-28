@@ -2,13 +2,8 @@
 ignore = [
   # rsa Marvin Attack
   "RUSTSEC-2023-0071",
-  # difference is unmaintained
-  "RUSTSEC-2020-0095",
   # proc-macro-error is unmaintained
   "RUSTSEC-2024-0370",
-  # This ruzstd vulnerability is denial of service only used in CLI for devs,
-  # the fix requires an upstream update in https://github.com/indygreg/apple-platform-rs/pull/342
-  "RUSTSEC-2026-0344",
   # glib 0.18.5 unsoundness, fixed by updating to gtk4
   "RUSTSEC-2024-0429",
   # ml-dsa timing side-channel, only reachable when signing RPMs with a post-quantum ML-DSA key locally,

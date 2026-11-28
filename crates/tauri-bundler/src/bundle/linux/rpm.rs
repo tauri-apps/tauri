@@ -13,7 +13,7 @@ use std::{
 };
 use tauri_utils::config::RpmCompression;
 
-use super::freedesktop;
+use super::{freedesktop, gst_plugin};
 
 /// Converts a SemVer version string to the RPM `Version` tag format.
 ///
@@ -234,10 +234,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   // Add resources and/or prepare for CEF files
-  if settings.resource_files().count() > 0
-    || settings.webview_runtime().cef_distribution().is_some()
-  {
-    let resource_dir = Path::new("/usr/lib").join(settings.product_name());
+  let resource_dir = Path::new("/usr/lib").join(settings.product_name());
+  let owns_resource_dir = settings.resource_files().count() > 0
+    || settings.webview_runtime().cef_distribution().is_some();
+  if owns_resource_dir {
     builder.with_dir_entry(FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755))?;
     // Then add the resources files in that directory
     for resource in settings.resource_files().iter() {
@@ -308,6 +308,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         FileOptions::new(cef_resource_dir.join(f).to_string_lossy()),
       )?;
     }
+  }
+
+  // Add the `asset://` GStreamer plugin
+  if let Some(plugin) = gst_plugin::download(settings)? {
+    // The plugin directory lives in the resource directory, which the package
+    // must own too or it is left behind on removal.
+    if !owns_resource_dir {
+      builder
+        .with_dir_entry(FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755))?;
+    }
+    let plugin_dir = Path::new("/").join(gst_plugin::plugin_dir(product_name));
+    builder.with_dir_entry(FileOptions::dir(plugin_dir.to_string_lossy()).permissions(0o755))?;
+    builder.with_file(
+      &plugin,
+      FileOptions::new(
+        plugin_dir
+          .join(gst_plugin::PLUGIN_FILE_NAME)
+          .to_string_lossy(),
+      )
+      .permissions(0o755),
+    )?;
   }
 
   // Add Desktop entry file

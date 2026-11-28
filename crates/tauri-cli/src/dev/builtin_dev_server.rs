@@ -103,7 +103,10 @@ async fn handler(uri: Uri, headers: HeaderMap, state: State<ServerState>) -> imp
 
   match bytes {
     Ok(mut bytes) => {
-      let mime_type = MimeType::parse_with_fallback(&bytes, uri, MimeType::OctetStream);
+      // The root URL is served from index.html, so use its extension when
+      // inferring the content type. Otherwise `/` falls back to octet-stream.
+      let mime_uri = if uri == "/" { "index.html" } else { uri };
+      let mime_type = MimeType::parse_with_fallback(&bytes, mime_uri, MimeType::OctetStream);
       if mime_type == MimeType::Html.to_string() {
         bytes = inject_address(bytes, &state.address);
       }
@@ -369,6 +372,39 @@ mod tests {
       b"inner"
     );
     assert!(fs_read_scoped(inner.join("../secret.txt"), &inner).is_err());
+  }
+
+  #[tokio::test]
+  async fn serves_root_as_html_and_injects_reload_script() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = dunce::canonicalize(temp.path()).unwrap();
+    std::fs::write(
+      dir.join("index.html"),
+      "<html><head></head><body>app</body></html>",
+    )
+    .unwrap();
+
+    let state = ServerState {
+      dir,
+      address: "127.0.0.1:1430".parse().unwrap(),
+      tx: channel(1).0,
+    };
+    let mut headers = HeaderMap::new();
+    headers.insert(header::HOST, HeaderValue::from_static("127.0.0.1:1430"));
+
+    let response = handler(Uri::from_static("/"), headers, State(state))
+      .await
+      .into_response();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+      response.headers().get(header::CONTENT_TYPE).unwrap(),
+      "text/html"
+    );
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+      .await
+      .unwrap();
+    assert!(String::from_utf8_lossy(&body).contains("ws://127.0.0.1:1430/__tauri_cli"));
   }
 
   #[tokio::test]

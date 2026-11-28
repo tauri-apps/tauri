@@ -13,3 +13,6 @@ thiserror = "2"
 
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }
+
+[lints]
+workspace = true

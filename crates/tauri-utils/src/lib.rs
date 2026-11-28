@@ -35,6 +35,7 @@ pub mod plugin;
 pub mod resources;
 #[cfg(feature = "build")]
 pub mod tokens;
+pub mod url;
 
 #[cfg(feature = "build")]
 pub mod build;

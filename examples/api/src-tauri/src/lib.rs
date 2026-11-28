@@ -98,6 +98,7 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
         tauri::menu::MenuBuilder::new(app)
           .check("check", "Tauri is awesome!")
           .text("text", "Do something")
+          .native_icon("info", "About Tauri", tauri::menu::NativeIcon::Info)
           .copy()
           .build()?,
       ));
@@ -300,6 +301,7 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
       cmd::perform_request,
       cmd::echo,
       cmd::spam,
+      cmd::asset_media,
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");
@@ -307,7 +309,7 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-  #[cfg(all(target_os = "ios", not(test)))]
+  #[cfg(all(mobile, not(test)))]
   let mut counter = 0;
   app.run(move |_app_handle, _event| {
     #[cfg(not(test))]
@@ -334,16 +336,22 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
           .destroy()
           .unwrap();
       }
+      // The system requested a new scene (iOS) or activity (Android) that is not attached to any window,
+      // e.g. the user opened a new app window on iPad, or relaunched the Android app while its process was still alive.
+      // Windows are not re-created automatically, so the main window created in `setup` must be re-created here.
       #[cfg(target_os = "ios")]
       RunEvent::SceneRequested { .. } => {
-        counter += 1;
-        WebviewWindowBuilder::new(
-          _app_handle,
-          format!("main-from-scene-{counter}"),
-          WebviewUrl::default(),
-        )
-        .build()
-        .unwrap();
+        requested_window_builder(_app_handle, &mut counter)
+          .build()
+          .unwrap();
+      }
+      #[cfg(target_os = "android")]
+      RunEvent::ActivityRequested { activity_id, .. } => {
+        // attach the window to the requested activity
+        requested_window_builder(_app_handle, &mut counter)
+          .activity_id(activity_id)
+          .build()
+          .unwrap();
       }
       RunEvent::Opened { urls } => {
         println!("opened urls: {:?}", urls);
@@ -351,6 +359,22 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
       _ => (),
     }
   })
+}
+
+/// Window builder for a scene (iOS) or activity (Android) requested by the system.
+#[cfg(mobile)]
+fn requested_window_builder<'a, R: Runtime>(
+  app: &'a tauri::AppHandle<R>,
+  counter: &mut u32,
+) -> WebviewWindowBuilder<'a, R, tauri::AppHandle<R>> {
+  // re-create the main window if it was destroyed along with its scene or activity
+  let label = if app.get_webview_window("main").is_none() {
+    "main".to_string()
+  } else {
+    *counter += 1;
+    format!("main-from-system-{counter}")
+  };
+  WebviewWindowBuilder::new(app, label, WebviewUrl::default())
 }
 
 #[cfg(test)]

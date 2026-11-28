@@ -62,16 +62,14 @@ fn bundle_update_macos(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
         .find(|path| path.extension() == Some(OsStr::new("app")))
     })
   {
-    // add .tar.gz to our path
-    let osx_archived = format!("{}.tar.gz", source_path.display());
-    let osx_archived_path = PathBuf::from(&osx_archived);
+    let osx_archived_path = source_path.with_added_extension("tar.gz");
 
     // Create our gzip file (need to send parent)
     // as we walk the source directory (source isnt added)
     create_tar(source_path, &osx_archived_path)
       .with_context(|| "Failed to tar.gz update directory")?;
 
-    log::info!(action = "Bundling"; "{} ({})", osx_archived, display_path(&osx_archived_path));
+    log::info!(action = "Bundling"; "{} ({})", osx_archived_path.display(), display_path(&osx_archived_path));
 
     Ok(vec![osx_archived_path])
   } else {
@@ -98,15 +96,13 @@ fn bundle_update_linux(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
         .find(|path| path.extension() == Some(OsStr::new("AppImage")))
     })
   {
-    // add .tar.gz to our path
-    let appimage_archived = format!("{}.tar.gz", source_path.display());
-    let appimage_archived_path = PathBuf::from(&appimage_archived);
+    let appimage_archived_path = source_path.with_added_extension("tar.gz");
 
     // Create our gzip file
     create_tar(source_path, &appimage_archived_path)
       .with_context(|| "Failed to tar.gz update directory")?;
 
-    log::info!(action = "Bundling"; "{} ({})", appimage_archived, display_path(&appimage_archived_path));
+    log::info!(action = "Bundling"; "{} ({})", appimage_archived_path.display(), display_path(&appimage_archived_path));
 
     Ok(vec![appimage_archived_path])
   } else {

@@ -107,6 +107,24 @@ pub fn command(options: Options) -> Result<()> {
     if localhost && let Some(port) = url.port_or_known_default() {
       adb_forward_port(port, &env, &cli_options)?;
     }
+
+    // grant before Gradle installs the app so the first page load can reach the dev server;
+    // grants persist across reinstalls (fresh installs are handled after `adb install`)
+    if !options.release && super::dev::uses_network_dev_url(&tauri_config) {
+      if let Some(device) = &cli_options.target_device {
+        let application_id = format!(
+          "{}{}",
+          config.app().identifier(),
+          tauri_config
+            .bundle
+            .android
+            .debug_application_id_suffix
+            .as_deref()
+            .unwrap_or_default()
+        );
+        super::grant_local_network_permission(&env, &device.id, &application_id);
+      }
+    }
   }
 
   let mut validated_lib = false;

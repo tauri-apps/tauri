@@ -21,3 +21,6 @@ tauri-runtime-cef = { workspace = true, default-features = true, optional = true
 default = ["wry"]
 cef = ["dep:tauri-runtime-cef"]
 wry = ["dep:tauri-runtime-wry"]
+
+[lints]
+workspace = true

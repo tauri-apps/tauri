@@ -1000,7 +1000,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       )));
     }
 
-    res.compile().with_context(|| {
+    // link the resource into all targets (not only binaries) so test binaries that link Tauri
+    // also get the app manifest, otherwise they fail with `STATUS_ENTRYPOINT_NOT_FOUND`
+    res.compile_for_everything().with_context(|| {
       format!(
         "failed to compile `{}` into a Windows Resource file during tauri-build",
         window_icon_path.display()

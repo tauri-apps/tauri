@@ -57,10 +57,9 @@ impl AesGcmPair {
   fn new() -> Result<Self, Error> {
     let mut raw = [0u8; 32];
     getrandom::fill(&mut raw)?;
-    let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&raw);
     Ok(Self {
       raw,
-      key: Aes256Gcm::new(key),
+      key: Aes256Gcm::new(&raw.into()),
     })
   }
 
@@ -108,7 +107,7 @@ impl Keys {
     self
       .aes_gcm
       .key
-      .decrypt(Nonce::from_slice(&nonce), payload.as_ref())
+      .decrypt(&Nonce::from(nonce), payload.as_ref())
       .map_err(|_| self::Error::Aes)
   }
 }

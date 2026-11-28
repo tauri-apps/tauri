@@ -289,6 +289,29 @@ pub enum RunEvent {
     /// This lets you determine why the scene was requested.
     options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
   },
+  /// Emitted when the system created an activity that is not attached to any window.
+  ///
+  /// This happens when the app is launched again while its process is still alive
+  /// but all of its activities were destroyed - for instance when a foreground service keeps
+  /// the process running after the user removed the app from the recents screen
+  /// (which requires preventing the exit with [`ExitRequestApi::prevent_exit`]).
+  ///
+  /// Create a window while handling this event to attach it to the activity, otherwise the activity stays blank.
+  /// This is the Android counterpart of the iOS `SceneRequested` event.
+  ///
+  /// Not emitted for the activity that launched the app, for activities created for a new window
+  /// or for activities that are recreated due to a configuration change.
+  #[cfg(target_os = "android")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "android")))]
+  ActivityRequested {
+    /// Identifier of the activity.
+    ///
+    /// Pass it to [`WebviewWindowBuilder::activity_id`](crate::webview::WebviewWindowBuilder::activity_id)
+    /// to attach the new window to this activity.
+    activity_id: i32,
+    /// Name of the activity class, relative to the app package.
+    activity_name: String,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -408,14 +431,42 @@ impl<R: Runtime> AppHandle<R> {
   /// Fetches all Data Store Identifiers by this app
   ///
   /// Needs to be called from Main Thread
+  #[deprecated(since = "2.13.0", note = "Use `fetch_profile_identifiers` instead.")]
   pub async fn fetch_data_store_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
+    self.fetch_profile_identifiers().await
+  }
+
+  /// Deletes a Data Store of this app
+  ///
+  /// Needs to be called from Main Thread
+  #[deprecated(since = "2.13.0", note = "Use `remove_profile` instead.")]
+  pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
+    self.remove_profile(uuid).await
+  }
+}
+
+#[cfg(any(target_vendor = "apple", windows))]
+impl<R: Runtime> AppHandle<R> {
+  /// Fetches the identifiers of the browsing data profiles of this app,
+  /// see [`WebviewBuilder::profile_identifier`](crate::webview::WebviewBuilder::profile_identifier).
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Lists the identifiers of the app's [`WKWebsiteDataStore`]s.
+  ///   Available on macOS >= 14 and iOS >= 17.
+  /// - **Windows**: Lists the WebView2 profiles stored in the app local data directory, which is the default data directory,
+  ///   and in the [data directories](crate::webview::WebviewBuilder::data_directory) of the webviews created since the app started.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore
+  pub async fn fetch_profile_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<Vec<[u8; 16]>, tauri_runtime::Error>>();
     let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
     let runtime_handle = self.runtime_handle.clone();
+    let data_directories = self.profile_data_directories();
 
     self.run_on_main_thread(move || {
       let cloned_lock = lock.clone();
-      if let Err(err) = runtime_handle.fetch_data_store_identifiers(move |ids| {
+      if let Err(err) = runtime_handle.fetch_profile_identifiers(data_directories, move |ids| {
         if let Some(tx) = cloned_lock.lock().unwrap().take() {
           let _ = tx.send(Ok(ids));
         }
@@ -427,26 +478,65 @@ impl<R: Runtime> AppHandle<R> {
 
     rx.await?.map_err(Into::into)
   }
-  /// Deletes a Data Store of this app
+
+  /// Deletes the browsing data profile with the given identifier,
+  /// see [`WebviewBuilder::profile_identifier`](crate::webview::WebviewBuilder::profile_identifier).
   ///
-  /// Needs to be called from Main Thread
-  pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
+  /// Every webview using this profile must be closed before calling this function.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS**: Removes the app's [`WKWebsiteDataStore`] with this identifier.
+  ///   Available on macOS >= 14 and iOS >= 17.
+  /// - **Windows**: Removes the WebView2 profile from the same data directories [`Self::fetch_profile_identifiers`] looks in.
+  ///   Returns an error if a webview still uses the profile. Closing a webview is asynchronous and WebView2 releases
+  ///   the profile files shortly after, so the removal can fail right after closing the last webview using it,
+  ///   in which case the profile is left untouched and the removal can be retried later.
+  ///
+  /// [`WKWebsiteDataStore`]: https://developer.apple.com/documentation/webkit/wkwebsitedatastore
+  pub async fn remove_profile(&self, profile_identifier: [u8; 16]) -> crate::Result<()> {
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), tauri_runtime::Error>>();
     let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
     let runtime_handle = self.runtime_handle.clone();
+    let data_directories = self.profile_data_directories();
 
     self.run_on_main_thread(move || {
       let cloned_lock = lock.clone();
-      if let Err(err) = runtime_handle.remove_data_store(uuid, move |result| {
-        if let Some(tx) = cloned_lock.lock().unwrap().take() {
-          let _ = tx.send(result);
-        }
-      }) && let Some(tx) = lock.lock().unwrap().take()
+      if let Err(err) =
+        runtime_handle.remove_profile(data_directories, profile_identifier, move |result| {
+          if let Some(tx) = cloned_lock.lock().unwrap().take() {
+            let _ = tx.send(result);
+          }
+        })
+        && let Some(tx) = lock.lock().unwrap().take()
       {
         let _ = tx.send(Err(err));
       }
     })?;
     rx.await?.map_err(Into::into)
+  }
+
+  /// The data directories where the webview profiles might be stored, only used on Windows.
+  fn profile_data_directories(&self) -> Vec<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+      let mut data_directories: Vec<_> = self
+        .manager
+        .webview
+        .data_directories
+        .lock()
+        .unwrap()
+        .iter()
+        .cloned()
+        .collect();
+      // the default data directory, see `WebviewManager::prepare_webview`
+      if let Ok(app_local_data_dir) = self.path().app_local_data_dir() {
+        data_directories.push(app_local_data_dir);
+      }
+      data_directories
+    }
+    #[cfg(not(windows))]
+    Vec::new()
   }
 }
 
@@ -2238,7 +2328,7 @@ tauri::Builder::default()
   ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  /// and [webkit_web_context_register_uri_scheme](https://webkitgtk.org/reference/webkit2gtk/stable/method.WebContext.register_uri_scheme.html) on Linux.
   ///
   /// # Arguments
   ///
@@ -2535,6 +2625,109 @@ tauri::Builder::default()
       }
     }
 
+    // GStreamer only scans directories listed in `GST_PLUGIN_PATH`, and WebKit
+    // inherits the environment when it spawns its web and media processes, so
+    // this must happen before the Runtime is created.
+    //
+    // The plugin reads the requested file itself, without going through the
+    // asset protocol handler, so it is only made reachable for apps that
+    // enabled the asset protocol.
+    #[cfg(target_os = "linux")]
+    {
+      // `assetProtocol > enable` is not part of the embedded config, the
+      // Cargo feature it requires is what turns the protocol on.
+      if cfg!(feature = "protocol-asset") {
+        // Only binaries installed by a package have the plugin next to them.
+        // Anywhere else `../lib` is not ours, e.g. a binary in `/tmp/x` would
+        // load plugins from `/tmp/lib`, which any local user can create.
+        let is_packaged = matches!(
+          crate::utils::platform::bundle_type(),
+          Some(
+            crate::utils::config::BundleType::Deb
+              | crate::utils::config::BundleType::Rpm
+              | crate::utils::config::BundleType::Pacman
+          )
+        );
+        let plugin_dir = if is_packaged {
+          crate::utils::platform::current_exe().ok().and_then(|exe| {
+            let lib_dir = exe.parent()?.join("../lib");
+            // Mirrors the directory the bundler installs the plugin into:
+            // `<prefix>/lib/<product name>/gstreamer-1.0`. The bundler falls back
+            // to the crate name when `productName` is unset, which is also what
+            // the executable is named, so try both.
+            [
+              manager.config.product_name.clone(),
+              exe.file_name().map(|n| n.to_string_lossy().into_owned()),
+            ]
+            .into_iter()
+            .flatten()
+            .map(|name| lib_dir.join(name).join("gstreamer-1.0"))
+            .find(|dir| dir.is_dir())
+          })
+        } else if cfg!(dev) {
+          // Development binaries load the plugin straight from the directory
+          // the CLI downloads it to, so a plain `cargo run` works too once
+          // `tauri dev` or `tauri build` fetched it. Must match the bundler's
+          // `gst_plugin::cache_dir`.
+          dirs::cache_dir()
+            .map(|cache_dir| {
+              cache_dir
+                .join("tauri")
+                .join("gstreamer-1.0")
+                .join(std::env::consts::ARCH)
+            })
+            .filter(|dir| dir.is_dir())
+        } else {
+          None
+        };
+        let current_plugin_path = std::env::var_os("GST_PLUGIN_PATH");
+        if let Some(plugin_dir) = plugin_dir {
+          // Keep the directories the user or a launcher already listed.
+          let mut plugin_path = current_plugin_path
+            .iter()
+            .flat_map(std::env::split_paths)
+            .collect::<Vec<_>>();
+          // `tauri dev` already lists the directory it downloaded the plugin to.
+          if !plugin_path.contains(&plugin_dir) {
+            plugin_path.insert(0, plugin_dir);
+          }
+          if let Ok(plugin_path) = std::env::join_paths(plugin_path) {
+            // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
+            unsafe { std::env::set_var("GST_PLUGIN_PATH", plugin_path) };
+          }
+        } else if is_packaged {
+          #[cfg(debug_assertions)]
+          eprintln!("failed to resolve GStreamer plugin directory; media playback may not work.");
+        } else if cfg!(dev) && current_plugin_path.is_none() {
+          // With a local tools directory the CLI passes the plugin through
+          // `GST_PLUGIN_PATH` instead, so only complain when that is missing too.
+          eprintln!(
+            "the GStreamer plugin for `asset://` media is not downloaded yet, audio and video over `asset://` will not play. Run `tauri dev` or `tauri build` once to fetch it."
+          );
+        }
+
+        // WebKitGTK only hands GStreamer the URI schemes on its own allowlist
+        // plus the ones listed here, so without this `asset://` media is
+        // rejected before the plugin is ever asked. This does not depend on the
+        // directory above: an AppImage has the plugin in the bundled GStreamer
+        // plugin directory instead.
+        let allowed_protocols =
+          std::env::var("WEBKIT_GST_ALLOWED_URI_PROTOCOLS").unwrap_or_default();
+        if !allowed_protocols
+          .split(',')
+          .any(|protocol| protocol.trim().eq_ignore_ascii_case("asset"))
+        {
+          let allowed_protocols = if allowed_protocols.trim().is_empty() {
+            "asset".to_string()
+          } else {
+            format!("{allowed_protocols},asset")
+          };
+          // SAFETY: the runtime is not created yet, same as the WebView2 variable above.
+          unsafe { std::env::set_var("WEBKIT_GST_ALLOWED_URI_PROTOCOLS", allowed_protocols) };
+        }
+      }
+    }
+
     #[cfg(any(windows, target_os = "linux"))]
     let mut runtime = if self.runtime_any_thread {
       R::new_any_thread(runtime_args)?
@@ -2559,9 +2752,9 @@ tauri::Builder::default()
     {
       // setup menu event handler
       let proxy = runtime.create_proxy();
-      muda::MenuEvent::set_event_handler(Some(move |e: muda::MenuEvent| {
+      muda::MenuEvent::set_event_handler(Some(std::sync::Arc::new(move |e: muda::MenuEvent| {
         let _ = proxy.send_event(EventLoopMessage::MenuEvent(e.into()));
-      }));
+      })));
 
       // setup tray event handler
       #[cfg(feature = "tray-icon")]
@@ -2632,16 +2825,25 @@ tauri::Builder::default()
       if let Some(tray_config) = &config.app.tray_icon {
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
-            .icon_as_template(tray_config.icon_as_template)
-            .show_menu_on_left_click(tray_config.show_menu_on_left_click);
+            .show_menu_on_left_click(tray_config.show_menu_on_left_click)
+            .show_menu_on_right_click(tray_config.show_menu_on_right_click);
         if let Some(icon) = &app.manager.tray.icon {
-          tray = tray.icon(icon.clone());
+          #[allow(deprecated)]
+          let is_template = tray_config.icon_is_template || tray_config.icon_as_template;
+          tray = if is_template {
+            tray.icon_templated(icon.clone())
+          } else {
+            tray.icon(icon.clone())
+          };
         }
         if let Some(title) = &tray_config.title {
           tray = tray.title(title);
         }
         if let Some(tooltip) = &tray_config.tooltip {
           tray = tray.tooltip(tooltip);
+        }
+        if let Some(autosave_name) = &tray_config.autosave_name {
+          tray = tray.autosave_name(autosave_name);
         }
         tray.build(handle)?;
       }
@@ -2799,6 +3001,8 @@ fn on_event_loop_event<R: Runtime>(
       match t {
         #[cfg(desktop)]
         EventLoopMessage::MenuEvent(ref e) => {
+          app_handle.manager.menu.dispatch_menu_item_event(e.clone());
+
           for listener in &*app_handle
             .manager
             .menu
@@ -2850,6 +3054,14 @@ fn on_event_loop_event<R: Runtime>(
     RuntimeRunEvent::SceneRequested { scene, options } => {
       RunEvent::SceneRequested { scene, options }
     }
+    #[cfg(target_os = "android")]
+    RuntimeRunEvent::ActivityRequested {
+      activity_id,
+      activity_name,
+    } => RunEvent::ActivityRequested {
+      activity_id,
+      activity_name,
+    },
     _ => unimplemented!(),
   };
 

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  borrow::Cow,
   collections::{HashMap, HashSet},
   fmt,
   sync::{Arc, Mutex, MutexGuard},
@@ -86,6 +85,10 @@ pub struct WebviewManager<R: Runtime> {
 
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,
+
+  /// Data directories of the webviews created so far, where their profiles are stored.
+  #[cfg(windows)]
+  pub(crate) data_directories: Mutex<HashSet<std::path::PathBuf>>,
 }
 
 impl<R: Runtime> fmt::Debug for WebviewManager<R> {
@@ -462,7 +465,6 @@ impl<R: Runtime> WebviewManager<R> {
 
     let app_manager = manager.manager();
 
-    #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
         let app_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
@@ -471,12 +473,7 @@ impl<R: Runtime> WebviewManager<R> {
           // only proxy the dev server when we're not using embedded assets
           && app_manager.assets.iter().next().is_none()
         {
-          Cow::Owned(
-            Url::parse(
-              &app_manager.custom_scheme_url("tauri", pending.webview_attributes.use_https_scheme),
-            )
-            .unwrap(),
-          )
+          app_manager.tauri_protocol_url(pending.webview_attributes.use_https_scheme)
         } else {
           app_url
         };
@@ -494,25 +491,38 @@ impl<R: Runtime> WebviewManager<R> {
       WebviewUrl::External(url) => {
         let config_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let is_app_url = config_url.make_relative(url).is_some();
-        let mut url = url.clone();
         if is_app_url
           && PROXY_DEV_SERVER
-          && is_local_network_url(&url)
+          && is_local_network_url(url)
           // only proxy the dev server when we're not using embedded assets
           && app_manager.assets.iter().next().is_none()
         {
-          Url::parse(
-            &app_manager.custom_scheme_url("tauri", pending.webview_attributes.use_https_scheme),
-          )
-          .unwrap()
+          app_manager
+            .tauri_protocol_url(pending.webview_attributes.use_https_scheme)
+            .into_owned()
         } else {
-          url
+          url.clone()
         }
       }
 
       WebviewUrl::CustomProtocol(url) => url.clone(),
       _ => unimplemented!(),
     };
+
+    if let Some(origin) = &app_manager.custom_app_origin {
+      // the dev server proxy would fetch the app from the real host
+      if PROXY_DEV_SERVER && app_manager.get_app_url(true).origin() == origin.origin() {
+        return Err(crate::Error::InvalidWebviewUrl(
+          "`app > androidTauriProtocolHostname` requires `build > devUrl` in development",
+        ));
+      }
+      pending
+        .webview_attributes
+        .android_tauri_protocol_hostname
+        .clone_from(&app_manager.config.app.android_tauri_protocol_hostname);
+      url = crate::protocol::with_custom_app_origin(url, origin);
+    }
+
     #[cfg(not(feature = "webview-data-url"))]
     if url.scheme() == "data" {
       return Err(crate::Error::InvalidWebviewUrl(
@@ -585,6 +595,14 @@ impl<R: Runtime> WebviewManager<R> {
       }
     }
 
+    #[cfg(windows)]
+    if let Some(user_data_dir) = &pending.webview_attributes.data_directory {
+      self
+        .data_directories
+        .lock()
+        .unwrap()
+        .insert(user_data_dir.clone());
+    }
     #[cfg(all(desktop, not(target_os = "windows")))]
     if pending.webview_attributes.zoom_hotkeys_enabled {
       #[derive(Template)]

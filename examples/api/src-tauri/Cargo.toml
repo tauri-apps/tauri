@@ -22,6 +22,8 @@ serde = { version = "1", features = ["derive"] }
 log = "0.4.21"
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 tauri-plugin-log = "3.0.0-alpha.1"
+# downloads the media files of the Asset view
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 # WebDriver automation bridge, used by the `@tauri-apps/api` e2e suite (packages/api-e2e).
 # Desktop-only and behind the off-by-default `automation` feature so it never ships in a
@@ -62,3 +64,6 @@ prod = ["tauri/custom-protocol"]
 cef = ["dep:tauri-runtime-cef"]
 # Enables the WebDriver automation bridge; set by the e2e suite's build (packages/api-e2e).
 automation = ["dep:tauri-plugin-automation"]
+
+[lints]
+workspace = true

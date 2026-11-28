@@ -272,6 +272,8 @@ enum WindowBuilderOp {
   ActivityName(String),
   #[cfg(target_os = "android")]
   CreatedByActivityName(String),
+  #[cfg(target_os = "android")]
+  ActivityId(i32),
   #[cfg(target_os = "ios")]
   RequestedBySceneIdentifier(String),
   Customize(RuntimeBuilderCustomizer),
@@ -343,6 +345,8 @@ impl fmt::Debug for WindowBuilderOp {
       Self::ActivityName(v) => f.debug_tuple("ActivityName").field(v).finish(),
       #[cfg(target_os = "android")]
       Self::CreatedByActivityName(v) => f.debug_tuple("CreatedByActivityName").field(v).finish(),
+      #[cfg(target_os = "android")]
+      Self::ActivityId(v) => f.debug_tuple("ActivityId").field(v).finish(),
       #[cfg(target_os = "ios")]
       Self::RequestedBySceneIdentifier(v) => f
         .debug_tuple("RequestedBySceneIdentifier")
@@ -446,6 +450,8 @@ impl DynWindowBuilder {
         WindowBuilderOp::ActivityName(v) => builder.activity_name(v),
         #[cfg(target_os = "android")]
         WindowBuilderOp::CreatedByActivityName(v) => builder.created_by_activity_name(v),
+        #[cfg(target_os = "android")]
+        WindowBuilderOp::ActivityId(v) => builder.activity_id(v),
         #[cfg(target_os = "ios")]
         WindowBuilderOp::RequestedBySceneIdentifier(v) => builder.requested_by_scene_identifier(v),
         WindowBuilderOp::Customize(f) => {
@@ -697,6 +703,11 @@ impl WindowBuilder for DynWindowBuilder {
     self.push(WindowBuilderOp::CreatedByActivityName(class_name.into()))
   }
 
+  #[cfg(target_os = "android")]
+  fn activity_id(self, activity_id: i32) -> Self {
+    self.push(WindowBuilderOp::ActivityId(activity_id))
+  }
+
   #[cfg(target_os = "ios")]
   fn requested_by_scene_identifier<S: Into<String>>(self, identifier: S) -> Self {
     self.push(WindowBuilderOp::RequestedBySceneIdentifier(
@@ -906,6 +917,19 @@ trait ErasedRuntimeHandle<T: UserEvent>: fmt::Debug + Send + Sync + Any {
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   fn remove_data_store(&self, uuid: [u8; 16], cb: Box<dyn FnOnce(Result<()>) + Send>)
   -> Result<()>;
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn fetch_profile_identifiers(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    cb: Box<dyn FnOnce(Vec<[u8; 16]>) + Send>,
+  ) -> Result<()>;
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn remove_profile(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: Box<dyn FnOnce(Result<()>) + Send>,
+  ) -> Result<()>;
   fn as_any(&self) -> &dyn Any;
 }
 
@@ -1023,6 +1047,25 @@ impl<T: UserEvent, H: RuntimeHandle<T>> ErasedRuntimeHandle<T> for H {
     cb: Box<dyn FnOnce(Result<()>) + Send>,
   ) -> Result<()> {
     RuntimeHandle::remove_data_store(self, uuid, cb)
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn fetch_profile_identifiers(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    cb: Box<dyn FnOnce(Vec<[u8; 16]>) + Send>,
+  ) -> Result<()> {
+    RuntimeHandle::fetch_profile_identifiers(self, data_directories, cb)
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn remove_profile(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: Box<dyn FnOnce(Result<()>) + Send>,
+  ) -> Result<()> {
+    RuntimeHandle::remove_profile(self, data_directories, profile_identifier, cb)
   }
 
   fn as_any(&self) -> &dyn Any {
@@ -1186,6 +1229,29 @@ impl<T: UserEvent> RuntimeHandle<T> for DynRuntimeHandle<T> {
     cb: F,
   ) -> Result<()> {
     self.inner.remove_data_store(uuid, Box::new(cb))
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    self
+      .inner
+      .fetch_profile_identifiers(data_directories, Box::new(cb))
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    data_directories: Vec<std::path::PathBuf>,
+    profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    self
+      .inner
+      .remove_profile(data_directories, profile_identifier, Box::new(cb))
   }
 }
 
@@ -2059,6 +2125,8 @@ trait ErasedWebviewDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     &self,
     f: Box<dyn FnOnce(crate::webview::IosWebviewHandle) + Send>,
   ) -> Result<()>;
+  #[cfg(target_os = "android")]
+  fn run_on_android_context(&self, f: AndroidContextTask) -> Result<()>;
   fn open_devtools(&self);
   fn close_devtools(&self);
   fn is_devtools_open(&self) -> Result<bool>;
@@ -2117,6 +2185,11 @@ impl<T: UserEvent, D: WebviewDispatch<T>> ErasedWebviewDispatch<T> for D {
     f: Box<dyn FnOnce(crate::webview::IosWebviewHandle) + Send>,
   ) -> Result<()> {
     WebviewDispatch::with_ios_webview(self, f)
+  }
+
+  #[cfg(target_os = "android")]
+  fn run_on_android_context(&self, f: AndroidContextTask) -> Result<()> {
+    WebviewDispatch::run_on_android_context(self, f)
   }
 
   fn open_devtools(&self) {
@@ -2306,6 +2379,14 @@ impl<T: UserEvent> WebviewDispatch<T> for DynWebviewDispatcher<T> {
     f: F,
   ) -> Result<()> {
     self.inner.with_ios_webview(Box::new(f))
+  }
+
+  #[cfg(target_os = "android")]
+  fn run_on_android_context<F>(&self, f: F) -> Result<()>
+  where
+    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
+  {
+    self.inner.run_on_android_context(Box::new(f))
   }
 
   fn open_devtools(&self) {

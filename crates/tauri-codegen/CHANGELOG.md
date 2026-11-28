@@ -57,6 +57,29 @@
 ### Dependencies
 
 - Upgraded to `tauri-utils@3.0.0-alpha.0`
+## [2.8.0]
+
+### What's Changed
+
+- [`8cbd4f200`](https://www.github.com/tauri-apps/tauri/commit/8cbd4f2001a40ee84c444fa94f3eca8f7d48b174) ([#16170](https://www.github.com/tauri-apps/tauri/pull/16170) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Set MSRV to 1.92.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.11.0`
+
+## [2.7.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+
+## [2.7.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.3`
+- [`6c20c1844`](https://www.github.com/tauri-apps/tauri/commit/6c20c1844b8fb0124dc253099700f7697bf7cff4) ([#16502](https://www.github.com/tauri-apps/tauri/pull/16502) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated sha2 to 0.11.
+
 ## [2.7.4]
 
 ### Bug Fixes

@@ -121,6 +121,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
         tray_icon: None,
         enable_gtk_app_id: false,
         app_directories_override: None,
+        android_tauri_protocol_hostname: None,
       },
       bundle: Default::default(),
       build: Default::default(),

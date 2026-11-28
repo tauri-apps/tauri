@@ -37,11 +37,6 @@ targets = [
   "x86_64-apple-ios",
 ]
 
-[package.metadata.cargo-udeps.ignore]
-normal = ["reqwest"]
-build = ["tauri-build"]
-development = ["quickcheck_macros"]
-
 [dependencies]
 serde_json = { version = "1", features = ["raw_value"] }
 serde = { version = "1", features = ["derive", "rc"] }
@@ -72,7 +67,6 @@ serialize-to-javascript = "0.1.2"
 image = { version = "0.25", default-features = false, optional = true }
 http-range = { version = "0.1", optional = true }
 tracing = { version = "0.1", optional = true }
-heck = "0.5"
 log = "0.4.21"
 dunce = "1"
 specta = { version = "^2.0.0-rc.25", optional = true, default-features = false, features = [
@@ -95,14 +89,14 @@ rustls = { version = "0.23", default-features = false, features = [
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.20", default-features = false, features = ["serde"] }
-tray-icon = { version = "0.25", default-features = false, features = [
+muda = { version = "0.22", default-features = false, features = ["serde"] }
+tray-icon = { version = "0.27", default-features = false, features = [
   "serde",
 ], optional = true }
 
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
-gtk = { version = "0.18", features = ["v3_24"], optional = true }
+gtk = { version = "0.19", features = ["v3_24"], optional = true }
 gtk4 = { package = "gtk4", version = "0.11.4", optional = true }
 
 # darwin
@@ -148,6 +142,9 @@ windows = { version = "0.62", features = [
   "Win32_Graphics_Gdi",
 ] }
 
+# mobile
+[target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
+heck = "0.5"
 # android
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
@@ -165,8 +162,11 @@ objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
 [build-dependencies]
 glob = "0.3"
 heck = "0.5"
-tauri-build = { workspace = true }
 tauri-utils = { workspace = true, features = ["build"] }
+
+# never built, only here so apps resolve a tauri-build version compatible with this tauri
+[target.'cfg(false)'.build-dependencies]
+tauri-build = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.6.0"
@@ -194,7 +194,8 @@ test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 gtk3 = ["dep:gtk", "muda/gtk3"]
 gtk4 = ["dep:gtk4", "muda/gtk4"]
-linux-libxdo = ["tray-icon?/muda-libxdo", "muda/libxdo"]
+# TODO: Remove in v3 - muda does not have this feature anymore
+linux-libxdo = []
 linux-libappindicator = ["tray-icon?/libappindicator"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
@@ -215,6 +216,7 @@ image-ico = ["image/ico"]
 image-png = ["image/png"]
 dynamic-acl = []
 specta = ["dep:specta"]
+url-pattern = ["tauri-utils/url-pattern", "tauri-macros/url-pattern"]
 
 [lints]
 workspace = true

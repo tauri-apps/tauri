@@ -2922,6 +2922,27 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     cb(Ok(()));
     Ok(())
   }
+
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn fetch_profile_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<std::path::PathBuf>,
+    cb: F,
+  ) -> Result<()> {
+    cb(Vec::new());
+    Ok(())
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios", windows))]
+  fn remove_profile<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    _data_directories: Vec<std::path::PathBuf>,
+    _profile_identifier: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    cb(Ok(()));
+    Ok(())
+  }
 }
 
 pub struct CefRuntime<T: UserEvent = tauri::EventLoopMessage> {

@@ -132,6 +132,9 @@ impl Target {
 pub struct TargetDevice {
   id: String,
   name: String,
+  /// Rust target triple of the device.
+  #[serde(default)]
+  target: String,
 }
 
 #[derive(Debug, Clone)]

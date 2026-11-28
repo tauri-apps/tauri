@@ -40,6 +40,8 @@ pub enum Runtime {
 pub struct LinuxDependency {
   /// The Debian package that provides the library.
   pub deb_package: &'static str,
+  /// The Arch Linux (pacman) package that provides the library.
+  pub pacman_package: &'static str,
   /// The library file name, as required by RPM packages.
   pub library: &'static str,
 }
@@ -60,16 +62,18 @@ impl Runtime {
   }
 
   /// The Linux shared libraries the application loads at run time,
-  /// to be declared as dependencies of the Debian and RPM packages.
+  /// to be declared as dependencies of the Debian, RPM and pacman packages.
   #[cfg(target_os = "linux")]
   pub fn linux_dependencies(self) -> &'static [LinuxDependency] {
     // `tauri` itself uses GTK on Linux, whatever the runtime
     const GTK: LinuxDependency = LinuxDependency {
       deb_package: "libgtk-3-0",
+      pacman_package: "gtk3",
       library: "libgtk-3.so.0",
     };
     const WEBKIT2GTK: LinuxDependency = LinuxDependency {
       deb_package: "libwebkit2gtk-4.1-0",
+      pacman_package: "webkit2gtk-4.1",
       library: "libwebkit2gtk-4.1.so.0",
     };
 

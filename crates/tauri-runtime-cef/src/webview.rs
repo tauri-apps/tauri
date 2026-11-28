@@ -171,7 +171,7 @@ fn color_to_argb(color: Color) -> u32 {
 /// - `allow_link_preview`: Chromium has no link previews, so there is nothing
 ///   to allow or forbid.
 ///
-/// `data_store_identifier` *is* served, as its own request context cache path,
+/// `profile_identifier` (and the deprecated `data_store_identifier`) *is* served, as its own request context cache path,
 /// the same way `data_directory` is (see `request_context`).
 ///
 /// `proxy_url` is handled separately via the request context preference,

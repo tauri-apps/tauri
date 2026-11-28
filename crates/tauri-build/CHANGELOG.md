@@ -77,6 +77,35 @@
 ### Breaking Changes
 
 - [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The CEF runtime is now detected through the `tauri-runtime-cef` dependency of the application (the `DEP_TAURI_RUNTIME_CEF_RUNTIME` env var it exports to the app's build script) instead of the removed `cef` feature of `tauri`.
+## [2.8.0]
+
+### New Features
+
+- [`223564748`](https://www.github.com/tauri-apps/tauri/commit/22356474821cb5bb40247c2c594376d1d9c5ff34) ([#16320](https://www.github.com/tauri-apps/tauri/pull/16320) by [@Fatin-Ishraq](https://www.github.com/tauri-apps/tauri/../../Fatin-Ishraq)) Link the Windows resource file, including the application manifest, into all targets of the package instead of only into binaries, so tests that link Tauri no longer fail with `STATUS_ENTRYPOINT_NOT_FOUND` on Windows.
+
+### What's Changed
+
+- [`8cbd4f200`](https://www.github.com/tauri-apps/tauri/commit/8cbd4f2001a40ee84c444fa94f3eca8f7d48b174) ([#16170](https://www.github.com/tauri-apps/tauri/pull/16170) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Set MSRV to 1.92.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.11.0`
+- Upgraded to `tauri-codegen@2.8.0`
+
+## [2.7.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.4`
+- Upgraded to `tauri-codegen@2.7.6`
+
+## [2.7.5]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.7.5`
+- Upgraded to `tauri-utils@2.10.3`
+
 ## [2.7.4]
 
 ### Bug Fixes

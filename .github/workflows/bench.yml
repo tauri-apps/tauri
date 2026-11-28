@@ -102,15 +102,24 @@ jobs:
 
       - name: push new benchmarks
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+        shell: bash
         run: |
           cargo run --manifest-path ./bench/Cargo.toml --bin build_benchmark_jsons
+
           cd gh-pages
-          git pull
+
           git config user.name "tauri-bot"
           git config user.email "tauri-bot@tauri.app"
+          git config pull.rebase merges
+
           git add .
           git commit --message "Update Tauri benchmarks"
-          git push origin gh-pages
+
+          # Retry 3 times in case we're colliding with other CI runs
+          for _ in {1..3}; do
+            git pull || exit $?
+            git push origin gh-pages && break
+          done
 
       - name: Print worker info
         # TODO: How to print this info on macOS and Windows

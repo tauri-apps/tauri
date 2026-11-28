@@ -101,6 +101,7 @@ mod commands {
   setter!(set_size_constraints, WindowSizeConstraints);
   setter!(set_theme, Option<Theme>);
   setter!(set_enabled, bool);
+  setter!(set_badge_count, Option<i64>);
 
   getter!(current_monitor, Option<Monitor>);
   getter!(primary_monitor, Option<Monitor>);
@@ -165,7 +166,6 @@ mod desktop_commands {
   setter!(start_dragging);
   setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
-  setter!(set_badge_count, Option<i64>);
   #[cfg(target_os = "macos")]
   setter!(set_badge_label, Option<String>);
   setter!(set_visible_on_all_workspaces, bool);
@@ -294,6 +294,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::set_enabled,
       commands::set_background_color,
       commands::set_theme,
+      commands::set_badge_count,
       commands::current_monitor,
       commands::primary_monitor,
       commands::monitor_from_point,
@@ -335,7 +336,6 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #[cfg(desktop)] desktop_commands::set_ignore_cursor_events,
       #[cfg(desktop)] desktop_commands::start_dragging,
       #[cfg(desktop)] desktop_commands::start_resize_dragging,
-      #[cfg(desktop)] desktop_commands::set_badge_count,
       #[cfg(target_os = "macos")]
       #[cfg(desktop)] desktop_commands::set_badge_label,
       #[cfg(desktop)] desktop_commands::set_progress_bar,

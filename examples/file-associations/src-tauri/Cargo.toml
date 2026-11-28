@@ -24,3 +24,5 @@ url = "2"
 default = ["wry"]
 cef = ["dep:tauri-runtime-cef"]
 wry = ["dep:tauri-runtime-wry"]
+[lints]
+workspace = true

@@ -25,7 +25,7 @@
 
 use tauri_utils::config::DebCompression;
 
-use super::freedesktop;
+use super::{freedesktop, gst_plugin};
 use crate::{
   Settings,
   bundle::settings::Arch,
@@ -83,8 +83,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let (data_dir, _) =
-    generate_data(settings, &package_dir).context("Failed to build data folders and files")?;
+  let (data_dir, _) = generate_data(settings, &package_dir, &settings.deb().desktop_template)
+    .context("Failed to build data folders and files")?;
+  generate_changelog_file(settings, &data_dir)
+    .with_context(|| "Failed to create changelog.gz file")?;
+  copy_gst_plugin(settings, &data_dir)
+    .with_context(|| "Failed to copy the asset GStreamer plugin")?;
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
     .context("Failed to copy custom files")?;
 
@@ -193,6 +197,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 pub fn generate_data(
   settings: &Settings,
   package_dir: &Path,
+  desktop_template: &Option<PathBuf>,
 ) -> crate::Result<(PathBuf, Vec<freedesktop::Icon>)> {
   // Generate data files.
   let data_dir = package_dir.join("data");
@@ -213,17 +218,14 @@ pub fn generate_data(
 
   let icons = freedesktop::copy_icon_files(settings, &data_dir)
     .with_context(|| "Failed to create icon files")?;
-  freedesktop::generate_desktop_file(settings, &settings.deb().desktop_template, &data_dir)
+  freedesktop::generate_desktop_file(settings, desktop_template, &data_dir)
     .with_context(|| "Failed to create desktop file")?;
-  generate_changelog_file(settings, &data_dir)
-    .with_context(|| "Failed to create changelog.gz file")?;
-
   Ok((data_dir, icons))
 }
 
 /// Generate the Changelog file by compressing, to be stored at /usr/share/doc/package-name/changelog.gz. See
 /// <https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes>
-fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+pub fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
     let product_name = settings.product_name();
@@ -412,6 +414,17 @@ fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()
   settings.copy_resources(&resource_dir)
 }
 
+/// Copies the `asset://` GStreamer plugin into its per-app directory in `data_dir`.
+pub fn copy_gst_plugin(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+  if let Some(plugin) = gst_plugin::download(settings)? {
+    let dest = data_dir
+      .join(gst_plugin::plugin_dir(settings.product_name()))
+      .join(gst_plugin::PLUGIN_FILE_NAME);
+    fs_utils::copy_file(&plugin, &dest)?;
+  }
+  Ok(())
+}
+
 /// Create an empty file at the given path, creating any parent directories as
 /// needed, then write `data` into the file.
 fn create_file_with_data<P: AsRef<Path>>(path: P, data: &str) -> crate::Result<()> {
@@ -477,7 +490,7 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 /// Creates a tar archive from the given directory (placing the new file within
 /// the given directory's parent directory), compressed with the given algorithm,
 /// and returns the path to the new file.
-fn tar_and_compress_dir<P: AsRef<Path>>(
+pub(crate) fn tar_and_compress_dir<P: AsRef<Path>>(
   src_dir: P,
   compression: DebCompression,
 ) -> crate::Result<PathBuf> {
@@ -496,12 +509,12 @@ fn tar_and_compress_dir<P: AsRef<Path>>(
   }
 
   let src_dir = src_dir.as_ref();
-  let dest_path = src_dir.with_extension(compression.ext());
+  let dest_path = src_dir.with_added_extension(compression.ext());
   let dest_file = fs_utils::create_file(&dest_path)?;
 
   let mut dest_file = match compression {
     DebCompression::Xz { .. } => {
-      let encoder = xz2::write::XzEncoder::new(dest_file, level as u32);
+      let encoder = liblzma::write::XzEncoder::new(dest_file, level as u32);
       let encoder = create_tar_from_dir(src_dir, encoder)?;
       encoder.finish()?
     }

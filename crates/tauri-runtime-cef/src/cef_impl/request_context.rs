@@ -333,7 +333,12 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
       global_cache_path,
       data_directory,
     ))
-  } else if let Some(identifier) = &webview_attributes.data_store_identifier {
+  } else if let Some(identifier) = webview_attributes
+    .profile_identifier
+    .as_ref()
+    .or(webview_attributes.data_store_identifier.as_ref())
+  {
+    // `profile_identifier`, or the deprecated `data_store_identifier` it replaces.
     // WKWebView's `WKWebsiteDataStore(forIdentifier:)` names a persistent store by UUID.
     // CEF's separate store is a separate request context cache path, so the identifier
     // names a profile directory under the root the way a relative `data_directory` does.

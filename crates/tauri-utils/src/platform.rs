@@ -304,6 +304,8 @@ fn external_bin_dir_from(exe_dir: &std::path::Path) -> &std::path::Path {
 ///   executable. Otherwise, resolves to `${exe_dir}/../lib/${package_info.name}` when that directory
 ///   exists, `${APPDIR}/usr/lib/${package_info.name}` inside an AppImage, or
 ///   `/usr/lib/${package_info.name}` for an installed package.
+/// - **FreeBSD:** Resolves to `${exe_dir}/../share/${package_info.name}` for an installed app.
+///   When running from a Cargo output directory, resolves to the executable directory.
 /// - **macOS:** Resolves to `${exe_dir}/../Resources` (inside .app).
 /// - **iOS:** Resolves to `${exe_dir}/assets`.
 /// - **Android:** Currently the resources are stored in the APK as assets so it's not a normal file system path,
@@ -383,6 +385,16 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
     };
   }
 
+  #[cfg(target_os = "freebsd")]
+  {
+    // FreeBSD packages install data below the same prefix as their bin directory.
+    res = exe_dir
+      .join("../share")
+      .join(&package_info.name)
+      .canonicalize()
+      .map_err(Into::into);
+  }
+
   #[cfg(target_os = "macos")]
   {
     res = exe_dir
@@ -455,6 +467,32 @@ mod tests {
   use std::path::PathBuf;
 
   use crate::{Env, PackageInfo};
+
+  #[test]
+  #[cfg(target_os = "freebsd")]
+  fn resolve_installed_freebsd_resource_dir() {
+    let prefix = tempfile::tempdir().unwrap();
+    let exe = prefix.path().join("bin/my-app");
+    let resources = prefix.path().join("share/MyApp");
+    std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(&resources).unwrap();
+    let package_info = PackageInfo {
+      name: "MyApp".into(),
+      version: "1.0.0".parse().unwrap(),
+      authors: "",
+      description: "",
+      crate_name: "my-app",
+    };
+    let env = Env::default();
+
+    assert_eq!(
+      super::resource_dir_from(&exe, &package_info, &env).unwrap(),
+      resources.canonicalize().unwrap()
+    );
+
+    std::fs::remove_dir(&resources).unwrap();
+    assert!(super::resource_dir_from(&exe, &package_info, &env).is_err());
+  }
 
   #[test]
   #[cfg(not(target_os = "android"))]

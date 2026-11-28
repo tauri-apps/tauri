@@ -9057,6 +9057,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-utils",
+ "tempfile",
  "walkdir",
 ]
 

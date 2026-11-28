@@ -1,0 +1,20 @@
+[package]
+name = "tauri_bench_micro"
+version = "0.1.0"
+description = "Scenarios of the Tauri core whose instructions are counted by the benchmark runner"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { workspace = true, features = ["test", "dynamic-acl"] }
+tauri-utils = { workspace = true, features = ["build", "isolation"] }
+
+[[bin]]
+name = "bench_micro"
+path = "src/main.rs"
+
+[lints]
+workspace = true

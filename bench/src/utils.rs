@@ -7,19 +7,18 @@
 //! This module provides helpers for:
 //! - Paths to project directories and targets
 //! - Running and collecting process outputs
-//! - Parsing memory profiler (`mprof`) and syscall profiler (`strace`) outputs
-//! - JSON read/write utilities
-//! - File download utilities (via `curl` or file copy)
+//! - Parsing syscall profiler (`strace`) outputs
+//! - JSON write utilities
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
-  collections::HashMap,
+  collections::{BTreeMap, HashMap},
   fs,
-  io::{BufRead, BufReader},
   path::{Path, PathBuf},
-  process::{Command, Output, Stdio},
+  process::{Command, ExitStatus, Output, Stdio},
+  time::{Duration, Instant},
 };
 
 /// Holds the results of a benchmark run.
@@ -27,12 +26,31 @@ use std::{
 pub struct BenchResult {
   pub created_at: String,
   pub sha1: String,
+  /// Wall clock time of a whole run of each app, in seconds (`mean`, `median`, `stddev`...).
   pub exec_time: HashMap<String, HashMap<String, f64>>,
+  /// What each app measured about itself, as the median of all runs.
+  /// Names ending in `_ms` are milliseconds, `startup_*_ms` are counted from the process spawn.
+  #[serde(default)]
+  pub metrics: HashMap<String, BTreeMap<String, f64>>,
   pub binary_size: HashMap<String, u64>,
   pub max_memory: HashMap<String, u64>,
   pub thread_count: HashMap<String, u64>,
   pub syscall_count: HashMap<String, u64>,
   pub cargo_deps: HashMap<String, usize>,
+  /// Instructions executed by each scenario of `bench/micro`, counted by callgrind (Linux only).
+  /// Unlike the timings these barely change between two runs of the same code.
+  #[serde(default)]
+  pub instructions: HashMap<String, u64>,
+  /// Size of the installers of the hello world app, in bytes.
+  #[serde(default)]
+  pub bundle_size: HashMap<String, u64>,
+  /// Time to build the hello world app, in seconds.
+  #[serde(default)]
+  pub build_time: HashMap<String, f64>,
+  /// What the results were measured with (compiler, runner image, CPU...),
+  /// to tell a change in Tauri apart from a change in the environment.
+  #[serde(default)]
+  pub environment: BTreeMap<String, String>,
 }
 
 /// Represents a single line of parsed `strace` output.
@@ -47,25 +65,14 @@ pub struct StraceOutput {
 
 /// Get the compilation target triple for the current platform.
 pub fn get_target() -> &'static str {
-  #[cfg(target_os = "macos")]
-  return if cfg!(target_arch = "aarch64") {
-    "aarch64-apple-darwin"
-  } else {
-    "x86_64-apple-darwin"
-  };
-
-  #[cfg(target_os = "ios")]
-  return if cfg!(target_arch = "aarch64") {
-    "aarch64-apple-ios"
-  } else {
-    "x86_64-apple-ios"
-  };
-
-  #[cfg(target_os = "linux")]
-  return "x86_64-unknown-linux-gnu";
-
-  #[cfg(target_os = "windows")]
-  return "x86_64-pc-windows-msvc";
+  match (std::env::consts::OS, std::env::consts::ARCH) {
+    ("macos", "aarch64") => "aarch64-apple-darwin",
+    ("macos", _) => "x86_64-apple-darwin",
+    ("windows", "aarch64") => "aarch64-pc-windows-msvc",
+    ("windows", _) => "x86_64-pc-windows-msvc",
+    (_, "aarch64") => "aarch64-unknown-linux-gnu",
+    _ => "x86_64-unknown-linux-gnu",
+  }
 }
 
 /// Get the `target/release` directory path for benchmarks.
@@ -80,19 +87,6 @@ pub fn target_dir() -> PathBuf {
 /// Get the root path of the current benchmark crate.
 pub fn bench_root_path() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
-/// Get the home directory of the current user.
-pub fn home_path() -> PathBuf {
-  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "linux"))]
-  {
-    PathBuf::from(std::env::var("HOME").unwrap_or_default())
-  }
-
-  #[cfg(target_os = "windows")]
-  {
-    PathBuf::from(std::env::var("USERPROFILE").unwrap_or_default())
-  }
 }
 
 /// Get the root path of the Tauri repository.
@@ -125,31 +119,6 @@ pub fn run_collect(cmd: &[&str]) -> Result<(String, String)> {
     String::from_utf8_lossy(&output.stdout).to_string(),
     String::from_utf8_lossy(&output.stderr).to_string(),
   ))
-}
-
-/// Parse a memory profiler (`mprof`) output file and return the maximum
-/// memory usage in bytes. Returns `None` if no values are found.
-pub fn parse_max_mem(file_path: &str) -> Result<Option<u64>> {
-  let file = fs::File::open(file_path)
-    .with_context(|| format!("failed to open mprof output file {file_path}"))?;
-  let output = BufReader::new(file);
-
-  let mut highest: u64 = 0;
-
-  for line in output.lines().map_while(Result::ok) {
-    let split: Vec<&str> = line.split(' ').collect();
-    if split.len() == 3 {
-      if let Ok(mb) = split[1].parse::<f64>() {
-        let current_bytes = (mb * 1024.0 * 1024.0) as u64;
-        highest = highest.max(current_bytes);
-      }
-    }
-  }
-
-  // Best-effort cleanup
-  let _ = fs::remove_file(file_path);
-
-  Ok(if highest > 0 { Some(highest) } else { None })
 }
 
 /// Parse the output of `strace -c` and return a summary of syscalls.
@@ -216,26 +185,32 @@ pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
   summary
 }
 
-/// Run a command and wait for completion.
-/// Returns an error if the command fails.
-pub fn run(cmd: &[&str]) -> Result<()> {
-  let status = Command::new(cmd[0])
-    .args(&cmd[1..])
-    .stdin(Stdio::piped())
-    .status()
-    .with_context(|| format!("failed to execute command: {cmd:?}"))?;
+/// Spawn a command and wait for it to exit, killing it when it runs for longer than `timeout`.
+///
+/// A benchmark app only exits when its frontend reports back through the IPC,
+/// so without a timeout a broken app hangs the whole job.
+pub fn wait_with_timeout(command: &mut Command, timeout: Duration) -> Result<ExitStatus> {
+  let mut child = command
+    .spawn()
+    .with_context(|| format!("failed to spawn {command:?}"))?;
+  let start = Instant::now();
 
-  if !status.success() {
-    bail!("Command {:?} exited with {:?}", cmd, status.code());
+  loop {
+    if let Some(status) = child
+      .try_wait()
+      .with_context(|| format!("failed to wait for {command:?}"))?
+    {
+      return Ok(status);
+    }
+
+    if start.elapsed() > timeout {
+      let _ = child.kill();
+      let _ = child.wait();
+      bail!("{command:?} did not exit within {timeout:?}");
+    }
+
+    std::thread::sleep(Duration::from_millis(20));
   }
-  Ok(())
-}
-
-/// Read a JSON file into a [`serde_json::Value`].
-pub fn read_json(filename: &str) -> Result<Value> {
-  let f =
-    fs::File::open(filename).with_context(|| format!("failed to open JSON file {filename}"))?;
-  Ok(serde_json::from_reader(f)?)
 }
 
 /// Write a [`serde_json::Value`] into a JSON file.
@@ -243,33 +218,5 @@ pub fn write_json(filename: &Path, value: &Value) -> Result<()> {
   let f = fs::File::create(filename)
     .with_context(|| format!("failed to create JSON file {}", filename.display()))?;
   serde_json::to_writer(f, value)?;
-  Ok(())
-}
-
-/// Download a file from either a local path or an HTTP/HTTPS URL.
-/// Falls back to copying the file if the URL does not start with http/https.
-pub fn download_file(url: &str, filename: PathBuf) -> Result<()> {
-  if !url.starts_with("http:") && !url.starts_with("https:") {
-    fs::copy(url, &filename).with_context(|| format!("failed to copy from {url}"))?;
-    return Ok(());
-  }
-
-  println!("Downloading {url}");
-  let status = Command::new("curl")
-    .arg("-L")
-    .arg("-s")
-    .arg("-o")
-    .arg(&filename)
-    .arg(url)
-    .status()
-    .with_context(|| format!("failed to execute curl for {url}"))?;
-
-  if !status.success() {
-    bail!("curl failed with exit code {:?}", status.code());
-  }
-  if !filename.exists() {
-    bail!("expected file {:?} to exist after download", filename);
-  }
-
   Ok(())
 }

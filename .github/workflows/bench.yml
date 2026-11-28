@@ -18,10 +18,17 @@ env:
   RUST_BACKTRACE: 1
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
   LC_ALL: en_US.UTF-8 # This prevents strace from changing its number format to use commas.
+  # Pinned so a new compiler does not show up as a binary size or performance change of a Tauri commit.
+  # Bump it deliberately, in a pull request of its own.
+  BENCH_TOOLCHAIN: nightly-2026-11-25
+  # Branch of tauri-apps/benchmark_results the results are pushed to.
+  BENCH_RESULTS_BRANCH: v2
 
+# Every commit on dev gets its own data point: a run is never cancelled or replaced by a newer push,
+# otherwise a regression can only be narrowed down to a range of commits.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 permissions:
   contents: read
@@ -31,66 +38,88 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: [nightly]
         platform:
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              runner: 'xvfb-run --auto-servernum '
+              runner: 'xvfb-run --auto-servernum ',
+              # valgrind only runs on Linux
+              args: ' --instructions'
             }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest, runner: '' }
+          - {
+              target: x86_64-pc-windows-msvc,
+              os: windows-latest,
+              runner: '',
+              ext: '.exe'
+            }
           - { target: aarch64-apple-darwin, os: macos-latest, runner: '' }
 
     runs-on: ${{ matrix.platform.os }}
+    # the apps, the clean builds that are timed and the CLI that bundles the installers
+    # are all built without a cache
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: install Rust ${{ matrix.rust }}
+      - name: install Rust ${{ env.BENCH_TOOLCHAIN }}
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: ${{ env.BENCH_TOOLCHAIN }}
           components: rust-src
           targets: ${{ matrix.platform.target }}
 
-      - name: install webkit2gtk and xvfb (ubuntu only)
+      - name: install webkit2gtk, xvfb, strace and valgrind (ubuntu only)
         if: contains(matrix.platform.target, 'gnu')
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             webkit2gtk-4.1 libayatana-appindicator3-dev \
             xvfb \
-            at-spi2-core
-
-      - name: Setup python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: install memory_profiler
-        run: |
-          python -m pip install --upgrade pip
-          pip install memory_profiler
-
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.19.1
-
-      - name: Install hyperfine
-        run: cargo binstall hyperfine@1.20 --no-confirm
+            at-spi2-core \
+            strace valgrind
 
       # No rust-cache on purpose: this job only runs on `dev`, its target dir does not fit the
       # repository's 10 GB cache limit next to the entries pull requests restore, and an entry
       # evicted before the next push only costs upload time.
-      - name: build benchmark binaries
+
+      # built first: the regular build below overwrites the binary
+      - name: build hello world without the default features of tauri
+        shell: bash
         env:
           RUSTFLAGS: '-Zunstable-options -Cpanic=immediate-abort'
         run: |
-          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/cpu_intensive/src-tauri/Cargo.toml
-          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/files_transfer/src-tauri/Cargo.toml
-          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml
+          cargo +${{ env.BENCH_TOOLCHAIN }} build --release \
+            -Z build-std=std,panic_abort -Z build-std-features= \
+            --target ${{ matrix.platform.target }} \
+            -p bench_helloworld --no-default-features --features prod
+          cd target/${{ matrix.platform.target }}/release
+          cp bench_helloworld${{ matrix.platform.ext }} bench_helloworld_minimal${{ matrix.platform.ext }}
+
+      - name: build benchmark binaries
+        env:
+          RUSTFLAGS: '-Zunstable-options -Cpanic=immediate-abort'
+        run: >
+          cargo +${{ env.BENCH_TOOLCHAIN }} build --release
+          -Z build-std=std,panic_abort -Z build-std-features=
+          --target ${{ matrix.platform.target }}
+          -p bench_helloworld -p bench_cpu_intensive -p bench_ipc -p bench_assets
+          --features bench_helloworld/prod,bench_cpu_intensive/prod,bench_ipc/prod,bench_assets/prod
 
       - name: run benchmarks
-        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark
+        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark -- --build-time --bundle${{ matrix.platform.args }}
+
+      # The results are published to a branch of their own instead of `gh-pages`, which feeds the
+      # public page: the page does not know the new metrics yet, and some of the existing ones
+      # changed meaning. The first run creates the branch from `gh-pages`, history included.
+      - name: find the results branch
+        id: results
+        if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/tauri-apps/benchmark_results "$BENCH_RESULTS_BRANCH" > /dev/null; then
+            echo "ref=$BENCH_RESULTS_BRANCH" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
@@ -99,6 +128,8 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           path: gh-pages
           repository: tauri-apps/benchmark_results
+          # empty (the default branch) until the results branch exists
+          ref: ${{ steps.results.outputs.ref }}
 
       - name: push new benchmarks
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
@@ -112,18 +143,14 @@ jobs:
           git config user.email "tauri-bot@tauri.app"
           git config pull.rebase merges
 
+          git checkout -B "$BENCH_RESULTS_BRANCH"
           git add .
           git commit --message "Update Tauri benchmarks"
 
           # Retry 3 times in case we're colliding with other CI runs
           for _ in {1..3}; do
-            git pull || exit $?
-            git push origin gh-pages && break
+            if git ls-remote --exit-code --heads origin "$BENCH_RESULTS_BRANCH" > /dev/null; then
+              git pull origin "$BENCH_RESULTS_BRANCH" || exit $?
+            fi
+            git push origin "$BENCH_RESULTS_BRANCH" && break
           done
-
-      - name: Print worker info
-        # TODO: How to print this info on macOS and Windows
-        if: contains(matrix.platform.target, 'gnu')
-        run: |
-          cat /proc/cpuinfo
-          cat /proc/meminfo

@@ -1,0 +1,12 @@
+[package]
+name = "bench_common"
+version = "0.1.0"
+description = "Metric reporting shared by the benchmark apps and the benchmark runner"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+
+# keep this dependency free: it is linked into the apps whose size is measured
+
+[lints]
+workspace = true

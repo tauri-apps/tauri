@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../crates/tauri-schema-generator/schemas/config.schema.json",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.tauri.bench.helloworld",
   "build": {
     "frontendDist": "../public",
     "beforeDevCommand": "",

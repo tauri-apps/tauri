@@ -11,9 +11,16 @@ tauri-build = { workspace = true, default-features = true, features = [
 ] }
 
 [dependencies]
-serde_json = "1"
-serde = { version = "1", features = ["derive"] }
-tauri = { workspace = true, default-features = true }
+bench_common = { path = "../../common" }
+tauri = { workspace = true, features = ["wry"] }
+
+[features]
+# Production mode, which is what the benchmarks measure. It is a feature so the apps do not
+# turn off `cfg(dev)` for every crate when the whole workspace is built or analyzed.
+prod = ["tauri/custom-protocol"]
+# The runner also measures the size of this app built with `--no-default-features`,
+# which tells how much the default features of tauri cost.
+default = ["tauri/default"]
 
 [lints]
 workspace = true

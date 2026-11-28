@@ -102,8 +102,13 @@ pub fn generate_desktop_file(
 ) -> crate::Result<(PathBuf, PathBuf)> {
   let bin_name = settings.main_binary_name()?;
 
-  let product_name = settings.product_name();
-  let desktop_file_name = format!("{product_name}.desktop");
+  // The desktop file must be named after the app id the window reports to the
+  // session (`StartupWMClass` on X11, `app_id` on Wayland, which defaults to
+  // the binary name) so environments can match windows back to this file:
+  // KDE resolves the Wayland window icon by comparing the app_id to the
+  // desktop file name, and the lookup is exact, so a file named after the
+  // product name e.g. "My App.desktop" never matches the app id "my-app".
+  let desktop_file_name = format!("{bin_name}.desktop");
   let path = PathBuf::from("usr/share/applications").join(desktop_file_name);
   let dest_path = PathBuf::from("/").join(&path);
   let file_path = data_dir.join(&path);
@@ -210,10 +215,10 @@ mod tests {
   use crate::bundle::{BundleBinary, BundleSettings, PackageSettings, SettingsBuilder};
   use tauri_utils::config::{AssociationExt, DeepLinkProtocol, FileAssociation};
 
-  fn render(
+  fn build_settings(
     deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
     file_associations: Option<Vec<FileAssociation>>,
-  ) -> String {
+  ) -> (tempfile::TempDir, Settings) {
     let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
     let settings = SettingsBuilder::new()
       .project_out_directory(tmp_dir.path())
@@ -234,10 +239,35 @@ mod tests {
       .target("x86_64-unknown-linux-gnu".into())
       .build()
       .expect("failed to build settings");
+    (tmp_dir, settings)
+  }
+
+  fn render(
+    deep_link_protocols: Option<Vec<DeepLinkProtocol>>,
+    file_associations: Option<Vec<FileAssociation>>,
+  ) -> String {
+    let (tmp_dir, settings) = build_settings(deep_link_protocols, file_associations);
 
     let (path, _) =
       generate_desktop_file(&settings, &None, tmp_dir.path()).expect("failed to generate");
     std::fs::read_to_string(path).expect("failed to read desktop file")
+  }
+
+  #[test]
+  fn desktop_file_is_named_after_the_main_binary() {
+    let (tmp_dir, settings) = build_settings(None, None);
+    let (path, dest) =
+      generate_desktop_file(&settings, &None, tmp_dir.path()).expect("failed to generate");
+    assert!(
+      path.ends_with("usr/share/applications/test-app.desktop"),
+      "unexpected desktop file name: {}",
+      path.display()
+    );
+    assert!(
+      dest.ends_with("/usr/share/applications/test-app.desktop"),
+      "unexpected desktop file destination: {}",
+      dest.display()
+    );
   }
 
   fn deep_link() -> Vec<DeepLinkProtocol> {

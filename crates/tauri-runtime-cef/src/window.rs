@@ -1279,8 +1279,16 @@ impl<T: UserEvent> WinitCefApp<T> {
         #[cfg(windows)]
         appwindow.set_overlay_icon(_icon);
       }
-      WindowMessage::StartDragging => _ = window.drag_window(),
+      WindowMessage::StartDragging => {
+        #[cfg(target_os = "linux")]
+        appwindow.drag_window();
+        #[cfg(not(target_os = "linux"))]
+        let _ = window.drag_window();
+      }
       WindowMessage::StartResizeDragging(direction) => {
+        #[cfg(target_os = "linux")]
+        appwindow.drag_resize_window(tauri_resize_direction_to_winit(direction));
+        #[cfg(not(target_os = "linux"))]
         let _ = window.drag_resize_window(tauri_resize_direction_to_winit(direction));
       }
       WindowMessage::SetSizeConstraints(constraints) => {

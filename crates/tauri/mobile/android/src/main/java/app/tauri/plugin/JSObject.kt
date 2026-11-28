@@ -4,9 +4,13 @@
 
 package app.tauri.plugin
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import org.json.JSONException
 import org.json.JSONObject
 
+@JsonSerialize(using = JSObjectSerializer::class)
+@JsonDeserialize(using = JSObjectDeserializer::class)
 class JSObject : JSONObject {
   constructor() : super()
   constructor(json: String) : super(json)

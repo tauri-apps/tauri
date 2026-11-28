@@ -4,9 +4,13 @@
 
 package app.tauri.plugin
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import org.json.JSONArray
 import org.json.JSONException
 
+@JsonSerialize(using = JSArraySerializer::class)
+@JsonDeserialize(using = JSArrayDeserializer::class)
 class JSArray : JSONArray {
   constructor() : super() {}
   constructor(json: String?) : super(json) {}

@@ -82,9 +82,9 @@ object PluginManager {
     }, jsonMapper)
     jsonMapper
       .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
-      // Without it, the mapper's field visibility serializes an org.json value through
-      // its private fields: a `JSArray` as `{"values":[...]}` and a `JSObject` as
-      // `{"nameValuePairs":{...}}`.
+      // Without it, the mapper's field visibility serializes a plain org.json value through
+      // its private fields: a `JSONArray` as `{"values":[...]}` and a `JSONObject` as
+      // `{"nameValuePairs":{...}}`. `JSObject` and `JSArray` carry their own (de)serializers.
       .registerModule(JsonOrgModule())
   }
 

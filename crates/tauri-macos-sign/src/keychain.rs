@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  ffi::OsString,
+  ffi::{OsStr, OsString},
+  io::Write,
   path::{Path, PathBuf},
-  process::Command,
+  process::{Command, Stdio},
 };
 
 use crate::{CommandExt, Error, Result, assert_command};
@@ -274,6 +275,9 @@ impl CertificateFormat {
 ///
 /// The format is passed explicitly because `security` fails to infer it for
 /// p12 files using PBES2/AES encryption (the OpenSSL 3 default).
+///
+/// The command is written to the stdin of `security -i` instead of being passed
+/// as arguments, so the certificate password does not show up in the process list.
 fn import_certificate(
   cert_path: &Path,
   certificate_password: &OsString,
@@ -286,38 +290,97 @@ fn import_certificate(
   })?;
   let format = CertificateFormat::detect(&contents);
 
-  assert_command(
-    Command::new("security")
-      .arg("import")
-      .arg(cert_path)
-      .args(["-f", format.security_format(), "-t", "agg"])
-      .arg("-P")
-      .arg(certificate_password)
-      .args([
+  let command_failed = |error| Error::CommandFailed {
+    command: format!("security import -f {}", format.security_format()),
+    error,
+  };
+
+  let mut command_line = b"import".to_vec();
+  for arg in [cert_path.as_os_str()]
+    .into_iter()
+    .chain(["-f", format.security_format(), "-t", "agg", "-P"].map(OsStr::new))
+    .chain([certificate_password.as_os_str()])
+    .chain(
+      [
         "-T",
         "/usr/bin/codesign",
         "-T",
         "/usr/bin/pkgbuild",
         "-T",
         "/usr/bin/productbuild",
-      ])
-      .arg("-k")
-      .arg(keychain_path)
-      .piped(),
+        "-k",
+      ]
+      .map(OsStr::new),
+    )
+    .chain([keychain_path.as_os_str()])
+  {
+    command_line.push(b' ');
+    command_line.extend(quote_interactive_arg(arg).map_err(command_failed)?);
+  }
+  command_line.push(b'\n');
+
+  log::debug!(action = "Running"; "Command `security -i` with `security import` on stdin");
+  let mut child = Command::new("security")
+    .arg("-i")
+    .stdin(Stdio::piped())
+    .stdout(os_pipe::dup_stdout().map_err(command_failed)?)
+    .stderr(os_pipe::dup_stderr().map_err(command_failed)?)
+    .spawn()
+    .map_err(command_failed)?;
+  let write_result = child
+    .stdin
+    .take()
+    .expect("stdin is piped")
+    .write_all(&command_line);
+  let status = child.wait();
+  write_result.map_err(command_failed)?;
+
+  assert_command(
+    status,
     &format!(
       "failed to import the signing certificate as {}; the certificate must be a PKCS#12 (.p12) file or a PEM bundle containing both the certificate and its private key, and the password must match the one used to export it",
       format.description()
     ),
   )
-  .map_err(|error| Error::CommandFailed {
-    command: format!("security import -f {}", format.security_format()),
-    error,
-  })
+  .map_err(command_failed)
+}
+
+/// Quotes an argument for the `security -i` command parser,
+/// which splits on whitespace and supports `"` quoting with `\` escapes.
+fn quote_interactive_arg(arg: &OsStr) -> std::io::Result<Vec<u8>> {
+  let bytes = arg.as_encoded_bytes();
+  if bytes.iter().any(|b| matches!(b, b'\n' | b'\r')) {
+    return Err(std::io::Error::new(
+      std::io::ErrorKind::InvalidInput,
+      "certificate path, password and keychain path must not contain line breaks",
+    ));
+  }
+
+  let mut quoted = Vec::with_capacity(bytes.len() + 2);
+  quoted.push(b'"');
+  for &b in bytes {
+    if matches!(b, b'"' | b'\\') {
+      quoted.push(b'\\');
+    }
+    quoted.push(b);
+  }
+  quoted.push(b'"');
+  Ok(quoted)
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn quotes_interactive_args() {
+    assert_eq!(
+      quote_interactive_arg(OsStr::new(r#"p a"s\s'x"#)).unwrap(),
+      br#""p a\"s\\s'x""#
+    );
+    assert_eq!(quote_interactive_arg(OsStr::new("")).unwrap(), b"\"\"");
+    assert!(quote_interactive_arg(OsStr::new("a\nimport")).is_err());
+  }
 
   #[test]
   fn detects_certificate_format() {
@@ -364,18 +427,25 @@ mod tests {
   #[cfg(target_os = "macos")]
   mod import {
     use super::super::*;
+    use crate::certificate::{
+      CertificateProfile, SelfSignedCertificateRequest, generate_self_signed,
+    };
 
     const PASSWORD: &str = "tauri";
 
     /// Temporary keychain that is not added to the user's search list.
     struct TempKeychain {
-      _dir: tempfile::TempDir,
+      dir: tempfile::TempDir,
       path: PathBuf,
     }
 
     impl TempKeychain {
       fn new() -> Self {
-        let dir = tempfile::tempdir().unwrap();
+        // includes a space to exercise quoting
+        let dir = tempfile::Builder::new()
+          .prefix("tauri sign")
+          .tempdir()
+          .unwrap();
         let path = dir.path().join("test.keychain-db");
         let status = Command::new("security")
           .args(["create-keychain", "-p", "test"])
@@ -383,7 +453,7 @@ mod tests {
           .status()
           .unwrap();
         assert!(status.success(), "failed to create test keychain");
-        Self { _dir: dir, path }
+        Self { dir, path }
       }
     }
 
@@ -402,30 +472,61 @@ mod tests {
         .join(name)
     }
 
-    fn import(name: &str, password: &str) -> Result<()> {
+    fn import_fixture(name: &str, password: &str) -> Result<()> {
       let keychain = TempKeychain::new();
       import_certificate(&fixture(name), &password.into(), &keychain.path)
+    }
+
+    fn import_self_signed(password: &str, import_password: &str) -> Result<TempKeychain> {
+      let keychain = TempKeychain::new();
+      let cert_path = keychain.dir.path().join("cert.p12");
+      let p12 = generate_self_signed(SelfSignedCertificateRequest {
+        algorithm: "rsa".into(),
+        profile: CertificateProfile::AppleDevelopment,
+        team_id: "TAURITEST".into(),
+        person_name: "Tauri Test".into(),
+        country_name: "US".into(),
+        validity_days: 1,
+        password: password.into(),
+      })?;
+      std::fs::write(&cert_path, p12).unwrap();
+      import_certificate(&cert_path, &import_password.into(), &keychain.path)?;
+      Ok(keychain)
     }
 
     // regression test for https://github.com/tauri-apps/tauri/issues/15843
     #[test]
     fn imports_pbes2_p12() {
-      import("pbes2.p12", PASSWORD).unwrap();
+      import_fixture("pbes2.p12", PASSWORD).unwrap();
     }
 
     #[test]
     fn imports_legacy_p12() {
-      import("legacy.p12", PASSWORD).unwrap();
+      import_fixture("legacy.p12", PASSWORD).unwrap();
     }
 
     #[test]
     fn imports_pem_bundle() {
-      import("bundle.pem", PASSWORD).unwrap();
+      import_fixture("bundle.pem", PASSWORD).unwrap();
+    }
+
+    #[test]
+    fn imports_with_password_needing_quotes() {
+      let password = r#"p a"s\s'x -k /tmp/other"#;
+      let keychain = import_self_signed(password, password).unwrap();
+      let output = Command::new("security")
+        .args(["find-certificate", "-c", "Tauri Test"])
+        .arg(&keychain.path)
+        .output()
+        .unwrap();
+      assert!(output.status.success(), "certificate was not imported");
     }
 
     #[test]
     fn wrong_password_error_explains_requirements() {
-      let error = import("pbes2.p12", "wrong").unwrap_err().to_string();
+      let error = import_fixture("pbes2.p12", "wrong")
+        .unwrap_err()
+        .to_string();
       assert!(error.contains("security import -f pkcs12"), "{error}");
       assert!(error.contains("password must match"), "{error}");
     }

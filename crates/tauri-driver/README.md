@@ -17,11 +17,15 @@ Supported platforms:
 
 - Linux via `WebKitWebDriver`
 - Windows via [Microsoft Edge Driver]
-- **[Todo]** macOS via [Appium Mac2 Driver] (probably)
+- macOS: **scaffold only** — see [MACOS_DRIVER_DESIGN.md](./MACOS_DRIVER_DESIGN.md)
+  and [#7068](https://github.com/tauri-apps/tauri/issues/7068). Running
+  `tauri-driver` on macOS today exits with a pointer to that document; no
+  WebDriver session will be created.
 
-_note: the (probably) items haven't been proof-of-concept'd yet, and if it is
-not possible to use the listed native webdriver, then a custom implementation
-will be used that wraps around [wry]._
+_note: macOS does not currently have a first-party WebDriver implementation
+for `WKWebView`. The design doc walks through the candidate approaches
+(`safaridriver`, `appium-mac2-driver`, a `wry`-side bridge) and what the
+scaffold does and does not do._
 
 ## Installation
 
@@ -39,6 +43,5 @@ including a small example application with WebDriver tests.
 [WebDriver Intermediary Node]: https://www.w3.org/TR/webdriver/#dfn-intermediary-nodes
 [WebDriver Remote Ends]: https://www.w3.org/TR/webdriver/#dfn-remote-ends
 [Microsoft Edge Driver]: https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
-[Appium Mac2 Driver]: https://github.com/appium/appium-mac2-driver
 [wry]: https://github.com/tauri-apps/wry
 [Tauri]: https://github.com/tauri-apps/tauri

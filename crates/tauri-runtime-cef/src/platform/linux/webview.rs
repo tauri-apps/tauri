@@ -133,7 +133,9 @@ impl AppWebview {
           std::ptr::null(),
           0,
         );
-        (xlib.XMapWindow)(display, xid);
+        // Mapping alone leaves the browser beneath any sibling CEF raised while
+        // it was hidden. Restore its visible layer without changing input focus.
+        (xlib.XMapRaised)(display, xid);
       } else {
         let hidden: [c_ulong; 1] = [atom(xlib, display, "_NET_WM_STATE_HIDDEN")];
         (xlib.XChangeProperty)(

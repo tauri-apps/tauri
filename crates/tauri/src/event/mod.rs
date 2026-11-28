@@ -191,18 +191,13 @@ pub(crate) fn listen_js_script(
   )
 }
 
-pub(crate) fn emit_js_script(
-  event_emit_function_name: &str,
-  emit_args: &EmitArgs,
-  serialized_ids: &str,
-) -> crate::Result<String> {
-  Ok(format!(
-    "(function () {{ const fn = window['{}']; fn && fn({{event: '{}', payload: {}}}, {ids}) }})()",
-    event_emit_function_name,
-    emit_args.event,
-    emit_args.payload,
-    ids = serialized_ids,
-  ))
+/// Script that tells the page to fetch the events queued for it.
+///
+/// It does not contain any event data, so it is the same every time.
+///
+/// The page fetches one batch at a time, so events are dispatched in the order they were emitted.
+pub(crate) fn notify_js_script(event_emit_function_name: &str) -> String {
+  format!("(function () {{ const fn = window['{event_emit_function_name}']; fn && fn() }})()")
 }
 
 pub(crate) fn unlisten_js_script(
@@ -225,11 +220,16 @@ pub(crate) fn unlisten_js_script(
 }
 
 pub(crate) fn event_initialization_script(function_name: &str, listeners: &str) -> String {
+  // starts with `;` because this is appended to another script and a `(` would otherwise be parsed as a call
   format!(
-    "Object.defineProperty(window, '{function_name}', {{
-      value: function (eventData, ids) {{
-        const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
-        for (const id of ids) {{
+    ";(function () {{
+      let fetching = false
+      let fetchAgain = false
+
+      function dispatch(item) {{
+        const eventData = {{ event: item.event, payload: item.payload }}
+        const listeners = (window['{listeners}'] && window['{listeners}'][item.event]) || []
+        for (const id of item.ids) {{
           const listener = listeners[id]
           if (listener) {{
             eventData.id = id
@@ -237,14 +237,40 @@ pub(crate) fn event_initialization_script(function_name: &str, listeners: &str) 
           }}
         }}
       }}
-    }});
-  "
+
+      function fetchEvents() {{
+        if (fetching) {{
+          fetchAgain = true
+          return
+        }}
+        fetching = true
+        window.__TAURI_INTERNALS__
+          .invoke('{fetch_command}', null, {{ headers: {{ '{queue_header}': '1' }} }})
+          .then((items) => {{
+            for (const item of items) dispatch(item)
+          }})
+          .catch(console.error)
+          .finally(() => {{
+            fetching = false
+            if (fetchAgain) {{
+              fetchAgain = false
+              fetchEvents()
+            }}
+          }})
+      }}
+
+      Object.defineProperty(window, '{function_name}', {{ value: fetchEvents }})
+    }})();
+  ",
+    fetch_command = crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
+    queue_header = crate::ipc::channel::EVENT_QUEUE_HEADER_NAME,
   )
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+
   #[test]
   fn test_illegal_event_name() {
     let s = EventName::new("some\r illegal event name")

@@ -302,10 +302,10 @@ importers:
         specifier: ^4.0.1
         version: 4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       appium-uiautomator2-driver:
-        specifier: ^10.1.0
+        specifier: ^10.4.0
         version: 10.4.0(@types/node@26.6.6)(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       appium-xcuitest-driver:
-        specifier: ^13.7.0
+        specifier: ^13.8.0
         version: 13.8.0(@types/node@26.6.6)(appium@4.0.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))
       cross-env:
         specifier: ^10.1.0

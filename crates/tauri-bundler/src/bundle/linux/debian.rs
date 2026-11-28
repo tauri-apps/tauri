@@ -98,26 +98,29 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Dealing with rpath or LD_LIBRARY_PATH is annoying so we'll somewhat follow the approach of spotify(cef) and electron apps and move the binary out of /usr/bin for now.
   // This still requires adding $ORIGIN to RUNPATH, which we currently do in tauri-build.
   if let Some(cef_path) = settings.webview_runtime().cef_distribution() {
-    let share_dir = data_dir.join("usr/share").join(settings.product_name());
-    fs::create_dir_all(&share_dir)?;
-
-    // TODO: we may have to copy all binaries.
-    let main_bin = settings
+    // Move the main binary and every sidecar beside it. `sidecar()` looks
+    // for sidecars next to the resolved executable, so a sidecar left in
+    // /usr/bin is never found once the main binary lives in /usr/share.
+    // Only the binaries we bundled move: custom `deb.files` under /usr/bin
+    // stay where the user put them.
+    let mut bin_names = settings
       .binaries()
       .iter()
-      .find(|b| b.main())
-      .expect("one main binary should always exist")
-      .name();
+      .map(|bin| bin.name().to_string())
+      .collect::<Vec<_>>();
+    for src in settings.external_binaries() {
+      let src = src?;
+      bin_names.push(
+        src
+          .file_name()
+          .expect("failed to extract external binary filename")
+          .to_string_lossy()
+          .replace(&format!("-{}", settings.target()), ""),
+      );
+    }
+    move_binaries_to_share_dir(&data_dir, settings.product_name(), &bin_names)?;
 
-    fs::rename(
-      data_dir.join("usr/bin").join(main_bin),
-      share_dir.join(main_bin),
-    )?;
-
-    symlink(
-      format!("../share/{}/{main_bin}", settings.product_name()),
-      data_dir.join("usr/bin").join(main_bin),
-    )?;
+    let share_dir = data_dir.join("usr/share").join(settings.product_name());
 
     let cef_files = [
       // required
@@ -191,6 +194,32 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   )
   .with_context(|| "Failed to create package archive")?;
   Ok(vec![package_path])
+}
+
+/// Moves the given binaries (the main binary, any extra binaries and external
+/// binaries) from `usr/bin` beside the main binary under `usr/share/<product>/`,
+/// leaving a symlink in `usr/bin` for each one.
+///
+/// CEF apps run from `/usr/share/<product>/` (the main binary is symlinked
+/// from `/usr/bin`), and `tauri-plugin-shell`'s `sidecar()` looks for sidecars
+/// beside the resolved executable, so a sidecar left in `/usr/bin` is never
+/// found. See https://github.com/tauri-apps/tauri/issues/16577
+fn move_binaries_to_share_dir(
+  data_dir: &Path,
+  product_name: &str,
+  bin_names: &[String],
+) -> crate::Result<()> {
+  let bin_dir = data_dir.join("usr/bin");
+  let share_dir = data_dir.join("usr/share").join(product_name);
+  fs::create_dir_all(&share_dir)?;
+
+  for name in bin_names {
+    let path = bin_dir.join(name);
+    fs::rename(&path, share_dir.join(name))
+      .fs_context("failed to move binary to the share directory", path.clone())?;
+    symlink(format!("../share/{product_name}/{name}"), path)?;
+  }
+  Ok(())
 }
 
 /// Generate the debian data folders and files.
@@ -550,4 +579,48 @@ fn create_archive(srcs: Vec<PathBuf>, dest: &Path) -> crate::Result<()> {
   }
   builder.into_inner()?.flush()?;
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::move_binaries_to_share_dir;
+  use std::fs;
+
+  #[test]
+  fn cef_sidecars_move_beside_main_binary() {
+    let temp = tempfile::tempdir().unwrap();
+    let data_dir = temp.path();
+    let bin_dir = data_dir.join("usr/bin");
+    fs::create_dir_all(&bin_dir).unwrap();
+    fs::write(bin_dir.join("my-app"), b"fake main binary").unwrap();
+    fs::write(bin_dir.join("my-sidecar"), b"fake sidecar").unwrap();
+    // a custom `deb.files` entry under /usr/bin
+    fs::write(bin_dir.join("my-wrapper"), b"#!/bin/sh").unwrap();
+
+    move_binaries_to_share_dir(
+      data_dir,
+      "my-app",
+      &["my-app".to_string(), "my-sidecar".to_string()],
+    )
+    .unwrap();
+
+    let share_dir = data_dir.join("usr/share/my-app");
+    assert!(share_dir.join("my-app").is_file());
+    assert!(share_dir.join("my-sidecar").is_file());
+    let wrapper = bin_dir.join("my-wrapper");
+    assert!(
+      wrapper.is_file() && !wrapper.is_symlink(),
+      "custom files in /usr/bin must stay in place"
+    );
+    assert!(!share_dir.join("my-wrapper").exists());
+    for name in ["my-app", "my-sidecar"] {
+      let link = bin_dir.join(name);
+      assert!(link.is_symlink(), "{name} should be a symlink in /usr/bin");
+      assert_eq!(
+        fs::read_link(&link).unwrap().to_string_lossy(),
+        "../share/my-app/".to_string() + name
+      );
+      assert!(link.exists(), "symlink {name} should resolve");
+    }
+  }
 }

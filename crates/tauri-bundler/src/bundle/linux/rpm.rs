@@ -182,7 +182,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     let src = settings.binary_path(bin);
     let dest = Path::new("/usr/bin").join(bin.name());
     // This may cause issues when you try to submit the app to the distro repos but this is how apps like spotify do it as well (in .deb)
-    if settings.webview_runtime().cef_distribution().is_some() && bin.main() {
+    if settings.webview_runtime().cef_distribution().is_some() {
       let cef_bin_dest = Path::new("/usr/share")
         .join(settings.product_name())
         .join(bin.name());
@@ -202,14 +202,30 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Add external binaries
   for src in settings.external_binaries() {
     let src = src?;
-    let dest = Path::new("/usr/bin").join(
-      src
-        .file_name()
-        .expect("failed to extract external binary filename")
-        .to_string_lossy()
-        .replace(&format!("-{}", settings.target()), ""),
-    );
-    builder.with_file(&src, FileOptions::new(dest.to_string_lossy()))?;
+    let name = src
+      .file_name()
+      .expect("failed to extract external binary filename")
+      .to_string_lossy()
+      .replace(&format!("-{}", settings.target()), "");
+    let dest = Path::new("/usr/bin").join(&name);
+    // With CEF the main binary runs from /usr/share/<product>/, and
+    // sidecar() looks for sidecars beside it, so external binaries go there
+    // too (with a symlink left in /usr/bin), matching the deb layout.
+    if settings.webview_runtime().cef_distribution().is_some() {
+      let cef_bin_dest = Path::new("/usr/share")
+        .join(settings.product_name())
+        .join(&name);
+      builder.with_file(&src, FileOptions::new(cef_bin_dest.to_string_lossy()))?;
+      builder.with_symlink(
+        FileOptions::symlink(
+          dest.to_string_lossy(),
+          cef_bin_dest.to_string_lossy().replace("/usr", ".."),
+        )
+        .mode(0o120555),
+      )?;
+    } else {
+      builder.with_file(&src, FileOptions::new(dest.to_string_lossy()))?;
+    }
   }
 
   // Add scripts

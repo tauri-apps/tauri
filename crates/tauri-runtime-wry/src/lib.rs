@@ -5031,7 +5031,22 @@ You may have it installed on another user account, but it is not available for t
     }
   };
 
-  let mut webview_builder = WebViewBuilder::new_with_web_context(&mut web_context.inner)
+  // On Linux wry gives an incognito webview a new ephemeral web context of its own; handing it this
+  // shared one only makes wry refuse the custom protocols already registered on it.
+  let incognito_on_linux = webview_attributes.incognito
+    && cfg!(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ));
+  let webview_builder = if incognito_on_linux {
+    WebViewBuilder::new()
+  } else {
+    WebViewBuilder::new_with_web_context(&mut web_context.inner)
+  };
+  let mut webview_builder = webview_builder
     .with_id(&label)
     .with_focused(webview_attributes.focus)
     .with_transparent(webview_attributes.transparent)
@@ -5458,13 +5473,17 @@ You may have it installed on another user account, but it is not available for t
       target_os = "openbsd"
     ))]
     {
-      if web_context.registered_custom_protocols.contains(&scheme) {
-        continue;
-      }
+      // wry gives an incognito webview a new ephemeral web context instead of this one, so the
+      // protocols already registered on this context must be registered on that one too.
+      if !incognito_on_linux {
+        if web_context.registered_custom_protocols.contains(&scheme) {
+          continue;
+        }
 
-      web_context
-        .registered_custom_protocols
-        .insert(scheme.clone());
+        web_context
+          .registered_custom_protocols
+          .insert(scheme.clone());
+      }
     }
 
     webview_builder = webview_builder.with_asynchronous_custom_protocol(

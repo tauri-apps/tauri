@@ -2013,10 +2013,7 @@ impl<T: UserEvent> WinitCefApp<T> {
   ) {
     match message {
       EventLoopMessage::SetTheme(theme) => {
-        *self.context.app_wide_theme.lock().unwrap() = theme;
-        for appwindow in self.state.windows.values_mut() {
-          appwindow.set_theme(theme);
-        }
+        self.set_application_theme(event_loop, theme);
       }
       EventLoopMessage::PrimaryMonitor(tx) => {
         let monitor = event_loop
@@ -2058,6 +2055,23 @@ impl<T: UserEvent> WinitCefApp<T> {
       EventLoopMessage::ShowApplication => event_loop.show_application(),
       #[cfg(target_os = "macos")]
       EventLoopMessage::HideApplication => event_loop.hide_application(),
+    }
+  }
+
+  pub(crate) fn set_application_theme(
+    &mut self,
+    event_loop: &dyn ActiveEventLoop,
+    theme: Option<Theme>,
+  ) {
+    *self.context.app_wide_theme.lock().unwrap() = theme;
+    // Set the application appearance so AppKit UI follows the selected theme.
+    // Clear it for None to follow the system appearance.
+    #[cfg(target_os = "macos")]
+    event_loop.set_application_theme(theme);
+    #[cfg(not(target_os = "macos"))]
+    let _ = event_loop;
+    for appwindow in self.state.windows.values_mut() {
+      appwindow.set_theme(theme);
     }
   }
 

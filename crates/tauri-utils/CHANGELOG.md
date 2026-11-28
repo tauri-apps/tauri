@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0-alpha.5]
+
+### What's Changed
+
+- [``](https://www.github.com/tauri-apps/tauri/commit/undefined) Pulled latest Tauri v2.13 changes.
+- [`3197cd652`](https://www.github.com/tauri-apps/tauri/commit/3197cd6529cadcc907d79880013f0c6894118c84) ([#16641](https://www.github.com/tauri-apps/tauri/pull/16641) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Renamed `html2` module to `html`.
+
+### Dependencies
+
+- [`b0988c62b`](https://www.github.com/tauri-apps/tauri/commit/b0988c62bf7289d3225b3114dd513298aad2da77) ([#16628](https://www.github.com/tauri-apps/tauri/pull/16628) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Removed kuchiki/kuchikiki and html5ever based `html-manipulation` and `build` feature flags. dom_query based `build-2` and `html-manipulation-2` were renamed to `build` and `html-manipulation`.
+
 ## [3.0.0-alpha.4]
 
 ### New Features

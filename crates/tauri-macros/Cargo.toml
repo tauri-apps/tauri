@@ -1,6 +1,6 @@
 [package]
 name = "tauri-macros"
-version = "3.0.0-alpha.4"
+version = "3.0.0-alpha.5"
 description = "Macros for the tauri crate."
 exclude = ["CHANGELOG.md", "/target"]
 authors.workspace = true

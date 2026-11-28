@@ -17,9 +17,9 @@
  * @module
  */
 
-import { addPluginListener, invoke, PluginListener } from './core'
-import { Image } from './image'
-import { Theme } from './window'
+import { addPluginListener, invoke, PluginListener } from './core.js'
+import { Image } from './image.js'
+import { Theme } from './window.js'
 
 /**
  * Identifier type used for data stores on macOS and iOS.

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { Channel, invoke, Resource } from '../core'
-import { transformImage } from '../image'
-import { CheckMenuItemOptions } from './checkMenuItem'
-import { IconMenuItemOptions } from './iconMenuItem'
-import { MenuOptions } from './menu'
-import { MenuItemOptions } from './menuItem'
-import { PredefinedMenuItemOptions } from './predefinedMenuItem'
-import { SubmenuOptions } from './submenu'
+import { Channel, invoke, Resource } from '../core.js'
+import { transformImage } from '../image.js'
+import { CheckMenuItemOptions } from './checkMenuItem.js'
+import { IconMenuItemOptions } from './iconMenuItem.js'
+import { MenuOptions } from './menu.js'
+import { MenuItemOptions } from './menuItem.js'
+import { PredefinedMenuItemOptions } from './predefinedMenuItem.js'
+import { SubmenuOptions } from './submenu.js'
 
 /**
  * The kind of a menu item, used internally to route IPC calls to the right

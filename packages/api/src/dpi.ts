@@ -27,7 +27,7 @@
  * @module
  */
 
-import { SERIALIZE_TO_IPC_FN } from './core'
+import { SERIALIZE_TO_IPC_FN } from './core.js'
 
 // Match Rust's `f64::round()` behavior: halfway values round away from zero.
 function roundToPixel(value: number): number {

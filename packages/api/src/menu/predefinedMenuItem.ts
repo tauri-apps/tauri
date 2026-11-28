@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { MenuItemBase, newMenu } from './base'
-import { invoke } from '../core'
-import type { JsImage } from '../image'
+import { MenuItemBase, newMenu } from './base.js'
+import { invoke } from '../core.js'
+import type { JsImage } from '../image.js'
 
 /** A metadata for the about predefined menu item. */
 export interface AboutMetadata {

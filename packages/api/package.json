@@ -52,6 +52,7 @@
     "@types/node": "^26.0.0",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-n": "^18.5.0",
     "eslint-plugin-security": "4.2.1",
     "globals": "^17.4.0",
     "rollup": "4.68.8",

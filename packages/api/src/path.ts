@@ -27,7 +27,7 @@
  * @module
  */
 
-import { invoke } from './core'
+import { invoke } from './core.js'
 
 /**
  * @since 2.0.0

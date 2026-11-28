@@ -18,11 +18,11 @@
  * @module
  */
 
-import type { Menu, Submenu } from './menu'
-import { Channel, invoke, Resource } from './core'
-import { type JsImage, transformImage } from './image'
-import type { NativeIcon } from './menu/iconMenuItem'
-import { PhysicalPosition, PhysicalSize } from './dpi'
+import type { Menu, Submenu } from './menu.js'
+import { Channel, invoke, Resource } from './core.js'
+import { type JsImage, transformImage } from './image.js'
+import type { NativeIcon } from './menu/iconMenuItem.js'
+import { PhysicalPosition, PhysicalSize } from './dpi.js'
 
 /** Whether the mouse button was pressed (`Down`) or released (`Up`). */
 export type MouseButtonState = 'Up' | 'Down'

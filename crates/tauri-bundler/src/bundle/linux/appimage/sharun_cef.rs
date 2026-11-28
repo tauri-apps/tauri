@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  env,
+  ffi::OsString,
   fs,
   io::Read,
   path::{Path, PathBuf},
@@ -19,6 +21,21 @@ use crate::{
 };
 
 use super::write_and_make_executable;
+
+const SHARUN_TOOLS: &str = "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/3e280d1b2270fecfcb2c2c823b490c782ecf1277/useful-tools";
+
+fn configure_sharun_sources(cmd: &mut Command, lookup: impl Fn(&str) -> Option<OsString>) {
+  cmd.env("HOOKSRC", format!("{SHARUN_TOOLS}/hooks"));
+  for (key, file) in [
+    ("ANYLINUX_LIB_SOURCE", "anylinux.c"),
+    ("GTK_CLASS_FIX_SOURCE", "gtk-class-fix.c"),
+  ] {
+    let source = lookup(key)
+      .filter(|value| !value.is_empty())
+      .unwrap_or_else(|| format!("{SHARUN_TOOLS}/lib/{file}").into());
+    cmd.env(key, source);
+  }
+}
 
 // TODO: Test if bundling xdg-mime makes sense (eg does it even work if it's not on the host system?)
 // TODO: Monitor TLS support / certificates - seems to be working in initial tests
@@ -64,9 +81,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // TODO: offline build support
   // github doesn't send a Last-Modified header
   // if !quick_sharun.exists() {}
-  let data = download(
-    "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
-  )?;
+  let data = download(&format!("{SHARUN_TOOLS}/quick-sharun.sh"))?;
   write_and_make_executable(&quick_sharun, &data)?;
 
   // This should come after the download or users will think it's stuck on the download step.
@@ -216,9 +231,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .env("MAIN_BIN", app_dir_bin.join(settings.main_binary()?.name()))
     .env("OUTPUT_APPIMAGE", "1")
     .env("OUTNAME", &appimage_filename)
-    .env("HOOKSRC", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/hooks")
     .env("DEPLOY_CHROMIUM", "1")
     .env("ADD_HOOKS", "fix-namespaces.hook");
+  configure_sharun_sources(&mut cmd, |key| env::var_os(key));
 
   // quick-sharun's strace mode runs the app for a few seconds and deploys every
   // library it sees loaded. On a shared runtime that means the CEF distribution
@@ -249,4 +264,53 @@ fn is_elf(path: &Path) -> bool {
     return buf == [0x7f, b'E', b'L', b'F'];
   }
   false
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::ffi::OsStr;
+
+  #[test]
+  fn sharun_uses_sources_from_the_pinned_tools_revision() {
+    let mut cmd = Command::new("/bin/sh");
+    configure_sharun_sources(&mut cmd, |_| None);
+
+    for (key, path) in [
+      ("HOOKSRC", "hooks"),
+      ("ANYLINUX_LIB_SOURCE", "lib/anylinux.c"),
+      ("GTK_CLASS_FIX_SOURCE", "lib/gtk-class-fix.c"),
+    ] {
+      let expected = format!("{SHARUN_TOOLS}/{path}");
+      assert!(
+        cmd
+          .get_envs()
+          .any(|(name, value)| name == key && value == Some(OsStr::new(&expected)))
+      );
+    }
+  }
+
+  #[test]
+  fn sharun_preserves_nonempty_source_overrides() {
+    let mut cmd = Command::new("/bin/sh");
+    let override_url = "https://example.com/anylinux.c";
+    configure_sharun_sources(&mut cmd, |key| {
+      Some(if key == "ANYLINUX_LIB_SOURCE" {
+        override_url.into()
+      } else {
+        OsString::new()
+      })
+    });
+
+    let default_gtk_source = format!("{SHARUN_TOOLS}/lib/gtk-class-fix.c");
+    let vars: std::collections::HashMap<_, _> = cmd.get_envs().collect();
+    assert_eq!(
+      vars[OsStr::new("ANYLINUX_LIB_SOURCE")],
+      Some(OsStr::new(override_url))
+    );
+    assert_eq!(
+      vars[OsStr::new("GTK_CLASS_FIX_SOURCE")],
+      Some(OsStr::new(&default_gtk_source))
+    );
+  }
 }

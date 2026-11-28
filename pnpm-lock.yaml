@@ -323,8 +323,8 @@ importers:
   packages/cli:
     devDependencies:
       '@napi-rs/cli':
-        specifier: 3.10.12
-        version: 3.10.12(@emnapi/core@2.0.0-beta.3)(@emnapi/runtime@2.0.0-beta.3)(@types/node@26.6.6)(supports-color@10.2.2)
+        specifier: 3.11.1
+        version: 3.11.1(@emnapi/core@2.0.0-beta.3)(@emnapi/runtime@2.0.0-beta.3)(@types/node@26.6.6)(supports-color@10.2.2)
       '@types/node':
         specifier: ^26.0.0
         version: 26.6.6
@@ -1097,8 +1097,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@napi-rs/cli@3.10.12':
-    resolution: {integrity: sha512-8QDEW10Ld/uAemSP9g5WFIcmKh7I6PMA78ttc2UtZb+6cyAsX7RkVt2H5B658j7504R2JRE6JHs+b0WERHc+4w==}
+  '@napi-rs/cli@3.11.1':
+    resolution: {integrity: sha512-OGgD7qK01x5/YXHvOadEhgIsCHxw87WMnE7cPMvHAgStsCZJS+hVOu8KtWXj+vBeVwH/Ufi0S1jUD+Djqn3r+w==}
     engines: {node: ^20.17.0 || ^22.13.0 || >= 23.5.0}
     hasBin: true
     peerDependencies:
@@ -5310,7 +5310,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@napi-rs/cli@3.10.12(@emnapi/core@2.0.0-beta.3)(@emnapi/runtime@2.0.0-beta.3)(@types/node@26.6.6)(supports-color@10.2.2)':
+  '@napi-rs/cli@3.11.1(@emnapi/core@2.0.0-beta.3)(@emnapi/runtime@2.0.0-beta.3)(@types/node@26.6.6)(supports-color@10.2.2)':
     dependencies:
       '@inquirer/prompts': 8.7.5(@types/node@26.6.6)
       '@napi-rs/cross-toolchain': 1.0.5(supports-color@10.2.2)
